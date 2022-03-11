@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta http-equiv="Cache-control" content="no-cache">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="">
+  <meta name="author" content="">
+  <title>%APhostname%</title>
+  <script src="required.js" type="text/javascript"></script>
+  <link href="required.css" rel="stylesheet">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <style>
+  </style>
+</head>
+
+<!-- Here starts the body of the page -->
+<!-- start() will be called once the page has loaded-->
+<body>
+
+<!-- EVSE Control Container -->
+<div class="container" id="evseContent" style="display: block">
+  <div class="header clearfix">
+    <nav>
+      <ul class="nav pull-right" style="padding:10px">
+        <span class="text-muted" style="font-size:30px;cursor:pointer" onclick="openNav()">&#9776;</span>
+      </ul>
+      <h3 class="text-muted" align=center>%APhostname%</h3>
+    </nav>
+  </div>
+  <div class id="carStatusReady" align=center>
+    <img id="statusImg" src="grid-house-car.svg" width="70%%">
+  </div>
+  <div>
+    <br>
+    <p id="evse_vehicle_state" class="text-center"></p>
+    <br>
+  </div>
+  <div class="panel panel-default table-responsive">
+    <table class="table table-hover">
+      <tbody style="transition:0.5s">
+
+        <tr style="transition:0.3s">
+          <th><span class="glyphicon glyphicon-info-sign"></span>&nbsp;&nbsp;State:</th>
+          <td id="StateEVSE" class="text-right">%StateEVSE%</td>
+        </tr>
+        <tr style="transition:0.3s">
+          <th><span class="glyphicon glyphicon-cog"></span>&nbsp;&nbsp;Charge Current:</th>
+          <td id="ChargeCurrent" class="text-right">%ChargeCurrent%&nbsp;A</td>
+        </tr>
+        <tr id="trErrorEVSE" style="display: none" style="transition:0.3s">
+          <th><span class="glyphicon glyphicon-exclamation-sign"></span>&nbsp;&nbsp;Error:</th>
+          <td id="ErrorEVSE" class="text-right">%ErrorEVSE%</td>
+        </tr>        
+        <tr style="transition:0.3s">
+          <th><span class="glyphicon glyphicon-fire"></span>&nbsp;&nbsp;Temperature:</th>
+          <td id="TempEVSE" class="text-right">%TempEVSE%&#8451;</td>
+        </tr>
+        <tr id="trResetReason" style="display: none" style="transition:0.3s">
+          <th><span class="glyphicon glyphicon-info-sign"></span>&nbsp;&nbsp;Reset Reason:</th>
+          <td id="ResetReason" class="text-right">%ResetReason%</td>
+        </tr>
+        <tr style="transition:0.3s">
+          <th><span class="glyphicon glyphicon-flash"></span>&nbsp;&nbsp;L1:</th>
+          <td id="IrmsL1" class="text-right">%IrmsL1%&nbsp;A</td>
+        </tr>
+        <tr style="transition:0.3s">
+          <th><span class="glyphicon glyphicon-flash"></span>&nbsp;&nbsp;L2:</th>
+          <td id="IrmsL2" class="text-right">%IrmsL2%&nbsp;A</td>
+        </tr>
+        <tr style="transition:0.3s">
+          <th><span class="glyphicon glyphicon-flash"></span>&nbsp;&nbsp;L3:</th>
+          <td id="IrmsL3" class="text-right">%IrmsL3%&nbsp;A</td>
+        </tr>        
+               
+      </tbody>
+    </table>
+  </div>
+    
+</div>
+
+<div class="container" id="slog"><br>
+</div>
+
+
+<script language="javascript" type="text/javascript">
+
+  var output
+  var button
+  var canvas
+  var context
+  var Irms1,Irms2,Irms3,Vrms1,Vrms2,Vrms3
+  var Power
+  var target
+  var State
+  
+  // This is called when the page finishes loading
+  function init() {
+
+    // Connect to WebSocket server
+    wsConnect('ws://'+document.location.host+'/ws');
+  }
+
+
+  // Call this to connect to the WebSocket server
+  function wsConnect(url) {
+
+      // Connect to WebSocket server
+      websocket = new WebSocket(url);
+      // Assign callbacks
+      websocket.onopen = function(evt) { onOpen(evt) };
+      websocket.onclose = function(evt) { onClose(evt) };
+      websocket.onmessage = function(evt) { onMessage(evt) };
+      websocket.onerror = function(evt) { onError(evt) };
+  }
+
+  // Called when a WebSocket connection is established with the server
+  function onOpen(evt) {
+
+      // Log connection state
+      console.log("Connected");
+  }
+
+  // Called when the WebSocket connection is closed
+  function onClose(evt) {
+
+      // Log disconnection state
+      console.log("Disconnected");
+
+      // Try to reconnect after a few seconds
+      setTimeout(function() { wsConnect('ws://'+document.location.host+'/ws') }, 2000);
+  }
+
+  // Called when a message is received from the server
+  function onMessage(evt) {
+
+      // Print out our received message
+      console.log("Received: " + evt.data);
+
+      if (evt.data[0] == "I") {
+        var Irms = evt.data.split(":")[1];
+        Irms1 = Irms.split(",")[0];
+        Irms2 = Irms.split(",")[1];
+        Irms3 = Irms.split(",")[2];
+        IrmsL1.innerHTML = Irms1 + "&nbsp;A";
+        IrmsL2.innerHTML = Irms2 + "&nbsp;A";
+        IrmsL3.innerHTML = Irms3 + "&nbsp;A";
+      }
+      if (evt.data[0] == "V") {
+        var Vrms = evt.data.split(":")[1];
+        Vrms1 = Vrms.split(",")[0];
+        Vrms2 = Vrms.split(",")[1];
+        Vrms3 = Vrms.split(",")[2];
+      
+        Power = Math.round((Vrms1 * Irms1) + (Vrms2 * Irms2) + (Vrms3 * Irms3));
+
+        if (Power < 0 ) document.getElementById("powerw").style.color = "green";
+        else document.getElementById("powerw").style.color = "orange";
+        powerw.innerHTML = Power;
+      }
+      // log debug messagews from EVSE to browser window
+      // debug messages start with '#', so we filter for that
+      if (evt.data[0] == "#") {
+        document.getElementById('slog').innerText += evt.data.split("#")[1];
+      }
+      // Internal temperature of the EVSE
+      if (evt.data[0] == "T") {
+        var Temperature = evt.data.split(":")[1];
+        document.getElementById("TempEVSE").innerHTML = Temperature + "&#8451;";
+      }
+      if (evt.data[0] == "S") {
+        State = evt.data.split(":")[1];
+        document.getElementById("StateEVSE").innerText = State;
+      }
+      if (evt.data[0] == "E") {
+        var ErrorEVSE = evt.data.split(":")[1];
+        if (ErrorEVSE == "None") document.getElementById("trErrorEVSE").style.display='none';
+        else document.getElementById("trErrorEVSE").style.display='';
+        document.getElementById("ErrorEVSE").innerText = ErrorEVSE;
+      }
+      if (evt.data[0] == "C") {
+        var ChargeCurrent = evt.data.split(":")[1];
+        if (State != "Charging") ChargeCurrent = "0.0";
+        document.getElementById("ChargeCurrent").innerHTML = ChargeCurrent + "&nbsp;A";
+      }
+      if (evt.data[0] == "R") {
+        var ResetReason = evt.data.split(":")[1];
+        document.getElementById("ResetReason").innerText = ResetReason;
+      }
+
+
+  }
+
+  // Called when a WebSocket error occurs
+  function onError(evt) {
+      console.log("ERROR: " + evt.data);
+  }
+
+  // Sends a message to the server (and prints it to the console)
+  function doSend(message) {
+      console.log("Sending: " + message);
+      websocket.send(message);
+  }
+
+// Call the init function as soon as the page loads
+  window.addEventListener("load", init, false);
+</script>
+
+
+</body>
+</html>
