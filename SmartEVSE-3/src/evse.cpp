@@ -211,6 +211,9 @@ char str[20];
 int avgsamples = 0;
 bool LocalTimeSet = false;
 
+int homeBatteryCharge = 0;
+int homeBatteryLastUpdate = 0; // Time in milliseconds
+
 struct EMstruct EMConfig[EM_CUSTOM + 1] = {
     /* DESC,      ENDIANNESS,      FCT, DATATYPE,            U_REG,DIV, I_REG,DIV, P_REG,DIV, E_REG,DIV */
     {"Disabled",  ENDIANESS_LBF_LWF, 0, MB_DATATYPE_INT32,        0, 0,      0, 0,      0, 0,      0, 0}, // First entry!
@@ -607,6 +610,29 @@ void setAccess(bool Access) {
     }
 }
 
+/**
+ * Returns the known battery charge rate if the data is not too old.
+ * Returns 0 if data is too old.
+ * A positive number means charging, a negative number means discharging --> this means the inverse must be used for calculations
+ * 
+ * Example:
+ * homeBatteryCharge == 1000 --> Battery is charging using Solar
+ * P1 = -500 --> Solar injection to the net but nut sufficient for charging
+ * 
+ * If the P1 value is added with the inverse battery charge it will inform the EVSE logic there is enough Solar --> -500 + -1000 = -1500
+ * 
+ * Note: The user who is posting battery charge data should take this into account, meaning: if he wants a minimum home battery (dis)charge rate he should substract this from the value he is sending.
+ */
+// 
+int getBatteryCharge(void) {
+    int currentTime = time(NULL) - (1 * 60 * 1000); // The data should not be older than 1 minute
+    
+    if (homeBatteryLastUpdate > (currentTime)) {
+        return homeBatteryCharge;
+    } else {
+        return 0;
+    }
+}
 
 
 // Is there at least 6A(configurable MinCurrent) available for a EVSE?
@@ -617,6 +643,7 @@ char IsCurrentAvailable(void) {
     uint8_t n, ActiveEVSE = 0;
     int Baseload, TotalCurrent = 0;
 
+    TotalCurrent = getBatteryCharge();
 
     for (n = 0; n < NR_EVSES; n++) if (BalancedState[n] == STATE_C)             // must be in STATE_C
     {
@@ -1423,13 +1450,14 @@ const char * getMenuItemOption(uint8_t nav) {
 
 /**
  * Update current data after received current measurement
+ * PR-Home-Battery
  */
 void UpdateCurrentData(void) {
     uint8_t x;
     char Str[128];
+    Imeasured = getBatteryCharge();
 
     // reset Imeasured value (grid power used)
-    Imeasured = 0;
     for (x=0; x<3; x++) {
         // Imeasured holds highest Irms of all channels
         if (Irms[x] > Imeasured) Imeasured = Irms[x];
@@ -2734,7 +2762,6 @@ void StartwebServer(void) {
         request->send(response);
     });
     
- 
     webServer.on("/update", HTTP_GET, [](AsyncWebServerRequest *request) {
         request->send(200, "text/html", "spiffs.bin updates the SPIFFS partition<br>firmware.bin updates the main firmware<br><form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>");
     });
@@ -2785,6 +2812,29 @@ void StartwebServer(void) {
             }
         }
     });
+
+
+    
+    /**
+     * BATTERY CHARGE ENDPOINTS
+     */
+    webServer.on("/battery-charge", HTTP_GET, [](AsyncWebServerRequest *request) {
+        String charge = String(homeBatteryCharge);
+        String lastUpdate = String(homeBatteryLastUpdate);
+        request->send(200, "text/html", "Last know battery charge :: " + charge + " @ " + lastUpdate);
+    });
+
+    webServer.on("/battery-charge", HTTP_POST, [](AsyncWebServerRequest *request) {
+        request->send(200, "text/plain", "OK");
+    },[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
+        if(request->hasParam("charge_rate")) {
+            String value = request->getParam("charge_rate", true)->value();
+            homeBatteryCharge = value.toInt();
+            homeBatteryLastUpdate = time(NULL);
+        }
+    });
+
+
 
     // attach filesystem root at URL /
     webServer.serveStatic("/", SPIFFS, "/");
