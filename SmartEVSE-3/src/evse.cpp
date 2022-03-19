@@ -211,7 +211,7 @@ char str[20];
 int avgsamples = 0;
 bool LocalTimeSet = false;
 
-int homeBatteryCharge = 0;
+int homeBatteryCurrent = 0;
 int homeBatteryLastUpdate = 0; // Time in milliseconds
 
 struct EMstruct EMConfig[EM_CUSTOM + 1] = {
@@ -624,11 +624,11 @@ void setAccess(bool Access) {
  * Note: The user who is posting battery charge data should take this into account, meaning: if he wants a minimum home battery (dis)charge rate he should substract this from the value he is sending.
  */
 // 
-int getBatteryCharge(void) {
+int getBatteryCurrent(void) {
     int currentTime = time(NULL) - (1 * 60 * 1000); // The data should not be older than 1 minute
     
     if (homeBatteryLastUpdate > (currentTime)) {
-        return homeBatteryCharge;
+        return homeBatteryCurrent;
     } else {
         return 0;
     }
@@ -643,7 +643,7 @@ char IsCurrentAvailable(void) {
     uint8_t n, ActiveEVSE = 0;
     int Baseload, TotalCurrent = 0;
 
-    TotalCurrent = getBatteryCharge();
+    TotalCurrent = getBatteryCurrent();
 
     for (n = 0; n < NR_EVSES; n++) if (BalancedState[n] == STATE_C)             // must be in STATE_C
     {
@@ -1455,7 +1455,7 @@ const char * getMenuItemOption(uint8_t nav) {
 void UpdateCurrentData(void) {
     uint8_t x;
     char Str[128];
-    Imeasured = getBatteryCharge();
+    Imeasured = 0;
 
     // reset Imeasured value (grid power used)
     for (x=0; x<3; x++) {
@@ -1463,6 +1463,7 @@ void UpdateCurrentData(void) {
         if (Irms[x] > Imeasured) Imeasured = Irms[x];
     }
 
+    Imeasured += getBatteryCurrent();
 
     // Load Balancing mode: Smart/Master or Disabled
     if (Mode && LoadBl < 2) {
@@ -2818,18 +2819,18 @@ void StartwebServer(void) {
     /**
      * BATTERY CHARGE ENDPOINTS
      */
-    webServer.on("/battery-charge", HTTP_GET, [](AsyncWebServerRequest *request) {
-        String charge = String(homeBatteryCharge);
+    webServer.on("/battery-current", HTTP_GET, [](AsyncWebServerRequest *request) {
+        String charge = String(homeBatteryCurrent);
         String lastUpdate = String(homeBatteryLastUpdate);
-        request->send(200, "text/html", "Last know battery charge :: " + charge + " @ " + lastUpdate);
+        request->send(200, "text/html", "Last know battery current :: " + charge + " @ " + lastUpdate);
     });
 
-    webServer.on("/battery-charge", HTTP_POST, [](AsyncWebServerRequest *request) {
+    webServer.on("/battery-current", HTTP_POST, [](AsyncWebServerRequest *request) {
         request->send(200, "text/plain", "OK");
     },[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
-        if(request->hasParam("charge_rate")) {
-            String value = request->getParam("charge_rate", true)->value();
-            homeBatteryCharge = value.toInt();
+        if(request->hasParam("current")) {
+            String value = request->getParam("current", true)->value();
+            homeBatteryCurrent = value.toInt();
             homeBatteryLastUpdate = time(NULL);
         }
     });
