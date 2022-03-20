@@ -1449,7 +1449,6 @@ const char * getMenuItemOption(uint8_t nav) {
 
 /**
  * Update current data after received current measurement
- * PR-Home-Battery
  */
 void UpdateCurrentData(void) {
     uint8_t x;
