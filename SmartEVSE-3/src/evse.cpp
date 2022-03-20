@@ -211,6 +211,7 @@ char str[20];
 int avgsamples = 0;
 bool LocalTimeSet = false;
 
+String debugMessage;
 int homeBatteryCurrent = 0;
 int homeBatteryLastUpdate = 0; // Time in milliseconds
 
@@ -398,7 +399,6 @@ void BlinkLed(void * parameter) {
 // Set Charge Current 
 // Current in Amps * 10 (160 = 16A)
 void SetCurrent(uint16_t current) {
-
     uint32_t DutyCycle;
 
     if ((current >= 60) && (current <= 510)) DutyCycle = current / 0.6;
@@ -2225,11 +2225,15 @@ ModbusMessage MBMainsMeterResponse(ModbusMessage request) {
         Isum = 0; 
         int batteryPerPhase = getBatteryCurrent() / 3; // Divide the battery current per phase to spread evenly
         
+        debugMessage = "";
+
         for (x = 0; x < 3; x++) {
             // Calculate difference of Mains and PV electric meter
             if (PVMeter) CM[x] = CM[x] - PV[x];             // CurrentMeter and PV values are MILLI AMPERE
             Irms[x] = (signed int)(CM[x] / 100);            // Convert to AMPERE * 10
-            Irms[x] -= batteryPerPhase;                     // Substract the battery charge rate to "neutralize" the battery. Example: -10A (dis)charge means P1 would need to give 10A to compensate:: P1 - -10 = P1 + 10
+            debugMessage += "Before: " + String(Irms[x]);
+            Irms[x] -= batteryPerPhase;           
+            debugMessage += ", After: " + String(Irms[x]) + " - ";          // Substract the battery charge rate to "neutralize" the battery. Example: -10A (dis)charge means P1 would need to give 10A to compensate:: P1 - -10 = P1 + 10
             Isum = Isum + Irms[x];                          // Convert to AMPERE * 10
         }
     }
@@ -2816,50 +2820,64 @@ void StartwebServer(void) {
 
 
     
-    /**
-     * BATTERY CHARGE ENDPOINTS
-     */
-    webServer.on("/battery-current", HTTP_GET, [](AsyncWebServerRequest *request) {
-        String current = String(homeBatteryCurrent);
-        String lastUpdate = String(homeBatteryLastUpdate);
-        request->send(200, "application/json", "{ \"current\": " + current + " , \"last_update\": " + lastUpdate + " }");
-    });
-
-    webServer.on("/battery-current", HTTP_POST, [](AsyncWebServerRequest *request) {
-        request->send(200, "application/json", "{ \"result\": \"OK\" }");
-    },[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
-        if(request->hasParam("current")) {
-            String value = request->getParam("current", true)->value();
-            homeBatteryCurrent = value.toInt();
-            homeBatteryLastUpdate = time(NULL);
-        }
-    });
 
 
-    /**
-     * CHANGE SETTINGS
-     */
+    
     webServer.on("/settings", HTTP_GET, [](AsyncWebServerRequest *request) {
         String mode = "N/A";
 
         if(Access_bit == 0) 
-            mode = "0";
+            mode = "0_OFF";
         else {
             switch(Mode) {
-                case MODE_NORMAL: mode = "1"; break;
-                case MODE_SOLAR: mode = "2"; break;
-                case MODE_SMART: mode = "3"; break;
+                case MODE_NORMAL: mode = "1_NORMAL"; break;
+                case MODE_SOLAR: mode = "2_SOLAR"; break;
+                case MODE_SMART: mode = "3_SMART"; break;
             }
         }
 
-        request->send(200, "application/json", "{ \"mode\": " + mode + " }");
+        request->send(200, "application/json", "{ \"debug\": \"" + debugMessage + "\""
+        + " ,\"mode\": \"" + mode + "\""
+        + " ,\"access\": " + String(Access_bit) 
+        + " ,\"evse_mode\": " + String(Mode) 
+
+        + " , \"charge_current\": " + String((float)Balanced[0]/10)
+        + " ,\"current_min\": " + String(MinCurrent) 
+        + " ,\"current_max\": " + String(MaxCurrent) 
+        + " ,\"current_main\": " + String(MaxMains) 
+        + " ,\"solar_max_import\": " + String(ImportCurrent) 
+        + " ,\"solar_start_current\": " + String(StartCurrent) 
+        + " ,\"solar_stop_time\": " + String(StopTime) 
+
+
+        + " ,\"temp\": " + String(TempEVSE) 
+        + " ,\"battery_current\": " + homeBatteryCurrent 
+        + " ,\"battery_last_update\": " + homeBatteryLastUpdate 
+        + " , \"L1\": " + String((float)Irms[0]/10)
+        + " , \"L2\": " + String((float)Irms[1]/10)
+        + " , \"L3\": " + String((float)Irms[2]/10) 
+        + " }");
     });
 
+
     webServer.on("/settings", HTTP_POST, [](AsyncWebServerRequest *request) {
-        request->send(200, "application/json", "{ \"result\": \"OK\" }");
-    },[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
+        String log = "";
+
+        if(request->hasParam("battery_current")) {
+            String value = request->getParam("battery_current")->value();
+            homeBatteryCurrent = value.toInt();
+            homeBatteryLastUpdate = time(NULL);
+            log+="Battery Current |";
+        }
+
+        if(request->hasParam("max_current")) {
+            String current = request->getParam("max_current")->value();
+            MaxCurrent = current.toInt();
+            log+="Max Current |";
+        }
+
         if(request->hasParam("mode")) {
-            String mode = request->getParam("mode", true)->value();
+            String mode = request->getParam("mode")->value();
             switch(mode.toInt()) {
                 case 0: // OFF
                     setAccess(0);
@@ -2867,10 +2885,6 @@ void StartwebServer(void) {
                 case 1: // NORMAL
                     setAccess(1);
                     setMode(MODE_NORMAL);
-                    if(request->hasParam("current")) {
-                        String current = request->getParam("current", true)->value();
-                        SetCurrent(current.toInt());
-                    }
                     break;
                 case 2: // SOLAR
                     setAccess(1);
@@ -2881,14 +2895,12 @@ void StartwebServer(void) {
                     setMode(MODE_SMART);
                     break;
             }
+            log+="Mode |";
         }
+
+        request->send(200, "application/json", "{ \"result\": \"" + log + "\" }");
+    },[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
     });
-
-    // setAccess(val);
-// switch (NewState) {
-//         case STATE_A:                                                           // State A1
-//             break;
-
 
     // attach filesystem root at URL /
     webServer.serveStatic("/", SPIFFS, "/");

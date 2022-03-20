@@ -24,7 +24,49 @@ paths:
               schema:
                 type: object
                 properties:
+                  debug: 
+                    type: string
+                    example: ""
                   mode: 
+                    description: |-
+                      <b>0_OFF <br />
+                      <b>1_NORMAL <br />
+                      <b>2_SOLAR <br />
+                      <b>3_SMART
+                    type: string
+                    example: "2_SOLAR"
+                  access: 
+                    type: integer
+                    minimum: 0
+                    maximum: 1
+                  evse_mode: 
+                    type: integer
+                  charge_current: 
+                    type: integer
+                  current_min: 
+                    type: integer
+                  current_max: 
+                    type: integer
+                  current_main: 
+                    type: integer
+                  solar_max_import: 
+                    type: integer
+                  solar_start_current: 
+                    type: integer
+                  solar_stop_time: 
+                    type: integer
+                  temp: 
+                    type: integer
+                  battery_current: 
+                    type: integer
+                  battery_last_update: 
+                    type: integer
+                    example: 1647798299
+                  L1: 
+                    type: integer
+                  L2: 
+                    type: integer
+                  L3: 
                     type: integer
     post:
       operationId: updateSettings
@@ -39,11 +81,11 @@ paths:
               <b>1</b>: NORMAL <br />
               <b>2</b>: SOLAR <br />
               <b>3</b>: SMART
-          required: true
+          required: false
           schema:
             type: integer
         - in: path
-          name: current
+          name: max_current
           description: |-
             Only applicable if <b>mode == 1</b> (NORMAL) <br />
             Desired current multiplied by 10 <br />
@@ -54,52 +96,13 @@ paths:
           required: false
           schema:
             type: integer
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Nullable'
-      responses:
-        '200':
-          description: Authentication successful
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  result: 
-                    type: string
-  /battery-current:
-    get:
-      operationId: getBatteryCurrent
-      tags:
-        - Operations
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Nullable'
-      responses:
-        '200':
-          description: Authentication successful
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  current: 
-                    type: integer
-                  last_update:
-                    description: Time in milliseconds
-                    type: integer
-    post:
-      operationId: updateBatteryCurrent
-      tags:
-        - Operations
-      parameters:
         - in: path
-          name: current
-          required: true
+          name: battery_current
+          description: |-
+            Actual home battery current multiplied by 10 <br />
+            A <b>positive</b> number means the home battery is <b>charging</b> <br />
+            A <b>negative</b> number means the home battery is<b> discharging</b> <br />
+          required: false
           schema:
             type: integer
       requestBody:
