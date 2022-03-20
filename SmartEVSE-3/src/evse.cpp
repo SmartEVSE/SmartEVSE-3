@@ -625,9 +625,9 @@ void setAccess(bool Access) {
  */
 // 
 int getBatteryCurrent(void) {
-    int currentTime = time(NULL) - (1 * 60 * 1000); // The data should not be older than 1 minute
+    int currentTime = time(NULL) - 60000; // The data should not be older than 1 minute
     
-    if (homeBatteryLastUpdate > (currentTime)) {
+    if (Mode == MODE_SOLAR && homeBatteryLastUpdate > (currentTime)) {
         return homeBatteryCurrent;
     } else {
         return 0;
@@ -2820,13 +2820,13 @@ void StartwebServer(void) {
      * BATTERY CHARGE ENDPOINTS
      */
     webServer.on("/battery-current", HTTP_GET, [](AsyncWebServerRequest *request) {
-        String charge = String(homeBatteryCurrent);
+        String current = String(homeBatteryCurrent);
         String lastUpdate = String(homeBatteryLastUpdate);
-        request->send(200, "text/html", "Last know battery current :: " + charge + " @ " + lastUpdate);
+        request->send(200, "application/json", "{ \"current\": " + current + " , \"last_update\": " + lastUpdate + " }");
     });
 
     webServer.on("/battery-current", HTTP_POST, [](AsyncWebServerRequest *request) {
-        request->send(200, "text/plain", "OK");
+        request->send(200, "application/json", "{ \"result\": \"OK\" }");
     },[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
         if(request->hasParam("current")) {
             String value = request->getParam("current", true)->value();
@@ -2835,6 +2835,59 @@ void StartwebServer(void) {
         }
     });
 
+
+    /**
+     * CHANGE SETTINGS
+     */
+    webServer.on("/settings", HTTP_GET, [](AsyncWebServerRequest *request) {
+        String mode = "N/A";
+
+        if(Access_bit == 0) 
+            mode = "0";
+        else {
+            switch(Mode) {
+                case MODE_NORMAL: mode = "1"; break;
+                case MODE_SOLAR: mode = "2"; break;
+                case MODE_SMART: mode = "3"; break;
+            }
+        }
+
+        request->send(200, "application/json", "{ \"mode\": " + mode + " }");
+    });
+
+    webServer.on("/settings", HTTP_POST, [](AsyncWebServerRequest *request) {
+        request->send(200, "application/json", "{ \"result\": \"OK\" }");
+    },[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
+        if(request->hasParam("mode")) {
+            String mode = request->getParam("mode", true)->value();
+            switch(mode.toInt()) {
+                case 0: // OFF
+                    setAccess(0);
+                    break;
+                case 1: // NORMAL
+                    setAccess(1);
+                    setMode(MODE_NORMAL);
+                    if(request->hasParam("current")) {
+                        String current = request->getParam("current", true)->value();
+                        SetCurrent(current.toInt());
+                    }
+                    break;
+                case 2: // SOLAR
+                    setAccess(1);
+                    setMode(MODE_SOLAR);
+                    break;
+                case 3: // SMART
+                    setAccess(1);
+                    setMode(MODE_SMART);
+                    break;
+            }
+        }
+    });
+
+    // setAccess(val);
+// switch (NewState) {
+//         case STATE_A:                                                           // State A1
+//             break;
 
 
     // attach filesystem root at URL /
