@@ -643,7 +643,7 @@ char IsCurrentAvailable(void) {
     uint8_t n, ActiveEVSE = 0;
     int Baseload, TotalCurrent = 0;
 
-    TotalCurrent = getBatteryCurrent();
+    TotalCurrent = 0; //getBatteryCurrent();
 
     for (n = 0; n < NR_EVSES; n++) if (BalancedState[n] == STATE_C)             // must be in STATE_C
     {
@@ -1463,7 +1463,7 @@ void UpdateCurrentData(void) {
         if (Irms[x] > Imeasured) Imeasured = Irms[x];
     }
 
-    Imeasured += getBatteryCurrent();
+    //Imeasured += getBatteryCurrent();
 
     // Load Balancing mode: Smart/Master or Disabled
     if (Mode && LoadBl < 2) {
@@ -2225,12 +2225,15 @@ ModbusMessage MBMainsMeterResponse(ModbusMessage request) {
         if (x && LoadBl <2) timeout = 10;                   // only reset timeout when data is ok, and Master/Disabled
 
         // Calculate Isum (for nodes and master)
-        Isum = 0;
+        Isum = 0; 
+        int batteryPerPhase = -getBatteryCurrent() / 3; // Take inverse to neutralise the battery on the P1 measurements: -1000 discharge means P1 should be giving 1000
+        
         for (x = 0; x < 3; x++) {
             // Calculate difference of Mains and PV electric meter
-            if (PVMeter) CM[x] = CM[x] - PV[x];             // CurrentMeter and PV resolution are 1mA
-            Irms[x] = (signed int)(CM[x] / 100);            // reduce resolution of Irms to 100mA
-            Isum = Isum + Irms[x];                          // Isum has a resolution of 100mA
+            if (PVMeter) CM[x] = CM[x] - PV[x];             // CurrentMeter and PV values are MILLI AMPERE
+            Irms[x] = (signed int)(CM[x] / 100);            // Convert to AMPERE * 10
+            Irms[x] += batteryPerPhase;
+            Isum = Isum + Irms[x];                          // Convert to AMPERE * 10
         }
     }
 
