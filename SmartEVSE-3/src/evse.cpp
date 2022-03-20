@@ -643,7 +643,6 @@ char IsCurrentAvailable(void) {
     uint8_t n, ActiveEVSE = 0;
     int Baseload, TotalCurrent = 0;
 
-    TotalCurrent = 0; //getBatteryCurrent();
 
     for (n = 0; n < NR_EVSES; n++) if (BalancedState[n] == STATE_C)             // must be in STATE_C
     {
@@ -1455,15 +1454,14 @@ const char * getMenuItemOption(uint8_t nav) {
 void UpdateCurrentData(void) {
     uint8_t x;
     char Str[128];
-    Imeasured = 0;
 
     // reset Imeasured value (grid power used)
+    Imeasured = 0;
     for (x=0; x<3; x++) {
         // Imeasured holds highest Irms of all channels
         if (Irms[x] > Imeasured) Imeasured = Irms[x];
     }
 
-    //Imeasured += getBatteryCurrent();
 
     // Load Balancing mode: Smart/Master or Disabled
     if (Mode && LoadBl < 2) {
