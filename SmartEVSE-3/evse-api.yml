@@ -1,0 +1,124 @@
+openapi: 3.0.3
+info:
+  title: Smart-EVSE V3
+  version: 1.0.0
+servers:
+  - url: 'http://localhost'
+    description: 'Example Server'
+paths:
+  /settings:
+    get:
+      operationId: getSettings
+      tags:
+        - Operations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Nullable'
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mode: 
+                    type: integer
+    post:
+      operationId: updateSettings
+      tags:
+        - Operations
+      parameters:
+        - in: path
+          name: mode
+          description: |-
+            Only following values are permitted: <br />
+              <b>0</b>: OFF <br />
+              <b>1</b>: NORMAL <br />
+              <b>2</b>: SOLAR <br />
+              <b>3</b>: SMART
+          required: true
+          schema:
+            type: integer
+        - in: path
+          name: current
+          description: |-
+            Only applicable if <b>mode == 1</b> (NORMAL) <br />
+            Desired current multiplied by 10 <br />
+            <br />
+            Examples: <br />
+            If the desired current is <b>8.3A</b> the value to be send is <b>83</b> <br />
+            If the desired current is <b>6A</b> the value to be send is <b>60</b>
+          required: false
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Nullable'
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result: 
+                    type: string
+  /battery-current:
+    get:
+      operationId: getBatteryCurrent
+      tags:
+        - Operations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Nullable'
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  current: 
+                    type: integer
+                  last_update:
+                    description: Time in milliseconds
+                    type: integer
+    post:
+      operationId: updateBatteryCurrent
+      tags:
+        - Operations
+      parameters:
+        - in: path
+          name: current
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Nullable'
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result: 
+                    type: string
+components:
+  schemas:
+    Nullable:
+      type: object
+      nullable: true
