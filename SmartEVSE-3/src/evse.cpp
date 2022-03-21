@@ -517,6 +517,16 @@ const char * getErrorNameWeb(uint8_t ErrorCode) {
     else return "Multiple Errors";
 }
 
+uint8_t getErrorId(uint8_t ErrorCode) {
+    uint8_t count = 0;
+    //find the error bit that is set
+    while (ErrorCode) {
+        count++;
+        ErrorCode = ErrorCode >> 1;
+    }    
+    return count;
+}
+
 
 
 /**
@@ -2844,12 +2854,26 @@ void StartwebServer(void) {
             case 1: backlight = "ON"; break;
             case 2: backlight = "DIMMED"; break;
         }
+        String evstate = StrStateNameWeb[State];
+        String error = getErrorNameWeb(ErrorFlags);
+        int errorId = getErrorId(ErrorFlags);
+
+        String evConnected = "true";
+        switch(State) {
+            case STATE_A:
+            case NOSTATE: evConnected = "false"; break;
+        }
 
         request->send(200, "application/json", "{ \"debug\": \"" + debugMessage + "\""
         + " ,\"mode\": \"" + mode + "\""
         + " ,\"modeId\": " + String(modeId)
         + " ,\"access\": " + String(Access_bit) 
         + " ,\"evse_mode\": " + String(Mode) 
+        + " ,\"ev_connected\": " + evConnected
+        + " ,\"ev_state\": \"" + evstate + "\""
+        + " ,\"ev_state_id\": " + State
+        + " ,\"ev_error\": \"" + error + "\""
+        + " ,\"ev_error_id\": " + errorId
 
         + " , \"charge_current\": " + String((float)Balanced[0]/10)
         + " ,\"current_min\": " + String(MinCurrent) 
