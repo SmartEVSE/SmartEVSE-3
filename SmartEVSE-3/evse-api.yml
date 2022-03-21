@@ -62,6 +62,11 @@ paths:
                   battery_last_update: 
                     type: integer
                     example: 1647798299
+                  backlight_timer: 
+                    type: integer
+                  backlight_status: 
+                    type: string
+                    example: "ON"
                   L1: 
                     type: integer
                   L2: 

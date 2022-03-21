@@ -1,35 +1,45 @@
 Forked from: https://github.com/SmartEVSE/SmartEVSE-3
 
-SmartEVSE v3
+SmartEVSE v3 + API
 =========
 
-Smart Electric Vehicle Charge Controller
+This is a modification of the SmartEVSE-3 software. <br/>
+Goals for this modification:
+* Integrate with a home battery
+* Callable API endpoints for easy integration (e.g. Home Assistant)
 
-![Image of SmartEVSE](/pictures/SmartEVSEv3.png)
+Home Battery Integration
+---------
+In a normal EVSE setup a sensorbox is used to read the P1 information to deduce if there is sufficient solar energy available. This however can give unwanted results when also using a home battery as this will result in one battery charging the other one. <br/>
 
-# What is it?
+For this purpose the settings endpoint allows you to pass through the battery current information:
+* A positive current means the battery is charging
+* A negative current means the battery is discharging
+<br>
+The EVSE will use this current to neutralize the impact of a home battery on the P1 information.<br>
 
-It's an open source EVSE (Electric Vehicle Supply Equipment). It supports 1-3 phase charging, fixed charging cable or charging socket. Locking actuator support (5 different types). And it can directly drive a mains contactor for supplying power to the EV. It features a display from which all module parameters can be configured.<br>
-Up to 8 modules can be connected together to charge up to eight EV's from one mains connection without overloading it.<br>
-The mains connection can be monitored by the (optional) sensorbox or a modbus kWh meter. This allows smart charging.
-Communication between the SmartEVSE(s) / Sensorbox or kWh meters is done over RS485(modbus).
+Example:
+-
+* Home battery is charging at 2300W -> 10A
+* P1 has an export value of 230W -> -1A
+* EVSE will neutralize the battery and P1 will be "exporting" -11A
 
+Note:
+The sender has several options when sending the home battery current:
+* Send the current AS-IS -> EVSE current will be maximized
+* Only send when battery is discharging -> AS-IS operation but EVSE will not discharge the home battery
+* Reserve an amount of current for the home battery (e.g. 10A) -> Prioritize the home battery up to a specific limit
 
-# Features
+Overview endpoints:
+---------
+![Image of SmartEVSE](/pictures/api-1.png)
 
-- Fits into a standard DIN rail enclosure.
-- Measures the current consumption of other appliances, and automatically lowers or increases the charging current to the EV. (sensorbox required)
-- The load balancing feature let's you connect up to 8 SmartEVSE's to one mains supply.
-- Two switched 230VAC outputs, for contactors.
-- Powered RS485 communication bus for sensorbox / Modbus kWh Meters.
-- Can be used with fixed cable, or socket and charging cable.
-- Automatically selects current capacity of the connected cable (13/16/32A)
-- Locking actuator support, locks the charging cable in the socket.
-- RFID reader support, restrict the use of the charging station to max 20 RFID cards.
-- An optional modbus kWh meter will measure power and charged energy, and display this on the LCD.
-- Built-in temperature sensor.
-- RGB led output for status information while charging.
-- All module parameters can be configured using the display and buttons.
-- WiFi status page.
-- Firmware upgradable through USB-C port or through the buildt in webserver. 
+View Current Settings
+---------
+![Image of SmartEVSE](/pictures/api-2.png)
+
+Change Settings
+---------
+![Image of SmartEVSE](/pictures/api-3.png)
+
 
