@@ -52,7 +52,7 @@ const char* TZ_INFO    = "CET-1CEST-2,M3.5.0/2,M10.5.0/3";      // Europe/Amster
 struct tm timeinfo;
 
 AsyncWebServer webServer(80);
-AsyncWebSocket ws("/ws");           // data to/from webpage
+//AsyncWebSocket ws("/ws");           // data to/from webpage
 DNSServer dnsServer;
 IPAddress localIp;
 String APhostname = "SmartEVSE-" + String( MacId() & 0xffff, 10);           // SmartEVSE access point Name = SmartEVSE-xxxxx
@@ -166,6 +166,7 @@ uint8_t lock1 = 0, lock2 = 1;
 uint8_t UnlockCable = 0, LockCable = 0;
 uint8_t timeout = 5;                                                        // communication timeout (sec)
 uint16_t BacklightTimer = 0;                                                // Backlight timer (sec)
+uint8_t BacklightSet = 0;
 uint32_t ChargeTimer = 0;                                                   // Counts seconds in STATE C (Charging) (unused)
 uint8_t LCDTimer = 0;
 uint8_t AccessTimer = 0;
@@ -210,6 +211,7 @@ volatile int adcchannel = ADC1_CHANNEL_3;
 char str[20];
 int avgsamples = 0;
 bool LocalTimeSet = false;
+
 
 String debugMessage;
 int homeBatteryCurrent = 0;
@@ -305,7 +307,7 @@ void IRAM_ATTR onTimerA() {
 //
 // Task is called every 10ms
 void BlinkLed(void * parameter) {
-    uint8_t BacklightSet = 0, LcdPwm = 0;
+    uint8_t LcdPwm = 0;
     uint8_t RedPwm = 0, GreenPwm = 0, BluePwm = 0;
     uint8_t LedCount = 0;                                                   // Raw Counter before being converted to PWM value
     unsigned int LedPwm = 0;                                                // PWM value 0-255
@@ -549,7 +551,7 @@ void setState(uint8_t NewState) {
 
 #ifdef LOG_DEBUG_EVSE
         // Log State change to webpage
-        ws.textAll(Str);    
+        // ws.textAll(Str);    
 #endif                
         Serial.print(Str+1);
     }
@@ -599,7 +601,7 @@ void setState(uint8_t NewState) {
     BalancedState[0] = NewState;
     State = NewState;
 
-    BacklightTimer = BACKLIGHT;                                                 // Backlight ON
+    //BacklightTimer = BACKLIGHT;                                                 // Backlight ON
 }
 
 void setAccess(bool Access) {
@@ -1560,7 +1562,7 @@ void CheckSwitch(void)
                     ErrorFlags &= ~RCM_TRIPPED;
                 }
                 // Also light up the LCD backlight
-                BacklightTimer = BACKLIGHT;                                 // Backlight ON
+                //BacklightTimer = BACKLIGHT;                                 // Backlight ON
 
             } else {
                 // Switch input released
@@ -2133,20 +2135,20 @@ void Timer1S(void * parameter) {
           
 
         // this will run every 5 seconds
-        if (Timer5sec++ >= 5) {
-            // Connected to WiFi?
-            if (WiFi.status() == WL_CONNECTED) {
-                ws.printfAll("T:%d",TempEVSE);                              // Send internal temperature to clients 
-                ws.printfAll("S:%s",getStateNameWeb(State));
-                ws.printfAll("E:%s",getErrorNameWeb(ErrorFlags));
-                ws.printfAll("C:%2.1f",(float)Balanced[0]/10);
-                ws.printfAll("I:%3.1f,%3.1f,%3.1f",(float)Irms[0]/10,(float)Irms[1]/10,(float)Irms[2]/10);
-                ws.printfAll("R:%u", esp_reset_reason() );
+        // if (Timer5sec++ >= 5) {
+        //     // Connected to WiFi?
+        //     if (WiFi.status() == WL_CONNECTED) {
+        //         ws.printfAll("T:%d",TempEVSE);                              // Send internal temperature to clients 
+        //         ws.printfAll("S:%s",getStateNameWeb(State));
+        //         ws.printfAll("E:%s",getErrorNameWeb(ErrorFlags));
+        //         ws.printfAll("C:%2.1f",(float)Balanced[0]/10);
+        //         ws.printfAll("I:%3.1f,%3.1f,%3.1f",(float)Irms[0]/10,(float)Irms[1]/10,(float)Irms[2]/10);
+        //         ws.printfAll("R:%u", esp_reset_reason() );
 
-                ws.cleanupClients();                                        // Cleanup old websocket clients
-            } 
-            Timer5sec = 0;
-        }
+        //         ws.cleanupClients();                                        // Cleanup old websocket clients
+        //     } 
+        //     Timer5sec = 0;
+        // }
 
         //Serial.printf("Task 1s free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
 
@@ -2231,9 +2233,9 @@ ModbusMessage MBMainsMeterResponse(ModbusMessage request) {
             // Calculate difference of Mains and PV electric meter
             if (PVMeter) CM[x] = CM[x] - PV[x];             // CurrentMeter and PV values are MILLI AMPERE
             Irms[x] = (signed int)(CM[x] / 100);            // Convert to AMPERE * 10
-            debugMessage += "Before: " + String(Irms[x]);
+            debugMessage += "L" + String(x+1) + " : " + String(Irms[x]);
             Irms[x] -= batteryPerPhase;           
-            debugMessage += ", After: " + String(Irms[x]) + " - ";          // Substract the battery charge rate to "neutralize" the battery. Example: -10A (dis)charge means P1 would need to give 10A to compensate:: P1 - -10 = P1 + 10
+            debugMessage += " -> " + String(Irms[x]) + " | ";          // Substract the battery charge rate to "neutralize" the battery. Example: -10A (dis)charge means P1 would need to give 10A to compensate:: P1 - -10 = P1 + 10
             Isum = Isum + Irms[x];                          // Convert to AMPERE * 10
         }
     }
@@ -2743,7 +2745,7 @@ void onRequest(AsyncWebServerRequest *request){
 
 
 void StopwebServer(void) {
-    ws.closeAll();
+    // ws.closeAll();
     webServer.end();
 }
 
@@ -2771,7 +2773,7 @@ void StartwebServer(void) {
         request->send(200, "text/html", "spiffs.bin updates the SPIFFS partition<br>firmware.bin updates the main firmware<br><form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>");
     });
 
-    webServer.on("/erasesettings", HTTP_GET, [](AsyncWebServerRequest *request) {
+    webServer.on("/erasesettings", HTTP_DELETE, [](AsyncWebServerRequest *request) {
         request->send(200, "text/plain", "Erasing settings, rebooting");
         if ( preferences.begin("settings", false) ) {         // our own settings
           preferences.clear();
@@ -2825,19 +2827,27 @@ void StartwebServer(void) {
     
     webServer.on("/settings", HTTP_GET, [](AsyncWebServerRequest *request) {
         String mode = "N/A";
-
-        if(Access_bit == 0) 
-            mode = "0_OFF";
-        else {
+        int modeId = -1;
+        if(Access_bit == 0)  {
+            mode = "OFF";
+            modeId=0;
+        } else {
             switch(Mode) {
-                case MODE_NORMAL: mode = "1_NORMAL"; break;
-                case MODE_SOLAR: mode = "2_SOLAR"; break;
-                case MODE_SMART: mode = "3_SMART"; break;
+                case MODE_NORMAL: mode = "NORMAL"; modeId=1; break;
+                case MODE_SOLAR: mode = "SOLAR"; modeId=2; break;
+                case MODE_SMART: mode = "SMART"; modeId=3; break;
             }
+        }
+        String backlight = "N/A";
+        switch(BacklightSet) {
+            case 0: backlight = "OFF"; break;
+            case 1: backlight = "ON"; break;
+            case 2: backlight = "DIMMED"; break;
         }
 
         request->send(200, "application/json", "{ \"debug\": \"" + debugMessage + "\""
         + " ,\"mode\": \"" + mode + "\""
+        + " ,\"modeId\": " + String(modeId)
         + " ,\"access\": " + String(Access_bit) 
         + " ,\"evse_mode\": " + String(Mode) 
 
@@ -2848,20 +2858,30 @@ void StartwebServer(void) {
         + " ,\"solar_max_import\": " + String(ImportCurrent) 
         + " ,\"solar_start_current\": " + String(StartCurrent) 
         + " ,\"solar_stop_time\": " + String(StopTime) 
-
-
-        + " ,\"temp\": " + String(TempEVSE) 
         + " ,\"battery_current\": " + homeBatteryCurrent 
         + " ,\"battery_last_update\": " + homeBatteryLastUpdate 
+
+        + " ,\"temp\": " + String(TempEVSE) 
+        + " ,\"backlight_timer\": " + String(BacklightTimer) 
+        + " ,\"backlight_status\": \"" + backlight +  "\""
+
         + " , \"L1\": " + String((float)Irms[0]/10)
         + " , \"L2\": " + String((float)Irms[1]/10)
         + " , \"L3\": " + String((float)Irms[2]/10) 
         + " }");
+
     });
 
 
     webServer.on("/settings", HTTP_POST, [](AsyncWebServerRequest *request) {
         String log = "";
+
+        if(request->hasParam("backlight")) {
+            String current = request->getParam("backlight")->value();
+            int backlight = current.toInt();
+            ledcWrite(LCD_CHANNEL, backlight);
+            log+="Backlight |";
+        }
 
         if(request->hasParam("battery_current")) {
             String value = request->getParam("battery_current")->value();
@@ -2882,15 +2902,15 @@ void StartwebServer(void) {
                 case 0: // OFF
                     setAccess(0);
                     break;
-                case 1: // NORMAL
+                case 1:
                     setAccess(1);
                     setMode(MODE_NORMAL);
                     break;
-                case 2: // SOLAR
+                case 2:
                     setAccess(1);
                     setMode(MODE_SOLAR);
                     break;
-                case 3: // SMART
+                case 3:
                     setAccess(1);
                     setMode(MODE_SMART);
                     break;
@@ -2909,8 +2929,8 @@ void StartwebServer(void) {
     webServer.onNotFound(onRequest);
 
     // setup websockets handler 'onWsEvent'
-    ws.onEvent(onWsEvent);
-    webServer.addHandler(&ws);
+    // ws.onEvent(onWsEvent);
+    // webServer.addHandler(&ws);
     
     // Setup async webserver
     webServer.begin();
@@ -2972,7 +2992,7 @@ void SetupNetworkTask(void * parameter) {
     LocalTimeSet = getLocalTime(&timeinfo, 1000U);
     
     // Cleanup old websocket clients
-    ws.cleanupClients();
+    // ws.cleanupClients();
 
     if (WIFImode == 2 && LCDTimer > 10 && WiFi.getMode() != WIFI_AP_STA) {
         Serial.print("Start Portal...\n");
