@@ -9,8 +9,6 @@ Feel free to use this repository to build it yourself or to use the latest on fr
 <br />
 
 # Changes in regards with the original firmware:
-* Disabled WebSockets
-* Reduced max backlight brightness
 * Callable API endpoints for easy integration (e.g. Home Assistant)
 * Home battery integration
 
