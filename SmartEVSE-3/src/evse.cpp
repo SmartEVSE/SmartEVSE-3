@@ -611,7 +611,7 @@ void setState(uint8_t NewState) {
     BalancedState[0] = NewState;
     State = NewState;
 
-    BacklightTimer = BACKLIGHT;                                                 // Backlight ON
+    // BacklightTimer = BACKLIGHT;                                                 // Backlight ON
 }
 
 void setAccess(bool Access) {
@@ -1572,7 +1572,7 @@ void CheckSwitch(void)
                     ErrorFlags &= ~RCM_TRIPPED;
                 }
                 // Also light up the LCD backlight
-                BacklightTimer = BACKLIGHT;                                 // Backlight ON
+                // BacklightTimer = BACKLIGHT;                                 // Backlight ON
 
             } else {
                 // Switch input released
@@ -2862,7 +2862,7 @@ void StartwebServer(void) {
             case NOSTATE: evConnected = "false"; break;
         }
 
-        DynamicJsonDocument doc(512); // https://arduinojson.org/v6/assistant/
+        DynamicJsonDocument doc(600); // https://arduinojson.org/v6/assistant/
         doc["mode"] = mode;
         doc["mode_id"] = modeId;
         doc["car_connected"] = evConnected;
@@ -2894,8 +2894,8 @@ void StartwebServer(void) {
         doc["phase_currents"]["original_data"]["L2"] = IrmsOriginal[1];
         doc["phase_currents"]["original_data"]["L3"] = IrmsOriginal[2];
         
-        // doc["other"]["backlight_timer"] = BacklightTimer;
-        // doc["settings"]["backlight_status"] = backlight;
+        doc["backlight"]["timer"] = BacklightTimer;
+        doc["backlight"]["status"] = backlight;
 
         String json;
         serializeJson(doc, json);
