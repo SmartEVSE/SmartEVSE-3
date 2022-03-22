@@ -117,7 +117,6 @@ paths:
         - in: path
           name: max_current
           description: |-
-            Only applicable if <b>mode == 1</b> (NORMAL) <br />
             Desired current multiplied by 10 <br />
             <br />
             Examples: <br />
