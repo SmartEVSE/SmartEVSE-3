@@ -38,6 +38,8 @@ The sender has several options when sending the home battery current:
 # API Overview:
 ![Image of SmartEVSE](/pictures/api-1.png)
 
+![Image of SmartEVSE](/pictures/api-3.png)
+
 ## Example Response
 
 ```
