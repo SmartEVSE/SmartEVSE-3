@@ -2877,7 +2877,7 @@ void StartwebServer(void) {
         doc["ev_error"] = error;
         doc["ev_error_id"] = errorId;
 
-        doc["charge_current"] = (float)Balanced[0]/10;
+        doc["charge_current"] = Balanced[0]/10;
         doc["current_min"] = MinCurrent;
         doc["current_max"] = MaxCurrent;
         doc["current_main"] = MaxMains;
@@ -2888,9 +2888,9 @@ void StartwebServer(void) {
         doc["battery_last_update"] = homeBatteryLastUpdate;
         doc["temp"] = TempEVSE;
         
-        doc["L1"] = (float)Irms[0]/10;
-        doc["L2"] = (float)Irms[1]/10;
-        doc["L3"] = (float)Irms[2]/10;
+        doc["L1"] = Irms[0];
+        doc["L2"] = Irms[1];
+        doc["L3"] = Irms[2];
 
         doc["backlight_timer"] = BacklightTimer;
         doc["backlight_status"] = backlight;
