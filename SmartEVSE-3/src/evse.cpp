@@ -2865,10 +2865,11 @@ void StartwebServer(void) {
         DynamicJsonDocument doc(512); // https://arduinojson.org/v6/assistant/
         doc["mode"] = mode;
         doc["mode_id"] = modeId;
-        doc["access"] = Access_bit == 1;
-        doc["temp"] = TempEVSE;
-
+        doc["car_connected"] = evConnected;
+        
+        doc["evse"]["temp"] = TempEVSE;
         doc["evse"]["connected"] = evConnected;
+        doc["evse"]["access"] = Access_bit == 1;
         doc["evse"]["mode"] = Mode;
         doc["evse"]["state"] = evstate;
         doc["evse"]["state_id"] = State;
