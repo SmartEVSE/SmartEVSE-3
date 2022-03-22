@@ -20,8 +20,9 @@ In a normal EVSE setup a sensorbox is used to read the P1 information to deduce 
 For this purpose the settings endpoint allows you to pass through the battery current information:
 * A positive current means the battery is charging
 * A negative current means the battery is discharging
-<br>
-The EVSE will use this current to neutralize the impact of a home battery on the P1 information.<br>
+
+The EVSE will use the battery current to neutralize the impact of a home battery on the P1 information.<br>
+**Regular updates from the consumer are required to keep this working as values cannot be older than 60 seconds.**
 
 ### Example:
 * Home battery is charging at 2300W -> 10A
