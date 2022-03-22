@@ -33,13 +33,3 @@ The sender has several options when sending the home battery current:
 Overview endpoints:
 ---------
 ![Image of SmartEVSE](/pictures/api-1.png)
-
-View Current Settings
----------
-![Image of SmartEVSE](/pictures/api-2.png)
-
-Change Settings
----------
-![Image of SmartEVSE](/pictures/api-3.png)
-
-

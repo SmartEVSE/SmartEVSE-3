@@ -213,8 +213,7 @@ char str[20];
 int avgsamples = 0;
 bool LocalTimeSet = false;
 
-
-String debugMessage;
+int32_t IrmsOriginal[3]={0, 0, 0};   
 int homeBatteryCurrent = 0;
 int homeBatteryLastUpdate = 0; // Time in milliseconds
 
@@ -2238,16 +2237,14 @@ ModbusMessage MBMainsMeterResponse(ModbusMessage request) {
         Isum = 0; 
         int batteryPerPhase = getBatteryCurrent() / 3; // Divide the battery current per phase to spread evenly
         
-        debugMessage = "";
 
         for (x = 0; x < 3; x++) {
             // Calculate difference of Mains and PV electric meter
             if (PVMeter) CM[x] = CM[x] - PV[x];             // CurrentMeter and PV values are MILLI AMPERE
             Irms[x] = (signed int)(CM[x] / 100);            // Convert to AMPERE * 10
-            debugMessage += "L" + String(x+1) + " : " + String(Irms[x]);
+            IrmsOriginal[x] = Irms[x];
             Irms[x] -= batteryPerPhase;           
-            debugMessage += " -> " + String(Irms[x]) + " | ";          // Substract the battery charge rate to "neutralize" the battery. Example: -10A (dis)charge means P1 would need to give 10A to compensate:: P1 - -10 = P1 + 10
-            Isum = Isum + Irms[x];                          // Convert to AMPERE * 10
+            Isum = Isum + Irms[x];                          
         }
     }
 
@@ -2866,34 +2863,38 @@ void StartwebServer(void) {
         }
 
         DynamicJsonDocument doc(512); // https://arduinojson.org/v6/assistant/
-        doc["debug"] = debugMessage;
         doc["mode"] = mode;
-        doc["modeId"] = modeId;
-        doc["access"] = Access_bit;
-        doc["evse_mode"] = Mode;
-        doc["ev_connected"] = evConnected;
-        doc["ev_state"] = evstate;
-        doc["ev_state_id"] = State;
-        doc["ev_error"] = error;
-        doc["ev_error_id"] = errorId;
-
-        doc["charge_current"] = Balanced[0]/10;
-        doc["current_min"] = MinCurrent;
-        doc["current_max"] = MaxCurrent;
-        doc["current_main"] = MaxMains;
-        doc["solar_max_import"] = ImportCurrent;
-        doc["solar_start_current"] = StartCurrent;
-        doc["solar_stop_time"] = StopTime;
-        doc["battery_current"] = homeBatteryCurrent;
-        doc["battery_last_update"] = homeBatteryLastUpdate;
+        doc["mode_id"] = modeId;
+        doc["access"] = Access_bit == 1;
         doc["temp"] = TempEVSE;
-        
-        doc["L1"] = Irms[0];
-        doc["L2"] = Irms[1];
-        doc["L3"] = Irms[2];
 
-        doc["backlight_timer"] = BacklightTimer;
-        doc["backlight_status"] = backlight;
+        doc["evse"]["connected"] = evConnected;
+        doc["evse"]["mode"] = Mode;
+        doc["evse"]["state"] = evstate;
+        doc["evse"]["state_id"] = State;
+        doc["evse"]["error"] = error;
+        doc["evse"]["error_id"] = errorId;
+
+        doc["settings"]["charge_current"] = Balanced[0]/10;
+        doc["settings"]["current_min"] = MinCurrent;
+        doc["settings"]["current_max"] = MaxCurrent;
+        doc["settings"]["current_main"] = MaxMains;
+        doc["settings"]["solar_max_import"] = ImportCurrent;
+        doc["settings"]["solar_start_current"] = StartCurrent;
+        doc["settings"]["solar_stop_time"] = StopTime;
+        
+        doc["home_battery"]["current"] = homeBatteryCurrent;
+        doc["home_battery"]["last_update"] = homeBatteryLastUpdate;
+        
+        doc["phase_currents"]["L1"] = Irms[0];
+        doc["phase_currents"]["L2"] = Irms[1];
+        doc["phase_currents"]["L3"] = Irms[2];
+        doc["phase_currents"]["original_data"]["L1"] = IrmsOriginal[0];
+        doc["phase_currents"]["original_data"]["L2"] = IrmsOriginal[1];
+        doc["phase_currents"]["original_data"]["L3"] = IrmsOriginal[2];
+        
+        // doc["other"]["backlight_timer"] = BacklightTimer;
+        // doc["settings"]["backlight_status"] = backlight;
 
         String json;
         serializeJson(doc, json);

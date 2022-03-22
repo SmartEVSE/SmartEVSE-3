@@ -24,9 +24,6 @@ paths:
               schema:
                 type: object
                 properties:
-                  debug: 
-                    type: string
-                    example: ""
                   mode: 
                     description: |-
                       <b>0_OFF <br />
@@ -35,44 +32,72 @@ paths:
                       <b>3_SMART
                     type: string
                     example: "2_SOLAR"
+                  mode_id:
+                    type: integer
                   access: 
                     type: integer
                     minimum: 0
                     maximum: 1
-                  evse_mode: 
-                    type: integer
-                  charge_current: 
-                    type: integer
-                  current_min: 
-                    type: integer
-                  current_max: 
-                    type: integer
-                  current_main: 
-                    type: integer
-                  solar_max_import: 
-                    type: integer
-                  solar_start_current: 
-                    type: integer
-                  solar_stop_time: 
-                    type: integer
                   temp: 
                     type: integer
-                  battery_current: 
-                    type: integer
-                  battery_last_update: 
-                    type: integer
-                    example: 1647798299
-                  backlight_timer: 
-                    type: integer
-                  backlight_status: 
-                    type: string
-                    example: "ON"
-                  L1: 
-                    type: integer
-                  L2: 
-                    type: integer
-                  L3: 
-                    type: integer
+                  evse:
+                    type: object
+                    properties:
+                      connected:
+                        type: boolean
+                      mode: 
+                        type: integer
+                      state:
+                        type: string
+                      state_id:
+                        type: integer
+                      error:
+                        type: string
+                      error_id:
+                        type: integer
+                  settings:
+                    type: object
+                    properties:
+                      charge_current: 
+                        type: integer
+                      current_min: 
+                        type: integer
+                      current_max: 
+                        type: integer
+                      current_main: 
+                        type: integer
+                      solar_max_import: 
+                        type: integer
+                      solar_start_current: 
+                        type: integer
+                      solar_stop_time: 
+                        type: integer
+                  home_battery:
+                    type: object
+                    properties:
+                      current: 
+                        type: integer
+                      last_update: 
+                        type: integer
+                        example: 1647798299
+                  phase_currents:
+                    type: object
+                    properties:
+                      L1: 
+                        type: integer
+                      L2: 
+                        type: integer
+                      L3: 
+                        type: integer
+                      original_data:
+                        type: object
+                        properties:
+                          L1: 
+                            type: integer
+                          L2: 
+                            type: integer
+                          L3: 
+                            type: integer
     post:
       operationId: updateSettings
       tags:
