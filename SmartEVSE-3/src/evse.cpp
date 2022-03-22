@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <ArduinoJson.h>
 #include <SPI.h>
 #include <Preferences.h>
 
@@ -611,7 +612,7 @@ void setState(uint8_t NewState) {
     BalancedState[0] = NewState;
     State = NewState;
 
-    //BacklightTimer = BACKLIGHT;                                                 // Backlight ON
+    BacklightTimer = BACKLIGHT;                                                 // Backlight ON
 }
 
 void setAccess(bool Access) {
@@ -1572,7 +1573,7 @@ void CheckSwitch(void)
                     ErrorFlags &= ~RCM_TRIPPED;
                 }
                 // Also light up the LCD backlight
-                //BacklightTimer = BACKLIGHT;                                 // Backlight ON
+                BacklightTimer = BACKLIGHT;                                 // Backlight ON
 
             } else {
                 // Switch input released
@@ -2864,60 +2865,64 @@ void StartwebServer(void) {
             case NOSTATE: evConnected = "false"; break;
         }
 
-        request->send(200, "application/json", "{ \"debug\": \"" + debugMessage + "\""
-        + " ,\"mode\": \"" + mode + "\""
-        + " ,\"modeId\": " + String(modeId)
-        + " ,\"access\": " + String(Access_bit) 
-        + " ,\"evse_mode\": " + String(Mode) 
-        + " ,\"ev_connected\": " + evConnected
-        + " ,\"ev_state\": \"" + evstate + "\""
-        + " ,\"ev_state_id\": " + State
-        + " ,\"ev_error\": \"" + error + "\""
-        + " ,\"ev_error_id\": " + errorId
+        DynamicJsonDocument doc(512); // https://arduinojson.org/v6/assistant/
+        doc["debug"] = debugMessage;
+        doc["mode"] = mode;
+        doc["modeId"] = modeId;
+        doc["access"] = Access_bit;
+        doc["evse_mode"] = Mode;
+        doc["ev_connected"] = evConnected;
+        doc["ev_state"] = evstate;
+        doc["ev_state_id"] = State;
+        doc["ev_error"] = error;
+        doc["ev_error_id"] = errorId;
 
-        + " , \"charge_current\": " + String((float)Balanced[0]/10)
-        + " ,\"current_min\": " + String(MinCurrent) 
-        + " ,\"current_max\": " + String(MaxCurrent) 
-        + " ,\"current_main\": " + String(MaxMains) 
-        + " ,\"solar_max_import\": " + String(ImportCurrent) 
-        + " ,\"solar_start_current\": " + String(StartCurrent) 
-        + " ,\"solar_stop_time\": " + String(StopTime) 
-        + " ,\"battery_current\": " + homeBatteryCurrent 
-        + " ,\"battery_last_update\": " + homeBatteryLastUpdate 
+        doc["charge_current"] = (float)Balanced[0]/10;
+        doc["current_min"] = MinCurrent;
+        doc["current_max"] = MaxCurrent;
+        doc["current_main"] = MaxMains;
+        doc["solar_max_import"] = ImportCurrent;
+        doc["solar_start_current"] = StartCurrent;
+        doc["solar_stop_time"] = StopTime;
+        doc["battery_current"] = homeBatteryCurrent;
+        doc["battery_last_update"] = homeBatteryLastUpdate;
+        doc["temp"] = TempEVSE;
+        
+        doc["L1"] = (float)Irms[0]/10;
+        doc["L2"] = (float)Irms[1]/10;
+        doc["L3"] = (float)Irms[2]/10;
 
-        + " ,\"temp\": " + String(TempEVSE) 
-        + " ,\"backlight_timer\": " + String(BacklightTimer) 
-        + " ,\"backlight_status\": \"" + backlight +  "\""
+        doc["backlight_timer"] = BacklightTimer;
+        doc["backlight_status"] = backlight;
 
-        + " , \"L1\": " + String((float)Irms[0]/10)
-        + " , \"L2\": " + String((float)Irms[1]/10)
-        + " , \"L3\": " + String((float)Irms[2]/10) 
-        + " }");
+        String json;
+        serializeJson(doc, json);
 
+        request->send(200, "application/json", json);
     });
 
 
     webServer.on("/settings", HTTP_POST, [](AsyncWebServerRequest *request) {
-        String log = "";
+        DynamicJsonDocument doc(512); // https://arduinojson.org/v6/assistant/
 
         if(request->hasParam("backlight")) {
             String current = request->getParam("backlight")->value();
             int backlight = current.toInt();
             ledcWrite(LCD_CHANNEL, backlight);
-            log+="Backlight |";
+            doc["Backlight"] = backlight;
         }
 
         if(request->hasParam("battery_current")) {
             String value = request->getParam("battery_current")->value();
             homeBatteryCurrent = value.toInt();
             homeBatteryLastUpdate = time(NULL);
-            log+="Battery Current |";
+            doc["battery_current"] = homeBatteryCurrent;
         }
 
         if(request->hasParam("max_current")) {
             String current = request->getParam("max_current")->value();
             MaxCurrent = current.toInt();
-            log+="Max Current |";
+            doc["max_current"] = current;
         }
 
         if(request->hasParam("mode")) {
@@ -2939,10 +2944,13 @@ void StartwebServer(void) {
                     setMode(MODE_SMART);
                     break;
             }
-            log+="Mode |";
+            doc["mode"] = mode;
         }
 
-        request->send(200, "application/json", "{ \"result\": \"" + log + "\" }");
+        String json;
+        serializeJson(doc, json);
+
+        request->send(200, "application/json", json);
     },[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
     });
 
