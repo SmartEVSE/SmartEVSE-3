@@ -53,7 +53,7 @@ const char* TZ_INFO    = "CET-1CEST-2,M3.5.0/2,M10.5.0/3";      // Europe/Amster
 struct tm timeinfo;
 
 AsyncWebServer webServer(80);
-//AsyncWebSocket ws("/ws");           // data to/from webpage
+AsyncWebSocket ws("/ws");           // data to/from webpage
 DNSServer dnsServer;
 IPAddress localIp;
 String APhostname = "SmartEVSE-" + String( MacId() & 0xffff, 10);           // SmartEVSE access point Name = SmartEVSE-xxxxx
@@ -561,7 +561,7 @@ void setState(uint8_t NewState) {
 
 #ifdef LOG_DEBUG_EVSE
         // Log State change to webpage
-        // ws.textAll(Str);    
+        ws.textAll(Str);    
 #endif                
         Serial.print(Str+1);
     }
@@ -2145,20 +2145,20 @@ void Timer1S(void * parameter) {
           
 
         // this will run every 5 seconds
-        // if (Timer5sec++ >= 5) {
-        //     // Connected to WiFi?
-        //     if (WiFi.status() == WL_CONNECTED) {
-        //         ws.printfAll("T:%d",TempEVSE);                              // Send internal temperature to clients 
-        //         ws.printfAll("S:%s",getStateNameWeb(State));
-        //         ws.printfAll("E:%s",getErrorNameWeb(ErrorFlags));
-        //         ws.printfAll("C:%2.1f",(float)Balanced[0]/10);
-        //         ws.printfAll("I:%3.1f,%3.1f,%3.1f",(float)Irms[0]/10,(float)Irms[1]/10,(float)Irms[2]/10);
-        //         ws.printfAll("R:%u", esp_reset_reason() );
+        if (Timer5sec++ >= 5) {
+            // Connected to WiFi?
+            if (WiFi.status() == WL_CONNECTED) {
+                ws.printfAll("T:%d",TempEVSE);                              // Send internal temperature to clients 
+                ws.printfAll("S:%s",getStateNameWeb(State));
+                ws.printfAll("E:%s",getErrorNameWeb(ErrorFlags));
+                ws.printfAll("C:%2.1f",(float)Balanced[0]/10);
+                ws.printfAll("I:%3.1f,%3.1f,%3.1f",(float)Irms[0]/10,(float)Irms[1]/10,(float)Irms[2]/10);
+                ws.printfAll("R:%u", esp_reset_reason() );
 
-        //         ws.cleanupClients();                                        // Cleanup old websocket clients
-        //     } 
-        //     Timer5sec = 0;
-        // }
+                ws.cleanupClients();                                        // Cleanup old websocket clients
+            } 
+            Timer5sec = 0;
+        }
 
         //Serial.printf("Task 1s free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
 
@@ -2753,7 +2753,7 @@ void onRequest(AsyncWebServerRequest *request){
 
 
 void StopwebServer(void) {
-    // ws.closeAll();
+    ws.closeAll();
     webServer.end();
 }
 
@@ -2963,8 +2963,8 @@ void StartwebServer(void) {
     webServer.onNotFound(onRequest);
 
     // setup websockets handler 'onWsEvent'
-    // ws.onEvent(onWsEvent);
-    // webServer.addHandler(&ws);
+    ws.onEvent(onWsEvent);
+    webServer.addHandler(&ws);
     
     // Setup async webserver
     webServer.begin();
@@ -3026,7 +3026,7 @@ void SetupNetworkTask(void * parameter) {
     LocalTimeSet = getLocalTime(&timeinfo, 1000U);
     
     // Cleanup old websocket clients
-    // ws.cleanupClients();
+    ws.cleanupClients();
 
     if (WIFImode == 2 && LCDTimer > 10 && WiFi.getMode() != WIFI_AP_STA) {
         Serial.print("Start Portal...\n");
