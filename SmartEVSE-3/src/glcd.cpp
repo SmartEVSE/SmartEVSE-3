@@ -461,7 +461,7 @@ void GLCD(void) {
     }
 
     if (ErrorFlags) {                                                           // We switch backlight on, as we exit after displaying the error
-        BacklightTimer = BACKLIGHT;                                             // Backlight timer is set to 60 seconds
+        // BacklightTimer = BACKLIGHT;                                             // Backlight timer is set to 60 seconds
 
         if (ErrorFlags & CT_NOCOMM) {                                           // No serial communication for 10 seconds
             GLCD_print_buf2(0, (const char *) "ERROR NO");
@@ -529,7 +529,7 @@ void GLCD(void) {
                 GLCD_print_buf2(2, (const char *) "READY TO");
                 sprintf(Str, "CHARGE %u", ChargeDelay);
                 if (ChargeDelay) {
-                    BacklightTimer = BACKLIGHT;
+                    // BacklightTimer = BACKLIGHT;
                 } else Str[6] = '\0';
                 GLCD_print_buf2(4, Str);
             } else {
@@ -647,7 +647,7 @@ void GLCD(void) {
         } else if (State != STATE_C) {
             sprintf(Str, "READY %u", ChargeDelay);
             if (ChargeDelay) {
-                BacklightTimer = BACKLIGHT;
+                // BacklightTimer = BACKLIGHT;
             } else Str[5] = '\0';
             GLCD_print_buf2(5, Str);
         } else if (State == STATE_C) {
