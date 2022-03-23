@@ -2960,7 +2960,7 @@ void StartwebServer(void) {
         if(Mode == MODE_NORMAL) {
             if(request->hasParam("override_current")) {
                 String current = request->getParam("override_current")->value();
-                if(current.toInt() >= MinCurrent && current.toInt() <= MaxCurrent) {
+                if(current.toInt() >= ( MinCurrent * 10 ) && current.toInt() <= ( MaxCurrent * 10 )) {
                     OverrideCurrent = current.toInt();
                     doc["override_current"] = OverrideCurrent;
                 } else {
