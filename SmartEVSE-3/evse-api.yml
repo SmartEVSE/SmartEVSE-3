@@ -47,6 +47,10 @@ paths:
                         type: boolean
                       mode: 
                         type: integer
+                      charge_timer:
+                        type: integer
+                      solar_stop_timer:
+                        type: integer
                       state:
                         type: string
                       state_id:
@@ -83,6 +87,8 @@ paths:
                   phase_currents:
                     type: object
                     properties:
+                      TOTAL:
+                        type: integer
                       L1: 
                         type: integer
                       L2: 
@@ -92,6 +98,8 @@ paths:
                       original_data:
                         type: object
                         properties:
+                          TOTAL:
+                            type: integer
                           L1: 
                             type: integer
                           L2: 
@@ -115,8 +123,15 @@ paths:
           schema:
             type: integer
         - in: path
-          name: max_current
+          name: disable_override_current
           description: |-
+            Disable override current value
+          required: false
+          type: integer
+        - in: path
+          name: override_current
+          description: |-
+            Works only when using NORMAL mode <br />
             Desired current multiplied by 10 <br />
             <br />
             Examples: <br />

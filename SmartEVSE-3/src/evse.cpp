@@ -2862,7 +2862,7 @@ void StartwebServer(void) {
             case NOSTATE: evConnected = "false"; break;
         }
 
-        DynamicJsonDocument doc(600); // https://arduinojson.org/v6/assistant/
+        DynamicJsonDocument doc(1024); // https://arduinojson.org/v6/assistant/
         doc["mode"] = mode;
         doc["mode_id"] = modeId;
         doc["car_connected"] = evConnected;
@@ -2871,12 +2871,15 @@ void StartwebServer(void) {
         doc["evse"]["connected"] = evConnected;
         doc["evse"]["access"] = Access_bit == 1;
         doc["evse"]["mode"] = Mode;
+        doc["evse"]["charge_timer"] = ChargeTimer;
+        doc["evse"]["solar_stop_timer"] = SolarStopTimer;
         doc["evse"]["state"] = evstate;
         doc["evse"]["state_id"] = State;
         doc["evse"]["error"] = error;
         doc["evse"]["error_id"] = errorId;
 
-        doc["settings"]["charge_current"] = Balanced[0]/10;
+        doc["settings"]["charge_current"] = Balanced[0];
+        doc["settings"]["override_current"] = OverrideCurrent;
         doc["settings"]["current_min"] = MinCurrent;
         doc["settings"]["current_max"] = MaxCurrent;
         doc["settings"]["current_main"] = MaxMains;
@@ -2887,9 +2890,11 @@ void StartwebServer(void) {
         doc["home_battery"]["current"] = homeBatteryCurrent;
         doc["home_battery"]["last_update"] = homeBatteryLastUpdate;
         
+        doc["phase_currents"]["TOTAL"] = Irms[0] + Irms[1] + Irms[2];
         doc["phase_currents"]["L1"] = Irms[0];
         doc["phase_currents"]["L2"] = Irms[1];
         doc["phase_currents"]["L3"] = Irms[2];
+        doc["phase_currents"]["original_data"]["TOTAL"] = IrmsOriginal[0] + IrmsOriginal[1] + IrmsOriginal[2];
         doc["phase_currents"]["original_data"]["L1"] = IrmsOriginal[0];
         doc["phase_currents"]["original_data"]["L2"] = IrmsOriginal[1];
         doc["phase_currents"]["original_data"]["L3"] = IrmsOriginal[2];
@@ -2921,10 +2926,9 @@ void StartwebServer(void) {
             doc["battery_current"] = homeBatteryCurrent;
         }
 
-        if(request->hasParam("max_current")) {
-            String current = request->getParam("max_current")->value();
-            MaxCurrent = current.toInt();
-            doc["max_current"] = current;
+        if(request->hasParam("disable_override_current")) {
+            OverrideCurrent = 0;
+            doc["override_current"] = ChargeCurrent;
         }
 
         if(request->hasParam("mode")) {
@@ -2938,15 +2942,25 @@ void StartwebServer(void) {
                     setMode(MODE_NORMAL);
                     break;
                 case 2:
+                    OverrideCurrent = 0;
                     setAccess(1);
                     setMode(MODE_SOLAR);
                     break;
                 case 3:
+                    OverrideCurrent = 0;
                     setAccess(1);
                     setMode(MODE_SMART);
                     break;
             }
             doc["mode"] = mode;
+        }
+
+        if(Mode == MODE_NORMAL) {
+            if(request->hasParam("override_current")) {
+                String current = request->getParam("override_current")->value();
+                OverrideCurrent = current.toInt();
+                doc["override_current"] = OverrideCurrent;
+            }
         }
 
         String json;
