@@ -23,7 +23,6 @@
 #include "utils.h"
 #include "OneWire.h"
 #include "modbus.h"
-#include "wifi.h"
 
 #include <nvs_flash.h>              // nvs initialisation code (can be removed?)
 
@@ -468,8 +467,8 @@ uint8_t Pilot() {
     for (n=0 ; n<25 ;n++) {
         sample = ADCsamples[n];
         voltage = esp_adc_cal_raw_to_voltage( sample, adc_chars_CP);        // convert adc reading to voltage
-        if (sample < Min) Min = voltage;                                    // store lowest value
-        if (sample > Max) Max = voltage;                                    // store highest value
+        if (voltage < Min) Min = voltage;                                   // store lowest value
+        if (voltage > Max) Max = voltage;                                   // store highest value
     }    
     //Serial.printf("min:%u max:%u\n",Min ,Max);
 
@@ -1189,6 +1188,7 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
             break;
         case STATUS_CURRENT:
             OverrideCurrent = val;
+            timeout = 10;                                                       // reset timeout when register is written
             break;
         case STATUS_SOLAR_TIMER:
             setSolarStopTimer(val);
@@ -2657,18 +2657,17 @@ void WiFiStationGotIp(WiFiEvent_t event, WiFiEventInfo_t info) {
 // WebSockets event handler
 //
 void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len){
-  static uint8_t led = 0;
 
   if (type == WS_EVT_CONNECT) {
     Serial.printf("ws[%s][%u] connect\n", server->url(), client->id());
-    client->printf("Hello Client %u\n", client->id());
-    client->ping();
+    //client->printf("Hello Client %u\n", client->id());
+    //client->ping();                                                               // this will crash the ESP on IOS 15.3.1 / Safari
     //client->text("Hello from ESP32 Server");
 
   } else if (type == WS_EVT_DISCONNECT) {
     Serial.printf("ws[%s][%u] disconnect\n", server->url(), client->id());
   } else if(type == WS_EVT_PONG){
-   Serial.printf("ws[%s][%u] pong[%u]: %s\n", server->url(), client->id(), len, (len)?(char*)data:"");
+//   Serial.printf("ws[%s][%u] pong[%u]: %s\n", server->url(), client->id(), len, (len)?(char*)data:"");
   } else if (type == WS_EVT_DATA){
 
     Serial.println("Data received: ");
@@ -2977,7 +2976,8 @@ void setup() {
 
     // attach the channels to the GPIO to be controlled
     ledcAttachPin(PIN_CP_OUT, CP_CHANNEL);      
-    pinMode(PIN_CP_OUT, OUTPUT);                // Re-init the pin to output, required in order for attachInterrupt to work (2.0.2)
+    //pinMode(PIN_CP_OUT, OUTPUT);                // Re-init the pin to output, required in order for attachInterrupt to work (2.0.2)
+                                                // not required/working on master branch..
                                                 // see https://github.com/espressif/arduino-esp32/issues/6140
     ledcAttachPin(PIN_LEDR, RED_CHANNEL);
     ledcAttachPin(PIN_LEDG, GREEN_CHANNEL);
