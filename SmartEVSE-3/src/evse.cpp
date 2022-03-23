@@ -2928,7 +2928,7 @@ void StartwebServer(void) {
 
         if(request->hasParam("disable_override_current")) {
             OverrideCurrent = 0;
-            doc["override_current"] = ChargeCurrent;
+            doc["disable_override_current"] = "OK";
         }
 
         if(request->hasParam("mode")) {
@@ -2951,6 +2951,8 @@ void StartwebServer(void) {
                     setAccess(1);
                     setMode(MODE_SMART);
                     break;
+                default:
+                    mode: "Value not allowed!";
             }
             doc["mode"] = mode;
         }
@@ -2958,8 +2960,12 @@ void StartwebServer(void) {
         if(Mode == MODE_NORMAL) {
             if(request->hasParam("override_current")) {
                 String current = request->getParam("override_current")->value();
-                OverrideCurrent = current.toInt();
-                doc["override_current"] = OverrideCurrent;
+                if(current.toInt() >= MinCurrent && current.toInt() <= MaxCurrent) {
+                    OverrideCurrent = current.toInt();
+                    doc["override_current"] = OverrideCurrent;
+                } else {
+                    doc["override_current"] = "Value not allowed!";
+                }
             }
         }
 
