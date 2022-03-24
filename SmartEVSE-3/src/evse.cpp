@@ -2764,21 +2764,17 @@ void StartwebServer(void) {
         request->send(SPIFFS, "/index.html", String(), false, processor);
     });
     // handles compressed .js file from SPIFFS
-    webServer.on("/required.js", HTTP_GET, [](AsyncWebServerRequest *request) {
-        AsyncWebServerResponse *response = request->beginResponse(SPIFFS, "/required.js", "text/javascript");
-        response->addHeader("Content-Encoding", "gzip");
-        request->send(response);
-    });
-    // handles compressed .css file from SPIFFS
-    webServer.on("/required.css", HTTP_GET, [](AsyncWebServerRequest *request) {
-        AsyncWebServerResponse *response = request->beginResponse(SPIFFS, "/required.css", "text/css");
-        response->addHeader("Content-Encoding", "gzip");
-        request->send(response);
-    });
-    
-    webServer.on("/update", HTTP_GET, [](AsyncWebServerRequest *request) {
-        request->send(200, "text/html", "spiffs.bin updates the SPIFFS partition<br>firmware.bin updates the main firmware<br><form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>");
-    });
+    // webServer.on("/required.js", HTTP_GET, [](AsyncWebServerRequest *request) {
+    //     AsyncWebServerResponse *response = request->beginResponse(SPIFFS, "/required.js", "text/javascript");
+    //     response->addHeader("Content-Encoding", "gzip");
+    //     request->send(response);
+    // });
+    // // handles compressed .css file from SPIFFS
+    // webServer.on("/required.css", HTTP_GET, [](AsyncWebServerRequest *request) {
+    //     AsyncWebServerResponse *response = request->beginResponse(SPIFFS, "/required.css", "text/css");
+    //     response->addHeader("Content-Encoding", "gzip");
+    //     request->send(response);
+    // });
 
     webServer.on("/erasesettings", HTTP_DELETE, [](AsyncWebServerRequest *request) {
         request->send(200, "text/plain", "Erasing settings, rebooting");
@@ -2791,6 +2787,10 @@ void StartwebServer(void) {
           preferences.end();       
         }
         ESP.restart();
+    });
+
+    webServer.on("/update", HTTP_GET, [](AsyncWebServerRequest *request) {
+        request->send(200, "text/html", "spiffs.bin updates the SPIFFS partition<br>firmware.bin updates the main firmware<br><form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>");
     });
 
     webServer.on("/update", HTTP_POST, [](AsyncWebServerRequest *request) {
@@ -2827,11 +2827,6 @@ void StartwebServer(void) {
         }
     });
 
-
-    
-
-
-    
     webServer.on("/settings", HTTP_GET, [](AsyncWebServerRequest *request) {
         String mode = "N/A";
         int modeId = -1;
@@ -2905,7 +2900,9 @@ void StartwebServer(void) {
         String json;
         serializeJson(doc, json);
 
-        request->send(200, "application/json", json);
+        AsyncWebServerResponse *response = request->beginResponse(200, "application/json", json);
+        response->addHeader("Access-Control-Allow-Origin","*"); 
+        request->send(response);
     });
 
 
