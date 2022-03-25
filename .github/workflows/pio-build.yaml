@@ -1,0 +1,39 @@
+name: PlatformIO CI
+'on':
+  - push
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get current datetime
+        id: datetime
+        run: echo "::set-output name=datetime::$(date +'%Y%m%dT%H%M%S')"
+      - uses: actions/checkout@v2
+      - name: Cache pip
+        uses: actions/cache@v2
+        with:
+          path: ~/.cache/pip
+          key: '${{ runner.os }}-pip-${{ hashFiles(''**/requirements.txt'') }}'
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      - name: Cache PlatformIO
+        uses: actions/cache@v2
+        with:
+          path: ~/.platformio
+          key: '${{ runner.os }}-${{ hashFiles(''**/lockfiles'') }}'
+      - name: Set up Python
+        uses: actions/setup-python@v2
+      - name: Install PlatformIO
+        run: |
+          python -m pip install --upgrade pip
+          pip install --upgrade platformio
+      - name: Build
+        run: pio run -d SmartEVSE-3/ -c SmartEVSE-3/platformio.ini
+      - name: Build spiffs
+        run: pio run -d SmartEVSE-3/ -c SmartEVSE-3/platformio.ini -t buildfs
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: dist-${{ steps.datetime.outputs.datetime }}
+          path: ./SmartEVSE-3/.pio/build/release/*.bin
+          retention-days: 10
