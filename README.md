@@ -9,10 +9,15 @@ Feel free to use this repository to build it yourself or to use the latest on fr
 <br />
 
 # Changes in regards with the original firmware:
+* New Status page using the Rest API
 * Disabled WebSockets
 * Reduced max backlight brightness
 * Callable API endpoints for easy integration (e.g. Home Assistant)
 * Home battery integration
+
+# New Status Page
+![Status Page](/pictures/status-page.png)
+
 
 # Home Battery Integration
 In a normal EVSE setup a sensorbox is used to read the P1 information to deduce if there is sufficient solar energy available. This however can give unwanted results when also using a home battery as this will result in one battery charging the other one. <br/>
