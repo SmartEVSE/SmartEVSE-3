@@ -1,10 +1,15 @@
 name: PlatformIO CI
-'on':
-  - push
+on:
+  push:
+    branches:
+      - master
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: Get current branch
+        id: branch
+        run: echo "::set-output name=branch::${GITHUB_REF##*/}"
       - name: Get current datetime
         id: datetime
         run: echo "::set-output name=datetime::$(date +'%Y%m%dT%H%M%S')"
@@ -34,6 +39,6 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: dist-${{ steps.datetime.outputs.datetime }}
+          name: dist-${{ steps.branch.outputs.branch }}-${{ steps.datetime.outputs.datetime }}
           path: ./SmartEVSE-3/.pio/build/release/*.bin
           retention-days: 10
