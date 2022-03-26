@@ -33,7 +33,7 @@
 #define LOG_EVSE LOG_INFO                                                       // Default: LOG_INFO
 #define LOG_MODBUS LOG_WARN                                                     // Default: LOG_WARN
 
-#define VERSION "3.0.1"         	                                        // SmartEVSE software version
+#define VERSION "V3-API-1.0.1"         	                                        // SmartEVSE software version
 #define TRANSFORMER_COMP 100   
 
 

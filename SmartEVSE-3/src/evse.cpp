@@ -2865,7 +2865,7 @@ void StartwebServer(void) {
         }
 
         DynamicJsonDocument doc(1024); // https://arduinojson.org/v6/assistant/
-        doc["version"] = String(VERSION) + "-API";
+        doc["version"] = String(VERSION);
         doc["mode"] = mode;
         doc["mode_id"] = modeId;
         doc["car_connected"] = evConnected;
