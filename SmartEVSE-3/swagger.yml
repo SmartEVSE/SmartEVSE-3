@@ -13,7 +13,7 @@ paths:
         - Operations
       responses:
         '200':
-          description: Authentication successful
+          description: Operation OK
           content:
             application/json:
               schema:
@@ -137,6 +137,27 @@ paths:
           required: false
           schema:
             type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Nullable'
+      responses:
+        '200':
+          description: Operation OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result: 
+                    type: string
+  /home_battery:
+    post:
+      operationId: updateHomeBatteryCurrent
+      tags:
+        - Operations
+      parameters:
         - in: query
           name: battery_current
           description: |-
@@ -153,7 +174,7 @@ paths:
               $ref: '#/components/schemas/Nullable'
       responses:
         '200':
-          description: Authentication successful
+          description: Operation OK
           content:
             application/json:
               schema:

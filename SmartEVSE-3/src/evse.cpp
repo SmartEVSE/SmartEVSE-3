@@ -2924,13 +2924,6 @@ void StartwebServer(void) {
             doc["Backlight"] = backlight;
         }
 
-        if(request->hasParam("battery_current")) {
-            String value = request->getParam("battery_current")->value();
-            homeBatteryCurrent = value.toInt();
-            homeBatteryLastUpdate = time(NULL);
-            doc["battery_current"] = homeBatteryCurrent;
-        }
-
         if(request->hasParam("disable_override_current")) {
             OverrideCurrent = 0;
             doc["disable_override_current"] = "OK";
@@ -2972,6 +2965,24 @@ void StartwebServer(void) {
                     doc["override_current"] = "Value not allowed!";
                 }
             }
+        }
+
+        String json;
+        serializeJson(doc, json);
+
+        request->send(200, "application/json", json);
+    },[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
+    });
+
+
+    webServer.on("/home_battery", HTTP_POST, [](AsyncWebServerRequest *request) {
+        DynamicJsonDocument doc(512); // https://arduinojson.org/v6/assistant/
+
+        if(request->hasParam("battery_current")) {
+            String value = request->getParam("battery_current")->value();
+            homeBatteryCurrent = value.toInt();
+            homeBatteryLastUpdate = time(NULL);
+            doc["battery_current"] = homeBatteryCurrent;
         }
 
         String json;
