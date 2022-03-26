@@ -846,7 +846,7 @@ void GLCDMenu(uint8_t Buttons) {
             GLCD_write_buf_str(6, 0, Str, GLCD_ALIGN_LEFT);                     // show the internal temperature
             sprintf(Str, "%u/%u", GetPosInMenu(MenuItemsCount), MenuItemsCount);
             GLCD_write_buf_str(64, 0, Str, GLCD_ALIGN_CENTER);                  // show navigation position in the menu
-            GLCD_write_buf_str(122, 0, (const char *) "v" VERSION, GLCD_ALIGN_RIGHT);// show software version in bottom right corner.
+            GLCD_write_buf_str(122, 0, (const char *) VERSION, GLCD_ALIGN_RIGHT);// show software version in bottom right corner.
             GLCD_sendbuf(7, 1);
         }
         ButtonRelease = 2;                                                      // Set value to 2, so that LCD will be updated only once
