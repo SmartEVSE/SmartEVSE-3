@@ -16,7 +16,7 @@ Feel free to use this repository to build it yourself or to use the latest on fr
 * Callable API endpoints for easy integration (e.g. Home Assistant) - (See [API Overview](#API-Overview))
   * Change charging mode
   * Override charge current
-  * Pass in current measurements (p1, battery, ...)
+  * Pass in current measurements (p1, battery, ...) - this eliminates having to use additionalhard
   * Switch between single- and three phase power (requires extra 2P relais on the 2nd output)
 
 # New Status Page
@@ -44,6 +44,7 @@ The sender has several options when sending the home battery current:
 * Reserve an amount of current for the home battery (e.g. 10A) -> Prioritize the home battery up to a specific limit
 
 # API Overview
-View API https://swagger-ui.serkri.be/
+View API <a href="https://swagger-ui.serkri.be/" target="_blank">https://swagger-ui.serkri.be/</a>
 
-Have an idea for the API? Edit it here https://swagger-editor.serkri.be/ and copy/paste it in a new issue with your request (https://github.com/serkri/SmartEVSE-3/issues)
+
+Have an idea for the API? Edit it here <a href="https://swagger-editor.serkri.be/" target="_blank">https://swagger-editor.serkri.be/</a> and copy/paste it in a new issue with your request (https://github.com/serkri/SmartEVSE-3/issues)
