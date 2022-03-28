@@ -22,7 +22,7 @@
 
   <script>
         let endpoint = document.location + 'settings';
-        // let endpoint = 'http://10.0.0.36/settings';
+        // let endpoint = 'http://10.0.0.38/settings';
         let initiated=false;
 
         $(document).ready(loadData());
@@ -39,8 +39,13 @@
             $('#mode').text(data.mode);
             $('#car_connected').text(data.car_connected ? "Yes" : "No");
             $('#state').text(data.evse.state);
-            $('#error').text(data.evse.error);
-            $('#temp').text(data.evse.temp);
+            $('#temp').text(data.evse.temp + " °C");
+            if(data.evse.error != "None") {
+              $('#error').text(data.evse.error);
+              $('[id=with_errors]').show();
+            } else {
+              $('[id=with_errors]').hide();
+            }
 
             $('#charge_current').text((data.settings.charge_current/10).toFixed(1) + " A");
             $('#current_min').text(data.settings.current_min.toFixed(1) + " A");
@@ -61,12 +66,18 @@
             $('#phase_original_2').text((data.phase_currents.original_data.L2/10).toFixed(1) + " A");
             $('#phase_original_3').text((data.phase_currents.original_data.L3/10).toFixed(1) + " A");
 
-            if(data.home_battery.last_update == 0) {
-              $('#with_homebattery').hide();
-              $('#with_homebattery2').hide();
+            if(data.phase_currents.last_data_update > 0) {
+            $('#p1_data_time').text(new Date(data.phase_currents.last_data_update * 1000).toLocaleTimeString());
+            $('#p1_data_date').text(new Date(data.phase_currents.last_data_update * 1000).toLocaleDateString());
+              $('[id=with_p1_api_data]').show();
             } else {
-              $('#with_homebattery').show();
-              $('#with_homebattery2').show();
+              $('[id=with_p1_api_data]').hide();
+            }
+
+            if(data.home_battery.last_update == 0) {
+              $('[id=with_homebattery]').hide();
+            } else {
+              $('[id=with_homebattery]').show();
             }
 
             if(data.home_battery.current == 0) {
@@ -132,7 +143,7 @@
                                               <div class="h5 mb-0 mr-3 text-gray-800" id="state"></div>
                                             </div>
                                         </div>
-                                        <div class="row no-gutters align-items-center">
+                                        <div class="row no-gutters align-items-center" id="with_errors">
                                           <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
                                               Error:
                                             </div>
@@ -146,6 +157,14 @@
                                             </div>
                                             <div class="col">
                                               <div class="h5 mb-0 mr-3 text-gray-800" id="charge_current"></div>
+                                            </div>
+                                        </div>
+                                        <div class="row no-gutters align-items-center">
+                                          <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                              Temp:
+                                            </div>
+                                            <div class="col">
+                                              <div class="h5 mb-0 mr-3 text-gray-800" id="temp"></div>
                                             </div>
                                         </div>
                                     </div>
@@ -247,6 +266,22 @@
                                           <div class="h5 mb-0 mr-3 text-gray-800" id="phase_3" style="text-align: right;"></div>
                                         </div>
                                     </div>
+                                    <div class="row no-gutters align-items-center" id="with_p1_api_data">
+                                      <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                          Date:
+                                        </div>
+                                        <div class="col">
+                                          <div class="h5 mb-0 mr-3 text-gray-800" id="p1_data_date" style="text-align: right;"></div>
+                                        </div>
+                                    </div>
+                                    <div class="row no-gutters align-items-center" id="with_p1_api_data">
+                                      <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                          Time:
+                                        </div>
+                                        <div class="col">
+                                          <div class="h5 mb-0 mr-3 text-gray-800" id="p1_data_time" style="text-align: right;"></div>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="col-auto">
                                     <i class="fas fa-clipboard-list fa-2x text-gray-300">
@@ -312,7 +347,7 @@
                   
               </div>
 
-              <div class="col-xl-3 col-md-6 mb-4" id="with_homebattery2">
+              <div class="col-xl-3 col-md-6 mb-4" id="with_homebattery">
                 <div class="card border-left-warning shadow h-100 py-2">
                     <div class="card-body">
                         <div class="row no-gutters align-items-center">

@@ -2019,6 +2019,7 @@ void Timer1S(void * parameter) {
 
         // Reset data if API data is too old
         if (MainsMeter == EM_API && phasesLastUpdate < (time(NULL) - 60)) {
+            phasesLastUpdate=0;
             Irms[0] = 0;
             Irms[1] = 0;
             Irms[2] = 0;
@@ -2249,6 +2250,8 @@ ModbusMessage MBMainsMeterResponse(ModbusMessage request) {
         if (x && LoadBl <2) timeout = 10;                   // only reset timeout when data is ok, and Master/Disabled
 
         // Calculate Isum (for nodes and master)
+
+        phasesLastUpdate=time(NULL);
         Isum = 0; 
         int batteryPerPhase = getBatteryCurrent() / 3; // Divide the battery current per phase to spread evenly
 
@@ -2913,9 +2916,7 @@ void StartwebServer(void) {
         doc["phase_currents"]["L1"] = Irms[0];
         doc["phase_currents"]["L2"] = Irms[1];
         doc["phase_currents"]["L3"] = Irms[2];
-        if(MainsMeter == EM_API) {
-            doc["phase_currents"]["last_data_update"] = phasesLastUpdate;
-        }
+        doc["phase_currents"]["last_data_update"] = phasesLastUpdate;
         doc["phase_currents"]["original_data"]["TOTAL"] = IrmsOriginal[0] + IrmsOriginal[1] + IrmsOriginal[2];
         doc["phase_currents"]["original_data"]["L1"] = IrmsOriginal[0];
         doc["phase_currents"]["original_data"]["L2"] = IrmsOriginal[1];
