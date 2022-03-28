@@ -518,6 +518,8 @@ signed int receivePowerMeasurement(uint8_t *buf, uint8_t Meter) {
  */
 void requestCurrentMeasurement(uint8_t Meter, uint8_t Address) {
     switch(Meter) {
+        case EM_API:
+            break;
         case EM_SENSORBOX:
             ModbusReadInputRequest(Address, 4, 0, 20);
             break;
@@ -557,6 +559,8 @@ uint8_t receiveCurrentMeasurement(uint8_t *buf, uint8_t Meter, signed int *var) 
     CalActive = 0;
 
     switch(Meter) {
+        case EM_API:
+            break;
         case EM_SENSORBOX:
             // return immediately if the data contains no new P1 or CT measurement
             if (buf[3] == 0) return 0;  // error!!

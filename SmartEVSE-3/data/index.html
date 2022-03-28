@@ -63,8 +63,10 @@
 
             if(data.home_battery.last_update == 0) {
               $('#with_homebattery').hide();
+              $('#with_homebattery2').hide();
             } else {
               $('#with_homebattery').show();
+              $('#with_homebattery2').show();
             }
 
             if(data.home_battery.current == 0) {
@@ -310,7 +312,7 @@
                   
               </div>
 
-              <div class="col-xl-3 col-md-6 mb-4" id="with_homebattery">
+              <div class="col-xl-3 col-md-6 mb-4" id="with_homebattery2">
                 <div class="card border-left-warning shadow h-100 py-2">
                     <div class="card-body">
                         <div class="row no-gutters align-items-center">
