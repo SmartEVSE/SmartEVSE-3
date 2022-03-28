@@ -1,0 +1,45 @@
+on:
+  push:
+    tags:
+      - 'v*'
+
+name: Create Release
+jobs:
+  build:
+    uses: ./.github/workflows/pio-build.yaml
+  release:
+    needs: build
+    name: Upload Release Asset
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get current tag
+        id: tag
+        run: echo "::set-output name=tag::${GITHUB_REF##*/}"
+      - uses: actions/checkout@v2
+      - uses: actions/download-artifact@v3
+        id: download
+        with:
+          path: dist
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+      - name: Zip
+        run: zip -j ${{ steps.tag.outputs.tag }}-dist.zip ./dist/${{ needs.build.outputs.artifact }}/*
+      - name: Upload Release Asset
+        id: upload-release-asset 
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./${{ steps.tag.outputs.tag }}-dist.zip
+          asset_name: ${{ steps.tag.outputs.tag }}-dist.zip
+          asset_content_type: application/zip
+

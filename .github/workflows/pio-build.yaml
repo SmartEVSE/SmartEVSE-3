@@ -1,5 +1,10 @@
 name: PlatformIO CI
 on:
+  workflow_call:
+   outputs:
+      artifact:
+        description: "The first output string"
+        value: ${{ jobs.build.outputs.artifact }}
   push:
     branches:
       - master
@@ -45,9 +50,13 @@ jobs:
         run: pio run -d SmartEVSE-3/ -c SmartEVSE-3/platformio.ini
       - name: Build spiffs
         run: pio run -d SmartEVSE-3/ -c SmartEVSE-3/platformio.ini -t buildfs
+      - id: artifact
+        run: echo "::set-output name=value::dist-${{ steps.branch.outputs.branch }}-${{ steps.datetime.outputs.datetime }}"
       - name: Upload Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: dist-${{ steps.branch.outputs.branch }}-${{ steps.datetime.outputs.datetime }}
+          name: ${{ steps.artifact.outputs.value }}
           path: ./SmartEVSE-3/.pio/build/release/*.bin
           retention-days: 10
+    outputs:
+      artifact: ${{ steps.artifact.outputs.value }}
