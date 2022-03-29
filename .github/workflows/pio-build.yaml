@@ -1,6 +1,16 @@
 name: PlatformIO CI
 on:
   workflow_call:
+   inputs:
+      major:
+        required: true
+        type: string
+      minor:
+        required: true
+        type: string
+      patch:
+        required: true
+        type: string
    outputs:
       artifact:
         description: "The first output string"
@@ -18,6 +28,19 @@ jobs:
       - name: Get current datetime
         id: datetime
         run: echo "::set-output name=datetime::$(date +'%Y%m%dT%H%M%S')"
+      - name: Get current time
+        id: time
+        run: echo "::set-output name=time::$(date +'%H%M%S')"
+      - name: Get version
+        id: version
+        shell: bash
+        run: |
+              if [ -z "${{ inputs.major }}" ] 
+              then
+                 echo "::set-output name=version::${{ steps.time.outputs.time }}"
+               else
+                 echo "::set-output name=version::${{ inputs.major }}.${{ inputs.minor }}.${{ inputs.patch }}"
+              fi
       - uses: actions/checkout@v2
       - name: Cache pip
         uses: actions/cache@v2
@@ -47,9 +70,9 @@ jobs:
           sed -i '326 s/./\/\/&/' ./SmartEVSE-3/.pio/libdeps/release/eModbus/src/RTUutils.cpp
           cat ./SmartEVSE-3/.pio/libdeps/release/eModbus/src/RTUutils.cpp
       - name: Build
-        run: pio run -d SmartEVSE-3/ -c SmartEVSE-3/platformio.ini
+        run: PLATFORMIO_BUILD_FLAGS=-DVERSION='\"SERKRI-${{ steps.version.outputs.version }}\"' pio run -d SmartEVSE-3/ -c SmartEVSE-3/platformio.ini
       - name: Build spiffs
-        run: pio run -d SmartEVSE-3/ -c SmartEVSE-3/platformio.ini -t buildfs
+        run: PLATFORMIO_BUILD_FLAGS=-DVERSION='\"SERKRI-${{ steps.version.outputs.version }}\"' pio run -d SmartEVSE-3/ -c SmartEVSE-3/platformio.ini -t buildfs
       - id: artifact
         run: echo "::set-output name=value::dist-${{ steps.branch.outputs.branch }}-${{ steps.datetime.outputs.datetime }}"
       - name: Upload Artifact

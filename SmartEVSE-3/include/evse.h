@@ -22,8 +22,12 @@
  */
 
 #ifndef __EVSE_MAIN
+
 #define __EVSE_MAIN
 
+#ifndef VERSION
+#define VERSION "v3serkri-0.00"
+#endif
 
 #define LOG_DEBUG 3                                                             // Debug messages including measurement data
 #define LOG_INFO 2                                                              // Information messages without measurement data
@@ -33,7 +37,7 @@
 #define LOG_EVSE LOG_INFO                                                       // Default: LOG_INFO
 #define LOG_MODBUS LOG_WARN                                                     // Default: LOG_WARN
 
-#define VERSION "V3A.0.2"         	                                        // SmartEVSE software version
+
 #define TRANSFORMER_COMP 100   
 
 

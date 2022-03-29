@@ -5,8 +5,22 @@ on:
 
 name: Create Release
 jobs:
+  version: 
+    runs-on: ubuntu-latest
+    steps:
+      - id: get_version
+        uses: battila7/get-version-action@v2
+    outputs:
+      major: ${{ steps.get_version.outputs.major }}
+      minor: ${{ steps.get_version.outputs.minor }}
+      patch: ${{ steps.get_version.outputs.patch }}
   build:
+    needs: version
     uses: ./.github/workflows/pio-build.yaml
+    with:
+      major: ${{ needs.version.outputs.major }}
+      minor: ${{ needs.version.outputs.minor }}
+      patch: ${{ needs.version.outputs.patch }}
   release:
     needs: build
     name: Upload Release Asset
