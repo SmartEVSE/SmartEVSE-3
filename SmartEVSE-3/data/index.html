@@ -440,6 +440,12 @@
                         $.post( "/settings?mode=" + mode);
                       }
                     }
+                    function reboot() {
+                        $.post( "/reboot");
+                    }
+                    function update() {
+                      window.location.href = "/update";
+                    }
                 </script>
 
                 <!-- Earnings (Monthly) Card Example -->
@@ -470,6 +476,17 @@
                                           </select>
                                         </div>
                                     </div>
+                                    <div class="row no-gutters align-items-center">
+                                      <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                          Actions:
+                                        </div>
+                                        <div class="col">
+                                          <button id="mode_0" onclick="reboot()" style="width: 100px; display:inline-block;">Reboot</button>
+                                          <button id="mode_0" onclick="update()" style="width: 100px; display:inline-block;">Update</button>
+                                        </div>
+                                    </div>
+
+                                  </div>
                                 </div>
                             </div>
                         </div>
