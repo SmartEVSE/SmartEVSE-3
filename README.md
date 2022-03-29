@@ -13,6 +13,8 @@ Feel free to use this repository to build it yourself or to use the latest on fr
 * Disabled WebSockets
 * Reduced max backlight brightness
 * Home battery integration
+* Endpoint to send L1/2/3 data, this removed the need for a SensorBox
+  * Note: Set MainsMeter to the new 'API' option in the config menu when sending L1/2/3
 * Callable API endpoints for easy integration (e.g. Home Assistant) - (See [API Overview](#API-Overview))
   * Change charging mode
   * Override charge current
@@ -20,7 +22,7 @@ Feel free to use this repository to build it yourself or to use the latest on fr
   * Switch between single- and three phase power (requires extra 2P relais on the 2nd output)
 
 # New Status Page
-![Status Page](/pictures/status-page.png)
+![image](https://user-images.githubusercontent.com/36994651/160653707-121dd618-ee0d-4cb3-bc39-82fde1a1a653.png)
 
 
 # Home Battery Integration
