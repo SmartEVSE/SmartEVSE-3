@@ -21,11 +21,12 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p" crossorigin="anonymous"></script>
 
   <script>
-        let endpoint = document.location + 'settings';
-        // let endpoint = 'http://10.0.0.38/settings';
-        let initiated=false;
+      let endpoint = document.location + 'settings';
+      // let endpoint = 'http://10.0.0.38/settings';
+      let initiated=false;
 
-        $(document).ready(loadData());
+      $(document).ready(loadData());
+
 
       function loadData(){
         $.ajax({
@@ -34,7 +35,31 @@
             if(!initiated) {
               initiated = true;
               $('#version').append(data.version);
+              
+              let minCurrent=parseInt(data.settings.current_min.toFixed(1));
+              let maxCurrent=parseInt(data.settings.current_max.toFixed(1));
+
+              // Initialiaze at page load
+              for(let x = minCurrent ; x <= maxCurrent ; x++) {
+                $('#mode_override_current').append($('<option>', {
+                    value: x,
+                    text: x + 'A'
+                }));
+
+                // $('#mode_override_current').val(maxCurrent);
+              }
             }
+
+            for(let x=0; x<=3; x++) {
+              if(x == data.mode_id) {
+                $('#mode_' + x).css("background-color", "#1CC88A");
+              } else {
+                $('#mode_' + x).css("background-color", "#EDEDED");    
+              }
+            }
+            $('#mode_' + data.mode_id).css("background-color", "#1CC88A");
+            // $('#mode_override_current').val((data.settings.override_current/10).toFixed(1));
+
 
             $('#mode').text(data.mode);
             $('#car_connected').text(data.car_connected ? "Yes" : "No");
@@ -183,6 +208,7 @@
                     
 
                     </div>
+                    <!-- END ROW -->
                     <div class="row">
 
                     <div class="col-xl-3 col-md-6 mb-4">
@@ -398,7 +424,64 @@
                 </div>
 
               </div>
-          </div>
+          
+          
+          
+          
+          
+              <div class="row">
+
+                <script>
+                    function activate(mode) {
+                      if(mode == 1) {
+                        override_current=$('#mode_override_current').val();
+                        $.post( "/settings?mode=" + mode +  "&override_current=" + (override_current * 10));
+                      } else {
+                        $.post( "/settings?mode=" + mode);
+                      }
+                    }
+                </script>
+
+                <!-- Earnings (Monthly) Card Example -->
+                <div style="margin-bottom: 20px;">
+                    <div class="card border-left-primary shadow h-100 py-2">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text font-weight-bold text-primary text-uppercase mb-1">Control</div>
+                                    <div class="row no-gutters align-items-center">
+                                      <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                          Mode:
+                                        </div>
+                                        <div class="col">
+                                          <button id="mode_0" onclick="activate('0')" style="width: 100px; display:inline-block;">OFF</button>
+                                          <button id="mode_1" onclick="activate('1')" style="width: 120px; display:inline-block;">NORMAL</button>
+                                          <button id="mode_2" onclick="activate('2')" style="width: 100px; display:inline-block;">SOLAR</button>
+                                          <button id="mode_3" onclick="activate('3')" style="width: 100px; display:inline-block;">SMART</button>
+                                        </div>
+                                    </div>
+                                    <div class="row no-gutters align-items-center">
+                                      <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                          Current:
+                                        </div>
+                                        <div class="col">
+                                          <select id="mode_override_current">
+                                            <option value="0">Ampere</option>
+                                          </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                
+
+                </div>
+                <!-- END ROW -->
+          
+            </div>
       </div>
   </div>
 
