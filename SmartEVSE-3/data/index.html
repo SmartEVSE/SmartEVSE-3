@@ -22,7 +22,7 @@
 
   <script>
       let endpoint = document.location + 'settings';
-      // let endpoint = 'http://10.0.0.38/settings';
+      // let endpoint = 'http://10.0.0.36/settings';
       let initiated=false;
 
       $(document).ready(loadData());
@@ -70,6 +70,13 @@
               $('[id=with_errors]').show();
             } else {
               $('[id=with_errors]').hide();
+            }
+
+            if(data.evse.charge_timer > 0) {
+              $('#state').append(" (Starting in " + data.evse.charge_timer + "s)");
+            }
+            if(data.evse.solar_stop_timer > 0) {
+              $('#state').append(" (Stopping in " + data.evse.solar_stop_timer + "s)");
             }
 
             $('#charge_current').text((data.settings.charge_current/10).toFixed(1) + " A");
