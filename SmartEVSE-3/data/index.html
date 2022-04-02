@@ -62,7 +62,7 @@
 
 
             $('#mode').text(data.mode);
-            $('#car_connected').text(data.car_connected ? "Yes" : "No");
+            $('#car_connected').text(data.car_connected == "true" ? "Yes" : "No");
             $('#state').text(data.evse.state);
             $('#temp').text(data.evse.temp + " °C");
             if(data.evse.error != "None") {
