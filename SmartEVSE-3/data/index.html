@@ -72,9 +72,9 @@
               $('[id=with_errors]').hide();
             }
 
-            if(data.evse.charge_timer > 0) {
-              $('#state').append(" (Starting in " + data.evse.charge_timer + "s)");
-            }
+            // if(data.evse.charge_timer > 0) {
+            //   $('#state').append(" (Starting in " + data.evse.charge_timer + "s)");
+            // }
             if(data.evse.solar_stop_timer > 0) {
               $('#state').append(" (Stopping in " + data.evse.solar_stop_timer + "s)");
             }
