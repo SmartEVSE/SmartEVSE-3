@@ -2899,6 +2899,21 @@ void StartwebServer(void) {
         doc["evse"]["error"] = error;
         doc["evse"]["error_id"] = errorId;
 
+        if (RFIDReader) {
+            switch(RFIDstatus) {
+                case 0:
+                case 1: doc["evse"]["rfid"] = "Present"; break;
+                case 2: doc["evse"]["rfid"] = "Card Stored"; break;
+                case 3: doc["evse"]["rfid"] = "Card Deleted"; break;
+                case 4: doc["evse"]["rfid"] = "Card already stored"; break;
+                case 5: doc["evse"]["rfid"] = "Card not in storage"; break;
+                case 6: doc["evse"]["rfid"] = "Card Storage full"; break;
+                case 7: doc["evse"]["rfid"] = "Invalid"; break;
+            }
+         } else {
+             doc["evse"]["rfid"] = "Not Installed";
+         }
+
         doc["settings"]["charge_current"] = Balanced[0];
         doc["settings"]["override_current"] = OverrideCurrent;
         doc["settings"]["current_min"] = MinCurrent;

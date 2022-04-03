@@ -72,6 +72,12 @@
               $('[id=with_errors]').hide();
             }
 
+            if(data.evse.rfid != "Not Installed") {
+              $('#rfid').text(data.evse.rfid);
+            } else {
+              $('#show_rfid').hide();
+            }
+
             // if(data.evse.charge_timer > 0) {
             //   $('#state').append(" (Starting in " + data.evse.charge_timer + "s)");
             // }
@@ -181,6 +187,14 @@
                                             </div>
                                             <div class="col">
                                               <div class="h5 mb-0 mr-3 text-gray-800" id="error"></div>
+                                            </div>
+                                        </div>
+                                        <div class="row no-gutters align-items-center" id="show_rfid">
+                                          <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                              RFID:
+                                            </div>
+                                            <div class="col">
+                                              <div class="h5 mb-0 mr-3 text-gray-800" id="rfid"></div>
                                             </div>
                                         </div>
                                         <div class="row no-gutters align-items-center">
@@ -453,6 +467,9 @@
                     function update() {
                       window.location.href = "/update";
                     }
+                    function rawData() {
+                      window.location.href = "/settings";
+                    }
                 </script>
 
                 <!-- Earnings (Monthly) Card Example -->
@@ -490,6 +507,7 @@
                                         <div class="col">
                                           <button id="mode_0" onclick="reboot()" style="width: 100px; display:inline-block;">Reboot</button>
                                           <button id="mode_0" onclick="update()" style="width: 100px; display:inline-block;">Update</button>
+                                          <button id="mode_0" onclick="rawData()" style="width: 120px; display:inline-block;">Raw Data</button>
                                         </div>
                                     </div>
 
