@@ -21,7 +21,7 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p" crossorigin="anonymous"></script>
 
   <script>
-      let endpoint = document.location + 'settings';
+      let endpoint = "http://localhost:8080/settings";
       // let endpoint = 'http://10.0.0.36/settings';
       let initiated=false;
 
@@ -89,7 +89,7 @@
             $('#current_min').text(data.settings.current_min.toFixed(1) + " A");
             $('#current_max').text(data.settings.current_max.toFixed(1) + " A");
             $('#override_current').text((data.settings.override_current/10).toFixed(1) + " A");
-            $('#enable_3phases').text(data.settings.enable_3phases ? "Yes" : "No");
+            $('#enable_3phases').text(data.settings["3phases_enabled"] ? "Yes" : "No");
 
             $('#battery_current').text((data.home_battery.current/10).toFixed(1) + "A");
             $('#battery_last_update_time').text(new Date(data.home_battery.last_update * 1000).toLocaleTimeString());
