@@ -139,6 +139,28 @@ paths:
           required: false
           schema:
             type: integer
+        - in: query
+          name: enable_3phases
+          description: |-
+            Works only when using <b>NORMAL</b> mode <br />
+            Enables 3 phase mode by controlling a 2nd contactor (C2 port) <br />
+            Note: This is just changing the config setting, the contactor will not be controlled immedialty but only when there is a state change. <br />
+            <br />
+            Example, if car is charging and you want to change from 1F to 3F:  <br />
+            - Change mode to OFF <br />
+            - Enable 3 phases <br />
+            - Change mode to NORMAL <br />
+          required: false
+          schema:
+            type: boolean
+        # - in: query
+        #   name: force_contactors
+        #   description: |-
+        #     Works only when using <b>NORMAL</b> mode and 3phases are enabled (using the EVSE menu or the enable_3phases parameter)<br />
+        #     Force contactor 2 to be opened/closed <br />
+        #   required: false
+        #   schema:
+        #     type: boolean
       requestBody:
         content:
           application/json:
@@ -160,24 +182,6 @@ paths:
       tags:
         - Operations
       parameters:
-        - in: query
-          name: enable_3phases
-          description: |-
-            Works only when using <b>NORMAL</b> mode <br />
-            Enables 3 phase mode by controlling a 2nd contactor (C2 port) <br />
-            Note: This is just changing the config setting, the contactor will not be controlled immedialty but only when there is a state change. <br />
-            <b>See force_phases.</b>
-          required: false
-          schema:
-            type: boolean
-        - in: query
-          name: force_phases
-          description: |-
-            Works only when 3phases are enabled (using the EVSE menu or the enable_3phases parameter)<br />
-            Immediatly force contactor 2 to be opened/closed <br />
-          required: false
-          schema:
-            type: boolean
         - in: query
           name: battery_current
           description: |-

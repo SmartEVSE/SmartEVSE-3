@@ -3009,6 +3009,18 @@ void StartwebServer(void) {
             doc["mode"] = mode;
         }
 
+        if(request->hasParam("enable_3phases")) {
+            String enabled = request->getParam("enable_3phases")->value();
+            if(enabled.equalsIgnoreCase("true")) {
+                enable3f = true;
+                doc["enable_3phases"] = true;
+            } else {
+                enable3f = false;
+                doc["enable_3phases"] = false;
+            }
+            write_settings();
+        }
+
         if(Mode == MODE_NORMAL) {
             if(request->hasParam("override_current")) {
                 String current = request->getParam("override_current")->value();
@@ -3020,24 +3032,13 @@ void StartwebServer(void) {
                 }
             }
 
-            if(request->hasParam("enable_3phases")) {
-                String enabled = request->getParam("enable_3phases")->value();
-                if(enabled.equalsIgnoreCase("true")) {
-                    enable3f = true;
-                    doc["enable_3phases"] = true;
-                } else {
-                    enable3f = false;
-                    doc["enable_3phases"] = false;
-                }
-                write_settings();
-            }
-
-            if(request->hasParam("force_phases")) {
-                String force_phases = request->getParam("force_phases")->value();
-                if(force_phases.equalsIgnoreCase("true")) {
-                    setState(State, true);
-                }
-            }
+            // if(request->hasParam("force_contactors")) {
+            //     String force_contactors = request->getParam("force_contactors")->value();
+            //     if(force_contactors.equalsIgnoreCase("true")) {
+            //         setState(State, true);
+            //         doc["force_contactors"] = "OK";
+            //     }
+            // }
         }
 
         String json;
