@@ -1,4 +1,4 @@
-![SerKri Logo](/pictures/logo2.png)
+![SerKri Logo](/pictures/logo_header.png)
 
 
 # Donwload the latest version from <a href="https://github.com/serkri/SmartEVSE-3/releases" target="_blank">latest releases</a>
