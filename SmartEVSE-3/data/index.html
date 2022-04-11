@@ -89,6 +89,7 @@
             $('#current_min').text(data.settings.current_min.toFixed(1) + " A");
             $('#current_max').text(data.settings.current_max.toFixed(1) + " A");
             $('#override_current').text((data.settings.override_current/10).toFixed(1) + " A");
+            $('#enable_3phases').text(data.settings.enable_3phases ? "Yes" : "No");
 
             $('#battery_current').text((data.home_battery.current/10).toFixed(1) + "A");
             $('#battery_last_update_time').text(new Date(data.home_battery.last_update * 1000).toLocaleTimeString());
@@ -103,26 +104,6 @@
             $('#phase_original_1').text((data.phase_currents.original_data.L1/10).toFixed(1) + " A");
             $('#phase_original_2').text((data.phase_currents.original_data.L2/10).toFixed(1) + " A");
             $('#phase_original_3').text((data.phase_currents.original_data.L3/10).toFixed(1) + " A");
-
-            if(data.phase_currents.last_data_update > 0) {
-            $('#p1_data_time').text(new Date(data.phase_currents.last_data_update * 1000).toLocaleTimeString());
-            $('#p1_data_date').text(new Date(data.phase_currents.last_data_update * 1000).toLocaleDateString());
-              $('[id=with_p1_api_data]').show();
-            } else {
-              $('[id=with_p1_api_data]').hide();
-            }
-
-            if(data.home_battery.last_update == 0) {
-              $('[id=with_homebattery]').hide();
-            } else {
-              $('[id=with_homebattery]').show();
-            }
-
-            if(data.home_battery.current == 0) {
-              $('#battery_status').text("Idle");
-            } else {
-              $('#battery_status').text(data.home_battery.current < 0 ? "Discharging" : "Charging");
-            }
 
             setTimeout("loadData()", 5000);
           });
@@ -238,6 +219,14 @@
                               <div class="row no-gutters align-items-center">
                                   <div class="col mr-2">
                                       <div class="text-xl font-weight-bold text-info text-uppercase mb-1">Current Details</div>
+                                      <div class="row no-gutters align-items-center">
+                                        <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                            3 Phases:
+                                          </div>
+                                          <div class="col">
+                                            <div class="h5 mb-0 mr-3 text-gray-800" id="enable_3phases" style="text-align: right;"></div>
+                                          </div>
+                                      </div>
                                       <div class="row no-gutters align-items-center">
                                         <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
                                             Override:

@@ -131,6 +131,8 @@ uint8_t RFIDReader = RFID_READER;                                           // R
 uint8_t WIFImode = WIFI_MODE;                                               // WiFi Mode (0:Disabled / 1:Enabled / 2:Start Portal)
 String APpassword = "00000000";
 
+boolean enable3f = USE_3PHASES;
+
 int32_t Irms[3]={0, 0, 0};                                                  // Momentary current per Phase (23 = 2.3A) (resolution 100mA)
                                                                             // Max 3 phases supported
 uint8_t State = STATE_A;
@@ -553,10 +555,13 @@ void setSolarStopTimer(uint16_t Timer) {
     SolarStopTimer = Timer;
 }
 
-
 void setState(uint8_t NewState) {
+    setState(NewState, false);
+}
 
-    if (State != NewState) {
+void setState(uint8_t NewState, bool forceState) {
+
+    if (State != NewState || forceState) {
         
         char Str[50];
         snprintf(Str, 50, "#%02d:%02d:%02d STATE %s -> %s\n",timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec, getStateName(State), getStateName(NewState) ); 
@@ -595,8 +600,9 @@ void setState(uint8_t NewState) {
             break;      
         case STATE_C:                                                           // State C2
             ActivationMode = 255;                                               // Disable ActivationMode
-            CONTACTOR1_ON;                                                      // Contactor1 ON
-            CONTACTOR2_ON;                                                      // Contactor2 ON
+            CONTACTOR1_ON;      
+            if(Mode == MODE_NORMAL && enable3f)                                 // Contactor1 ON
+                CONTACTOR2_ON;                                                  // Contactor2 ON
             LCDTimer = 0;
             break;
         case STATE_C1:
@@ -1033,6 +1039,7 @@ uint8_t getMenuItems (void) {
         MenuItems[m++] = MENU_STOP;                                             // - Stop time (min)
         MenuItems[m++] = MENU_IMPORT;                                           // - Import Current from Grid (A)
     }
+    MenuItems[m++] = MENU_3F;
     MenuItems[m++] = MENU_LOADBL;                                               // Load Balance Setting (0:Disable / 1:Master / 2-8:Node)
     if (Mode && LoadBl < 2) {                                                   // ? Mode Smart/Solar and Load Balancing Disabled/Master?
         MenuItems[m++] = MENU_MAINS;                                            // - Max Mains Amps (hard limit, limited by the MAINS connection) (A) (Mode:Smart/Solar)
@@ -1102,6 +1109,9 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
     }
 
     switch (nav) {
+        case MENU_3F:
+            enable3f = val == 1;
+            break;
         case MENU_CONFIG:
             Config = val;
             break;
@@ -1260,6 +1270,8 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
  */
 uint16_t getItemValue(uint8_t nav) {
     switch (nav) {
+        case MENU_3F:
+            return enable3f;
         case MENU_CONFIG:
             return Config;
         case MENU_MODE:
@@ -1372,6 +1384,8 @@ const char * getMenuItemOption(uint8_t nav) {
     value = getItemValue(nav);
 
     switch (nav) {
+        case MENU_3F:
+            return enable3f ? "Yes" : "No";
         case MENU_CONFIG:
             if (Config) return StrFixed;
             else return StrSocket;
@@ -2623,6 +2637,8 @@ void read_settings(bool write) {
         EMConfig[EM_CUSTOM].Function = preferences.getUChar("EMFunction",EMCUSTOM_FUNCTION);
         WIFImode = preferences.getUChar("WIFImode",WIFI_MODE);
         APpassword = preferences.getString("APpassword",AP_PASSWORD);
+
+        enable3f = preferences.getUChar("enable3f", false); 
         
         preferences.end();                                  
 
@@ -2674,6 +2690,8 @@ void write_settings(void) {
     preferences.putUChar("EMFunction", EMConfig[EM_CUSTOM].Function);
     preferences.putUChar("WIFImode", WIFImode);
     preferences.putString("APpassword", APpassword);
+
+    preferences.putBool("enable3f", enable3f);
 
     preferences.end();
 
@@ -2922,6 +2940,7 @@ void StartwebServer(void) {
         doc["settings"]["solar_max_import"] = ImportCurrent;
         doc["settings"]["solar_start_current"] = StartCurrent;
         doc["settings"]["solar_stop_time"] = StopTime;
+        doc["settings"]["3phases_enabled"] = enable3f;
         doc["settings"]["mains_meter"] = EMConfig[MainsMeter].Desc;
         
         doc["home_battery"]["current"] = homeBatteryCurrent;
@@ -3000,12 +3019,83 @@ void StartwebServer(void) {
                     doc["override_current"] = "Value not allowed!";
                 }
             }
+
+            if(request->hasParam("enable_3phases")) {
+                String enabled = request->getParam("enable_3phases")->value();
+                if(enabled.equalsIgnoreCase("true")) {
+                    enable3f = true;
+                    doc["enable_3phases"] = true;
+                } else {
+                    enable3f = false;
+                    doc["enable_3phases"] = false;
+                }
+                write_settings();
+            }
+
+            if(request->hasParam("force_phases")) {
+                String force_phases = request->getParam("force_phases")->value();
+                if(force_phases.equalsIgnoreCase("true")) {
+                    setState(State, true);
+                }
+            }
         }
 
         String json;
         serializeJson(doc, json);
 
         request->send(200, "application/json", json);
+    },[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
+    });
+
+    webServer.on("/currents", HTTP_POST, [](AsyncWebServerRequest *request) {
+        DynamicJsonDocument doc(200);
+
+        if(request->hasParam("battery_current")) {
+            String value = request->getParam("battery_current")->value();
+            homeBatteryCurrent = value.toInt();
+            homeBatteryLastUpdate = time(NULL);
+            doc["battery_current"] = homeBatteryCurrent;
+        }
+
+        if(MainsMeter == EM_API) {
+            if(request->hasParam("L1") && request->hasParam("L2") && request->hasParam("L3")) {
+                phasesLastUpdate = time(NULL);
+
+                Irms[0] = request->getParam("L1")->value().toInt();
+                Irms[1] = request->getParam("L2")->value().toInt();
+                Irms[2] = request->getParam("L3")->value().toInt();
+
+                int batteryPerPhase = getBatteryCurrent() / 3;
+                Isum = 0; 
+                for (int x = 0; x < 3; x++) {  
+                    IrmsOriginal[x] = Irms[x];
+                    doc["original"]["L" + x] = Irms[x];
+                    Irms[x] -= batteryPerPhase;           
+                    doc["L" + x] = Irms[x];
+                    Isum = Isum + Irms[x];
+                }
+                doc["TOTAL"] = Isum;
+                UpdateCurrentData();
+            }
+        }
+
+        String json;
+        serializeJson(doc, json);
+        request->send(200, "application/json", json);
+
+    },[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
+    });
+
+    webServer.on("/reboot", HTTP_POST, [](AsyncWebServerRequest *request) {
+        DynamicJsonDocument doc(200);
+
+        ESP.restart();
+        doc["reboot"] = true;
+
+        String json;
+        serializeJson(doc, json);
+        request->send(200, "application/json", json);
+
     },[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
     });
 

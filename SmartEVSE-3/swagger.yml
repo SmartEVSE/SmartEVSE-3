@@ -71,6 +71,8 @@ paths:
                         type: integer
                       solar_stop_time: 
                         type: integer
+                      3phases_enabled: 
+                        type: boolean
                   home_battery:
                     type: object
                     properties:
@@ -128,7 +130,7 @@ paths:
         - in: query
           name: override_current
           description: |-
-            Works only when using NORMAL mode <br />
+            Works only when using <b>NORMAL</b> mode <br />
             Desired current multiplied by 10 <br />
             <br />
             Examples: <br />
@@ -158,6 +160,24 @@ paths:
       tags:
         - Operations
       parameters:
+        - in: query
+          name: enable_3phases
+          description: |-
+            Works only when using <b>NORMAL</b> mode <br />
+            Enables 3 phase mode by controlling a 2nd contactor (C2 port) <br />
+            Note: This is just changing the config setting, the contactor will not be controlled immedialty but only when there is a state change. <br />
+            <b>See force_phases.</b>
+          required: false
+          schema:
+            type: boolean
+        - in: query
+          name: force_phases
+          description: |-
+            Works only when 3phases are enabled (using the EVSE menu or the enable_3phases parameter)<br />
+            Immediatly force contactor 2 to be opened/closed <br />
+          required: false
+          schema:
+            type: boolean
         - in: query
           name: battery_current
           description: |-
