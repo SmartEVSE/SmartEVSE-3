@@ -1,5 +1,8 @@
 ![SerKri Logo](/pictures/logo2.png)
 
+
+# Go to the <a href="https://github.com/serkri/SmartEVSE-3/releases" target="_blank">latest releases!!</a>
+
 # Note
 <span style="color:red">
 This fork is exploring the capabilities in modifying the Smart-EVSEv3 firmware.<br/>
