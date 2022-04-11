@@ -142,11 +142,11 @@ paths:
         - in: query
           name: enable_3phases
           description: |-
-            Works only when using <b>NORMAL</b> mode <br />
-            Enables 3 phase mode by controlling a 2nd contactor (C2 port) <br />
-            Note: This is just changing the config setting, the contactor will not be controlled immedialty but only when there is a state change. <br />
+            Enables 3 phase mode by controlling a 2nd contactor (C2 port) <br /> <br />
+            Note 1: The 2nd contactor will only be turned <b>ON</b> when using the <b>NORMAL</b> mode and when state chages to 2 (Charging) <br />
+            Note 2: This is just changing the config setting, the contactor will not be controlled immedialty but only when there is a state change. <br />
             <br />
-            Example, if car is charging and you want to change from 1F to 3F:  <br />
+            If car is charging and you want to change from 1F to 3F:  <br />
             - Change mode to OFF <br />
             - Enable 3 phases <br />
             - Change mode to NORMAL <br />
