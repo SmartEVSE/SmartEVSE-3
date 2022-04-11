@@ -1,1 +1,4 @@
-theme: jekyll-theme-cayman
+theme: 
+title: SERKRI
+description: Smart Charging
+show_downloads: true
