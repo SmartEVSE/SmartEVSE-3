@@ -1,0 +1,442 @@
+[
+    {
+        "id": "fa7895a2ccea5b3f",
+        "type": "tab",
+        "label": "SerKri - EVSE",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "17800a49b47fa026",
+        "type": "inject",
+        "z": "fa7895a2ccea5b3f",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "5",
+        "crontab": "",
+        "once": false,
+        "onceDelay": "5",
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 330,
+        "y": 200,
+        "wires": [
+            [
+                "ff1480dbbb7f18c7"
+            ]
+        ]
+    },
+    {
+        "id": "ff1480dbbb7f18c7",
+        "type": "link call",
+        "z": "fa7895a2ccea5b3f",
+        "name": "",
+        "links": [
+            "5862ce2c075744ed"
+        ],
+        "timeout": "30",
+        "x": 610,
+        "y": 200,
+        "wires": [
+            [
+                "784e625f0910483a"
+            ]
+        ]
+    },
+    {
+        "id": "a69e33209285ace0",
+        "type": "function",
+        "z": "fa7895a2ccea5b3f",
+        "name": "EVSE - Home Battery Charge Calculation",
+        "func": "let battery_charge = msg.battery_charge.state;\nlet battery_charge_last_update = new Date(msg.battery_charge.last_updated);\nlet battery_level = msg.battery_level;\nlet voltage = msg.voltage < 100 ? 230 : msg.voltage;\nlet battery_reserve = msg.battery_reserve * 10;\n\nlet current = new Date();\nlet interval = new Date(current.getTime() - (24 * 3600000));\n\nlet battery_ampere = Math.round(battery_charge / voltage * 10);\nmsg.battery_ampere_original=battery_ampere;\n\nif(battery_charge_last_update.getTime() >= interval.getTime() && battery_level < 100) {\n    if(battery_ampere <= battery_reserve) {\n        battery_ampere = Math.round( (battery_ampere - battery_reserve) * 0.2);\n    } else if (battery_ampere > battery_reserve) {\n        battery_ampere -= battery_reserve;\n    }\n} else {\n    battery_ampere = 0;\n}\n\nmsg.battery_charge = battery_charge;\nmsg.last_update = battery_charge_last_update;\n\nmsg.battery_ampere=battery_ampere;\n\nreturn msg;\n",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 480,
+        "y": 320,
+        "wires": [
+            [
+                "1533b6b07d285c0f"
+            ]
+        ]
+    },
+    {
+        "id": "d6cf6a7d5b14cbf7",
+        "type": "link in",
+        "z": "fa7895a2ccea5b3f",
+        "name": "EVSE - Home Battery Charge Calculation",
+        "links": [],
+        "x": 255,
+        "y": 320,
+        "wires": [
+            [
+                "a69e33209285ace0"
+            ]
+        ]
+    },
+    {
+        "id": "c3b957aecca6b782",
+        "type": "comment",
+        "z": "fa7895a2ccea5b3f",
+        "name": "CALCULATION",
+        "info": "",
+        "x": 320,
+        "y": 270,
+        "wires": []
+    },
+    {
+        "id": "1533b6b07d285c0f",
+        "type": "link out",
+        "z": "fa7895a2ccea5b3f",
+        "name": "",
+        "mode": "return",
+        "links": [],
+        "x": 725,
+        "y": 320,
+        "wires": []
+    },
+    {
+        "id": "784e625f0910483a",
+        "type": "link call",
+        "z": "fa7895a2ccea5b3f",
+        "name": "",
+        "links": [
+            "d6cf6a7d5b14cbf7"
+        ],
+        "timeout": "30",
+        "x": 990,
+        "y": 200,
+        "wires": [
+            [
+                "950b5b90f76bc7d4"
+            ]
+        ]
+    },
+    {
+        "id": "950b5b90f76bc7d4",
+        "type": "link call",
+        "z": "fa7895a2ccea5b3f",
+        "name": "",
+        "links": [
+            "09aa17af8f2e1275"
+        ],
+        "timeout": "30",
+        "x": 1350,
+        "y": 200,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "c2cb7755cbd71b6a",
+        "type": "comment",
+        "z": "fa7895a2ccea5b3f",
+        "name": "SCHEDULE",
+        "info": "",
+        "x": 310,
+        "y": 140,
+        "wires": []
+    },
+    {
+        "id": "d615e1479edfb12a",
+        "type": "api-current-state",
+        "z": "fa7895a2ccea5b3f",
+        "name": "Battery Charge/Discharge",
+        "server": "ce8f7f94.ea5ce",
+        "version": 3,
+        "outputs": 1,
+        "halt_if": "",
+        "halt_if_type": "str",
+        "halt_if_compare": "is",
+        "entity_id": "sensor.storage_charge_discharge_power_bt21a0492804",
+        "state_type": "str",
+        "blockInputOverrides": false,
+        "outputProperties": [
+            {
+                "property": "battery_charge",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "entity"
+            }
+        ],
+        "for": "0",
+        "forType": "num",
+        "forUnits": "minutes",
+        "override_topic": false,
+        "state_location": "payload",
+        "override_payload": "msg",
+        "entity_location": "data",
+        "override_data": "msg",
+        "x": 440,
+        "y": 690,
+        "wires": [
+            [
+                "e54b4429805d53aa"
+            ]
+        ]
+    },
+    {
+        "id": "e54b4429805d53aa",
+        "type": "api-current-state",
+        "z": "fa7895a2ccea5b3f",
+        "name": "Battery Level",
+        "server": "ce8f7f94.ea5ce",
+        "version": 3,
+        "outputs": 1,
+        "halt_if": "",
+        "halt_if_type": "str",
+        "halt_if_compare": "is",
+        "entity_id": "sensor.solar_battery_level",
+        "state_type": "str",
+        "blockInputOverrides": false,
+        "outputProperties": [
+            {
+                "property": "battery_level",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "entityState"
+            }
+        ],
+        "for": "0",
+        "forType": "num",
+        "forUnits": "minutes",
+        "override_topic": false,
+        "state_location": "payload",
+        "override_payload": "msg",
+        "entity_location": "data",
+        "override_data": "msg",
+        "x": 680,
+        "y": 690,
+        "wires": [
+            [
+                "29cae9661c1b2f0b"
+            ]
+        ]
+    },
+    {
+        "id": "5862ce2c075744ed",
+        "type": "link in",
+        "z": "fa7895a2ccea5b3f",
+        "name": "EVSE - Fetch Home Battery Data",
+        "links": [],
+        "x": 255,
+        "y": 690,
+        "wires": [
+            [
+                "d615e1479edfb12a"
+            ]
+        ]
+    },
+    {
+        "id": "fa6dced73a152860",
+        "type": "link out",
+        "z": "fa7895a2ccea5b3f",
+        "name": "",
+        "mode": "return",
+        "links": [],
+        "x": 1235,
+        "y": 690,
+        "wires": []
+    },
+    {
+        "id": "29cae9661c1b2f0b",
+        "type": "api-current-state",
+        "z": "fa7895a2ccea5b3f",
+        "name": "Voltage",
+        "server": "ce8f7f94.ea5ce",
+        "version": 3,
+        "outputs": 1,
+        "halt_if": "",
+        "halt_if_type": "str",
+        "halt_if_compare": "is",
+        "entity_id": "sensor.energy_voltage",
+        "state_type": "str",
+        "blockInputOverrides": false,
+        "outputProperties": [
+            {
+                "property": "voltage",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "entityState"
+            }
+        ],
+        "for": "0",
+        "forType": "num",
+        "forUnits": "minutes",
+        "override_topic": false,
+        "state_location": "payload",
+        "override_payload": "msg",
+        "entity_location": "data",
+        "override_data": "msg",
+        "x": 880,
+        "y": 690,
+        "wires": [
+            [
+                "fdd19243ac817d7a"
+            ]
+        ]
+    },
+    {
+        "id": "fdd19243ac817d7a",
+        "type": "api-current-state",
+        "z": "fa7895a2ccea5b3f",
+        "name": "Battery Reserve",
+        "server": "ce8f7f94.ea5ce",
+        "version": 3,
+        "outputs": 1,
+        "halt_if": "",
+        "halt_if_type": "str",
+        "halt_if_compare": "is",
+        "entity_id": "input_number.home_battery_reserve",
+        "state_type": "str",
+        "blockInputOverrides": false,
+        "outputProperties": [
+            {
+                "property": "battery_reserve",
+                "propertyType": "msg",
+                "value": "",
+                "valueType": "entityState"
+            }
+        ],
+        "for": "0",
+        "forType": "num",
+        "forUnits": "minutes",
+        "override_topic": false,
+        "state_location": "payload",
+        "override_payload": "msg",
+        "entity_location": "data",
+        "override_data": "msg",
+        "x": 1080,
+        "y": 690,
+        "wires": [
+            [
+                "fa6dced73a152860"
+            ]
+        ]
+    },
+    {
+        "id": "09aa17af8f2e1275",
+        "type": "link in",
+        "z": "fa7895a2ccea5b3f",
+        "name": "EVSE - Set Home Battery Current",
+        "links": [],
+        "x": 255,
+        "y": 530,
+        "wires": [
+            [
+                "572d40e8e7d6b40d"
+            ]
+        ]
+    },
+    {
+        "id": "1f23fc18269f9a1d",
+        "type": "link out",
+        "z": "fa7895a2ccea5b3f",
+        "name": "",
+        "mode": "return",
+        "links": [],
+        "x": 565,
+        "y": 530,
+        "wires": []
+    },
+    {
+        "id": "572d40e8e7d6b40d",
+        "type": "http request",
+        "z": "fa7895a2ccea5b3f",
+        "name": "",
+        "method": "POST",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "http://10.0.0.1/currents?battery_current={{battery_ampere}}",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "authType": "",
+        "senderr": true,
+        "credentials": {
+            "user": "",
+            "password": ""
+        },
+        "x": 420,
+        "y": 530,
+        "wires": [
+            [
+                "1f23fc18269f9a1d"
+            ]
+        ]
+    },
+    {
+        "id": "99331fbb5748fc53",
+        "type": "inject",
+        "z": "fa7895a2ccea5b3f",
+        "name": "Set Battery Current",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 210,
+        "y": 470,
+        "wires": [
+            [
+                "572d40e8e7d6b40d"
+            ]
+        ]
+    },
+    {
+        "id": "1278c4ccd68616de",
+        "type": "comment",
+        "z": "fa7895a2ccea5b3f",
+        "name": "CALL EVSE",
+        "info": "",
+        "x": 310,
+        "y": 420,
+        "wires": []
+    },
+    {
+        "id": "1944f244e90c43ef",
+        "type": "comment",
+        "z": "fa7895a2ccea5b3f",
+        "name": "FETCH DATA FOR CALCULATION",
+        "info": "",
+        "x": 380,
+        "y": 640,
+        "wires": []
+    },
+    {
+        "id": "ce8f7f94.ea5ce",
+        "type": "server",
+        "name": "Home Assistant",
+        "version": 2,
+        "addon": true,
+        "rejectUnauthorizedCerts": true,
+        "ha_boolean": "y|yes|true|on|home|open",
+        "connectionDelay": true,
+        "cacheJson": true,
+        "heartbeat": false,
+        "heartbeatInterval": 30
+    }
+]
