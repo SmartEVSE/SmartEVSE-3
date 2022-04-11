@@ -3191,9 +3191,12 @@ void WiFiSetup(void) {
         Serial.print(APhostname);
         Serial.print(".local\n");
     }
+
+    WiFi.setAutoReconnect(true);
+    WiFi.persistent(true);
         
     // On disconnect Event, call function
-    WiFi.onEvent(WiFiStationDisconnected, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);    
+    //WiFi.onEvent(WiFiStationDisconnected, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);    
     // On IP, call function
     WiFi.onEvent(WiFiStationGotIp, ARDUINO_EVENT_WIFI_STA_GOT_IP);  // arduino 2.x
     //
