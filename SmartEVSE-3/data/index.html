@@ -105,6 +105,26 @@
             $('#phase_original_2').text((data.phase_currents.original_data.L2/10).toFixed(1) + " A");
             $('#phase_original_3').text((data.phase_currents.original_data.L3/10).toFixed(1) + " A");
 
+            if(data.phase_currents.last_data_update > 0) {
+            $('#p1_data_time').text(new Date(data.phase_currents.last_data_update * 1000).toLocaleTimeString());
+            $('#p1_data_date').text(new Date(data.phase_currents.last_data_update * 1000).toLocaleDateString());
+              $('[id=with_p1_api_data]').show();
+            } else {
+              $('[id=with_p1_api_data]').hide();
+            }
+
+            if(data.home_battery.last_update == 0) {
+              $('[id=with_homebattery]').hide();
+            } else {
+              $('[id=with_homebattery]').show();
+            }
+
+            if(data.home_battery.current == 0) {
+              $('#battery_status').text("Idle");
+            } else {
+              $('#battery_status').text(data.home_battery.current < 0 ? "Discharging" : "Charging");
+            }
+
             setTimeout("loadData()", 5000);
           });
       }
