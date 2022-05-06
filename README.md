@@ -31,3 +31,10 @@ Communication between the SmartEVSE(s) / Sensorbox or kWh meters is done over RS
 - WiFi status page.
 - Firmware upgradable through USB-C port or through the buildt in webserver. 
 
+# Updating Firmware
+
+Connect the SmartEVSE controller to your WiFi network (using the menu of the SmartEVSE), and then browse to http://IPaddress/update where IPaddress is the IP which is shown on the LCD.
+You can also use http://smartevse-xxxx.local/update where xxxx is the serial nr of your controller.<br>
+Here you can select the firmware.bin and press update to update the firmware.<br>
+It's also possible to update the spiffs partition from this page. (for v3.0.1 this is not needed)<br>
+After updating the firmware, you can access the status page again using the normal url: http://smartevse-xxxx.local  (replace xxxx with the serial nr of your controller)<br>
