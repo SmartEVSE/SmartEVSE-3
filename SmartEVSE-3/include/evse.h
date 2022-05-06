@@ -188,8 +188,8 @@
 #define ACTUATOR_OFF { digitalWrite(PIN_ACTB, HIGH); digitalWrite(PIN_ACTA, HIGH); }
 
 #define ONEWIRE_LOW { digitalWrite(PIN_SW_IN, LOW); pinMode(PIN_SW_IN, OUTPUT); }   // SW set to 0, set to output (driven low)
-#define ONEWIRE_HIGH { digitalWrite(PIN_SW_IN, HIGH); pinMode(PIN_SW_IN, OUTPUT); } // SW set to 1, set to output (driven low)
-#define ONEWIRE_FLOATHIGH pinMode(PIN_SW_IN, INPUT);                                // SW input (floating high)
+#define ONEWIRE_HIGH { digitalWrite(PIN_SW_IN, HIGH); pinMode(PIN_SW_IN, OUTPUT); } // SW set to 1, set to output (driven high)
+#define ONEWIRE_FLOATHIGH pinMode(PIN_SW_IN, INPUT_PULLUP );                        // SW input (floating high)
 
 #define RCMFAULT digitalRead(PIN_RCM_FAULT)
 

@@ -885,6 +885,7 @@ void GLCD_init(void) {
 
     st7565_command(0x28 | 0x07);                                                // (16) ALL Power Control ON
 
+    glcd_clear();                                                               // clear internal GLCD buffer
     goto_row(0x00);                                                             // (3) Set page address
     goto_col(0x00);                                                             // (4) Set column addr LSB
  
