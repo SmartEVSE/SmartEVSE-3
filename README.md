@@ -4,6 +4,7 @@
 <span style="color:red">
 This fork is exploring the capabilities in modifying the Smart-EVSEv3 firmware.<br/>
 Feel free to use this repository to build it yourself or to use the latest on from the *releases* folder <b>but this is on your own risk</b>.
+Make sure to have read the original README.md (e.g. on howto connect to wifi).
 </span>
 <br />
 <br />
