@@ -365,6 +365,7 @@ extern uint8_t RFIDReader;
 extern uint8_t WIFImode;
 
 extern int32_t Irms[3];                                                         // Momentary current per Phase (Amps *10) (23 = 2.3A)
+extern int32_t Irms_EV[3];                                                         // Momentary current per Phase (Amps *10) (23 = 2.3A)
 
 extern uint8_t State;
 extern uint8_t ErrorFlags;

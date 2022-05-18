@@ -134,6 +134,7 @@ String APpassword = "00000000";
 boolean enable3f = USE_3PHASES;
 
 int32_t Irms[3]={0, 0, 0};                                                  // Momentary current per Phase (23 = 2.3A) (resolution 100mA)
+int32_t Irms_EV[3]={0, 0, 0};                                               // Momentary current per Phase (23 = 2.3A) (resolution 100mA)
                                                                             // Max 3 phases supported
 uint8_t State = STATE_A;
 uint8_t ErrorFlags = NO_ERROR;
@@ -143,6 +144,7 @@ uint16_t MaxCapacity;                                                       // C
 uint16_t ChargeCurrent;                                                     // Calculated Charge Current (Amps *10)
 uint16_t OverrideCurrent = 0;                                               // Temporary assigned current (Amps *10) (modbus)
 int16_t Imeasured = 0;                                                      // Max of all Phases (Amps *10) of mains power
+int16_t Imeasured_EV = 0;                                                   // Max of all Phases (Amps *10) of EV power
 int16_t Isum = 0;                                                           // Sum of all measured Phases (Amps *10) (can be negative)
 
 // Load Balance variables
@@ -658,13 +660,14 @@ int getBatteryCurrent(void) {
 }
 
 
-// Is there at least 6A(configurable MinCurrent) available for a EVSE?
+// Is there at least 6A(configurable MinCurrent) available for a new EVSE?
+// Look whether there would be place for one more EVSE if we could lower them all down to MinCurrent
 // returns 1 if there is 6A available
 // returns 0 if there is no current available
 //
 char IsCurrentAvailable(void) {
     uint8_t n, ActiveEVSE = 0;
-    int Baseload, TotalCurrent = 0;
+    int Baseload, Baseload_EV, TotalCurrent = 0;
 
 
     for (n = 0; n < NR_EVSES; n++) if (BalancedState[n] == STATE_C)             // must be in STATE_C
@@ -676,21 +679,28 @@ char IsCurrentAvailable(void) {
         if (Imeasured > ((MaxMains - MinCurrent) * 10)) {                       // There should be at least 6A available
             return 0;                                                           // Not enough current available!, return with error
         }
+        if (Imeasured_EV > ((MaxCircuit - MinCurrent) * 10)) {                  // There should be at least 6A available
+            return 0;                                                           // Not enough current available!, return with error
+        }
     } else {                                                                    // at least one active EVSE
         ActiveEVSE++;                                                           // Do calculations with one more EVSE
         Baseload = Imeasured - TotalCurrent;                                    // Calculate Baseload (load without any active EVSE)
+        Baseload_EV = Imeasured_EV - TotalCurrent;                              // Load on the EV subpanel excluding any active EVSE
         if (Baseload < 0) Baseload = 0;                                         // only relevant for Smart/Solar mode
 
         if (ActiveEVSE > NR_EVSES) ActiveEVSE = NR_EVSES;
         // When load balancing is active, and we are the Master, the Circuit option limits the max total current
         if (LoadBl == 1) {
-            if ((ActiveEVSE * (MinCurrent * 10)) > (MaxCircuit * 10)) {
+            if ((ActiveEVSE * (MinCurrent * 10)) > (MaxCircuit * 10) - Baseload_EV) {
                 return 0;                                                       // Not enough current available!, return with error
             }
         }
 
         // Check if the lowest charge current(6A) x ActiveEV's + baseload would be higher then the MaxMains.
         if ((ActiveEVSE * (MinCurrent * 10) + Baseload) > (MaxMains * 10)) {
+            return 0;                                                           // Not enough current available!, return with error
+        }
+        if ((ActiveEVSE * (MinCurrent * 10) + Baseload) > (MaxCircuit * 10) - Baseload_EV) {
             return 0;                                                           // Not enough current available!, return with error
         }
 
@@ -721,12 +731,13 @@ void ResetBalancedStates(void) {
 // mod =1 we have a new EVSE requesting to start charging.
 //
 void CalcBalancedCurrent(char mod) {
-    int Average, MaxBalanced, Idifference;
+    int Average, MaxBalanced, Idifference, Idifference2, Baseload_EV;
     int BalancedLeft = 0;
     signed int IsumImport;
     int ActiveMax = 0, TotalCurrent = 0, Baseload;
     char CurrentSet[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};
     uint8_t n;
+    int16_t IsetBalanced2 = 0;                                                  // Max calculated current (Amps *10) available for all EVSE's
 
     if (!LoadBl) ResetBalancedStates();                                         // Load balancing disabled?, Reset States
                                                                                 // Do not modify MaxCurrent as it is a config setting. (fix 2.05)
@@ -747,7 +758,11 @@ void CalcBalancedCurrent(char mod) {
 
     if (!mod && Mode != MODE_SOLAR) {                                           // Normal and Smart mode
         Idifference = (MaxMains * 10) - Imeasured;                              // Difference between MaxMains and Measured current (can be negative)
+        Idifference2 = (MaxCircuit * 10) - Imeasured_EV;                        // Difference between MaxCircuit and Measured EV current (can be negative)
 
+        if (Idifference2 < Idifference) {
+            Idifference = Idifference2;
+        }
         if (Idifference > 0) IsetBalanced += (Idifference / 4);                 // increase with 1/4th of difference (slowly increase current)
         else IsetBalanced += (Idifference * 100 / TRANSFORMER_COMP);            // last PWM setting + difference (immediately decrease current)
         if (IsetBalanced < 0) IsetBalanced = 0;
@@ -787,7 +802,9 @@ void CalcBalancedCurrent(char mod) {
         }
     }
                                                                                 // When Load balancing = Master,  Limit total current of all EVSEs to MaxCircuit
-    if (LoadBl == 1 && (IsetBalanced > (MaxCircuit * 10)) ) IsetBalanced = MaxCircuit * 10;
+    Baseload_EV = Imeasured_EV - TotalCurrent;                                        // Calculate Baseload (load without any active EVSE)
+    if (Baseload_EV < 0) Baseload_EV = 0;
+    if (LoadBl == 1 && (IsetBalanced > (MaxCircuit * 10) - Baseload_EV) ) IsetBalanced = MaxCircuit * 10 - Baseload_EV;
 
 
     Baseload = Imeasured - TotalCurrent;                                        // Calculate Baseload (load without any active EVSE)
@@ -795,17 +812,24 @@ void CalcBalancedCurrent(char mod) {
 
     if (Mode == MODE_NORMAL)                                                    // Normal Mode
     {
-        if (LoadBl == 1) IsetBalanced = MaxCircuit * 10;                        // Load Balancing = Master? MaxCircuit is max current for all active EVSE's
+        if (LoadBl == 1) IsetBalanced = MaxCircuit * 10 - Baseload_EV;          // Load Balancing = Master? MaxCircuit is max current for all active EVSE's
         else IsetBalanced = ChargeCurrent;                                      // No Load Balancing in Normal Mode. Set current to ChargeCurrent (fix: v2.05)
     }
 
     if (BalancedLeft)                                                           // Only if we have active EVSE's
     {
         // New EVSE charging, and no Solar mode
-        if (mod && Mode != MODE_SOLAR) IsetBalanced = (MaxMains * 10) - Baseload;// Set max combined charge current to MaxMains - Baseload
+        if (mod && Mode != MODE_SOLAR) {                                        // Set max combined charge current to MaxMains - Baseload //TODO so now we ignore MaxCircuit? And all the other calculations we did before on IsetBalanced?
+            IsetBalanced = (MaxMains * 10) - Baseload;
+            IsetBalanced2 = (MaxCircuit * 10 ) - Baseload_EV;
+            if (IsetBalanced2 < IsetBalanced) {
+                IsetBalanced=IsetBalanced2;
+            }
+        }
 
         if (IsetBalanced < 0 || IsetBalanced < (BalancedLeft * MinCurrent * 10)
-          || ( Mode == MODE_SOLAR && Isum > 10 && Imeasured > (MaxMains * 10)) )
+          || ( Mode == MODE_SOLAR && Isum > 10 && (Imeasured > (MaxMains * 10) || Imeasured_EV > (MaxCircuit * 10))))
+                                                                                //TODO why Isum > 10 ? If Imeasured > MaxMains then Isum is always bigger than 1A, unless MaxMains is set at 0....
         {
             IsetBalanced = BalancedLeft * MinCurrent * 10;                      // set minimal "MinCurrent" charge per active EVSE
             NoCurrent++;                                                        // Flag NoCurrent left
@@ -846,7 +870,7 @@ void CalcBalancedCurrent(char mod) {
                     CurrentSet[n] = 1;                                          // mark this EVSE as set.
                     BalancedLeft--;                                             // decrease counter of active EVSE's
                     MaxBalanced -= Balanced[n];                                 // Update total current to new (lower) value
-                }
+                }                                                               //TODO since the average has risen the other EVSE's should be checked for exceeding their MAX's too!
             } while (++n < NR_EVSES && BalancedLeft);
         }
 
@@ -1488,9 +1512,11 @@ void UpdateCurrentData(void) {
 
     // reset Imeasured value (grid power used)
     Imeasured = 0;
+    Imeasured_EV = 0;
     for (x=0; x<3; x++) {
         // Imeasured holds highest Irms of all channels
         if (Irms[x] > Imeasured) Imeasured = Irms[x];
+        if (Irms_EV[x] > Imeasured_EV) Imeasured_EV = Irms_EV[x];
     }
 
 
@@ -1998,6 +2024,16 @@ uint8_t PollEVNode = NR_EVSES;
                         processAllNodeStates(ModbusRequest - 13u);
                         break;
                     }
+                case 20:                                                         // EV kWh meter, Current measurement
+                    // Request Current if EV meter is configured
+                    if (EVMeter) {
+#ifdef LOG_INFO_MODBUS
+                        Serial.printf("ModbusRequest %u: Request EVMeter Current Measurement\n", ModbusRequest);
+#endif
+                        requestCurrentMeasurement(EVMeter, EVMeterAddress);
+                        break;
+                    }
+                    ModbusRequest++;
                 default:
                     if (Mode) {                                                 // Smart/Solar mode
                         if ((ErrorFlags & CT_NOCOMM) == 0) UpdateCurrentData();      // No communication error with Sensorbox /Kwh meter?
@@ -2204,11 +2240,14 @@ void Timer1S(void * parameter) {
 
 // Modbus functions
 
-// Monitor EV Meter responses, and update Enery and Power measurements
+// Monitor EV Meter responses, and update Enery and Power and Current measurements
 // Does not send any data back.
 //
 ModbusMessage MBEVMeterResponse(ModbusMessage request) {
     
+    uint8_t x;
+    int32_t EV[3]={0, 0, 0};
+
     ModbusDecode( (uint8_t*)request.data(), request.size());
 
     if (MB.Type == MODBUS_RESPONSE) {
@@ -2223,6 +2262,14 @@ ModbusMessage MBEVMeterResponse(ModbusMessage request) {
         } else if (MB.Register == EMConfig[EVMeter].PRegister) {
             // Power measurement
             PowerMeasured = receivePowerMeasurement(MB.Data, EVMeter);
+        } else if (MB.Register == EMConfig[EVMeter].IRegister) {
+            // Current measurement
+            x = receiveCurrentMeasurement(MB.Data, EVMeter, EV );
+            if (x && LoadBl <2) timeout = 10;                   // only reset timeout when data is ok, and Master/Disabled
+            for (x = 0; x < 3; x++) {
+                // CurrentMeter and PV values are MILLI AMPERE
+                Irms_EV[x] = (signed int)(EV[x] / 100);            // Convert to AMPERE * 10
+            }
         }
     }
     // As this is a response to an earlier request, do not send response.

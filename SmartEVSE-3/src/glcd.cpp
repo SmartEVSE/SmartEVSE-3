@@ -584,8 +584,8 @@ void GLCD(void) {
                                                                                 // If current flow is < 0.3A don't show the blob
 
         if (EVMeter) {                                                          // If we have a EV kWh meter configured, Show total charged energy in kWh on LCD.
-            sprintfl(Str, "%2u.%1ukWh", EnergyCharged, 3, 1);                   // Will reset to 0.0kWh when charging cable reconnected, and state change from STATE B->C
-            GLCD_write_buf_str(89, 1, Str,GLCD_ALIGN_LEFT);                     // print to buffer
+            //sprintfl(Str, "%2u.%1ukWh", EnergyCharged, 3, 1);                   // Will reset to 0.0kWh when charging cable reconnected, and state change from STATE B->C
+            //GLCD_write_buf_str(89, 1, Str,GLCD_ALIGN_LEFT);                     // print to buffer
         }
 
         // Write number of used phases into the car
@@ -614,7 +614,7 @@ void GLCD(void) {
             } else {
                 sprintfl(Str, "%uA", Balanced[0], 1, 0);
             }
-            GLCD_write_buf_str(85, 2, Str, GLCD_ALIGN_CENTER);
+            GLCD_write_buf_str(127,0, Str, GLCD_ALIGN_RIGHT);
         } else if (State == STATE_A) {
             // Remove line between House and Car
             for (x = 73; x < 96; x++) GLCDbuf[3u * 128u + x] = 0;
@@ -631,6 +631,8 @@ void GLCD(void) {
             for (x = 0; x < 3; x++) {                                           // Display L1, L2 and L3 currents on LCD
                 sprintfl(Str, "%dA", Irms[x], 1, 0);
                 GLCD_write_buf_str(46, x, Str, GLCD_ALIGN_RIGHT);               // print to buffer
+                sprintfl(Str, "%dA", Irms_EV[x], 1, 0);
+                GLCD_write_buf_str(90, x, Str, GLCD_ALIGN_RIGHT);               // print to buffer
             }
         }
         GLCD_sendbuf(0, 4);                                                     // Copy LCD buffer to GLCD
