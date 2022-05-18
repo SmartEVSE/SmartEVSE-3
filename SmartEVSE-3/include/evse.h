@@ -305,11 +305,12 @@
 #define EM_PHOENIX_CONTACT 2
 #define EM_FINDER 3
 #define EM_EASTRON 4
-#define EM_ABB 5
-#define EM_SOLAREDGE 6
-#define EM_WAGO 7
-#define EM_API 8
-#define EM_CUSTOM 9
+#define EM_EASTRON_INV 5
+#define EM_ABB 6
+#define EM_SOLAREDGE 7
+#define EM_WAGO 8
+#define EM_API 9
+#define EM_CUSTOM 10
 
 #define ENDIANESS_LBF_LWF 0
 #define ENDIANESS_LBF_HWF 1
