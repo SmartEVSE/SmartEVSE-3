@@ -58,7 +58,6 @@ struct tm timeinfo;
 AsyncWebServer webServer(80);
 //AsyncWebSocket ws("/ws");           // data to/from webpage
 DNSServer dnsServer;
-IPAddress localIp;
 String APhostname = "SmartEVSE-" + String( MacId() & 0xffff, 10);           // SmartEVSE access point Name = SmartEVSE-xxxxx
 
 ESPAsync_WiFiManager ESPAsync_wifiManager(&webServer, &dnsServer, APhostname.c_str());
@@ -80,31 +79,11 @@ static esp_adc_cal_characteristics_t * adc_chars_Temperature;
 
 struct ModBus MB;          // Used by SmartEVSE fuctions
 
-// Text
-const char StrFixed[]   = "Fixed";
-const char StrSocket[]  = "Socket";
-const char StrSmart[]   = "Smart";
-const char StrNormal[]  = "Normal";
-const char StrSolar[]   = "Solar";
-const char StrSolenoid[] = "Solenoid";
-const char StrMotor[]   = "Motor";
-const char StrDisabled[] = "Disabled";
-const char StrLoadBl[9][9]  = {"Disabled", "Master", "Node 1", "Node 2", "Node 3", "Node 4", "Node 5", "Node 6", "Node 7"};
-const char StrSwitch[5][10] = {"Disabled", "Access B", "Access S", "Sma-Sol B", "Sma-Sol S"};
-const char StrGrid[2][10] = {"4Wire", "3Wire"};
-const char StrEnabled[] = "Enabled";
-const char StrExitMenu[] = "MENU";
-const char StrMainsAll[] = "All"; 
-const char StrMainsHomeEVSE[] = "Home+EVSE";
-const char StrRFIDReader[6][10] = {"Disabled", "EnableAll", "EnableOne", "Learn", "Delete", "DeleteAll"};
-const char StrWiFi[3][10] = {"Disabled", "Enabled", "SetupWifi"};
-
 const char StrStateName[11][10] = {"A", "B", "C", "D", "COMM_B", "COMM_B_OK", "COMM_C", "COMM_C_OK", "Activate", "B1", "C1"};
 const char StrStateNameWeb[11][17] = {"Ready to Charge", "Connected to EV", "Charging", "D", "Request State B", "State B OK", "Request State C", "State C OK", "Activate", "Charging Stopped", "Stop Charging" };
 const char StrErrorNameWeb[9][20] = {"None", "No Power Available", "Communication Error", "Temperature High", "Unused", "RCM Tripped", "Waiting for Solar", "Test IO", "Flash Error"};
 
 // Global data
-uint8_t GLCDbuf[512];                                                       // GLCD buffer (half of the display)
 
 
 // The following data will be updated by eeprom/storage data at powerup:
@@ -142,6 +121,7 @@ int32_t Irms_EV[3]={0, 0, 0};                                               // M
 uint8_t State = STATE_A;
 uint8_t ErrorFlags = NO_ERROR;
 uint8_t NextState;
+uint8_t pilot;
 
 uint16_t MaxCapacity;                                                       // Cable limit (A) (limited by the wire in the charge cable, set automatically, or manually if Config=Fixed Cable)
 uint16_t ChargeCurrent;                                                     // Calculated Charge Current (Amps *10)
@@ -198,7 +178,6 @@ uint32_t serialnr = 0;
 uint8_t GridActive = 0;                                                     // When the CT's are used on Sensorbox2, it enables the GRID menu option.
 uint8_t CalActive = 0;                                                      // When the CT's are used on Sensorbox(1.5 or 2), it enables the CAL menu option.
 uint16_t Iuncal = 0;                                                        // Uncalibrated CT1 measurement (resolution 10mA)
-uint8_t LoadBlUnsaved = 0;
 
 uint16_t SolarStopTimer = 0;
 int32_t EnergyCharged = 0;                                                  // kWh meter value energy charged. (Wh) (will reset if state changes from A->B)
@@ -212,12 +191,11 @@ int32_t PV[3]={0, 0, 0};
 uint8_t ResetKwh = 2;                                                       // if set, reset EV kwh meter at state transition B->C
                                                                             // cleared when charging, reset to 1 when disconnected (state A)
 uint8_t ActivationMode = 0, ActivationTimer = 0;
-volatile uint16_t adcsample = 0, ppsample = 0;
+volatile uint16_t adcsample = 0;
 volatile uint16_t ADCsamples[25];                                           // declared volatile, as they are used in a ISR
 volatile uint8_t sampleidx = 0;
 volatile int adcchannel = ADC1_CHANNEL_3;
 char str[20];
-int avgsamples = 0;
 bool LocalTimeSet = false;
 
 int phasesLastUpdate = 0;
@@ -516,16 +494,6 @@ const char * getStateNameWeb(uint8_t StateCode) {
 
 
 
-const char * getErrorNameWeb(uint8_t ErrorCode) {
-    uint8_t count = 0;
-    //find the error bit that is set
-    while (ErrorCode) {
-        count++;
-        ErrorCode = ErrorCode >> 1;
-    }    
-    if(count < 9) return StrErrorNameWeb[count];
-    else return "Multiple Errors";
-}
 
 uint8_t getErrorId(uint8_t ErrorCode) {
     uint8_t count = 0;
@@ -538,6 +506,13 @@ uint8_t getErrorId(uint8_t ErrorCode) {
 }
 
 
+const char * getErrorNameWeb(uint8_t ErrorCode) {
+    uint8_t count = 0;
+    const static char StrErrorNameWeb[9][20] = {"None", "No Power Available", "Communication Error", "Temperature High", "Unused", "RCM Tripped", "Waiting for Solar", "Test IO", "Flash Error"};
+    count = getErrorId(ErrorCode);
+    if(count < 9) return StrErrorNameWeb[count];
+    else return "Multiple Errors";
+}
 
 /**
  * Set EVSE mode
@@ -676,7 +651,7 @@ char IsCurrentAvailable(void) {
     for (n = 0; n < NR_EVSES; n++) if (BalancedState[n] == STATE_C)             // must be in STATE_C
     {
         ActiveEVSE++;                                                           // Count nr of active (charging) EVSE's
-        TotalCurrent += Balanced[n];                                            // Calculate total max charge current for all active EVSE's
+        TotalCurrent += Balanced[n];                                            // Calculate total of all set charge currents
     }
     if (ActiveEVSE == 0) {                                                      // No active (charging) EVSE's
         if (Imeasured > ((MaxMains - MinCurrent) * 10)) {                       // There should be at least 6A available
@@ -1049,81 +1024,6 @@ void processAllNodeStates(uint8_t NodeNr) {
 }
 
 
-/**
- * Create an array of available menu items
- * Depends on configuration settings like CONFIG/MODE/LoadBL
- *
- * @return uint8_t MenuItemCount
- */
-uint8_t getMenuItems (void) {
-    uint8_t m = 0;
-
-    MenuItems[m++] = MENU_CONFIG;                                               // Configuration (0:Socket / 1:Fixed Cable)
-    if (!Config) {                                                              // ? Fixed Cable?
-        MenuItems[m++] = MENU_LOCK;                                             // - Cable lock (0:Disable / 1:Solenoid / 2:Motor)
-    }
-    MenuItems[m++] = MENU_MODE;                                                 // EVSE mode (0:Normal / 1:Smart)
-    if (Mode == MODE_SOLAR && LoadBl < 2) {                                     // ? Solar mode and Load Balancing Disabled/Master?
-        MenuItems[m++] = MENU_START;                                            // - Start Surplus Current (A)
-        MenuItems[m++] = MENU_STOP;                                             // - Stop time (min)
-        MenuItems[m++] = MENU_IMPORT;                                           // - Import Current from Grid (A)
-    }
-    MenuItems[m++] = MENU_3F;
-    MenuItems[m++] = MENU_LOADBL;                                               // Load Balance Setting (0:Disable / 1:Master / 2-8:Node)
-    if (Mode && LoadBl < 2) {                                                   // ? Mode Smart/Solar and Load Balancing Disabled/Master?
-        MenuItems[m++] = MENU_MAINS;                                            // - Max Mains Amps (hard limit, limited by the MAINS connection) (A) (Mode:Smart/Solar)
-    }
-    if (Mode && (LoadBl < 2 || LoadBl == 1)) {                                  // ? Mode Smart/Solar or LoadBl Master?
-        MenuItems[m++] = MENU_MIN;                                              // - Minimal current the EV is happy with (A) (Mode:Smart/Solar or LoadBl:Master)
-    }
-    if (LoadBl == 1) {                                                          // ? Load balancing Master?
-        MenuItems[m++] = MENU_CIRCUIT;                                          // - Max current of the EVSE circuit (A) (LoadBl:Master)
-    }
-    MenuItems[m++] = MENU_MAX;                                                  // Max Charge current (A)
-    MenuItems[m++] = MENU_SWITCH;                                               // External Switch on SW (0:Disable / 1:Access / 2:Smart-Solar)
-    MenuItems[m++] = MENU_RCMON;                                                // Residual Current Monitor on RCM (0:Disable / 1:Enable)
-    MenuItems[m++] = MENU_RFIDREADER;                                           // RFID Reader connected to SW (0:Disable / 1:Enable / 2:Learn / 3:Delete / 4:Delate All)
-    if (Mode) {                                                                 // ? Smart or Solar mode?
-        if (LoadBl < 2) {                                                       // - ? Load Balancing Disabled/Master?
-            MenuItems[m++] = MENU_MAINSMETER;                                   // - - Type of Mains electric meter (0: Disabled / Constants EM_*)
-            if (MainsMeter == EM_SENSORBOX || MainsMeter == EM_API) {                                   // - - ? Sensorbox?
-                if (GridActive == 1) MenuItems[m++] = MENU_GRID;
-                if (CalActive == 1) MenuItems[m++] = MENU_CAL;                  // - - - Sensorbox CT measurement calibration
-            } else if(MainsMeter) {                                             // - - ? Other?
-                MenuItems[m++] = MENU_MAINSMETERADDRESS;                        // - - - Address of Mains electric meter (5 - 254)
-                MenuItems[m++] = MENU_MAINSMETERMEASURE;                        // - - - What does Mains electric meter measure (0: Mains (Home+EVSE+PV) / 1: Home+EVSE / 2: Home)
-                if (MainsMeterMeasure) {                                        // - - - ? PV not measured by Mains electric meter?
-                    MenuItems[m++] = MENU_PVMETER;                              // - - - - Type of PV electric meter (0: Disabled / Constants EM_*)
-                    if (PVMeter) MenuItems[m++] = MENU_PVMETERADDRESS;          // - - - - - Address of PV electric meter (5 - 254)
-                }
-            }
-        }
-        MenuItems[m++] = MENU_EVMETER;                                          // - Type of EV electric meter (0: Disabled / Constants EM_*)
-        if (EVMeter) {                                                          // - ? EV meter configured?
-            MenuItems[m++] = MENU_EVMETERADDRESS;                               // - - Address of EV electric meter (5 - 254)
-        }
-        if (LoadBl < 2) {                                                       // - ? Load Balancing Disabled/Master?
-            if (MainsMeter == EM_CUSTOM || PVMeter == EM_CUSTOM || EVMeter == EM_CUSTOM) { // ? Custom electric meter used?
-                MenuItems[m++] = MENU_EMCUSTOM_ENDIANESS;                       // - - Byte order of custom electric meter
-                MenuItems[m++] = MENU_EMCUSTOM_DATATYPE;                        // - - Data type of custom electric meter
-                MenuItems[m++] = MENU_EMCUSTOM_FUNCTION;                        // - - Modbus Function of custom electric meter
-                MenuItems[m++] = MENU_EMCUSTOM_UREGISTER;                       // - - Starting register for voltage of custom electric meter
-                MenuItems[m++] = MENU_EMCUSTOM_UDIVISOR;                        // - - Divisor for voltage of custom electric meter
-                MenuItems[m++] = MENU_EMCUSTOM_IREGISTER;                       // - - Starting register for current of custom electric meter
-                MenuItems[m++] = MENU_EMCUSTOM_IDIVISOR;                        // - - Divisor for current of custom electric meter
-                MenuItems[m++] = MENU_EMCUSTOM_PREGISTER;                       // - - Starting register for power of custom electric meter
-                MenuItems[m++] = MENU_EMCUSTOM_PDIVISOR;                        // - - Divisor for power of custom electric meter
-                MenuItems[m++] = MENU_EMCUSTOM_EREGISTER;                       // - - Starting register for energy of custom electric meter
-                MenuItems[m++] = MENU_EMCUSTOM_EDIVISOR;                        // - - Divisor for energy of custom electric meter
-            }
-        }
-    }
-    MenuItems[m++] = MENU_WIFI;                                                 // Wifi Disabled / Enabled / Portal
-    MenuItems[m++] = MENU_EXIT;
-
-    return m;
-}
-
 
 /**
  * Check minimum and maximum of a value and set the variable
@@ -1400,111 +1300,6 @@ uint16_t getItemValue(uint8_t nav) {
     }
 }
 
-/**
- * Get active option of an menu item
- *
- * @param uint8_t nav
- * @return uint8_t[] MenuItemOption
- */
-const char * getMenuItemOption(uint8_t nav) {
-    static char Str[12]; // must be declared static, since it's referenced outside of function scope
-    unsigned int value;
-
-    value = getItemValue(nav);
-
-    switch (nav) {
-        case MENU_3F:
-            return enable3f ? "Yes" : "No";
-        case MENU_CONFIG:
-            if (Config) return StrFixed;
-            else return StrSocket;
-        case MENU_MODE:
-            if (Mode == MODE_SMART) return StrSmart;
-            else if (Mode == MODE_SOLAR) return StrSolar;
-            else return StrNormal;
-        case MENU_START:
-                sprintf(Str, "-%2u A", value);
-                return Str;
-        case MENU_STOP:
-            if (value) {
-                sprintf(Str, "%2u min", value);
-                return Str;
-            } else return StrDisabled;
-        case MENU_LOADBL:
-            if (ExternalMaster && value == 1) return "Node 0";
-            else return StrLoadBl[LoadBl];
-        case MENU_MAINS:
-        case MENU_MIN:
-        case MENU_MAX:
-        case MENU_CIRCUIT:
-        case MENU_IMPORT:
-            sprintf(Str, "%2u A", value);
-            return Str;
-        case MENU_LOCK:
-            if (Lock == 1) return StrSolenoid;
-            else if (Lock == 2) return StrMotor;
-            else return StrDisabled;
-        case MENU_SWITCH:
-            return StrSwitch[Switch];
-        case MENU_RCMON:
-            if (RCmon) return StrEnabled;
-            else return StrDisabled;
-        case MENU_MAINSMETER:
-        case MENU_PVMETER:
-        case MENU_EVMETER:
-            return (const char*)EMConfig[value].Desc;
-        case MENU_GRID:
-            return StrGrid[Grid];
-        case MENU_MAINSMETERADDRESS:
-        case MENU_PVMETERADDRESS:
-        case MENU_EVMETERADDRESS:
-        case MENU_EMCUSTOM_UREGISTER:
-        case MENU_EMCUSTOM_IREGISTER:
-        case MENU_EMCUSTOM_PREGISTER:
-        case MENU_EMCUSTOM_EREGISTER:
-            if(value < 0x1000) sprintf(Str, "%u (%02X)", value, value);     // This just fits on the LCD.   
-            else sprintf(Str, "%u %X", value, value);
-            return Str;
-        case MENU_MAINSMETERMEASURE:
-            if (MainsMeterMeasure) return StrMainsHomeEVSE;
-            else return StrMainsAll;
-        case MENU_EMCUSTOM_ENDIANESS:
-            switch(value) {
-                case 0: return "LBF & LWF";
-                case 1: return "LBF & HWF";
-                case 2: return "HBF & LWF";
-                case 3: return "HBF & HWF";
-                default: return "";
-            }
-        case MENU_EMCUSTOM_DATATYPE:
-            switch (value) {
-                case MB_DATATYPE_INT16: return "INT16";
-                case MB_DATATYPE_INT32: return "INT32";
-                case MB_DATATYPE_FLOAT32: return "FLOAT32";
-            }
-        case MENU_EMCUSTOM_FUNCTION:
-            switch (value) {
-                case 3: return "3:Hold. Reg";
-                case 4: return "4:Input Reg";
-                default: return "";
-            }
-        case MENU_EMCUSTOM_UDIVISOR:
-        case MENU_EMCUSTOM_IDIVISOR:
-        case MENU_EMCUSTOM_PDIVISOR:
-        case MENU_EMCUSTOM_EDIVISOR:
-            sprintf(Str, "%lu", pow_10[value]);
-            return Str;
-        case MENU_RFIDREADER:
-            return StrRFIDReader[RFIDReader];
-        case MENU_WIFI:
-            return StrWiFi[WIFImode];    
-        case MENU_EXIT:
-            return StrExitMenu;
-        default:
-            return "";
-    }
-}
-
 
 
 /**
@@ -1512,7 +1307,6 @@ const char * getMenuItemOption(uint8_t nav) {
  */
 void UpdateCurrentData(void) {
     uint8_t x;
-    char Str[128];
 
     // reset Imeasured value (grid power used)
     Imeasured = 0;
@@ -1548,6 +1342,7 @@ void UpdateCurrentData(void) {
         }
 
 #ifdef LOG_DEBUG_EVSE
+        char Str[128];
         snprintf(Str, sizeof(Str) , "#STATE: %s Error: %u StartCurrent: -%i ChargeDelay: %u SolarStopTimer: %u NoCurrent: %u Imeasured: %.1f A IsetBalanced: %.1f A\n", getStateName(State), ErrorFlags, StartCurrent,
                                                                         ChargeDelay, SolarStopTimer,  NoCurrent,
                                                                         (float)Imeasured/10,
@@ -1693,7 +1488,7 @@ void CheckSwitch(void)
 void EVSEStates(void * parameter) {
 
   //uint8_t n;
-    uint8_t pilot, leftbutton = 5;
+    uint8_t leftbutton = 5;
     uint8_t DiodeCheck = 0; 
    
 
@@ -1912,6 +1707,26 @@ void EVSEStates(void * parameter) {
     } // while(1) loop
 }
 
+/**
+ * Send Energy measurement request over modbus
+ *
+ * @param uint8_t Meter
+ * @param uint8_t Address
+ */
+void requestEnergyMeasurement(uint8_t Meter, uint8_t Address) {
+   switch (Meter) {
+        case EM_SOLAREDGE:
+            // Note:
+            // - SolarEdge uses 16-bit values, except for this measurement it uses 32bit int format
+            // - EM_SOLAREDGE should not be used for EV Energy Measurements
+            ModbusReadInputRequest(Address, EMConfig[Meter].Function, EMConfig[Meter].ERegister, 2);
+            break;
+        default:
+            requestMeasurement(Meter, Address, EMConfig[Meter].ERegister, 1);
+            break;
+    }
+}
+
 
 // Task that handles the Cable Lock and modbus
 // 
@@ -2002,7 +1817,7 @@ uint8_t PollEVNode = NR_EVSES;
                 case 5:                                                         // EV kWh meter, Power measurement (momentary power in Watt)
                     // Request Power if EV meter is configured
                     if (Node[PollEVNode].EVMeter) {
-                        requestPowerMeasurement(Node[PollEVNode].EVMeter, Node[PollEVNode].EVAddress);
+                        requestMeasurement(Node[PollEVNode].EVMeter, Node[PollEVNode].EVAddress,EMConfig[Node[PollEVNode].EVMeter].PRegister, 1);
                         break;
                     }
                     ModbusRequest++;
@@ -2067,7 +1882,7 @@ uint8_t PollEVNode = NR_EVSES;
 void Timer1S(void * parameter) {
 
     uint8_t Broadcast = 1;
-    uint8_t Timer5sec = 0;
+    //uint8_t Timer5sec = 0;
     uint8_t x;
 
 
@@ -2242,6 +2057,53 @@ void Timer1S(void * parameter) {
 }
 
 
+/**
+ * Read energy measurement from modbus
+ *
+ * @param pointer to buf
+ * @param uint8_t Meter
+ * @return signed int Energy (Wh)
+ */
+signed int receiveEnergyMeasurement(uint8_t *buf, uint8_t Meter) {
+    switch (Meter) {
+        case EM_SOLAREDGE:
+            // Note:
+            // - SolarEdge uses 16-bit values, except for this measurement it uses 32bit int format
+            // - EM_SOLAREDGE should not be used for EV Energy Measurements
+            return receiveMeasurement(buf, 0, EMConfig[Meter].Endianness, MB_DATATYPE_INT32, EMConfig[Meter].EDivisor - 3);
+        default:
+            return receiveMeasurement(buf, 0, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, EMConfig[Meter].EDivisor - 3);
+    }
+}
+
+/**
+ * Read Power measurement from modbus
+ *
+ * @param pointer to buf
+ * @param uint8_t Meter
+ * @return signed int Power (W)
+  */
+signed int receivePowerMeasurement(uint8_t *buf, uint8_t Meter) {
+    switch (Meter) {
+        case EM_SOLAREDGE:
+        {
+            // Note:
+            // - SolarEdge uses 16-bit values, with a extra 16-bit scaling factor
+            // - EM_SOLAREDGE should not be used for EV power measurements, only PV power measurements are supported
+            int scalingFactor = -(int)receiveMeasurement(
+                        buf,
+                        1,
+                        EMConfig[Meter].Endianness,
+                        EMConfig[Meter].DataType,
+                        0
+            );
+            return receiveMeasurement(buf, 0, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, scalingFactor);
+        }
+        default:
+            return receiveMeasurement(buf, 0, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, EMConfig[Meter].PDivisor);
+    }
+}
+
 
 // Modbus functions
 
@@ -2404,7 +2266,6 @@ ModbusMessage MBNodeRequest(ModbusMessage request) {
                 } else if (!OK) {
                     response.setError(MB.Address, MB.Function, ILLEGAL_DATA_VALUE);
                 } else  {
-                    //ModbusWriteMultipleResponse(MB.Address, MB.Register, OK);
                     response.add(MB.Address, MB.Function, (uint16_t)MB.Register, (uint16_t)OK);
                 }
             }
@@ -2587,7 +2448,7 @@ void CheckAPpassword(void) {
             APpassword[i] = c;
         }
     }
-    _Serialprintf("APpassword: %s",APpassword);
+    _Serialprintf("APpassword: %s",APpassword.c_str());
 }
 
 /**
@@ -2767,6 +2628,7 @@ void write_settings(void) {
 }
 
 
+/*
 void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info) {
     _Serialprint("WiFi lost connection.\n");
     // try to reconnect when not connected to AP
@@ -2775,10 +2637,10 @@ void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info) {
         WiFi.begin();
     }
 }
+*/
 
 void WiFiStationGotIp(WiFiEvent_t event, WiFiEventInfo_t info) {
-    localIp = WiFi.localIP();
-    _Serialprintf("Connected to AP: %s\nLocal IP: %s\n", WiFi.SSID(), localIp);
+    _Serialprintf("Connected to AP: %s\nLocal IP: %s\n", WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
 }
 
 
@@ -2944,11 +2806,8 @@ void StartwebServer(void) {
             errorId = 0;
         }
 
-        String evConnected = "true";
-        switch(State) {
-            case STATE_A:
-            case NOSTATE: evConnected = "false"; break;
-        }
+        String evConnected;
+        evConnected = (pilot == PILOT_12V) ? "false" : "true";                    //when access bit = 1, p.ex. in OFF mode, the STATEs are no longer updated
 
         DynamicJsonDocument doc(1024); // https://arduinojson.org/v6/assistant/
         doc["version"] = String(VERSION);
@@ -3054,7 +2913,7 @@ void StartwebServer(void) {
                     setMode(MODE_SMART);
                     break;
                 default:
-                    mode: "Value not allowed!";
+                    mode = "Value not allowed!";
             }
             doc["mode"] = mode;
         }
@@ -3231,20 +3090,18 @@ void WiFiSetup(void) {
 
     ESPAsync_wifiManager.setConfigPortalTimeout(120);   // Portal will be available 2 minutes to connect to, then close. (if connected within this time, it will remain active)
 
-    localIp = WiFi.localIP();
-
     // Start the mDNS responder so that the SmartEVSE can be accessed using a local hostame: http://SmartEVSE-xxxxxx.local
     if (!MDNS.begin(APhostname.c_str())) {                
         _Serialprint("Error setting up MDNS responder!\n");
     } else {
-        _Serialprintf("mDNS responder started. http://%s.local\n",APhostname);
+        _Serialprintf("mDNS responder started. http://%s.local\n",APhostname.c_str());
     }
 
     WiFi.setAutoReconnect(true);
     WiFi.persistent(true);
         
     // On disconnect Event, call function
-    //WiFi.onEvent(WiFiStationDisconnected, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);    
+    //WiFi.onEvent(WiFiStationDisconnected, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
     // On IP, call function
     WiFi.onEvent(WiFiStationGotIp, ARDUINO_EVENT_WIFI_STA_GOT_IP);  // arduino 2.x
     //

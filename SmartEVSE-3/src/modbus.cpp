@@ -157,18 +157,6 @@ void ModbusWriteSingleRequest(uint8_t address, uint16_t reg, uint16_t value) {
 }
 
 /**
- * Response write single register (FC=06) to a device over modbus
- * 
- * @param uint8_t address
- * @param uint16_t register
- * @param uint16_t value
- */
-void ModbusWriteSingleResponse(uint8_t address, uint16_t reg, uint16_t value) {
-    ModbusSend8(address, 0x06, reg, value);  
-}
-
-
-/**
  * Request write multiple register (FC=16) to a device over modbus
  * 
  * @param uint8_t address
@@ -183,17 +171,6 @@ void ModbusWriteMultipleRequest(uint8_t address, uint16_t reg, uint16_t *values,
     MB.RequestRegister = reg;
     // 0x12345678 is a token to keep track of modbus requests/responses. currently unused.
     MBclient.addRequest(0x12345678, address, 0x10, reg, (uint16_t) count, count * 2u, values);
-}
-
-/**
- * Response write multiple register (FC=16) to a device over modbus
- * 
- * @param uint8_t address
- * @param uint16_t register
- * @param uint16_t count
- */
-void ModbusWriteMultipleResponse(uint8_t address, uint16_t reg, uint16_t count) {
-    ModbusSend8(address, 0x10, reg, count);
 }
 
 /**
@@ -439,83 +416,6 @@ signed int receiveMeasurement(uint8_t *buf, uint8_t Count, uint8_t Endianness, M
 }
 
 /**
- * Send Energy measurement request over modbus
- * 
- * @param uint8_t Meter
- * @param uint8_t Address
- */
-void requestEnergyMeasurement(uint8_t Meter, uint8_t Address) {
-   switch (Meter) {
-        case EM_SOLAREDGE:
-            // Note:
-            // - SolarEdge uses 16-bit values, except for this measurement it uses 32bit int format
-            // - EM_SOLAREDGE should not be used for EV Energy Measurements
-            ModbusReadInputRequest(Address, EMConfig[Meter].Function, EMConfig[Meter].ERegister, 2);
-            break;
-        default:
-            requestMeasurement(Meter, Address, EMConfig[Meter].ERegister, 1);
-            break;
-    }
-}
-
-/**
- * Read energy measurement from modbus
- * 
- * @param pointer to buf
- * @param uint8_t Meter
- * @return signed int Energy (Wh)
- */
-signed int receiveEnergyMeasurement(uint8_t *buf, uint8_t Meter) {
-    switch (Meter) {
-        case EM_SOLAREDGE:
-            // Note:
-            // - SolarEdge uses 16-bit values, except for this measurement it uses 32bit int format
-            // - EM_SOLAREDGE should not be used for EV Energy Measurements
-            return receiveMeasurement(buf, 0, EMConfig[Meter].Endianness, MB_DATATYPE_INT32, EMConfig[Meter].EDivisor - 3);
-        default:
-            return receiveMeasurement(buf, 0, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, EMConfig[Meter].EDivisor - 3);
-    }
-}
-
-/**
- * Send Power measurement request over modbus
- * 
- * @param uint8_t Meter
- * @param uint8_t Address
- */
-void requestPowerMeasurement(uint8_t Meter, uint8_t Address) {
-    requestMeasurement(Meter, Address, EMConfig[Meter].PRegister, 1);
-}
-
-/**
- * Read Power measurement from modbus
- * 
- * @param pointer to buf
- * @param uint8_t Meter
- * @return signed int Power (W)
-  */
-signed int receivePowerMeasurement(uint8_t *buf, uint8_t Meter) {
-    switch (Meter) {
-        case EM_SOLAREDGE:
-        {
-            // Note:
-            // - SolarEdge uses 16-bit values, with a extra 16-bit scaling factor
-            // - EM_SOLAREDGE should not be used for EV power measurements, only PV power measurements are supported
-            int scalingFactor = -(int)receiveMeasurement(
-                        buf,
-                        1,
-                        EMConfig[Meter].Endianness,
-                        EMConfig[Meter].DataType,
-                        0
-            );
-            return receiveMeasurement(buf, 0, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, scalingFactor);
-        }
-        default:
-            return receiveMeasurement(buf, 0, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, EMConfig[Meter].PDivisor);
-    }
-}
-
-/**
  * Send current measurement request over modbus
  * 
  * @param uint8_t Meter
@@ -692,6 +592,7 @@ uint8_t mapModbusRegister2ItemID() {
 /**
  * Read item values and send modbus response
  */
+/*
 void ReadItemValueResponse(void) {
     uint8_t ItemID;
     uint8_t i;
@@ -707,10 +608,12 @@ void ReadItemValueResponse(void) {
         ModbusException(MB.Address, MB.Function, MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
     }
 }
+*/
 
 /**
  * Write item values and send modbus response
  */
+/*
 void WriteItemValueResponse(void) {
     uint8_t ItemID;
     uint8_t OK = 0;
@@ -732,10 +635,12 @@ void WriteItemValueResponse(void) {
         }
     }
 }
+*/
 
 /**
  * Write multiple item values and send modbus response
  */
+/*
 void WriteMultipleItemValueResponse(void) {
     uint8_t ItemID;
     uint16_t i, OK = 0, value;
@@ -760,3 +665,4 @@ void WriteMultipleItemValueResponse(void) {
         }
     }
 }
+*/

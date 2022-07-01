@@ -52,25 +52,20 @@ uint8_t mapModbusRegister2ItemID();
 void ModbusReadInputRequest(uint8_t address, uint8_t function, uint16_t reg, uint16_t quantity);
 void ModbusReadInputResponse(uint8_t address, uint8_t function, uint16_t *values, uint8_t count);
 void ModbusWriteSingleRequest(uint8_t address, uint16_t reg, uint16_t value);
-void ModbusWriteSingleResponse(uint8_t address, uint16_t reg, uint16_t value);
 void ModbusWriteMultipleRequest(uint8_t address, uint16_t reg, uint16_t *values, uint8_t count);
-void ModbusWriteMultipleResponse(uint8_t address, uint16_t reg, uint16_t count);
 void ModbusException(uint8_t address, uint8_t function, uint8_t exception);
 void ModbusDecode(uint8_t *buf, uint8_t len);
 
 // ########################### EVSE modbus functions ###########################
 
 signed int receiveMeasurement(uint8_t *buf, uint8_t pos, uint8_t Endianness, MBDataType dataType, signed char Divisor);
-void requestEnergyMeasurement(uint8_t Meter, uint8_t Address);
-signed int receiveEnergyMeasurement(uint8_t *buf, uint8_t Meter);
-void requestPowerMeasurement(uint8_t Meter, uint8_t Address);
-signed int receivePowerMeasurement(uint8_t *buf, uint8_t Meter);
+void requestMeasurement(uint8_t Meter, uint8_t Address, uint16_t Register, uint8_t Count);
 void requestCurrentMeasurement(uint8_t Meter, uint8_t Address);
 uint8_t receiveCurrentMeasurement(uint8_t *buf, uint8_t Meter, signed int *var);
 
-void ReadItemValueResponse(void);
-void WriteItemValueResponse(void);
-void WriteMultipleItemValueResponse(void);
+//void ReadItemValueResponse(void);
+//void WriteItemValueResponse(void);
+//void WriteMultipleItemValueResponse(void);
 
 
 #endif
