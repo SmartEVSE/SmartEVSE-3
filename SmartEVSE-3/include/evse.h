@@ -25,9 +25,22 @@
 
 #define __EVSE_MAIN
 
+
+//for wifi-debugging, don't forget to set the debug levels LOG_EVSE_LOG and LOG_MODBUS_LOG before compiling
+//the wifi-debugger is available by telnetting to your SmartEVSE device
+//the on-screen instructions for verbose/warning/info/... do not apply, 
+//the debug messages that are compiled in are always shown for backwards compatibility reasons
+//uncomment for production release, comment this to debug via wifi:
+#define DEBUG_DISABLED 1
+
 #ifndef VERSION
+#ifdef DEBUG_DISABLED
 #define VERSION "v3serkri-0.00"
+#else
+#define VERSION "v3serkri-0.00-debug"
 #endif
+#endif
+
 
 #define LOG_DEBUG 3                                                             // Debug messages including measurement data
 #define LOG_INFO 2                                                              // Information messages without measurement data
@@ -36,6 +49,19 @@
 
 #define LOG_EVSE LOG_INFO                                                       // Default: LOG_INFO
 #define LOG_MODBUS LOG_WARN                                                     // Default: LOG_WARN
+
+
+#ifdef DEBUG_DISABLED
+#define _Serialprintf Serial.printf //for standard use of the serial line
+#define _Serialprintln Serial.println //for standard use of the serial line
+#define _Serialprint Serial.print //for standard use of the serial line
+#else
+#define _Serialprintf rdebugA //for debugging over the serial line
+#define _Serialprintln rdebugA //for debugging over the serial line
+#define _Serialprint rdebugA //for debugging over the serial line
+#include "RemoteDebug.h"  //https://github.com/JoaoLopesF/RemoteDebug
+extern RemoteDebug Debug;
+#endif
 
 
 #define TRANSFORMER_COMP 100   

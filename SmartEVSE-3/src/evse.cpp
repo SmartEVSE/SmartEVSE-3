@@ -35,6 +35,9 @@
 #include "OneWire.h"
 #include "modbus.h"
 
+#ifndef DEBUG_DISABLED
+RemoteDebug Debug;
+#endif
 
 const char* NTP_SERVER = "europe.pool.ntp.org";        // only one server is supported
 
@@ -437,7 +440,7 @@ signed char TemperatureSensor() {
     // The MCP9700A temperature sensor outputs 500mV at 0C, and has a 10mV/C change in output voltage.
     // so 750mV is 25C, 400mV = -10C
     Temperature = (signed int)(voltage - 500)/10;
-    //Serial.printf("\nTemp: %i C (%u mV) ", Temperature , voltage);
+    //_Serialprintf("\nTemp: %i C (%u mV) ", Temperature , voltage);
     
     return Temperature;
 }
@@ -455,7 +458,7 @@ void ProximityPin() {
 
     voltage = esp_adc_cal_raw_to_voltage(sample, adc_chars_PP);
 
-    Serial.printf("PP pin: %u (%u mV)\n", sample, voltage);
+    _Serialprintf("PP pin: %u (%u mV)\n", sample, voltage);
     MaxCapacity = 13;                                                       // No resistor, Max cable current = 13A
     if ((voltage > 1200) && (voltage < 1400)) MaxCapacity = 16;             // Max cable current = 16A	680R -> should be around 1.3V
     if ((voltage > 500) && (voltage < 700)) MaxCapacity = 32;               // Max cable current = 32A	220R -> should be around 0.6V
@@ -483,7 +486,7 @@ uint8_t Pilot() {
         if (voltage < Min) Min = voltage;                                   // store lowest value
         if (voltage > Max) Max = voltage;                                   // store highest value
     }    
-    //Serial.printf("min:%u max:%u\n",Min ,Max);
+    //_Serialprintf("min:%u max:%u\n",Min ,Max);
 
     // test Min/Max against fixed levels
     if (Min > 3000 ) return PILOT_12V;                                      // Pilot at 12V (min 11.0V)
@@ -567,13 +570,13 @@ void setState(uint8_t NewState, bool forceState) {
     if (State != NewState || forceState) {
         
         char Str[50];
-        snprintf(Str, 50, "#%02d:%02d:%02d STATE %s -> %s\n",timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec, getStateName(State), getStateName(NewState) ); 
+        snprintf(Str, sizeof(Str), "#%02d:%02d:%02d STATE %s -> %s\n",timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec, getStateName(State), getStateName(NewState) );
 
 #ifdef LOG_DEBUG_EVSE
         // Log State change to webpage
         // ws.textAll(Str);    
 #endif                
-        Serial.print(Str+1);
+        _Serialprintf("%s",Str+1);
     }
 
     switch (NewState) {
@@ -834,7 +837,7 @@ void CalcBalancedCurrent(char mod) {
             IsetBalanced = BalancedLeft * MinCurrent * 10;                      // set minimal "MinCurrent" charge per active EVSE
             NoCurrent++;                                                        // Flag NoCurrent left
 #ifdef LOG_INFO_EVSE
-            Serial.printf("No Current!!\n");
+            _Serialprintf("No Current!!\n");
 #endif
         } else NoCurrent = 0;
 
@@ -878,13 +881,14 @@ void CalcBalancedCurrent(char mod) {
     } // BalancedLeft
 
 #ifdef LOG_DEBUG_EVSE
+    char Str[128];
+    char *cur = Str, * const end = Str + sizeof Str;
     if (LoadBl == 1) {
-        Serial.printf("Balance:");
         for (n = 0; n < NR_EVSES; n++) {
-            Serial.printf("EVSE%u:%s(%u.%1uA)", n, getStateName(BalancedState[n]), Balanced[n]/10, Balanced[n]%10);
-            if (n < NR_EVSES-1) Serial.printf(",");
+            if (cur < end) cur += snprintf(cur, end-cur, "EVSE%u:%s(%u.%1uA),", n, getStateName(BalancedState[n]), Balanced[n]/10, Balanced[n]%10);
+            else strcpy(end-sizeof("**truncated**"), "**truncated**");
         }
-        Serial.print("\n");
+    _Serialprintf("Balance: %s\n", Str);
     }
 #endif
 }
@@ -945,7 +949,7 @@ void receiveNodeStatus(uint8_t *buf, uint8_t NodeNr) {
     BalancedError[NodeNr] = buf[3];                                             // Node Error status
     Node[NodeNr].ConfigChanged = buf[13] | Node[NodeNr].ConfigChanged;
     BalancedMax[NodeNr] = buf[15] * 10;                                         // Node Max ChargeCurrent (0.1A)
-    //Serial.printf("ReceivedNode[%u]Status State:%u Error:%u, BalancedMax:%u\n", NodeNr, BalancedState[NodeNr], BalancedError[NodeNr], BalancedMax[NodeNr] );
+    //_Serialprintf("ReceivedNode[%u]Status State:%u Error:%u, BalancedMax:%u\n", NodeNr, BalancedState[NodeNr], BalancedError[NodeNr], BalancedMax[NodeNr] );
 }
 
 /**
@@ -979,7 +983,7 @@ void processAllNodeStates(uint8_t NodeNr) {
 
         case STATE_COMM_B:                                                      // Request to charge A->B
 #ifdef LOG_INFO_EVSE
-            Serial.printf("Node %u State A->B request ", NodeNr);
+            _Serialprintf("Node %u State A->B request ", NodeNr);
 #endif
             if (current) {                                                      // check if we have enough current
                                                                                 // Yes enough current..
@@ -988,7 +992,7 @@ void processAllNodeStates(uint8_t NodeNr) {
                 values[0] = STATE_COMM_B_OK;
                 write = 1;
 #ifdef LOG_INFO_EVSE
-                Serial.printf("- OK!\n");
+                _Serialprintf("- OK!\n");
 #endif
             } else {                                                            // We do not have enough current to start charging
                 Balanced[NodeNr] = 0;                                           // Make sure the Node does not start charging by setting current to 0
@@ -998,14 +1002,14 @@ void processAllNodeStates(uint8_t NodeNr) {
                     write = 1;
                 }
 #ifdef LOG_INFO_EVSE
-                Serial.printf("- Not enough current!\n");
+                _Serialprintf("- Not enough current!\n");
 #endif
             }
             break;
 
         case STATE_COMM_C:                                                      // request to charge B->C
 #ifdef LOG_INFO_EVSE
-            Serial.printf("Node %u State B->C request\n", NodeNr);
+            _Serialprintf("Node %u State B->C request\n", NodeNr);
 #endif
             Balanced[NodeNr] = 0;                                               // For correct baseload calculation set current to zero
             if (current) {                                                      // check if we have enough current
@@ -1015,7 +1019,7 @@ void processAllNodeStates(uint8_t NodeNr) {
                 values[0] = STATE_COMM_C_OK;
                 write = 1;
 #ifdef LOG_INFO_EVSE
-                Serial.printf("- OK!\n");
+                _Serialprintf("- OK!\n");
 #endif
             } else {                                                            // We do not have enough current to start charging
                 if ((BalancedError[NodeNr] & (LESS_6A|NO_SUN)) == 0) {          // Error flags cleared?
@@ -1024,7 +1028,7 @@ void processAllNodeStates(uint8_t NodeNr) {
                     write = 1;
                 }
 #ifdef LOG_INFO_EVSE
-                Serial.printf("- Not enough current!\n");
+                _Serialprintf("- Not enough current!\n");
 #endif
             }
             break;
@@ -1037,7 +1041,7 @@ void processAllNodeStates(uint8_t NodeNr) {
 
     if (write) {
 #ifdef LOG_DEBUG_EVSE
-        Serial.printf("NodeAdr %u, BalancedError:%u\n",NodeNr, BalancedError[NodeNr]);
+        _Serialprintf("NodeAdr %u, BalancedError:%u\n",NodeNr, BalancedError[NodeNr]);
 #endif
         ModbusWriteMultipleRequest(NodeNr+1 , 0x0000, values, 2);                 // Write State and Error to Node
     }
@@ -1258,9 +1262,9 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
                 else setState(STATE_B1);                                        // when we are not charging switch to State B1
                 ChargeDelay = CHARGEDELAY;
 #ifdef LOG_DEBUG_MODBUS
-                Serial.printf("Broadcast Error message received!\n");
+                _Serialprintf("Broadcast Error message received!\n");
             } else {
-                Serial.printf("Broadcast Errors Cleared received!\n");
+                _Serialprintf("Broadcast Errors Cleared received!\n");
 #endif
             }
             break;
@@ -1544,16 +1548,16 @@ void UpdateCurrentData(void) {
         }
 
 #ifdef LOG_DEBUG_EVSE
-        snprintf(Str, 128, "#STATE: %s Error: %u StartCurrent: -%i ChargeDelay: %u SolarStopTimer: %u NoCurrent: %u Imeasured: %.1f A IsetBalanced: %.1f A\n", getStateName(State), ErrorFlags, StartCurrent,
+        snprintf(Str, sizeof(Str) , "#STATE: %s Error: %u StartCurrent: -%i ChargeDelay: %u SolarStopTimer: %u NoCurrent: %u Imeasured: %.1f A IsetBalanced: %.1f A\n", getStateName(State), ErrorFlags, StartCurrent,
                                                                         ChargeDelay, SolarStopTimer,  NoCurrent,
                                                                         (float)Imeasured/10,
                                                                         (float)IsetBalanced/10);
-        Serial.printf(Str+1);
+        _Serialprintf("%s",Str+1);
 
         // Log to webpage
 //        ws.textAll(Str);    
 
-        Serial.printf("L1: %.1f A L2: %.1f A L3: %.1f A Isum: %.1f A\n", (float)Irms[0]/10, (float)Irms[1]/10, (float)Irms[2]/10, (float)Isum/10);
+        _Serialprintf("L1: %.1f A L2: %.1f A L3: %.1f A Isum: %.1f A\n", (float)Irms[0]/10, (float)Irms[1]/10, (float)Irms[2]/10, (float)Isum/10);
 #endif
 
     } else Imeasured = 0; // In case Sensorbox is connected in Normal mode. Clear measurement.
@@ -1578,7 +1582,7 @@ void CheckSwitch(void)
                     case 1: // Access Button
                         setAccess(!Access_bit);                             // Toggle Access bit on/off
 #ifdef LOG_DEBUG_EVSE
-                        Serial.printf("Access: %d\n", Access_bit);
+                        _Serialprintf("Access: %d\n", Access_bit);
 #endif
                         break;
                     case 2: // Access Switch
@@ -1762,7 +1766,7 @@ void EVSEStates(void * parameter) {
                 ProximityPin();                                                 // Sample Proximity Pin
 
 #ifdef LOG_DEBUG_EVSE
-                Serial.printf("Cable limit: %uA  Max: %uA\n", MaxCapacity, MaxCurrent);
+                _Serialprintf("Cable limit: %uA  Max: %uA\n", MaxCapacity, MaxCurrent);
 #endif
                 if (MaxCurrent > MaxCapacity) ChargeCurrent = MaxCapacity * 10; // Do not modify Max Cable Capacity or MaxCurrent (fix 2.05)
                 else ChargeCurrent = MaxCurrent * 10;                           // Instead use new variable ChargeCurrent
@@ -1841,7 +1845,7 @@ void EVSEStates(void * parameter) {
             }
             if (pilot == PILOT_DIODE) {
                 DiodeCheck = 1;                                                 // Diode found, OK
-                Serial.printf("Diode OK\n");
+                _Serialprintf("Diode OK\n");
                 timerAlarmWrite(timerA, PWM_5, false);                          // Enable Timer alarm, set to start of CP signal (5%)
             }    
 
@@ -1895,7 +1899,8 @@ void EVSEStates(void * parameter) {
 
         // update LCD (every 1000ms) when not in the setup menu
         if (LCDupdate) {
-            //Serial.printf("States task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
+            // This is also the ideal place for debug messages that should not be printed every 10ms
+            //_Serialprintf("States task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
             GLCD();
             LCDupdate = 0;
         }    
@@ -1964,7 +1969,7 @@ uint8_t PollEVNode = NR_EVSES;
                     ModbusRequest++;
                 case 2:                                                         // Sensorbox or kWh meter that measures -all- currents
 #ifdef LOG_INFO_MODBUS
-                    Serial.printf("ModbusRequest %u: Request MainsMeter Measurement\n", ModbusRequest);
+                    _Serialprintf("ModbusRequest %u: Request MainsMeter Measurement\n", ModbusRequest);
 #endif
                     requestCurrentMeasurement(MainsMeter, MainsMeterAddress);
                     break;
@@ -1978,7 +1983,7 @@ uint8_t PollEVNode = NR_EVSES;
                     // Request Configuration if changed
                     if (Node[PollEVNode].ConfigChanged) {
 #ifdef LOG_INFO_MODBUS
-                        Serial.printf("ModbusRequest %u: Request Configuration Node %u\n", ModbusRequest, PollEVNode);
+                        _Serialprintf("ModbusRequest %u: Request Configuration Node %u\n", ModbusRequest, PollEVNode);
 #endif
                         requestNodeConfig(PollEVNode);
                         break;
@@ -1988,7 +1993,7 @@ uint8_t PollEVNode = NR_EVSES;
                     // Request Energy if EV meter is configured
                     if (Node[PollEVNode].EVMeter) {
 #ifdef LOG_INFO_MODBUS
-                        Serial.printf("ModbusRequest %u: Request Energy Node %u\n", ModbusRequest, PollEVNode);
+                        _Serialprintf("ModbusRequest %u: Request Energy Node %u\n", ModbusRequest, PollEVNode);
 #endif
                         requestEnergyMeasurement(Node[PollEVNode].EVMeter, Node[PollEVNode].EVAddress);
                         break;
@@ -2028,7 +2033,7 @@ uint8_t PollEVNode = NR_EVSES;
                     // Request Current if EV meter is configured
                     if (EVMeter) {
 #ifdef LOG_INFO_MODBUS
-                        Serial.printf("ModbusRequest %u: Request EVMeter Current Measurement\n", ModbusRequest);
+                        _Serialprintf("ModbusRequest %u: Request EVMeter Current Measurement\n", ModbusRequest);
 #endif
                         requestCurrentMeasurement(EVMeter, EVMeterAddress);
                         break;
@@ -2044,7 +2049,7 @@ uint8_t PollEVNode = NR_EVSES;
                         if ((State == STATE_B) || (State == STATE_C)) SetCurrent(Balanced[0]); // set PWM output for Master
                     }
                     ModbusRequest = 0;
-                    //Serial.printf("Task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
+                    //_Serialprintf("Task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
                     break;
             }
         }
@@ -2096,7 +2101,7 @@ void Timer1S(void * parameter) {
         if (State == STATE_C1) {
             if (C1Timer) C1Timer--;                                         // if the EV does not stop charging in 6 seconds, we will open the contactor.
             else {
-                Serial.printf("State C1 timeout!\n");
+                _Serialprintf("State C1 timeout!\n");
                 setState(STATE_B1);                                         // switch back to STATE_B1
                 GLCD_init();                                                // Re-init LCD (200ms delay)
                 ChargeTimer = 15;
@@ -2144,7 +2149,7 @@ void Timer1S(void * parameter) {
             ErrorFlags &= ~LESS_6A;                                         // Clear Errors if there is enough current available, and Load Balancing is disabled or we are Master
             ErrorFlags &= ~NO_SUN;
 #ifdef LOG_DEBUG_EVSE
-            Serial.printf("No sun/current Errors Cleared.\n");
+            _Serialprintf("No sun/current Errors Cleared.\n");
 #endif
             ModbusWriteSingleRequest(BROADCAST_ADR, 0x0001, ErrorFlags);    // Broadcast
         }
@@ -2163,7 +2168,7 @@ void Timer1S(void * parameter) {
             if (State == STATE_C) setState(STATE_C1);                       // tell EV to stop charging
             else setState(STATE_B1);                                        // when we are not charging switch to State B1
 #ifdef LOG_WARN_EVSE
-            Serial.printf("Error, communication error!\n");
+            _Serialprintf("Error, communication error!\n");
 #endif
             // Try to broadcast communication error to Nodes if we are Master
             if (LoadBl < 2) ModbusWriteSingleRequest(BROADCAST_ADR, 0x0001, ErrorFlags);         
@@ -2175,7 +2180,7 @@ void Timer1S(void * parameter) {
             ErrorFlags |= TEMP_HIGH;
             setState(STATE_A);                                              // ERROR, switch back to STATE_A
 #ifdef LOG_WARN_EVSE
-            Serial.printf("Error, temperature %i C !\n", TempEVSE);
+            _Serialprintf("Error, temperature %i C !\n", TempEVSE);
 #endif
             ResetBalancedStates();
         }
@@ -2183,9 +2188,9 @@ void Timer1S(void * parameter) {
         if (ErrorFlags & (NO_SUN | LESS_6A)) {
 #ifdef LOG_INFO_EVSE
             if (Mode == MODE_SOLAR) {
-                if (ChargeDelay == 0) Serial.printf("Waiting for Solar power...\n");
+                if (ChargeDelay == 0) _Serialprintf("Waiting for Solar power...\n");
             } else {
-                if (ChargeDelay == 0) Serial.printf("Not enough current available!\n");
+                if (ChargeDelay == 0) _Serialprintf("Not enough current available!\n");
             }
 #endif
             if (State == STATE_C) setState(STATE_C1);                       // If we are charging, tell EV to stop charging
@@ -2227,7 +2232,7 @@ void Timer1S(void * parameter) {
         //     Timer5sec = 0;
         // }
 
-        //Serial.printf("Task 1s free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
+        //_Serialprintf("Task 1s free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
 
 
         // Pause the task for 1 Sec
@@ -2251,7 +2256,7 @@ ModbusMessage MBEVMeterResponse(ModbusMessage request) {
     ModbusDecode( (uint8_t*)request.data(), request.size());
 
     if (MB.Type == MODBUS_RESPONSE) {
-       // Serial.print("EVMeter Response\n");
+       // _Serialprint("EVMeter Response\n");
         // Packet from EV electric meter
         if (MB.Register == EMConfig[EVMeter].ERegister) {
             // Energy measurement
@@ -2285,7 +2290,7 @@ ModbusMessage MBPVMeterResponse(ModbusMessage request) {
     ModbusDecode( (uint8_t*)request.data(), request.size());
 
     if (MB.Type == MODBUS_RESPONSE) {
-//        Serial.print("PVMeter Response\n");
+//        _Serialprint("PVMeter Response\n");
         if (PVMeter && MB.Address == PVMeterAddress && MB.Register == EMConfig[PVMeter].IRegister) {
             // packet from PV electric meter
             receiveCurrentMeasurement(MB.Data, PVMeter, PV );
@@ -2307,7 +2312,7 @@ ModbusMessage MBMainsMeterResponse(ModbusMessage request) {
     // process only Responses, as otherwise MB.Data is unitialized, and it will throw an exception
     if (MB.Register == EMConfig[MainsMeter].IRegister && MB.Type == MODBUS_RESPONSE) {
 
-    //Serial.print("Mains Meter Response\n");
+    //_Serialprint("Mains Meter Response\n");
         x = receiveCurrentMeasurement(MB.Data, MainsMeter, CM);
         if (x && LoadBl <2) timeout = 10;                   // only reset timeout when data is ok, and Master/Disabled
 
@@ -2433,7 +2438,7 @@ ModbusMessage MBbroadcast(ModbusMessage request) {
 
                 if (OK && ItemID < STATUS_STATE) write_settings();
 #ifdef LOG_DEBUG_MODBUS
-                Serial.printf("Broadcast FC06 Item:%u val:%u\n",ItemID, MB.Value);
+                _Serialprintf("Broadcast FC06 Item:%u val:%u\n",ItemID, MB.Value);
 #endif
                 break;
             case 0x10: // (Write multiple register))
@@ -2443,7 +2448,7 @@ ModbusMessage MBbroadcast(ModbusMessage request) {
                     if (Balanced[0] == 0 && State == STATE_C) setState(STATE_C1);               // tell EV to stop charging if charge current is zero
                     else if ((State == STATE_B) || (State == STATE_C)) SetCurrent(Balanced[0]); // Set charge current, and PWM output
 #ifdef LOG_DEBUG_MODBUS
-                    Serial.printf("Broadcast received, Node %u.%1u A\n", Balanced[0]/10, Balanced[0]%10);
+                    _Serialprintf("Broadcast received, Node %u.%1u A\n", Balanced[0]/10, Balanced[0]%10);
 #endif
                     timeout = 10;                                   // reset 10 second timeout
                 } else {
@@ -2457,7 +2462,7 @@ ModbusMessage MBbroadcast(ModbusMessage request) {
 
                     if (OK && ItemID < STATUS_STATE) write_settings();
 #ifdef LOG_DEBUG_MODBUS
-                    Serial.printf("Other Broadcast received\n");
+                    _Serialprintf("Other Broadcast received\n");
 #endif                    
                 }    
                 break;
@@ -2477,13 +2482,13 @@ void MBhandleData(ModbusMessage msg, uint32_t token)
    uint8_t Address = msg.getServerID();
 
     if (Address == MainsMeterAddress) {
-        //Serial.print("MainsMeter data\n");
+        //_Serialprint("MainsMeter data\n");
         MBMainsMeterResponse(msg);
     } else if (Address == EVMeterAddress) {
-        //Serial.print("EV Meter data\n");
+        //_Serialprint("EV Meter data\n");
         MBEVMeterResponse(msg);
     } else if (Address == PVMeterAddress) {
-        //Serial.print("PV Meter data\n");
+        //_Serialprint("PV Meter data\n");
         MBPVMeterResponse(msg);
     // Only responses to FC 03/04 are handled here. FC 06/10 response is only a acknowledge.
     } else {
@@ -2494,11 +2499,11 @@ void MBhandleData(ModbusMessage msg, uint32_t token)
             // Packet from Node EVSE
             if (MB.Register == 0x0000) {
                 // Node status
-            //    Serial.print("Node Status received\n");
+            //    _Serialprint("Node Status received\n");
                 receiveNodeStatus(MB.Data, MB.Address - 1u);
             }  else if (MB.Register == 0x0108) {
                 // Node EV meter settings
-            //    Serial.print("Node EV Meter settings received\n");
+            //    _Serialprint("Node EV Meter settings received\n");
                 receiveNodeConfig(MB.Data, MB.Address - 1u);
             }
         }
@@ -2511,7 +2516,7 @@ void MBhandleError(Error error, uint32_t token)
 {
   // ModbusError wraps the error code and provides a readable error message for it
   ModbusError me(error);
-  //Serial.printf("Error response: %02X - %s\n", error, (const char *)me);
+  //_Serialprintf("Error response: %02X - %s\n", error, (const char *)me);
 }
 
 
@@ -2520,7 +2525,7 @@ void ConfigureModbusMode(uint8_t newmode) {
 
     if(MainsMeter == EM_API) return;
 
-    Serial.printf("changing LoadBL from %u to %u\n",LoadBl, newmode);
+    _Serialprintf("changing LoadBL from %u to %u\n",LoadBl, newmode);
     
     if ((LoadBl < 2 && newmode > 1) || (LoadBl > 1 && newmode < 2) || (newmode == 255) ) {
         
@@ -2529,10 +2534,10 @@ void ConfigureModbusMode(uint8_t newmode) {
         // Setup Modbus workers for Node
         if (LoadBl > 1 ) {
             
-            Serial.print("Setup MBserver/Node workers, end Master/Client\n");
+            _Serialprint("Setup MBserver/Node workers, end Master/Client\n");
             // Stop Master background task (if active)
             if (newmode != 255 ) MBclient.end();    
-            Serial.printf("task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
+            _Serialprintf("task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
 
             // Register worker. at serverID 'LoadBl', all function codes
             MBserver.registerWorker(LoadBl, ANY_FUNCTION_CODE, &MBNodeRequest);      
@@ -2549,10 +2554,10 @@ void ConfigureModbusMode(uint8_t newmode) {
         } else if (LoadBl < 2 ) {
             // Setup Modbus workers as Master 
             // Stop Node background task (if active)
-            Serial.print("Setup Modbus as Master/Client, stop Server/Node handler\n");
+            _Serialprint("Setup Modbus as Master/Client, stop Server/Node handler\n");
 
             if (newmode != 255) MBserver.stop();
-            Serial.printf("task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
+            _Serialprintf("task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
 
             MBclient.setTimeout(100);       // timeout 100ms
             MBclient.onDataHandler(&MBhandleData);
@@ -2563,7 +2568,7 @@ void ConfigureModbusMode(uint8_t newmode) {
         } 
     } else if (newmode > 1) {
         // Register worker. at serverID 'LoadBl', all function codes
-        Serial.printf("Registering new LoadBl worker at id %u\n", newmode);
+        _Serialprintf("Registering new LoadBl worker at id %u\n", newmode);
         LoadBl = newmode;
         MBserver.registerWorker(newmode, ANY_FUNCTION_CODE, &MBNodeRequest);   
     }
@@ -2582,8 +2587,7 @@ void CheckAPpassword(void) {
             APpassword[i] = c;
         }
     }
-    Serial.print("APpassword: ");
-    Serial.println(APpassword);
+    _Serialprintf("APpassword: %s",APpassword);
 }
 
 /**
@@ -2596,10 +2600,10 @@ void validate_settings(void) {
     // If value is out of range, reset it to default value
     for (i = MENU_ENTER + 1;i < MENU_EXIT; i++){
         value = getItemValue(i);
-    //    Serial.printf("value %s set to %i\n",MenuStr[i].Key, value );
+    //    _Serialprintf("value %s set to %i\n",MenuStr[i].Key, value );
         if (value > MenuStr[i].Max || value < MenuStr[i].Min) {
             value = MenuStr[i].Default;
-    //        Serial.printf("set default value for %s to %i\n",MenuStr[i].Key, value );
+    //        _Serialprintf("set default value for %s to %i\n",MenuStr[i].Key, value );
             setItemValue(i, value);
         }
     }
@@ -2692,7 +2696,7 @@ void read_settings(bool write) {
 
         if (write) write_settings();
 
-    } else Serial.print("Can not open preferences!\n");
+    } else _Serialprint("Can not open preferences!\n");
 }
 
 void write_settings(void) {
@@ -2744,10 +2748,10 @@ void write_settings(void) {
     preferences.end();
 
 #ifdef LOG_INFO_EVSE
-    Serial.print("\nsettings saved\n");
+    _Serialprint("\nsettings saved\n");
 #endif
 
- } else Serial.print("Can not open preferences!\n");
+ } else _Serialprint("Can not open preferences!\n");
 
 
     if (LoadBl == 1) {                                                          // Master mode
@@ -2764,19 +2768,17 @@ void write_settings(void) {
 
 
 void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info) {
-    Serial.print("WiFi lost connection.\n");
+    _Serialprint("WiFi lost connection.\n");
     // try to reconnect when not connected to AP
     if (WiFi.getMode() != WIFI_AP_STA) {                        
-        Serial.print("Trying to Reconnect\n");
+        _Serialprint("Trying to Reconnect\n");
         WiFi.begin();
     }
 }
 
 void WiFiStationGotIp(WiFiEvent_t event, WiFiEventInfo_t info) {
     localIp = WiFi.localIP();
-    Serial.print("Connected to AP: "); Serial.print(WiFi.SSID());
-    Serial.print("\nLocal IP: "); Serial.print(localIp);
-    Serial.print("\n");
+    _Serialprintf("Connected to AP: %s\nLocal IP: %s\n", WiFi.SSID(), localIp);
 }
 
 
@@ -2787,23 +2789,23 @@ void WiFiStationGotIp(WiFiEvent_t event, WiFiEventInfo_t info) {
 void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len){
 
   if (type == WS_EVT_CONNECT) {
-    Serial.printf("ws[%s][%u] connect\n", server->url(), client->id());
+    _Serialprintf("ws[%s][%u] connect\n", server->url(), client->id());
     //client->printf("Hello Client %u\n", client->id());
     //client->ping();                                                               // this will crash the ESP on IOS 15.3.1 / Safari
     //client->text("Hello from ESP32 Server");
 
   } else if (type == WS_EVT_DISCONNECT) {
-    Serial.printf("ws[%s][%u] disconnect\n", server->url(), client->id());
+    _Serialprintf("ws[%s][%u] disconnect\n", server->url(), client->id());
   } else if(type == WS_EVT_PONG){
-//   Serial.printf("ws[%s][%u] pong[%u]: %s\n", server->url(), client->id(), len, (len)?(char*)data:"");
+//   _Serialprintf("ws[%s][%u] pong[%u]: %s\n", server->url(), client->id(), len, (len)?(char*)data:"");
   } else if (type == WS_EVT_DATA){
 
-    Serial.println("Data received: ");
+    _Serialprintln("Data received: ");
     for (int i=0; i < len; i++) {
-      Serial.print((char) data[i]);
+      _Serialprintf("%c",(char) data[i]);
     }
 
-    Serial.printf("\nFree: %d\n",ESP.getFreeHeap() );
+    _Serialprintf("\nFree: %d\n",ESP.getFreeHeap() );
   }
 }
 
@@ -2845,7 +2847,7 @@ void StopwebServer(void) {
 void StartwebServer(void) {
 
     webServer.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-        Serial.print("page / (root) requested and sent\n");
+        _Serialprint("page / (root) requested and sent\n");
         request->send(SPIFFS, "/index.html", String(), false, processor);
     });
     // handles compressed .js file from SPIFFS
@@ -2887,9 +2889,9 @@ void StartwebServer(void) {
         if (shouldReboot) ESP.restart();
     },[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
         if(!index) {
-            Serial.printf("\nUpdate Start: %s\n", filename.c_str());
+            _Serialprintf("\nUpdate Start: %s\n", filename.c_str());
                 if (filename == "spiffs.bin" ) {
-                    Serial.print("\nSPIFFS partition write\n");
+                    _Serialprint("\nSPIFFS partition write\n");
                     // Partition size is 0x90000
                     if(!Update.begin(0x90000, U_SPIFFS)) {
                         Update.printError(Serial);
@@ -2901,11 +2903,11 @@ void StartwebServer(void) {
         if(!Update.hasError()) {
             if(Update.write(data, len) != len) {
                 Update.printError(Serial);
-            } else Serial.printf("bytes written %u\r", index+len);
+            } else _Serialprintf("bytes written %u\r", index+len);
         }
         if(final) {
             if(Update.end(true)) {
-                Serial.print("\nUpdate Success\n");
+                _Serialprint("\nUpdate Success\n");
             } else {
                 Update.printError(Serial);
             }
@@ -3212,7 +3214,7 @@ void StartwebServer(void) {
     
     // Setup async webserver
     webServer.begin();
-    Serial.print("HTTP server started\n");
+    _Serialprint("HTTP server started\n");
 
 }
 
@@ -3233,11 +3235,9 @@ void WiFiSetup(void) {
 
     // Start the mDNS responder so that the SmartEVSE can be accessed using a local hostame: http://SmartEVSE-xxxxxx.local
     if (!MDNS.begin(APhostname.c_str())) {                
-        Serial.print("Error setting up MDNS responder!\n");
+        _Serialprint("Error setting up MDNS responder!\n");
     } else {
-        Serial.print("mDNS responder started. http://");
-        Serial.print(APhostname);
-        Serial.print(".local\n");
+        _Serialprintf("mDNS responder started. http://%s.local\n",APhostname);
     }
 
     WiFi.setAutoReconnect(true);
@@ -3254,11 +3254,16 @@ void WiFiSetup(void) {
     // See https://github.com/nayarsystems/posix_tz_db/blob/master/zones.csv for Timezone codes for your region
     configTzTime(TZ_INFO, NTP_SERVER);
     
-    //if(!getLocalTime(&timeinfo)) Serial.print("Failed to obtain time\n");
+    //if(!getLocalTime(&timeinfo)) _Serialprint("Failed to obtain time\n");
     
     // test code, sets time to 31-OCT, 02:59:50 , 10 seconds before DST will be switched off
     //timeval epoch = {1635641990, 0};                    
     //settimeofday((const timeval*)&epoch, 0);            
+
+#ifndef DEBUG_DISABLED
+    // Initialize the server (telnet or web socket) of RemoteDebug
+    Debug.begin(APhostname);
+#endif
 }
 
 
@@ -3276,7 +3281,7 @@ void SetupNetworkTask(void * parameter) {
     // ws.cleanupClients();
 
     if (WIFImode == 2 && LCDTimer > 10 && WiFi.getMode() != WIFI_AP_STA) {
-        Serial.print("Start Portal...\n");
+        _Serialprint("Start Portal...\n");
         StopwebServer();
         ESPAsync_wifiManager.startConfigPortal(APhostname.c_str(), APpassword.c_str());         // blocking until connected or timeout.
         WIFImode = 1;
@@ -3286,15 +3291,20 @@ void SetupNetworkTask(void * parameter) {
     }
 
     if (WIFImode == 1 && WiFi.getMode() == WIFI_OFF) {
-        Serial.print("Starting WiFi..\n");
+        _Serialprint("Starting WiFi..\n");
         WiFi.mode(WIFI_STA);
         WiFi.begin();
     }    
 
     if (WIFImode == 0 && WiFi.getMode() != WIFI_OFF) {
-        Serial.print("Stopping WiFi..\n");
+        _Serialprint("Stopping WiFi..\n");
         WiFi.disconnect(true);
     }    
+
+#ifndef DEBUG_DISABLED
+    // Remote debug over WiFi
+    Debug.handle();
+#endif
 
     vTaskDelay(1000 / portTICK_PERIOD_MS);
   } // while(1)
@@ -3341,7 +3351,7 @@ void setup() {
     // Uart 0 debug/program port
     Serial.begin(115200);
     while (!Serial);
-    Serial.print("\nSmartEVSE v3 powerup\n");
+    _Serialprint("\nSmartEVSE v3 powerup\n");
 
     // configure SPI connection to LCD
     // only the SPI_SCK and SPI_MOSI pins are used
@@ -3417,13 +3427,13 @@ void setup() {
 
    
     //Check type of calibration value used to characterize ADC
-    Serial.print("Checking eFuse Vref settings: ");
+    _Serialprint("Checking eFuse Vref settings: ");
     if (val_type == ESP_ADC_CAL_VAL_EFUSE_VREF) {
-        Serial.print("OK\n");
+        _Serialprint("OK\n");
     } else if (val_type == ESP_ADC_CAL_VAL_EFUSE_TP) {
-        Serial.print("Two Point\n");
+        _Serialprint("Two Point\n");
     } else {
-        Serial.print("not programmed!!!\n");
+        _Serialprint("not programmed!!!\n");
     }
     
     // Initialize SPIFFS
@@ -3433,7 +3443,7 @@ void setup() {
           delay(1);
         }
     }
-    Serial.printf("Total SPIFFS bytes: %u, Bytes used: %u\n",SPIFFS.totalBytes(),SPIFFS.usedBytes());
+    _Serialprintf("Total SPIFFS bytes: %u, Bytes used: %u\n",SPIFFS.totalBytes(),SPIFFS.usedBytes());
 
 
    // Read all settings from non volatile memory
@@ -3452,10 +3462,10 @@ void setup() {
 
         // overwrite APhostname if serialnr is programmed
         APhostname = "SmartEVSE-" + String( serialnr & 0xffff, 10);           // SmartEVSE access point Name = SmartEVSE-xxxxx
-        Serial.printf("hwversion %04x serialnr:%u \n",hwversion, serialnr);
-        //Serial.print(ec_public);
+        _Serialprintf("hwversion %04x serialnr:%u \n",hwversion, serialnr);
+        //_Serialprint(ec_public);
 
-    } else Serial.print("No KeyStorage found in nvs!\n");
+    } else _Serialprint("No KeyStorage found in nvs!\n");
 
 
     // Create Task EVSEStates, that handles changes in the CP signal
@@ -3529,7 +3539,7 @@ void loop() {
     /*
     LocalTimeSet = getLocalTime(&timeinfo, 1000U);
     
-    //Serial.printf("\ntime: %02d:%02d:%02d dst:%u epoch:%ld",timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec, timeinfo.tm_isdst, (long)current_time);
+    //_Serialprintf("\ntime: %02d:%02d:%02d dst:%u epoch:%ld",timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec, timeinfo.tm_isdst, (long)current_time);
   
 
     //printf("RSSI: %d\r",WiFi.RSSI() );
