@@ -2639,12 +2639,15 @@ void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info) {
 }
 */
 
+/*
 void WiFiStationGotIp(WiFiEvent_t event, WiFiEventInfo_t info) {
     _Serialprintf("Connected to AP: %s\nLocal IP: %s\n", WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
 }
+*/
 
 
 
+/*
 //
 // WebSockets event handler
 //
@@ -2671,6 +2674,7 @@ void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventT
   }
 }
 
+*/
 //
 // Replaces %variables% in html file with local variables
 //
@@ -3077,6 +3081,26 @@ void StartwebServer(void) {
 
 }
 
+void onWifiEvent(WiFiEvent_t event) {
+    switch (event) {
+        case WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP:
+            _Serialprintf("Connected to AP: %s\nLocal IP: %s\n", WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
+            break;
+        case WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_CONNECTED:
+            _Serialprint("Connected or reconnected to WiFi\n");
+            break;
+        case WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
+            if (WIFImode == 1) {
+                _Serialprint("WiFi Disconnected. Reconnecting...\n");
+                //WiFi.setAutoReconnect(true);  //I know this is very counter-intuitive, you would expect this line in WiFiSetup but this is according to docs
+                                                //look at: https://github.com/alanswx/ESPAsyncWiFiManager/issues/92
+                                                //but somehow it doesnt work reliably, depending on how the disconnect happened...
+                WiFi.reconnect();               //this works better!
+            }
+            break;
+        default: break;
+  }
+}
 
 // Setup Wifi 
 void WiFiSetup(void) {
@@ -3084,6 +3108,7 @@ void WiFiSetup(void) {
     //ESPAsync_wifiManager.resetSettings();   //reset saved settings
 
     ESPAsync_wifiManager.setDebugOutput(true);
+    ESPAsync_wifiManager.setMinimumSignalQuality(-1);
     // Set config portal channel, default = 1. Use 0 => random channel from 1-13
     ESPAsync_wifiManager.setConfigPortalChannel(0);
     ESPAsync_wifiManager.setAPStaticIPConfig(IPAddress(192,168,4,1), IPAddress(192,168,4,1), IPAddress(255,255,255,0));
@@ -3097,13 +3122,13 @@ void WiFiSetup(void) {
         _Serialprintf("mDNS responder started. http://%s.local\n",APhostname.c_str());
     }
 
-    WiFi.setAutoReconnect(true);
-    WiFi.persistent(true);
-        
+    //WiFi.setAutoReconnect(true);
+    //WiFi.persistent(true);
+    WiFi.onEvent(onWifiEvent);
+
     // On disconnect Event, call function
     //WiFi.onEvent(WiFiStationDisconnected, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
     // On IP, call function
-    WiFi.onEvent(WiFiStationGotIp, ARDUINO_EVENT_WIFI_STA_GOT_IP);  // arduino 2.x
     //
     //WiFi.onEvent (WiFiAPstop, SYSTEM_EVENT_AP_STOP);
 
