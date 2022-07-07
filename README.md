@@ -20,6 +20,31 @@ Feel free to use this repository to build it yourself or to use the latest on fr
   * Override charge current
   * Pass in current measurements (p1, battery, ...) - this eliminates having to use additionalhard
   * Switch between single- and three phase power (requires extra 2P relais on the 2nd output)
+* Added "Inverted Eastron" kWh, so that polarity is reversed when power is supplied to meter from below (like in most Dutch power panels)
+* Added current-limiting functionality if a subpanel is used, example:
+
+                             mains
+                               |
+                        [main breaker 25A]
+                               |
+                        [kWh meter "Mains"]
+                               |
+            -----------------------------------
+            |            |                    |
+                [group breaker 16A]   [subpanel breaker 16A]
+                                              |
+                                       [kWh meter "EV"]
+                                              |
+                                        ----------------
+                                        |              |
+                            [washer breaker 16A]  [smartevse breaker 16A]
+
+   In this example you configure Mains to 25A, MaxCircuit to 16A; the charger will limit itself so that neither the 25A mains nor the 16A from the subpanel will be exceeded...
+
+* Added wifi-debugging: if compiled in, you can debug SmartEVSE device by telnetting to it over your wifi connection
+* Small code optimisations, fixed some small bugs
+
+
 
 # New Status Page
 ![image](https://user-images.githubusercontent.com/36994651/160653707-121dd618-ee0d-4cb3-bc39-82fde1a1a653.png)
@@ -50,3 +75,13 @@ View API <a href="https://swagger-ui.serkri.be/" target="_blank">https://swagger
 
 
 Have an idea for the API? Edit it here <a href="https://swagger-editor.serkri.be/" target="_blank">https://swagger-editor.serkri.be/</a> and copy/paste it in a new issue with your request (https://github.com/serkri/SmartEVSE-3/issues)
+
+# Building the firmware
+
+* Install platformio-core https://docs.platformio.org/en/latest/core/installation/methods/index.html
+* Clone this github project, cd to the smartevse directory where platformio.ini is located
+* Compile firmware.bin: platformio run
+* Compile spiffs.bin: platformio run -t buildfs
+
+If you are not using the webserver /update endpoint:
+* Upload via USB configured in platformio.ini: platformio run --target upload
