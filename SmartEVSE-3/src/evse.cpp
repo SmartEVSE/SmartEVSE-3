@@ -2099,7 +2099,7 @@ void Timer1S(void * parameter) {
         } else AccessTimer = 0;                                             // Not in state A, then disable timer
 
 
-        if ((TempEVSE < 55) && (ErrorFlags & TEMP_HIGH)) {                  // Temperature below limit?
+        if ((TempEVSE <= 60) && (ErrorFlags & TEMP_HIGH)) {                  // Temperature below limit?
             ErrorFlags &= ~TEMP_HIGH; // clear Error
         }
 
@@ -2133,7 +2133,7 @@ void Timer1S(void * parameter) {
             ResetBalancedStates();
         } else if (timeout) timeout--;
 
-        if (TempEVSE >= 65 && !(ErrorFlags & TEMP_HIGH))                         // Temperature too High?
+        if (TempEVSE > 70 && !(ErrorFlags & TEMP_HIGH))                         // Temperature too High?
         {
             ErrorFlags |= TEMP_HIGH;
             setState(STATE_A);                                              // ERROR, switch back to STATE_A
