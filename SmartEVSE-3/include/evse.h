@@ -128,6 +128,7 @@
 #define WIFI_MODE 0
 #define AP_PASSWORD "00000000"
 #define USE_3PHASES 0
+#define MAX_TEMPERATURE 65
 
 
 // Mode settings
@@ -273,7 +274,8 @@
 #define MENU_EMCUSTOM_READMAX 36                                                // 0x0218: Maximum register read (ToDo)
 #define MENU_WIFI 37                                                            // 0x0219: WiFi mode
 #define MENU_3F 38
-#define MENU_EXIT 39
+#define MENU_MAX_TEMP 39
+#define MENU_EXIT 40
 
 #define MENU_STATE 50
 
@@ -453,6 +455,7 @@ const struct {
     {"EMREAD", "READ MAX","Max register read at once of custom electric meter", 3, 255, 3},
     {"WIFI",   "WIFI",    "Connect to WiFi access point",                       0, 2, WIFI_MODE},
     {"EV3P",   "3 PHASE",  "Can EV use 3 phases",                               0, 1, USE_3PHASES},
+    {"MXTMP",  "MAX TEMP",  "Maximum temperature for the EVSE module",          40, 75, MAX_TEMPERATURE},
 
     {"EXIT", "EXIT", "EXIT", 0, 0, 0}
 };

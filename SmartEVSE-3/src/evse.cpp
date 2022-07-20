@@ -132,6 +132,7 @@ uint8_t WIFImode = WIFI_MODE;                                               // W
 String APpassword = "00000000";
 
 boolean enable3f = USE_3PHASES;
+uint16_t maxTemp = MAX_TEMPERATURE;
 
 int32_t Irms[3]={0, 0, 0};                                                  // Momentary current per Phase (23 = 2.3A) (resolution 100mA)
                                                                             // Max 3 phases supported
@@ -1040,6 +1041,7 @@ uint8_t getMenuItems (void) {
         MenuItems[m++] = MENU_IMPORT;                                           // - Import Current from Grid (A)
     }
     MenuItems[m++] = MENU_3F;
+    MenuItems[m++] = MENU_MAX_TEMP;
     MenuItems[m++] = MENU_LOADBL;                                               // Load Balance Setting (0:Disable / 1:Master / 2-8:Node)
     if (Mode && LoadBl < 2) {                                                   // ? Mode Smart/Solar and Load Balancing Disabled/Master?
         MenuItems[m++] = MENU_MAINS;                                            // - Max Mains Amps (hard limit, limited by the MAINS connection) (A) (Mode:Smart/Solar)
@@ -1109,6 +1111,9 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
     }
 
     switch (nav) {
+        case MENU_MAX_TEMP:
+            maxTemp = val;
+            break;
         case MENU_3F:
             enable3f = val == 1;
             break;
@@ -1270,6 +1275,8 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
  */
 uint16_t getItemValue(uint8_t nav) {
     switch (nav) {
+        case MENU_MAX_TEMP:
+            return maxTemp;
         case MENU_3F:
             return enable3f;
         case MENU_CONFIG:
@@ -1384,6 +1391,9 @@ const char * getMenuItemOption(uint8_t nav) {
     value = getItemValue(nav);
 
     switch (nav) {
+        case MENU_MAX_TEMP:
+            sprintf(Str, "%2u C", maxTemp);
+            return Str;
         case MENU_3F:
             return enable3f ? "Yes" : "No";
         case MENU_CONFIG:
@@ -2098,8 +2108,7 @@ void Timer1S(void * parameter) {
             }
         } else AccessTimer = 0;                                             // Not in state A, then disable timer
 
-
-        if ((TempEVSE <= 60) && (ErrorFlags & TEMP_HIGH)) {                  // Temperature below limit?
+        if ((TempEVSE < (maxTemp - 10)) && (ErrorFlags & TEMP_HIGH)) {                  // Temperature below limit?
             ErrorFlags &= ~TEMP_HIGH; // clear Error
         }
 
@@ -2133,7 +2142,7 @@ void Timer1S(void * parameter) {
             ResetBalancedStates();
         } else if (timeout) timeout--;
 
-        if (TempEVSE > 70 && !(ErrorFlags & TEMP_HIGH))                         // Temperature too High?
+        if (TempEVSE > maxTemp && !(ErrorFlags & TEMP_HIGH))                         // Temperature too High?
         {
             ErrorFlags |= TEMP_HIGH;
             setState(STATE_A);                                              // ERROR, switch back to STATE_A
@@ -2639,7 +2648,8 @@ void read_settings(bool write) {
         APpassword = preferences.getString("APpassword",AP_PASSWORD);
 
         enable3f = preferences.getUChar("enable3f", false); 
-        
+        maxTemp = preferences.getUShort("maxTemp", MAX_TEMPERATURE); 
+
         preferences.end();                                  
 
         if (write) write_settings();
@@ -2692,6 +2702,7 @@ void write_settings(void) {
     preferences.putString("APpassword", APpassword);
 
     preferences.putBool("enable3f", enable3f);
+    preferences.putUShort("maxTemp", maxTemp);
 
     preferences.end();
 
@@ -2907,6 +2918,7 @@ void StartwebServer(void) {
         doc["car_connected"] = evConnected;
         
         doc["evse"]["temp"] = TempEVSE;
+        doc["evse"]["temp_max"] = maxTemp;
         doc["evse"]["connected"] = evConnected;
         doc["evse"]["access"] = Access_bit == 1;
         doc["evse"]["mode"] = Mode;
