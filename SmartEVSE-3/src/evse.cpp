@@ -2957,6 +2957,12 @@ void StartwebServer(void) {
         
         doc["home_battery"]["current"] = homeBatteryCurrent;
         doc["home_battery"]["last_update"] = homeBatteryLastUpdate;
+
+        doc["ev_meter"]["description"] = EMConfig[EVMeter].Desc;
+        doc["ev_meter"]["address"] = EVMeterAddress;
+        doc["ev_meter"]["power"] = PowerMeasured;
+        doc["ev_meter"]["total_kwh"] = EnergyEV;
+        doc["ev_meter"]["charged_kwh"] = EnergyCharged;
         
         doc["phase_currents"]["TOTAL"] = Irms[0] + Irms[1] + Irms[2];
         doc["phase_currents"]["L1"] = Irms[0];
