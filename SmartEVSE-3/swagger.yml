@@ -73,6 +73,9 @@ paths:
                         type: integer
                       3phases_enabled: 
                         type: boolean
+                      mains_meter: 
+                        type: string
+
                   home_battery:
                     type: object
                     properties:
@@ -108,6 +111,13 @@ paths:
       tags:
         - Operations
       parameters:
+        - in: query
+          name: backlight
+          description: |-
+           Turns backlight on (1) or off (0)
+          required: false
+          schema:
+            type: integer
         - in: query
           name: mode
           description: |-
@@ -153,14 +163,6 @@ paths:
           required: false
           schema:
             type: boolean
-        # - in: query
-        #   name: force_contactors
-        #   description: |-
-        #     Works only when using <b>NORMAL</b> mode and 3phases are enabled (using the EVSE menu or the enable_3phases parameter)<br />
-        #     Force contactor 2 to be opened/closed <br />
-        #   required: false
-        #   schema:
-        #     type: boolean
       requestBody:
         content:
           application/json:
