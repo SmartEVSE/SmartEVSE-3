@@ -49,6 +49,12 @@ extern struct ModBus MB;
 void ModbusSend8(uint8_t address, uint8_t function, uint16_t reg, uint16_t data) {
     // 0x12345678 is a token to keep track of modbus requests/responses. currently unused.
     MBclient.addRequest(0x12345678, address, function, reg, data);
+#ifdef LOG_INFO_MODBUS
+    _Serialprint("Sent packet");
+#endif
+#ifdef LOG_DEBUG_MODBUS
+    _Serialprintf("address: %02x, function: %02x, reg: %04x, data: %04x.\n", address, function, reg, data);
+#endif
 }
 
 /**
@@ -128,6 +134,7 @@ void ModbusReadInputRequest(uint8_t address, uint8_t function, uint16_t reg, uin
     ModbusSend8(address, function, reg, quantity);
 }
 
+
 /**
  * Response read holding (FC=3) or read input register (FC=04) to a device over modbus
  * 
@@ -137,7 +144,7 @@ void ModbusReadInputRequest(uint8_t address, uint8_t function, uint16_t reg, uin
  * @param uint8_t count of values
  */
 void ModbusReadInputResponse(uint8_t address, uint8_t function, uint16_t *values, uint8_t count) {
-    Serial.printf("ModbusReadInputResponse, to do!\n");
+    _Serialprintf("ModbusReadInputResponse, to do!\n");
     //ModbusSend(address, function, count * 2u, values, count);
 }
 
@@ -156,18 +163,6 @@ void ModbusWriteSingleRequest(uint8_t address, uint16_t reg, uint16_t value) {
 }
 
 /**
- * Response write single register (FC=06) to a device over modbus
- * 
- * @param uint8_t address
- * @param uint16_t register
- * @param uint16_t value
- */
-void ModbusWriteSingleResponse(uint8_t address, uint16_t reg, uint16_t value) {
-    ModbusSend8(address, 0x06, reg, value);  
-}
-
-
-/**
  * Request write multiple register (FC=16) to a device over modbus
  * 
  * @param uint8_t address
@@ -182,17 +177,19 @@ void ModbusWriteMultipleRequest(uint8_t address, uint16_t reg, uint16_t *values,
     MB.RequestRegister = reg;
     // 0x12345678 is a token to keep track of modbus requests/responses. currently unused.
     MBclient.addRequest(0x12345678, address, 0x10, reg, (uint16_t) count, count * 2u, values);
-}
-
-/**
- * Response write multiple register (FC=16) to a device over modbus
- * 
- * @param uint8_t address
- * @param uint16_t register
- * @param uint16_t count
- */
-void ModbusWriteMultipleResponse(uint8_t address, uint16_t reg, uint16_t count) {
-    ModbusSend8(address, 0x10, reg, count);
+#ifdef LOG_INFO_MODBUS
+    _Serialprint("Sent packet");
+#endif
+#ifdef LOG_DEBUG_MODBUS
+    uint16_t i;
+    char Str[MODBUS_SYS_CONFIG_COUNT * 5 + 10];
+    char *cur = Str, * const end = Str + sizeof Str;
+    for (i = 0; i < MODBUS_SYS_CONFIG_COUNT; i++) {
+        if (cur < end) cur += snprintf(cur, end-cur, "%04x ", values[i]);
+        else strcpy(end-sizeof("**truncated**"), "**truncated**");
+    }
+    _Serialprintf("address: %02x, function: 0x10, reg: %04x, count: %u, values: %s.\n", address, reg, count, Str);
+#endif
 }
 
 /**
@@ -204,7 +201,7 @@ void ModbusWriteMultipleResponse(uint8_t address, uint16_t reg, uint16_t count) 
  */
 void ModbusException(uint8_t address, uint8_t function, uint8_t exception) {
     //uint16_t temp[1];
-    Serial.print("ModbusException, to do!\n");
+    _Serialprint("ModbusException, to do!\n");
     //ModbusSend(address, function, exception, temp, 0);
 }
 
@@ -226,12 +223,16 @@ void ModbusDecode(uint8_t * buf, uint8_t len) {
     MB.Exception = 0;
 
 #ifdef LOG_INFO_MODBUS
-    Serial.print("Received packet");
+    _Serialprint("Received packet");
 #endif
 #ifdef LOG_DEBUG_MODBUS
-    Serial.printf(" (%i bytes) ", len);
-    for (uint8_t x=0; x<len; x++) Serial.printf("%02x ", buf[x]);
-    Serial.print("\n");
+    char Str[128];
+    char *cur = Str, * const end = Str + sizeof Str;
+    for (uint8_t x=0; x<len; x++) {
+        if (cur < end) cur += snprintf(cur, end-cur, "%02x ", buf[x]);
+        else strcpy(end-sizeof("**truncated**"), "**truncated**");
+    }
+    _Serialprintf(" (%i bytes) %s\n", len, Str);
 #endif
 
     // Modbus error packets length is 5 bytes
@@ -251,7 +252,7 @@ void ModbusDecode(uint8_t * buf, uint8_t len) {
         MB.Function = buf[1];
 
 #ifdef LOG_DEBUG_MODBUS
-            Serial.printf(" valid Modbus packet: Address %02x Function %02x", MB.Address, MB.Function);
+            _Serialprintf(" valid Modbus packet: Address %02x Function %02x\n", MB.Address, MB.Function);
 #endif
         switch (MB.Function) {
             case 0x03: // (Read holding register)
@@ -272,7 +273,7 @@ void ModbusDecode(uint8_t * buf, uint8_t len) {
                         MB.Type = MODBUS_RESPONSE;
 #ifdef LOG_WARN_MODBUS
                     } else {
-                        Serial.print("Invalid modbus FC=04 packet\n");
+                        _Serialprint("Invalid modbus FC=04 packet\n");
 #endif
                     }
                 }
@@ -290,7 +291,7 @@ void ModbusDecode(uint8_t * buf, uint8_t len) {
                     MB.Value = (uint16_t)(buf[4] <<8) | buf[5];
 #ifdef LOG_WARN_MODBUS
                 } else {
-                    Serial.print("Invalid modbus FC=06 packet\n");
+                    _Serialprint("Invalid modbus FC=06 packet\n");
 #endif
                 }
                 break;
@@ -312,7 +313,7 @@ void ModbusDecode(uint8_t * buf, uint8_t len) {
                         MB.Type = MODBUS_REQUEST;
 #ifdef LOG_WARN_MODBUS
                     } else {
-                        Serial.print("Invalid modbus FC=16 packet\n");
+                        _Serialprint("Invalid modbus FC=16 packet\n");
 #endif
                     }
                 }
@@ -365,16 +366,16 @@ void ModbusDecode(uint8_t * buf, uint8_t len) {
     }
 #ifdef LOG_DEBUG_MODBUS
     if(MB.Type) {
-        Serial.printf(" Register %04x", MB.Register);
+        _Serialprintf(" Register %04x\n", MB.Register);
     }
 #endif
 #ifdef LOG_INFO_MODBUS
     switch (MB.Type) {
         case MODBUS_REQUEST:
-            Serial.println(" Request");
+            _Serialprintln(" Request\n");
             break;
         case MODBUS_RESPONSE:
-            Serial.println(" Response");
+            _Serialprintln(" Response\n");
             break;
     }
 #endif
@@ -434,83 +435,6 @@ signed int receiveMeasurement(uint8_t *buf, uint8_t Count, uint8_t Endianness, M
 }
 
 /**
- * Send Energy measurement request over modbus
- * 
- * @param uint8_t Meter
- * @param uint8_t Address
- */
-void requestEnergyMeasurement(uint8_t Meter, uint8_t Address) {
-   switch (Meter) {
-        case EM_SOLAREDGE:
-            // Note:
-            // - SolarEdge uses 16-bit values, except for this measurement it uses 32bit int format
-            // - EM_SOLAREDGE should not be used for EV Energy Measurements
-            ModbusReadInputRequest(Address, EMConfig[Meter].Function, EMConfig[Meter].ERegister, 2);
-            break;
-        default:
-            requestMeasurement(Meter, Address, EMConfig[Meter].ERegister, 1);
-            break;
-    }
-}
-
-/**
- * Read energy measurement from modbus
- * 
- * @param pointer to buf
- * @param uint8_t Meter
- * @return signed int Energy (Wh)
- */
-signed int receiveEnergyMeasurement(uint8_t *buf, uint8_t Meter) {
-    switch (Meter) {
-        case EM_SOLAREDGE:
-            // Note:
-            // - SolarEdge uses 16-bit values, except for this measurement it uses 32bit int format
-            // - EM_SOLAREDGE should not be used for EV Energy Measurements
-            return receiveMeasurement(buf, 0, EMConfig[Meter].Endianness, MB_DATATYPE_INT32, EMConfig[Meter].EDivisor - 3);
-        default:
-            return receiveMeasurement(buf, 0, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, EMConfig[Meter].EDivisor - 3);
-    }
-}
-
-/**
- * Send Power measurement request over modbus
- * 
- * @param uint8_t Meter
- * @param uint8_t Address
- */
-void requestPowerMeasurement(uint8_t Meter, uint8_t Address) {
-    requestMeasurement(Meter, Address, EMConfig[Meter].PRegister, 1);
-}
-
-/**
- * Read Power measurement from modbus
- * 
- * @param pointer to buf
- * @param uint8_t Meter
- * @return signed int Power (W)
-  */
-signed int receivePowerMeasurement(uint8_t *buf, uint8_t Meter) {
-    switch (Meter) {
-        case EM_SOLAREDGE:
-        {
-            // Note:
-            // - SolarEdge uses 16-bit values, with a extra 16-bit scaling factor
-            // - EM_SOLAREDGE should not be used for EV power measurements, only PV power measurements are supported
-            int scalingFactor = -(int)receiveMeasurement(
-                        buf,
-                        1,
-                        EMConfig[Meter].Endianness,
-                        EMConfig[Meter].DataType,
-                        0
-            );
-            return receiveMeasurement(buf, 0, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, scalingFactor);
-        }
-        default:
-            return receiveMeasurement(buf, 0, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, EMConfig[Meter].PDivisor);
-    }
-}
-
-/**
  * Send current measurement request over modbus
  * 
  * @param uint8_t Meter
@@ -524,6 +448,7 @@ void requestCurrentMeasurement(uint8_t Meter, uint8_t Address) {
             ModbusReadInputRequest(Address, 4, 0, 20);
             break;
         case EM_EASTRON:
+        case EM_EASTRON_INV:
             // Phase 1-3 current: Register 0x06 - 0x0B (unsigned)
             // Phase 1-3 power:   Register 0x0C - 0x11 (signed)
             ModbusReadInputRequest(Address, 4, 0x06, 12);
@@ -630,6 +555,11 @@ uint8_t receiveCurrentMeasurement(uint8_t *buf, uint8_t Meter, signed int *var) 
                 if (receiveMeasurement(buf, x + 3u, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, EMConfig[Meter].PDivisor) < 0) var[x] = -var[x];
             }
             break;
+        case EM_EASTRON_INV:
+            for (x = 0; x < 3; x++) {
+                if (receiveMeasurement(buf, x + 3u, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, EMConfig[Meter].PDivisor) > 0) var[x] = -var[x];
+            }
+            break;
         case EM_ABB:
             for (x = 0; x < 3; x++) {
                 if (receiveMeasurement(buf, x + 5u, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, EMConfig[Meter].PDivisor) < 0) var[x] = -var[x];
@@ -681,6 +611,7 @@ uint8_t mapModbusRegister2ItemID() {
 /**
  * Read item values and send modbus response
  */
+/*
 void ReadItemValueResponse(void) {
     uint8_t ItemID;
     uint8_t i;
@@ -696,10 +627,12 @@ void ReadItemValueResponse(void) {
         ModbusException(MB.Address, MB.Function, MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
     }
 }
+*/
 
 /**
  * Write item values and send modbus response
  */
+/*
 void WriteItemValueResponse(void) {
     uint8_t ItemID;
     uint8_t OK = 0;
@@ -721,10 +654,12 @@ void WriteItemValueResponse(void) {
         }
     }
 }
+*/
 
 /**
  * Write multiple item values and send modbus response
  */
+/*
 void WriteMultipleItemValueResponse(void) {
     uint8_t ItemID;
     uint16_t i, OK = 0, value;
@@ -749,3 +684,4 @@ void WriteMultipleItemValueResponse(void) {
         }
     }
 }
+*/

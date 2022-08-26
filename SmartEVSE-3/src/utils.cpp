@@ -67,6 +67,7 @@ unsigned char crc8(unsigned char *buf, unsigned char len) {
  * @param unsigned char length of buffer
  * @return unsigned int CRC
  */
+/*
 unsigned int crc16(unsigned char *buf, unsigned char len) {
     unsigned int pos, crc = 0xffff;
     unsigned char i;
@@ -86,6 +87,7 @@ unsigned int crc16(unsigned char *buf, unsigned char len) {
 
     return crc;
 }
+*/
 
 
 /**

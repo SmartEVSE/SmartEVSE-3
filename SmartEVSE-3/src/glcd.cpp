@@ -75,6 +75,7 @@ const unsigned char LCD_Flow [] = {
 bool LCDToggle = false;                                                         // Toggle display between two values
 unsigned char LCDText = 0;                                                      // Cycle through text messages
 unsigned int GLCDx, GLCDy;
+uint8_t GLCDbuf[512];                                                       // GLCD buffer (half of the display)
 
 void st7565_command(unsigned char data) {
     _A0_0;
@@ -115,6 +116,7 @@ void glcd_clrln(unsigned char ln, unsigned char data) {
     }
 }
 
+/*
 void glcd_clrln_buffer(unsigned char ln) {
     unsigned char i;
     if (ln > 7) return;
@@ -129,6 +131,7 @@ void glcd_clear(void) {
         glcd_clrln(i, 0);
     }
 }
+*/
 
 void GLCD_buffer_clr(void) {
     unsigned char x = 0;
@@ -177,7 +180,7 @@ unsigned char GLCD_text_length2(const char *str) {
     unsigned char i = 0, length = 0;
 
     while (str[i]) {
-        length += font2[str[i]][0] + 2;
+        length += font2[(int) str[i]][0] + 2;
         i++;
     }
 
@@ -421,7 +424,7 @@ void GLCD(void) {
             if (WIFImode == 1 ) {   // Wifi Enabled
 
                 if (WiFi.status() == WL_CONNECTED) {
-                    sprintf(Str, "%u.%u.%u.%u %i%cC",localIp[0],localIp[1],localIp[2],localIp[3],TempEVSE, 0x0C);
+                    sprintf(Str, "%s %i%cC",WiFi.localIP().toString().c_str(), TempEVSE, 0x0C);
                     GLCD_write_buf_str(0,0, Str, GLCD_ALIGN_LEFT);
                     if (LocalTimeSet) sprintf(Str, "%02u:%02u",timeinfo.tm_hour, timeinfo.tm_min);
                     else sprintf(Str, "--:--");
@@ -584,8 +587,8 @@ void GLCD(void) {
                                                                                 // If current flow is < 0.3A don't show the blob
 
         if (EVMeter) {                                                          // If we have a EV kWh meter configured, Show total charged energy in kWh on LCD.
-            sprintfl(Str, "%2u.%1ukWh", EnergyCharged, 3, 1);                   // Will reset to 0.0kWh when charging cable reconnected, and state change from STATE B->C
-            GLCD_write_buf_str(89, 1, Str,GLCD_ALIGN_LEFT);                     // print to buffer
+            //sprintfl(Str, "%2u.%1ukWh", EnergyCharged, 3, 1);                   // Will reset to 0.0kWh when charging cable reconnected, and state change from STATE B->C
+            //GLCD_write_buf_str(89, 1, Str,GLCD_ALIGN_LEFT);                     // print to buffer
         }
 
         // Write number of used phases into the car
@@ -614,7 +617,7 @@ void GLCD(void) {
             } else {
                 sprintfl(Str, "%uA", Balanced[0], 1, 0);
             }
-            GLCD_write_buf_str(85, 2, Str, GLCD_ALIGN_CENTER);
+            GLCD_write_buf_str(127,0, Str, GLCD_ALIGN_RIGHT);
         } else if (State == STATE_A) {
             // Remove line between House and Car
             for (x = 73; x < 96; x++) GLCDbuf[3u * 128u + x] = 0;
@@ -631,6 +634,8 @@ void GLCD(void) {
             for (x = 0; x < 3; x++) {                                           // Display L1, L2 and L3 currents on LCD
                 sprintfl(Str, "%dA", Irms[x], 1, 0);
                 GLCD_write_buf_str(46, x, Str, GLCD_ALIGN_RIGHT);               // print to buffer
+                sprintfl(Str, "%dA", Irms_EV[x], 1, 0);
+                GLCD_write_buf_str(90, x, Str, GLCD_ALIGN_RIGHT);               // print to buffer
             }
         }
         GLCD_sendbuf(0, 4);                                                     // Copy LCD buffer to GLCD
@@ -702,6 +707,210 @@ unsigned char GetPosInMenu (unsigned char count) {
 }
 
 
+/**
+ * Get active option of an menu item
+ *
+ * @param uint8_t nav
+ * @return uint8_t[] MenuItemOption
+ */
+const char * getMenuItemOption(uint8_t nav) {
+    static char Str[12]; // must be declared static, since it's referenced outside of function scope
+
+    // Text
+    const static char StrFixed[]   = "Fixed";
+    const static char StrSocket[]  = "Socket";
+    const static char StrSmart[]   = "Smart";
+    const static char StrNormal[]  = "Normal";
+    const static char StrSolar[]   = "Solar";
+    const static char StrSolenoid[] = "Solenoid";
+    const static char StrMotor[]   = "Motor";
+    const static char StrDisabled[] = "Disabled";
+    const static char StrLoadBl[9][9]  = {"Disabled", "Master", "Node 1", "Node 2", "Node 3", "Node 4", "Node 5", "Node 6", "Node 7"};
+    const static char StrSwitch[5][10] = {"Disabled", "Access B", "Access S", "Sma-Sol B", "Sma-Sol S"};
+    const static char StrGrid[2][10] = {"4Wire", "3Wire"};
+    const static char StrEnabled[] = "Enabled";
+    const static char StrExitMenu[] = "MENU";
+    const static char StrMainsAll[] = "All";
+    const static char StrMainsHomeEVSE[] = "Home+EVSE";
+    const static char StrRFIDReader[6][10] = {"Disabled", "EnableAll", "EnableOne", "Learn", "Delete", "DeleteAll"};
+    const static char StrWiFi[3][10] = {"Disabled", "Enabled", "SetupWifi"};
+
+		unsigned int value;
+
+    value = getItemValue(nav);
+
+    switch (nav) {
+        case MENU_MAX_TEMP:
+            sprintf(Str, "%2u C", maxTemp);
+            return Str;
+        case MENU_3F:
+            return enable3f ? "Yes" : "No";
+        case MENU_CONFIG:
+            if (Config) return StrFixed;
+            else return StrSocket;
+        case MENU_MODE:
+            if (Mode == MODE_SMART) return StrSmart;
+            else if (Mode == MODE_SOLAR) return StrSolar;
+            else return StrNormal;
+        case MENU_START:
+                sprintf(Str, "-%2u A", value);
+                return Str;
+        case MENU_STOP:
+            if (value) {
+                sprintf(Str, "%2u min", value);
+                return Str;
+            } else return StrDisabled;
+        case MENU_LOADBL:
+            if (ExternalMaster && value == 1) return "Node 0";
+            else return StrLoadBl[LoadBl];
+        case MENU_MAINS:
+        case MENU_MIN:
+        case MENU_MAX:
+        case MENU_CIRCUIT:
+        case MENU_IMPORT:
+            sprintf(Str, "%2u A", value);
+            return Str;
+        case MENU_LOCK:
+            if (Lock == 1) return StrSolenoid;
+            else if (Lock == 2) return StrMotor;
+            else return StrDisabled;
+        case MENU_SWITCH:
+            return StrSwitch[Switch];
+        case MENU_RCMON:
+            if (RCmon) return StrEnabled;
+            else return StrDisabled;
+        case MENU_MAINSMETER:
+        case MENU_PVMETER:
+        case MENU_EVMETER:
+            return (const char*)EMConfig[value].Desc;
+        case MENU_GRID:
+            return StrGrid[Grid];
+        case MENU_MAINSMETERADDRESS:
+        case MENU_PVMETERADDRESS:
+        case MENU_EVMETERADDRESS:
+        case MENU_EMCUSTOM_UREGISTER:
+        case MENU_EMCUSTOM_IREGISTER:
+        case MENU_EMCUSTOM_PREGISTER:
+        case MENU_EMCUSTOM_EREGISTER:
+            if(value < 0x1000) sprintf(Str, "%u (%02X)", value, value);     // This just fits on the LCD.
+            else sprintf(Str, "%u %X", value, value);
+            return Str;
+        case MENU_MAINSMETERMEASURE:
+            if (MainsMeterMeasure) return StrMainsHomeEVSE;
+            else return StrMainsAll;
+        case MENU_EMCUSTOM_ENDIANESS:
+            switch(value) {
+                case 0: return "LBF & LWF";
+                case 1: return "LBF & HWF";
+                case 2: return "HBF & LWF";
+                case 3: return "HBF & HWF";
+                default: return "";
+            }
+        case MENU_EMCUSTOM_DATATYPE:
+            switch (value) {
+                case MB_DATATYPE_INT16: return "INT16";
+                case MB_DATATYPE_INT32: return "INT32";
+                case MB_DATATYPE_FLOAT32: return "FLOAT32";
+            }
+        case MENU_EMCUSTOM_FUNCTION:
+            switch (value) {
+                case 3: return "3:Hold. Reg";
+                case 4: return "4:Input Reg";
+                default: return "";
+            }
+        case MENU_EMCUSTOM_UDIVISOR:
+        case MENU_EMCUSTOM_IDIVISOR:
+        case MENU_EMCUSTOM_PDIVISOR:
+        case MENU_EMCUSTOM_EDIVISOR:
+            sprintf(Str, "%lu", pow_10[value]);
+            return Str;
+        case MENU_RFIDREADER:
+            return StrRFIDReader[RFIDReader];
+        case MENU_WIFI:
+            return StrWiFi[WIFImode];
+        case MENU_EXIT:
+            return StrExitMenu;
+        default:
+            return "";
+    }
+}
+
+
+/**
+ * Create an array of available menu items
+ * Depends on configuration settings like CONFIG/MODE/LoadBL
+ *
+ * @return uint8_t MenuItemCount
+ */
+uint8_t getMenuItems (void) {
+    uint8_t m = 0;
+
+    MenuItems[m++] = MENU_CONFIG;                                               // Configuration (0:Socket / 1:Fixed Cable)
+    if (!Config) {                                                              // ? Fixed Cable?
+        MenuItems[m++] = MENU_LOCK;                                             // - Cable lock (0:Disable / 1:Solenoid / 2:Motor)
+    }
+    MenuItems[m++] = MENU_MODE;                                                 // EVSE mode (0:Normal / 1:Smart)
+    if (Mode == MODE_SOLAR && LoadBl < 2) {                                     // ? Solar mode and Load Balancing Disabled/Master?
+        MenuItems[m++] = MENU_START;                                            // - Start Surplus Current (A)
+        MenuItems[m++] = MENU_STOP;                                             // - Stop time (min)
+        MenuItems[m++] = MENU_IMPORT;                                           // - Import Current from Grid (A)
+    }
+    MenuItems[m++] = MENU_3F;
+    MenuItems[m++] = MENU_MAX_TEMP;
+    MenuItems[m++] = MENU_LOADBL;                                               // Load Balance Setting (0:Disable / 1:Master / 2-8:Node)
+    if (Mode && LoadBl < 2) {                                                   // ? Mode Smart/Solar and Load Balancing Disabled/Master?
+        MenuItems[m++] = MENU_MAINS;                                            // - Max Mains Amps (hard limit, limited by the MAINS connection) (A) (Mode:Smart/Solar)
+    }
+    if (Mode && (LoadBl < 2 || LoadBl == 1)) {                                  // ? Mode Smart/Solar or LoadBl Master?
+        MenuItems[m++] = MENU_MIN;                                              // - Minimal current the EV is happy with (A) (Mode:Smart/Solar or LoadBl:Master)
+    }
+    if (LoadBl == 1) {                                                          // ? Load balancing Master?
+        MenuItems[m++] = MENU_CIRCUIT;                                          // - Max current of the EVSE circuit (A) (LoadBl:Master)
+    }
+    MenuItems[m++] = MENU_MAX;                                                  // Max Charge current (A)
+    MenuItems[m++] = MENU_SWITCH;                                               // External Switch on SW (0:Disable / 1:Access / 2:Smart-Solar)
+    MenuItems[m++] = MENU_RCMON;                                                // Residual Current Monitor on RCM (0:Disable / 1:Enable)
+    MenuItems[m++] = MENU_RFIDREADER;                                           // RFID Reader connected to SW (0:Disable / 1:Enable / 2:Learn / 3:Delete / 4:Delate All)
+    if (Mode) {                                                                 // ? Smart or Solar mode?
+        if (LoadBl < 2) {                                                       // - ? Load Balancing Disabled/Master?
+            MenuItems[m++] = MENU_MAINSMETER;                                   // - - Type of Mains electric meter (0: Disabled / Constants EM_*)
+            if (MainsMeter == EM_SENSORBOX || MainsMeter == EM_API) {                                   // - - ? Sensorbox?
+                if (GridActive == 1) MenuItems[m++] = MENU_GRID;
+                if (CalActive == 1) MenuItems[m++] = MENU_CAL;                  // - - - Sensorbox CT measurement calibration
+            } else if(MainsMeter) {                                             // - - ? Other?
+                MenuItems[m++] = MENU_MAINSMETERADDRESS;                        // - - - Address of Mains electric meter (5 - 254)
+                MenuItems[m++] = MENU_MAINSMETERMEASURE;                        // - - - What does Mains electric meter measure (0: Mains (Home+EVSE+PV) / 1: Home+EVSE / 2: Home)
+                if (MainsMeterMeasure) {                                        // - - - ? PV not measured by Mains electric meter?
+                    MenuItems[m++] = MENU_PVMETER;                              // - - - - Type of PV electric meter (0: Disabled / Constants EM_*)
+                    if (PVMeter) MenuItems[m++] = MENU_PVMETERADDRESS;          // - - - - - Address of PV electric meter (5 - 254)
+                }
+            }
+        }
+        MenuItems[m++] = MENU_EVMETER;                                          // - Type of EV electric meter (0: Disabled / Constants EM_*)
+        if (EVMeter) {                                                          // - ? EV meter configured?
+            MenuItems[m++] = MENU_EVMETERADDRESS;                               // - - Address of EV electric meter (5 - 254)
+        }
+        if (LoadBl < 2) {                                                       // - ? Load Balancing Disabled/Master?
+            if (MainsMeter == EM_CUSTOM || PVMeter == EM_CUSTOM || EVMeter == EM_CUSTOM) { // ? Custom electric meter used?
+                MenuItems[m++] = MENU_EMCUSTOM_ENDIANESS;                       // - - Byte order of custom electric meter
+                MenuItems[m++] = MENU_EMCUSTOM_DATATYPE;                        // - - Data type of custom electric meter
+                MenuItems[m++] = MENU_EMCUSTOM_FUNCTION;                        // - - Modbus Function of custom electric meter
+                MenuItems[m++] = MENU_EMCUSTOM_UREGISTER;                       // - - Starting register for voltage of custom electric meter
+                MenuItems[m++] = MENU_EMCUSTOM_UDIVISOR;                        // - - Divisor for voltage of custom electric meter
+                MenuItems[m++] = MENU_EMCUSTOM_IREGISTER;                       // - - Starting register for current of custom electric meter
+                MenuItems[m++] = MENU_EMCUSTOM_IDIVISOR;                        // - - Divisor for current of custom electric meter
+                MenuItems[m++] = MENU_EMCUSTOM_PREGISTER;                       // - - Starting register for power of custom electric meter
+                MenuItems[m++] = MENU_EMCUSTOM_PDIVISOR;                        // - - Divisor for power of custom electric meter
+                MenuItems[m++] = MENU_EMCUSTOM_EREGISTER;                       // - - Starting register for energy of custom electric meter
+                MenuItems[m++] = MENU_EMCUSTOM_EDIVISOR;                        // - - Divisor for energy of custom electric meter
+            }
+        }
+    }
+    MenuItems[m++] = MENU_WIFI;                                                 // Wifi Disabled / Enabled / Portal
+    MenuItems[m++] = MENU_EXIT;
+
+    return m;
+}
 
 
 

@@ -62,10 +62,9 @@
 
 
             $('#mode').text(data.mode);
-            $('#car_connected').text(data.car_connected == "true" ? "Yes" : "No");
+            $('#car_connected').text(data.car_connected ? "Yes" : "No");
             $('#state').text(data.evse.state);
             $('#temp').text(data.evse.temp + " °C / " + data.evse.temp_max + " °C");
-            $('#temp_max').text(data.evse.temp_max + " °C");
             if(data.evse.error != "None") {
               $('#error').text(data.evse.error);
               $('[id=with_errors]').show();
@@ -141,7 +140,6 @@
       }
   </script>
 
-<body id="page-top">
 
   <!-- Page Wrapper -->
   <div id="wrapper">
@@ -251,7 +249,7 @@
                                   <div class="col mr-2">
                                       <div class="text-xl font-weight-bold text-info text-uppercase mb-1">Current Details</div>
                                       <div class="row no-gutters align-items-center">
-                                        <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                        <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
                                             3 Phases:
                                           </div>
                                           <div class="col">
@@ -259,7 +257,7 @@
                                           </div>
                                       </div>
                                       <div class="row no-gutters align-items-center">
-                                        <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                        <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
                                             Override:
                                           </div>
                                           <div class="col">
@@ -267,7 +265,7 @@
                                           </div>
                                       </div>
                                       <div class="row no-gutters align-items-center">
-                                        <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                        <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
                                             Min:
                                           </div>
                                           <div class="col">
@@ -275,7 +273,7 @@
                                           </div>
                                       </div>
                                       <div class="row no-gutters align-items-center">
-                                          <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                          <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
                                             Max:
                                           </div>
                                           <div class="col">
@@ -302,7 +300,7 @@
                                 <div class="col mr-2">
                                     <div class="text-xl font-weight-bold text-info text-uppercase mb-1">Phase Details</div>
                                     <div class="row no-gutters align-items-center">
-                                      <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                      <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
                                           Total:
                                         </div>
                                         <div class="col">
@@ -310,7 +308,7 @@
                                         </div>
                                     </div>
                                     <div class="row no-gutters align-items-center">
-                                      <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                      <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
                                           L1:
                                         </div>
                                         <div class="col">
@@ -318,7 +316,7 @@
                                         </div>
                                     </div>
                                     <div class="row no-gutters align-items-center">
-                                      <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                      <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
                                           L2:
                                         </div>
                                         <div class="col">
@@ -326,7 +324,7 @@
                                         </div>
                                     </div>
                                     <div class="row no-gutters align-items-center">
-                                      <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                      <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
                                           L3:
                                         </div>
                                         <div class="col">
@@ -334,15 +332,13 @@
                                         </div>
                                     </div>
                                     <div class="row no-gutters align-items-center" id="with_p1_api_data">
-                                      <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                      <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
                                           Date:
                                         </div>
                                         <div class="col">
                                           <div class="h5 mb-0 mr-3 text-gray-800" id="p1_data_date" style="text-align: right;"></div>
                                         </div>
-                                    </div>
-                                    <div class="row no-gutters align-items-center" id="with_p1_api_data">
-                                      <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                      <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
                                           Time:
                                         </div>
                                         <div class="col">
@@ -369,7 +365,7 @@
                               <div class="col mr-2">
                                   <div class="text-xl font-weight-bold text-info text-uppercase mb-1">Phase Details (Original)</div>
                                   <div class="row no-gutters align-items-center">
-                                    <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                    <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
                                         Total:
                                       </div>
                                       <div class="col">
@@ -377,7 +373,7 @@
                                       </div>
                                   </div>
                                   <div class="row no-gutters align-items-center">
-                                    <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                    <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
                                         L1:
                                       </div>
                                       <div class="col">
@@ -385,7 +381,7 @@
                                       </div>
                                   </div>
                                   <div class="row no-gutters align-items-center">
-                                    <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                    <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
                                         L2:
                                       </div>
                                       <div class="col">
@@ -393,7 +389,7 @@
                                       </div>
                                   </div>
                                   <div class="row no-gutters align-items-center">
-                                    <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                    <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
                                         L3:
                                       </div>
                                       <div class="col">
@@ -415,7 +411,7 @@
               </div>
 
 
-              <div class="col-xl-3 col-md-6 mb-4" id="with_evmeter">
+              <div class="col-xl-3 col-md-6 mb-4" id="with_evmeter" style="display: none;">
                 <div class="card border-left-warning shadow h-100 py-2">
                     <div class="card-body">
                         <div class="row no-gutters align-items-center">
@@ -464,21 +460,17 @@
                         </div>
                     </div>
                 </div>
-
               </div>
 
 
-
-
-
-              <div class="col-xl-3 col-md-6 mb-4" id="with_homebattery">
+              <div class="col-xl-3 col-md-6 mb-4" id="with_homebattery" style="display: none;">
                 <div class="card border-left-warning shadow h-100 py-2">
                     <div class="card-body">
                         <div class="row no-gutters align-items-center">
                             <div class="col mr-2">
                                 <div class="text-xl font-weight-bold text-info text-uppercase mb-1">Home Battery</div>
                                 <div class="row no-gutters align-items-center">
-                                  <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                  <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
                                       Status:
                                     </div>
                                     <div class="col">
@@ -486,7 +478,7 @@
                                     </div>
                                 </div>
                                 <div class="row no-gutters align-items-center">
-                                  <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                  <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
                                       Current:
                                     </div>
                                     <div class="col">
@@ -494,7 +486,7 @@
                                     </div>
                                 </div>
                                 <div class="row no-gutters align-items-center">
-                                  <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                  <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
                                       Date:
                                     </div>
                                     <div class="col">
@@ -502,7 +494,7 @@
                                     </div>
                                 </div>
                                 <div class="row no-gutters align-items-center">
-                                  <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                  <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
                                       Time:
                                     </div>
                                     <div class="col">
@@ -520,12 +512,7 @@
                         </div>
                     </div>
                 </div>
-
               </div>
-          
-          
-          
-          
           
               <div class="row">
 
@@ -582,9 +569,9 @@
                                           Actions:
                                         </div>
                                         <div class="col">
-                                          <button id="mode_0" onclick="reboot()" style="width: 100px; display:inline-block;">Reboot</button>
-                                          <button id="mode_0" onclick="update()" style="width: 100px; display:inline-block;">Update</button>
-                                          <button id="mode_0" onclick="rawData()" style="width: 120px; display:inline-block;">Raw Data</button>
+                                          <button onclick="reboot()" style="width: 100px; display:inline-block;">Reboot</button>
+                                          <button onclick="update()" style="width: 100px; display:inline-block;">Update</button>
+                                          <button onclick="rawData()" style="width: 120px; display:inline-block;">Raw Data</button>
                                         </div>
                                     </div>
 
@@ -601,6 +588,7 @@
                 <!-- END ROW -->
           
             </div>
+        </div>
       </div>
   </div>
 

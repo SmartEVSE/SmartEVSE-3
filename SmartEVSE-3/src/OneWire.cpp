@@ -112,6 +112,25 @@ unsigned char OneWireRead(void) {
     return r;
 }
 
+#ifdef FAKE_RFID
+unsigned char OneWireReadCardId(void) {
+    if (!RFIDstatus && Show_RFID) { //if ready to accept new card and it is shown
+        RFID[0] = 0x01; //Family Code
+        RFID[1] = 0x01; //RFID id = "01 02 03 04 05 06"
+        RFID[2] = 0x02;
+        RFID[3] = 0x03;
+        RFID[4] = 0x04;
+        RFID[5] = 0x05;
+        RFID[6] = 0x06;
+        RFID[7] = 0xf0; //crc8 code  TODO is this ok?
+        Show_RFID = 0; //this makes "showing" the RFID a one shot event
+        return 1;
+    }
+    else
+        return 0; //card is already read, no new card
+}
+
+#else
 unsigned char OneWireReadCardId(void) {
     unsigned char x;
 
@@ -122,14 +141,14 @@ unsigned char OneWireReadCardId(void) {
             RFID[0] = 0;                                                        // CRC incorrect, clear first byte of RFID buffer
             return 0;
         } else {
-//            for (x=1 ; x<7 ; x++) printf("%02x",RFID[x]);
-//            printf("\r\n");
+            for (x=1 ; x<7 ; x++) _Serialprintf("%02x",RFID[x]);
+            _Serialprintf("\r\n");
             return 1;
         }
     }
     return 0;
 }
-
+#endif
 
 
 // ############################## RFID functions ##############################
@@ -148,7 +167,7 @@ void ReadRFIDlist(void) {
 
         if (initialized == 0 ) DeleteAllRFID();           // when unitialized, delete all cardIDs 
 
-    } else Serial.print("Error opening preferences!\n");    
+    } else _Serialprint("Error opening preferences!\n");
 }
 
 // Write a list of 20 RFID's to the eeprom
@@ -159,11 +178,11 @@ void WriteRFIDlist(void) {
         preferences.putBytes("RFID", RFIDlist, 120);                                // write 120 bytes to storage
         preferences.putUChar("RFIDinit", 1);                                      // data initialized
         preferences.end();
-    } else Serial.print("Error opening preferences!\n"); 
+    } else _Serialprint("Error opening preferences!\n");
     
 
 #ifdef LOG_DEBUG_EVSE
-    printf("\nRFID list saved\n");
+    _Serialprintf("\nRFID list saved\n");
 #endif
 }
 
@@ -199,12 +218,12 @@ unsigned char StoreRFID(void) {
     } while (r !=0 && offset < 120);
     if (r != 0) return 0;                                                       // no more room to store RFID
     offset -= 6;
-//    printf("offset %u ",offset);
+    _Serialprintf("offset %u ",offset);
     memcpy(RFIDlist + offset, RFID+1, 6);
 
 #ifdef LOG_DEBUG_EVSE
-    printf("\nRFIDlist:");
-    for (r=0; r<120; r++) printf("%02x",RFIDlist[r]);
+    _Serialprintf("\nRFIDlist:");
+    for (r=0; r<120; r++) _Serialprintf("%02x",RFIDlist[r]);
 #endif
 
     WriteRFIDlist();
@@ -222,8 +241,8 @@ unsigned char DeleteRFID(void) {
         for (r = 0; r < 6; r++) RFIDlist[offset + r] = 0xff;
     } else return 0;
 
-//    printf("deleted %u ",offset);
-//    for (r=0; r<120; r++) printf("%02x",RFIDlist[r]);
+    _Serialprintf("deleted %u ",offset);
+    for (r=0; r<120; r++) _Serialprintf("%02x",RFIDlist[r]);
     
     WriteRFIDlist();
     return 1;
@@ -235,7 +254,7 @@ void DeleteAllRFID(void) {
     for (i = 0; i < 120; i++) RFIDlist[i] = 0xff;
     WriteRFIDlist();
 #ifdef LOG_INFO_EVSE
-    printf("All RFID cards erased!\n");
+    _Serialprintf("All RFID cards erased!\n");
 #endif
     RFIDReader = 0;                                                             // RFID Reader Disabled
 }
@@ -243,7 +262,6 @@ void DeleteAllRFID(void) {
 void CheckRFID(void) {
     unsigned char x;
     static unsigned char cardoffset = 0;
-
     // When RFID is enabled, a OneWire RFID reader is expected on the SW input
     if (RFIDReader) {                                                           // RFID Reader set to Enabled, Learn or Delete
         if (OneWireReadCardId() ) {                                             // Read card ID
@@ -251,7 +269,7 @@ void CheckRFID(void) {
                 case 1:                                                         // EnableAll. All learned cards accepted for locking /unlocking
                     x = MatchRFID();
                     if (x && !RFIDstatus) {
-                        //printf("RFID card found!\n");
+                        _Serialprintf("RFID card found!\n");
                         if (Access_bit) {
                             setAccess(false);                                   // Access Off, Switch back to state B1/C1
                         } else Access_bit = 1;
@@ -263,7 +281,7 @@ void CheckRFID(void) {
                 case 2:                                                         // EnableOne. Only the card that unlocks, can re-lock the EVSE   
                     x = MatchRFID();
                     if (x && !RFIDstatus) {
-                        //printf("RFID card found!\n");
+                        _Serialprintf("RFID card found!\n");
                         if (!Access_bit) {
                             cardoffset = x;                                     // store cardoffset from current card
                             Access_bit = 1;                                     // Access On
@@ -277,23 +295,23 @@ void CheckRFID(void) {
                 case 3:                                                         // Learn Card
                     x = StoreRFID();
                     if (x == 1) {
-                        printf("RFID card stored!\n");
+                        _Serialprintf("RFID card stored!\n");
                         RFIDstatus = 2;
                     } else if (x == 2 && !RFIDstatus) {
-                        printf("RFID card was already stored!\n");
+                        _Serialprintf("RFID card was already stored!\n");
                         RFIDstatus = 4;
                     } else if (!RFIDstatus) {
-                        printf("RFID storage full! Delete card first\n");
+                        _Serialprintf("RFID storage full! Delete card first\n");
                         RFIDstatus = 6;
                     }
                     break;
                 case 4:                                                         // Delete Card
                     x = DeleteRFID();
                     if (x) {
-                        printf("RFID card deleted!\n");
+                        _Serialprintf("RFID card deleted!\n");
                         RFIDstatus = 3;
                     } else if (!RFIDstatus) {
-                        printf("RFID card not in list!\n");
+                        _Serialprintf("RFID card not in list!\n");
                         RFIDstatus = 5;
                     }
                     break;

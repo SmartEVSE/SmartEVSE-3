@@ -25,9 +25,30 @@
 
 #define __EVSE_MAIN
 
+
+//for wifi-debugging, don't forget to set the debug levels LOG_EVSE_LOG and LOG_MODBUS_LOG before compiling
+//the wifi-debugger is available by telnetting to your SmartEVSE device
+//the on-screen instructions for verbose/warning/info/... do not apply, 
+//the debug messages that are compiled in are always shown for backwards compatibility reasons
+//uncomment for production release, comment this to debug via wifi:
+#define DEBUG_DISABLED 1
+
+//uncomment this to emulate an rfid reader with rfid of card = 123456
+//showing the rfid card is simulated by executing http://smartevse-xxx.lan/debug?showrfid=1
+//don't forget to first store the card before it can activate charging
+//#define FAKE_RFID 1
+
 #ifndef VERSION
+#ifdef DEBUG_DISABLED
 #define VERSION "v3serkri-0.00"
+#else
+//please note that this version will only be displayed with the correct time/date if the program is recompiled
+//so the webserver will show correct version if evse.cpp is recompiled
+//the lcd display will show correct version if glcd.cpp is recompiled
+#define VERSION (__TIME__ " @" __DATE__)
 #endif
+#endif
+
 
 #define LOG_DEBUG 3                                                             // Debug messages including measurement data
 #define LOG_INFO 2                                                              // Information messages without measurement data
@@ -36,6 +57,19 @@
 
 #define LOG_EVSE LOG_INFO                                                       // Default: LOG_INFO
 #define LOG_MODBUS LOG_WARN                                                     // Default: LOG_WARN
+
+
+#ifdef DEBUG_DISABLED
+#define _Serialprintf Serial.printf //for standard use of the serial line
+#define _Serialprintln Serial.println //for standard use of the serial line
+#define _Serialprint Serial.print //for standard use of the serial line
+#else
+#define _Serialprintf rdebugA //for debugging over the serial line
+#define _Serialprintln rdebugA //for debugging over the serial line
+#define _Serialprint rdebugA //for debugging over the serial line
+#include "RemoteDebug.h"  //https://github.com/JoaoLopesF/RemoteDebug
+extern RemoteDebug Debug;
+#endif
 
 
 #define TRANSFORMER_COMP 100   
@@ -100,7 +134,7 @@
 #define CHARGEDELAY 60                                                          // Seconds to wait after overcurrent, before trying again
 #define BACKLIGHT 120                                                           // Seconds delay for the LCD backlight to turn off.
 #define RFIDLOCKTIME 60                                                         // Seconds delay for the EVSE to lock again (RFIDreader = EnableOne)
-#define START_CURRENT 4                                                         // Start charging when surplus current on one phase exceeds 4A (Solar)
+#define START_CURRENT 4                                                         // Start charging when surplus current on sum of all phases exceeds 4A (Solar)
 #define STOP_TIME 10                                                            // Stop charging after 10 minutes at MIN charge current (Solar)
 #define IMPORT_CURRENT 0                                                        // Allow the use of grid power when solar charging (Amps)
 #define MAINS_METER 1                                                           // Mains Meter, 1= Sensorbox, 2=Phoenix, 3= Finder, 4= Eastron, 5=Custom
@@ -307,11 +341,12 @@
 #define EM_PHOENIX_CONTACT 2
 #define EM_FINDER 3
 #define EM_EASTRON 4
-#define EM_ABB 5
-#define EM_SOLAREDGE 6
-#define EM_WAGO 7
-#define EM_API 8
-#define EM_CUSTOM 9
+#define EM_EASTRON_INV 5
+#define EM_ABB 6
+#define EM_SOLAREDGE 7
+#define EM_WAGO 8
+#define EM_API 9
+#define EM_CUSTOM 10
 
 #define ENDIANESS_LBF_LWF 0
 #define ENDIANESS_LBF_HWF 1
@@ -333,12 +368,10 @@ extern portMUX_TYPE rtc_spinlock;   //TODO: Will be placed in the appropriate po
 #define RTC_EXIT_CRITICAL()     portEXIT_CRITICAL(&rtc_spinlock)
 
 
-extern IPAddress localIp;
 extern String APhostname;
 extern String APpassword;
 extern struct tm timeinfo;
 
-extern uint8_t GLCDbuf[512];                                                    // GLCD buffer (half of the display)
 
 extern uint16_t MaxMains;                                                       // Max Mains Amps (hard limit, limited by the MAINS connection)
 extern uint16_t MaxCurrent;                                                     // Max Charge current
@@ -352,9 +385,6 @@ extern uint8_t LoadBl;                                                          
 extern uint8_t Switch;                                                          // Allow access to EVSE with button on SW
 extern uint8_t RCmon;                                                           // Residual Current monitor
 extern uint8_t Grid;
-extern uint16_t StartCurrent;
-extern uint16_t StopTime;
-extern uint16_t ImportCurrent;
 extern uint8_t MainsMeter;                                                      // Type of Mains electric meter (0: Disabled / Constants EM_*)
 extern uint8_t MainsMeterAddress;
 extern uint8_t MainsMeterMeasure;                                               // What does Mains electric meter measure (0: Mains (Home+EVSE+PV) / 1: Home+EVSE / 2: Home)
@@ -363,21 +393,22 @@ extern uint8_t PVMeterAddress;
 extern uint8_t EVMeter;                                                         // Type of EV electric meter (0: Disabled / Constants EM_*)
 extern uint8_t EVMeterAddress;
 extern uint8_t RFIDReader;
+#ifdef FAKE_RFID
+extern uint8_t Show_RFID;
+#endif
 extern uint8_t WIFImode;
 
 extern int32_t Irms[3];                                                         // Momentary current per Phase (Amps *10) (23 = 2.3A)
+extern int32_t Irms_EV[3];                                                         // Momentary current per Phase (Amps *10) (23 = 2.3A)
 
 extern uint8_t State;
 extern uint8_t ErrorFlags;
 extern uint8_t NextState;
 
-extern uint16_t MaxCapacity;                                                    // Cable limit (Amps)(limited by the wire in the charge cable, set automatically, or manually if Config=Fixed Cable)
-extern int16_t Imeasured;                                                       // Max of all CT inputs (Amps * 10) (23 = 2.3A)
 extern int16_t Isum;
 extern uint16_t Balanced[NR_EVSES];                                             // Amps value per EVSE
 
 extern uint8_t menu;
-extern uint32_t ChargeTimer;                                                    // seconds counter
 extern uint8_t LCDTimer;
 extern uint16_t BacklightTimer;                                                 // remaining seconds the LCD backlight is active
 extern int8_t TempEVSE;                                                         // Temperature EVSE in deg C (-40 - +125)
@@ -401,6 +432,9 @@ extern uint8_t RFIDstatus;
 extern bool LocalTimeSet;
 
 extern uint8_t MenuItems[MENU_EXIT];
+extern boolean enable3f;
+extern uint16_t maxTemp;
+extern uint8_t ExternalMaster;
 
 const struct {
     char Key[8];
@@ -482,8 +516,10 @@ struct EMstruct {
     uint8_t IDivisor;       // 10^x
     uint16_t PRegister;     // Total power (W) -- only used for EV/PV meter momentary power
     uint8_t PDivisor;       // 10^x
-    uint16_t ERegister;     // Total energy (kWh)
+    uint16_t ERegister;     // Total imported energy (kWh); equals total energy if meter doesnt support exported energy
     uint8_t EDivisor;       // 10^x
+    uint16_t ERegister_Exp; // Total exported energy (kWh)
+    uint8_t EDivisor_Exp;   // 10^x
 };
 
 extern struct EMstruct EMConfig[EM_CUSTOM + 1];
@@ -495,10 +531,8 @@ void setSolarStopTimer(uint16_t Timer);
 void setState(uint8_t NewState, boolean forceState);
 void setState(uint8_t NewState);
 void setAccess(bool Access);
-uint8_t getMenuItems(void);
 uint8_t setItemValue(uint8_t nav, uint16_t val);
 uint16_t getItemValue(uint8_t nav);
-const char * getMenuItemOption(uint8_t nav);
 void ConfigureModbusMode(uint8_t newmode);
 
 
