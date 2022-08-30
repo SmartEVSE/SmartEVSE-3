@@ -2884,6 +2884,26 @@ void StartwebServer(void) {
         doc["mode"] = mode;
         doc["mode_id"] = modeId;
         doc["car_connected"] = evConnected;
+
+
+        if(WiFi.isConnected()) {
+            switch(WiFi.status()) {
+                case WL_NO_SHIELD:          doc["wifi"]["status"] = "WL_NO_SHIELD"; break;
+                case WL_IDLE_STATUS:        doc["wifi"]["status"] = "WL_IDLE_STATUS"; break;
+                case WL_NO_SSID_AVAIL:      doc["wifi"]["status"] = "WL_NO_SSID_AVAIL"; break;
+                case WL_SCAN_COMPLETED:     doc["wifi"]["status"] = "WL_SCAN_COMPLETED"; break;
+                case WL_CONNECTED:          doc["wifi"]["status"] = "WL_CONNECTED"; break;
+                case WL_CONNECT_FAILED:     doc["wifi"]["status"] = "WL_CONNECT_FAILED"; break;
+                case WL_CONNECTION_LOST:    doc["wifi"]["status"] = "WL_CONNECTION_LOST"; break;
+                case WL_DISCONNECTED:       doc["wifi"]["status"] = "WL_DISCONNECTED"; break;
+            }
+
+            doc["wifi"]["ssid"] = WiFi.SSID();    
+            doc["wifi"]["rssi"] = WiFi.RSSI();    
+            doc["wifi"]["bssid"] = WiFi.BSSIDstr();  
+            doc["wifi"]["auto_connect"] = WiFi.getAutoConnect();  
+            doc["wifi"]["auto_reconnect"] = WiFi.getAutoReconnect();   
+        }
         
         doc["evse"]["temp"] = TempEVSE;
         doc["evse"]["temp_max"] = maxTemp;
