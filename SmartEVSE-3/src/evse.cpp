@@ -2885,7 +2885,6 @@ void StartwebServer(void) {
         doc["mode_id"] = modeId;
         doc["car_connected"] = evConnected;
 
-
         if(WiFi.isConnected()) {
             switch(WiFi.status()) {
                 case WL_NO_SHIELD:          doc["wifi"]["status"] = "WL_NO_SHIELD"; break;
@@ -2896,6 +2895,7 @@ void StartwebServer(void) {
                 case WL_CONNECT_FAILED:     doc["wifi"]["status"] = "WL_CONNECT_FAILED"; break;
                 case WL_CONNECTION_LOST:    doc["wifi"]["status"] = "WL_CONNECTION_LOST"; break;
                 case WL_DISCONNECTED:       doc["wifi"]["status"] = "WL_DISCONNECTED"; break;
+                default:                    doc["wifi"]["status"] = "UNKNOWN"; break;
             }
 
             doc["wifi"]["ssid"] = WiFi.SSID();    
