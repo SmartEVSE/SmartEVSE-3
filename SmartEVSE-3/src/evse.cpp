@@ -3029,6 +3029,19 @@ void StartwebServer(void) {
             write_settings();
         }
 
+        if(request->hasParam("stop_timer")) {
+            String stop_timer = request->getParam("stop_timer")->value();
+
+            if(stop_timer.toInt() >= 0 && stop_timer.toInt() <= 60) {
+                StopTime = stop_timer.toInt();
+                doc["stop_timer"] = true;
+                write_settings();
+            } else {
+                doc["stop_timer"] = false;
+            }
+
+        }
+
         if(Mode == MODE_NORMAL) {
             if(request->hasParam("override_current")) {
                 String current = request->getParam("override_current")->value();

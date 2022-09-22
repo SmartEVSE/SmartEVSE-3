@@ -130,6 +130,14 @@ paths:
           schema:
             type: integer
         - in: query
+          name: stop_timer
+          description: |-
+            Set the stop timer to be used when there isn't sufficient solar power. Value must be >=0 and <= 60. Using 0 will disable the stop timer.
+          required: false
+          allowEmptyValue: true
+          schema:
+            type: integer
+        - in: query
           name: disable_override_current
           description: |-
             If this parameter is passed the override current will be reset (value doesn't matter)
