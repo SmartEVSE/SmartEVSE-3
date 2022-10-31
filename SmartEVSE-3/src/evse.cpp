@@ -1941,16 +1941,6 @@ void Timer1S(void * parameter) {
 
     while(1) { // infinite loop
 
-        // Reset data if API data is too old
-        if (MainsMeter == EM_API && phasesLastUpdate < (time(NULL) - 60)) {
-            phasesLastUpdate=0;
-            Irms[0] = 0;
-            Irms[1] = 0;
-            Irms[2] = 0;
-            Isum = 0; 
-            UpdateCurrentData();
-        }
-
         if (homeBatteryLastUpdate != 0 && homeBatteryLastUpdate < (time(NULL) - 60)) {
             homeBatteryCurrent = 0;
             homeBatteryLastUpdate = 0;
@@ -2029,7 +2019,7 @@ void Timer1S(void * parameter) {
             if (BalancedState[x] == STATE_C) Node[x].Timer++;
         }
 
-        if ( (timeout == 0) && !(ErrorFlags & CT_NOCOMM) && MainsMeter != EM_API) { // timeout if CT current measurement takes > 10 secs
+        if ( (timeout == 0) && !(ErrorFlags & CT_NOCOMM)) { // timeout if current measurement takes > 10 secs
             ErrorFlags |= CT_NOCOMM;
             if (State == STATE_C) setState(STATE_C1);                       // tell EV to stop charging
             else setState(STATE_B1);                                        // when we are not charging switch to State B1
@@ -3097,58 +3087,9 @@ void StartwebServer(void) {
                     Isum = Isum + Irms[x];
                 }
                 doc["TOTAL"] = Isum;
-                UpdateCurrentData();
-            }
-        }
 
-        String json;
-        serializeJson(doc, json);
-        request->send(200, "application/json", json);
+                timeout = 10;
 
-    },[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
-    });
-
-    webServer.on("/reboot", HTTP_POST, [](AsyncWebServerRequest *request) {
-        DynamicJsonDocument doc(200);
-
-        ESP.restart();
-        doc["reboot"] = true;
-
-        String json;
-        serializeJson(doc, json);
-        request->send(200, "application/json", json);
-
-    },[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
-    });
-
-    webServer.on("/currents", HTTP_POST, [](AsyncWebServerRequest *request) {
-        DynamicJsonDocument doc(200);
-
-        if(request->hasParam("battery_current")) {
-            String value = request->getParam("battery_current")->value();
-            homeBatteryCurrent = value.toInt();
-            homeBatteryLastUpdate = time(NULL);
-            doc["battery_current"] = homeBatteryCurrent;
-        }
-
-        if(MainsMeter == EM_API) {
-            if(request->hasParam("L1") && request->hasParam("L2") && request->hasParam("L3")) {
-                phasesLastUpdate = time(NULL);
-
-                Irms[0] = request->getParam("L1")->value().toInt();
-                Irms[1] = request->getParam("L2")->value().toInt();
-                Irms[2] = request->getParam("L3")->value().toInt();
-
-                int batteryPerPhase = getBatteryCurrent() / 3;
-                Isum = 0; 
-                for (int x = 0; x < 3; x++) {  
-                    IrmsOriginal[x] = Irms[x];
-                    doc["original"]["L" + x] = Irms[x];
-                    Irms[x] -= batteryPerPhase;           
-                    doc["L" + x] = Irms[x];
-                    Isum = Isum + Irms[x];
-                }
-                doc["TOTAL"] = Isum;
                 UpdateCurrentData();
             }
         }
