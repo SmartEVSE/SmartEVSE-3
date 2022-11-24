@@ -1809,6 +1809,9 @@ uint8_t PollEVNode = NR_EVSES;
             switch (ModbusRequest++) {                                          // State
                 case 1:                                                         // PV kwh meter
                     if (PVMeter) {
+#ifdef LOG_INFO_MODBUS
+                    _Serialprintf("ModbusRequest %u: Request PVMeter Measurement\n", ModbusRequest);
+#endif
                         requestCurrentMeasurement(PVMeter, PVMeterAddress);
                         break;
                     }
@@ -2060,13 +2063,8 @@ void Timer1S(void * parameter) {
         // Every two seconds request measurement data from sensorbox/kwh meters.
         // and send broadcast to Node controllers.
         if (LoadBl < 2 && !ExternalMaster && !Broadcast--) {                // Load Balancing mode: Master or Disabled
-            if (Mode) {                                                     // Smart or Solar mode
-                ModbusRequest = 1;                                          // Start with state 1
-            } else {                                                        // Normal mode
-                Imeasured = 0;                                              // No measurements, so we set it to zero
-                ModbusRequest = 6;                                          // Start with state 5 (poll Nodes)
-                timeout = 10;                                               // reset timeout counter (not checked for Master)
-            }
+            ModbusRequest = 1;                                          // Start with state 1, also in Normal mode we want MainsMeter and EVmeter updated 
+            //timeout = 10; not sure if necessary, statement was missing in original code    // reset timeout counter (not checked for Master)
             Broadcast = 1;                                                  // repeat every two seconds
         }
 
