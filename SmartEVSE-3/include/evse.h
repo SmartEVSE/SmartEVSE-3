@@ -161,7 +161,7 @@ extern RemoteDebug Debug;
 #define RFID_READER 0
 #define WIFI_MODE 0
 #define AP_PASSWORD "00000000"
-#define ENABLE_C2 0
+#define ENABLE_C2 NOTCONNECTED
 #define MAX_TEMPERATURE 65
 
 
@@ -432,9 +432,11 @@ extern uint8_t RFIDstatus;
 extern bool LocalTimeSet;
 
 extern uint8_t MenuItems[MENU_EXIT];
-extern uint8_t EnableC2;
 extern uint16_t maxTemp;
 extern uint8_t ExternalMaster;
+
+enum EnableC2_type { NOTCONNECTED, ALWAYS_OFF, ALWAYS_ON };
+extern EnableC2_type EnableC2;
 
 const struct {
     char Key[8];
@@ -488,7 +490,7 @@ const struct {
     {"EMEDIV", "ENE DIVI","Divisor for Energy (kWh) of custom electric meter",  0, 7, EMCUSTOM_EDIVISOR},
     {"EMREAD", "READ MAX","Max register read at once of custom electric meter", 3, 255, 3},
     {"WIFI",   "WIFI",    "Connect to WiFi access point",                       0, 2, WIFI_MODE},
-    {"CONTA2", "ENABLEC2","Enable Contactor 2 0=Always OFF 1=Always ON",        0, 1, ENABLE_C2},
+    {"CONTA2", "ENABLEC2","Contactor2 0=Not Connected 1=Always OFF 2=Always ON",0, 2, ENABLE_C2},
     {"MXTMP",  "MAX TEMP",  "Maximum temperature for the EVSE module",          40, 75, MAX_TEMPERATURE},
 
     {"EXIT", "EXIT", "EXIT", 0, 0, 0}
