@@ -117,7 +117,7 @@ uint8_t Show_RFID = 0;
 uint8_t WIFImode = WIFI_MODE;                                               // WiFi Mode (0:Disabled / 1:Enabled / 2:Start Portal)
 String APpassword = "00000000";
 
-boolean enable3f = USE_3PHASES;
+uint8_t EnableC2 = ENABLE_C2;                                               // Contactor C2 (0:Always OFF / 1:Always ON / 2:Auto //TODO not implemented yet!)
 uint16_t maxTemp = MAX_TEMPERATURE;
 
 int32_t Irms[3]={0, 0, 0};                                                  // Momentary current per Phase (23 = 2.3A) (resolution 100mA)
@@ -597,7 +597,7 @@ void setState(uint8_t NewState, bool forceState) {
         case STATE_C:                                                           // State C2
             ActivationMode = 255;                                               // Disable ActivationMode
             CONTACTOR1_ON;      
-            if(Mode == MODE_NORMAL && enable3f)                                 // Contactor1 ON
+            if (EnableC2)
                 CONTACTOR2_ON;                                                  // Contactor2 ON
             LCDTimer = 0;
             break;
@@ -1055,8 +1055,8 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
         case MENU_MAX_TEMP:
             maxTemp = val;
             break;
-        case MENU_3F:
-            enable3f = val == 1;
+        case MENU_C2:
+            EnableC2 = val;
             break;
         case MENU_CONFIG:
             Config = val;
@@ -1218,8 +1218,8 @@ uint16_t getItemValue(uint8_t nav) {
     switch (nav) {
         case MENU_MAX_TEMP:
             return maxTemp;
-        case MENU_3F:
-            return enable3f;
+        case MENU_C2:
+            return EnableC2;
         case MENU_CONFIG:
             return Config;
         case MENU_MODE:
@@ -2604,7 +2604,7 @@ void read_settings(bool write) {
         WIFImode = preferences.getUChar("WIFImode",WIFI_MODE);
         APpassword = preferences.getString("APpassword",AP_PASSWORD);
 
-        enable3f = preferences.getUChar("enable3f", false); 
+        EnableC2 = preferences.getUShort("EnableC2", ENABLE_C2); 
         maxTemp = preferences.getUShort("maxTemp", MAX_TEMPERATURE);
 
         preferences.end();                                  
@@ -2658,7 +2658,7 @@ void write_settings(void) {
     preferences.putUChar("WIFImode", WIFImode);
     preferences.putString("APpassword", APpassword);
 
-    preferences.putBool("enable3f", enable3f);
+    preferences.putUShort("EnableC2", EnableC2);
     preferences.putUShort("maxTemp", maxTemp);
 
     preferences.end();
@@ -2927,7 +2927,7 @@ void StartwebServer(void) {
         doc["settings"]["solar_max_import"] = ImportCurrent;
         doc["settings"]["solar_start_current"] = StartCurrent;
         doc["settings"]["solar_stop_time"] = StopTime;
-        doc["settings"]["3phases_enabled"] = enable3f;
+        doc["settings"]["enable_C2"] = EnableC2;
         doc["settings"]["mains_meter"] = EMConfig[MainsMeter].Desc;
         
         doc["home_battery"]["current"] = homeBatteryCurrent;
@@ -3005,15 +3005,9 @@ void StartwebServer(void) {
             doc["mode"] = mode;
         }
 
-        if(request->hasParam("enable_3phases")) {
-            String enabled = request->getParam("enable_3phases")->value();
-            if(enabled.equalsIgnoreCase("true")) {
-                enable3f = true;
-                doc["enable_3phases"] = true;
-            } else {
-                enable3f = false;
-                doc["enable_3phases"] = false;
-            }
+        if(request->hasParam("enable_C2")) {
+            String enabled = request->getParam("enable_C2")->value();
+            EnableC2 = enabled.toInt();
             write_settings();
         }
 
