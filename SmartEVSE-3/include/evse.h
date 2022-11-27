@@ -31,7 +31,7 @@
 //the on-screen instructions for verbose/warning/info/... do not apply, 
 //the debug messages that are compiled in are always shown for backwards compatibility reasons
 //uncomment for production release, comment this to debug via wifi:
-//#define DEBUG_DISABLED 1
+#define DEBUG_DISABLED 1
 
 //uncomment this to emulate an rfid reader with rfid of card = 123456
 //showing the rfid card is simulated by executing http://smartevse-xxx.lan/debug?showrfid=1
@@ -388,7 +388,6 @@ extern uint16_t MaxCurrent;                                                     
 extern uint16_t MinCurrent;                                                     // Minimal current the EV is happy with
 extern uint16_t ICal;                                                           // CT calibration value
 extern uint8_t Mode;                                                            // EVSE mode
-extern uint8_t Lock;                                                            // Cable lock enable/disable
 extern uint16_t MaxCircuit;                                                     // Max current of the EVSE circuit
 extern uint8_t Config;                                                          // Configuration (Fixed Cable or Type 2 Socket)
 extern uint8_t LoadBl;                                                          // Load Balance Setting (Disable, Master or Node)
@@ -397,7 +396,6 @@ extern uint8_t RCmon;                                                           
 extern uint8_t Grid;
 extern uint8_t MainsMeter;                                                      // Type of Mains electric meter (0: Disabled / Constants EM_*)
 extern uint8_t MainsMeterAddress;
-extern uint8_t MainsMeterMeasure;                                               // What does Mains electric meter measure (0: Mains (Home+EVSE+PV) / 1: Home+EVSE / 2: Home)
 extern uint8_t PVMeter;                                                         // Type of PV electric meter (0: Disabled / Constants EM_*)
 extern uint8_t PVMeterAddress;
 extern uint8_t EVMeter;                                                         // Type of EV electric meter (0: Disabled / Constants EM_*)
