@@ -118,6 +118,7 @@ uint8_t WIFImode = WIFI_MODE;                                               // W
 String APpassword = "00000000";
 
 EnableC2_type EnableC2 = ENABLE_C2;                                               // Contactor C2 (0:No contactor2 connected / 1: Always OFF / 2:Always ON / 3:Auto //TODO not implemented yet!)
+const char* EnableC2_Str[] = { "Not there", "Always Off", "Always On" };
 uint16_t maxTemp = MAX_TEMPERATURE;
 
 int32_t Irms[3]={0, 0, 0};                                                  // Momentary current per Phase (23 = 2.3A) (resolution 100mA)
