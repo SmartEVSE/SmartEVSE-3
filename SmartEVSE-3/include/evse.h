@@ -419,61 +419,60 @@ extern uint8_t MenuItems[MENU_EXIT];
 extern uint8_t ExternalMaster;
 
 const struct {
-    char Key[8];
     char LCD[9];
     char Desc[52];
     uint16_t Min;
     uint16_t Max;
     uint16_t Default;
 } MenuStr[MENU_EXIT + 1] = {
-    {"", "", "Not in menu", 0, 0, 0},
-    {"", "", "Hold 2 sec", 0, 0, 0},
+    {"", "Not in menu", 0, 0, 0},
+    {"", "Hold 2 sec", 0, 0, 0},
 
     // Node specific configuration
-    /* Key,    LCD,       Desc,                                                 Min, Max, Default */
-    {"CONFIG", "CONFIG",  "Fixed Cable or Type 2 Socket",                       0, 1, CONFIG},
-    {"LOCK",   "LOCK",    "Cable locking actuator type",                        0, 2, LOCK},
-    {"MIN",    "MIN",     "MIN Charge Current the EV will accept (per phase)",  6, 16, MIN_CURRENT},
-    {"MAX",    "MAX",     "MAX Charge Current for this EVSE (per phase)",       6, 80, MAX_CURRENT},
-    {"LOADBL", "LOAD BAL","Load Balancing mode for 2-8 SmartEVSEs",             0, NR_EVSES, LOADBL},
-    {"SW",     "SWITCH",  "Switch function control on pin SW",                  0, 4, SWITCH},
-    {"RCMON",  "RCMON",   "Residual Current Monitor on pin RCM",                0, 1, RC_MON},
-    {"RFID",   "RFID",    "RFID reader, learn/remove cards",                    0, 5, RFID_READER},
-    {"EVEM",   "EV METER","Type of EV electric meter",                          0, EM_CUSTOM, EV_METER},
-    {"EVAD",   "EV ADDR", "Address of EV electric meter",                       MIN_METER_ADDRESS, MAX_METER_ADDRESS, EV_METER_ADDRESS},
+    /* LCD,       Desc,                                                 Min, Max, Default */
+    {"CONFIG",  "Fixed Cable or Type 2 Socket",                       0, 1, CONFIG},
+    {"LOCK",    "Cable locking actuator type",                        0, 2, LOCK},
+    {"MIN",     "MIN Charge Current the EV will accept (per phase)",  6, 16, MIN_CURRENT},
+    {"MAX",     "MAX Charge Current for this EVSE (per phase)",       6, 80, MAX_CURRENT},
+    {"LOAD BAL","Load Balancing mode for 2-8 SmartEVSEs",             0, NR_EVSES, LOADBL},
+    {"SWITCH",  "Switch function control on pin SW",                  0, 4, SWITCH},
+    {"RCMON",   "Residual Current Monitor on pin RCM",                0, 1, RC_MON},
+    {"RFID",    "RFID reader, learn/remove cards",                    0, 5, RFID_READER},
+    {"EV METER","Type of EV electric meter",                          0, EM_CUSTOM, EV_METER},
+    {"EV ADDR", "Address of EV electric meter",                       MIN_METER_ADDRESS, MAX_METER_ADDRESS, EV_METER_ADDRESS},
 
     // System configuration
     /* Key,    LCD,       Desc,                                                 Min, Max, Default */
-    {"MODE",   "MODE",    "Normal, Smart or Solar EVSE mode",                   0, 2, MODE},
-    {"CIRCUIT","CIRCUIT", "EVSE Circuit max Current",                           10, 160, MAX_CIRCUIT},
-    {"GRID",   "GRID",    "Grid type to which the Sensorbox is connected",      0, 1, GRID},
-    {"CAL",    "CAL",     "Calibrate CT1 (CT2+3 will also change)",             (unsigned int) (ICAL * 0.3), (unsigned int) (ICAL * 2.0), ICAL}, // valid range is 0.3 - 2.0 times measured value
-    {"MAINS",  "MAINS",   "Max MAINS Current (per phase)",                      10, 200, MAX_MAINS},
-    {"START",  "START",   "Surplus energy start Current (sum of phases)",       0, 48, START_CURRENT},
-    {"STOP",   "STOP",    "Stop solar charging at 6A after this time",          0, 60, STOP_TIME},
-    {"IMPORT", "IMPORT",  "Allow grid power when solar charging (sum of phase)",0, 20, IMPORT_CURRENT},
-    {"MAINEM", "MAINSMET","Type of mains electric meter",                       1, EM_CUSTOM, MAINS_METER},
-    {"MAINAD", "MAINSADR","Address of mains electric meter",                    MIN_METER_ADDRESS, MAX_METER_ADDRESS, MAINS_METER_ADDRESS},
-    {"MAINM",  "MAINSMES","Mains electric meter scope (What does it measure?)", 0, 1, MAINS_METER_MEASURE},
-    {"PVEM",   "PV METER","Type of PV electric meter",                          0, EM_CUSTOM, PV_METER},
-    {"PVAD",   "PV ADDR", "Address of PV electric meter",                       MIN_METER_ADDRESS, MAX_METER_ADDRESS, PV_METER_ADDRESS},
-    {"EMBO",   "BYTE ORD","Byte order of custom electric meter",                0, 3, EMCUSTOM_ENDIANESS},
-    {"EMDATA", "DATATYPE","Data type of custom electric meter",                 0, MB_DATATYPE_MAX - 1, EMCUSTOM_DATATYPE},
-    {"EMFUNC", "FUNCTION","Modbus Function of custom electric meter",           3, 4, EMCUSTOM_FUNCTION},
-    {"EMUREG", "VOL REGI","Register for Voltage (V) of custom electric meter",  0, 65530, EMCUSTOM_UREGISTER},
-    {"EMUDIV", "VOL DIVI","Divisor for Voltage (V) of custom electric meter",   0, 7, EMCUSTOM_UDIVISOR},
-    {"EMIREG", "CUR REGI","Register for Current (A) of custom electric meter",  0, 65530, EMCUSTOM_IREGISTER},
-    {"EMIDIV", "CUR DIVI","Divisor for Current (A) of custom electric meter",   0, 7, EMCUSTOM_IDIVISOR},
-    {"EMPREG", "POW REGI","Register for Power (W) of custom electric meter",    0, 65534, EMCUSTOM_PREGISTER},
-    {"EMPDIV", "POW DIVI","Divisor for Power (W) of custom electric meter",     0, 7, EMCUSTOM_PDIVISOR},
-    {"EMEREG", "ENE REGI","Register for Energy (kWh) of custom electric meter", 0, 65534, EMCUSTOM_EREGISTER},
-    {"EMEDIV", "ENE DIVI","Divisor for Energy (kWh) of custom electric meter",  0, 7, EMCUSTOM_EDIVISOR},
-    {"EMREAD", "READ MAX","Max register read at once of custom electric meter", 3, 255, 3},
-    {"WIFI",   "WIFI",    "Connect to WiFi access point",                       0, 2, WIFI_MODE},
-    {"EV3P",   "3 PHASE",  "Can EV use 3 phases",                               0, 1, USE_3PHASES},
-    {"MXTMP",  "MAX TEMP",  "Maximum temperature for the EVSE module",          40, 75, MAX_TEMPERATURE},
+    {"MODE",    "Normal, Smart or Solar EVSE mode",                   0, 2, MODE},
+    {"CIRCUIT", "EVSE Circuit max Current",                           10, 160, MAX_CIRCUIT},
+    {"GRID",    "Grid type to which the Sensorbox is connected",      0, 1, GRID},
+    {"CAL",     "Calibrate CT1 (CT2+3 will also change)",             (unsigned int) (ICAL * 0.3), (unsigned int) (ICAL * 2.0), ICAL}, // valid range is 0.3 - 2.0 times measured value
+    {"MAINS",   "Max MAINS Current (per phase)",                      10, 200, MAX_MAINS},
+    {"START",   "Surplus energy start Current (sum of phases)",       0, 48, START_CURRENT},
+    {"STOP",    "Stop solar charging at 6A after this time",          0, 60, STOP_TIME},
+    {"IMPORT",  "Allow grid power when solar charging (sum of phase)",0, 20, IMPORT_CURRENT},
+    {"MAINSMET","Type of mains electric meter",                       1, EM_CUSTOM, MAINS_METER},
+    {"MAINSADR","Address of mains electric meter",                    MIN_METER_ADDRESS, MAX_METER_ADDRESS, MAINS_METER_ADDRESS},
+    {"MAINSMES","Mains electric meter scope (What does it measure?)", 0, 1, MAINS_METER_MEASURE},
+    {"PV METER","Type of PV electric meter",                          0, EM_CUSTOM, PV_METER},
+    {"PV ADDR", "Address of PV electric meter",                       MIN_METER_ADDRESS, MAX_METER_ADDRESS, PV_METER_ADDRESS},
+    {"BYTE ORD","Byte order of custom electric meter",                0, 3, EMCUSTOM_ENDIANESS},
+    {"DATATYPE","Data type of custom electric meter",                 0, MB_DATATYPE_MAX - 1, EMCUSTOM_DATATYPE},
+    {"FUNCTION","Modbus Function of custom electric meter",           3, 4, EMCUSTOM_FUNCTION},
+    {"VOL REGI","Register for Voltage (V) of custom electric meter",  0, 65530, EMCUSTOM_UREGISTER},
+    {"VOL DIVI","Divisor for Voltage (V) of custom electric meter",   0, 7, EMCUSTOM_UDIVISOR},
+    {"CUR REGI","Register for Current (A) of custom electric meter",  0, 65530, EMCUSTOM_IREGISTER},
+    {"CUR DIVI","Divisor for Current (A) of custom electric meter",   0, 7, EMCUSTOM_IDIVISOR},
+    {"POW REGI","Register for Power (W) of custom electric meter",    0, 65534, EMCUSTOM_PREGISTER},
+    {"POW DIVI","Divisor for Power (W) of custom electric meter",     0, 7, EMCUSTOM_PDIVISOR},
+    {"ENE REGI","Register for Energy (kWh) of custom electric meter", 0, 65534, EMCUSTOM_EREGISTER},
+    {"ENE DIVI","Divisor for Energy (kWh) of custom electric meter",  0, 7, EMCUSTOM_EDIVISOR},
+    {"READ MAX","Max register read at once of custom electric meter", 3, 255, 3},
+    {"WIFI",    "Connect to WiFi access point",                       0, 2, WIFI_MODE},
+    {"3 PHASE", "Can EV use 3 phases",                                0, 2, USE_3PHASES},
+    {"MAX TEMP","Maximum temperature for the EVSE module",            40, 75, MAX_TEMPERATURE},
 
-    {"EXIT", "EXIT", "EXIT", 0, 0, 0}
+    {"EXIT", "EXIT", 0, 0, 0}
 };
 
 
