@@ -31,7 +31,7 @@
 //the on-screen instructions for verbose/warning/info/... do not apply, 
 //the debug messages that are compiled in are always shown for backwards compatibility reasons
 //uncomment for production release, comment this to debug via wifi:
-#define DEBUG_DISABLED 1
+//#define DEBUG_DISABLED 1
 
 //uncomment this to emulate an rfid reader with rfid of card = 123456
 //showing the rfid card is simulated by executing http://smartevse-xxx.lan/debug?showrfid=1
@@ -161,7 +161,7 @@ extern RemoteDebug Debug;
 #define RFID_READER 0
 #define WIFI_MODE 0
 #define AP_PASSWORD "00000000"
-#define USE_3PHASES 0
+#define ENABLE_C2 0
 #define MAX_TEMPERATURE 65
 
 
@@ -307,7 +307,7 @@ extern RemoteDebug Debug;
 #define MENU_EMCUSTOM_EDIVISOR 35                                               // 0x0217: Divisor for Energy (kWh) of custom electric meter (10^x)
 #define MENU_EMCUSTOM_READMAX 36                                                // 0x0218: Maximum register read (ToDo)
 #define MENU_WIFI 37                                                            // 0x0219: WiFi mode
-#define MENU_3F 38
+#define MENU_C2 38
 #define MENU_MAX_TEMP 39
 #define MENU_EXIT 40
 
@@ -432,7 +432,7 @@ extern uint8_t RFIDstatus;
 extern bool LocalTimeSet;
 
 extern uint8_t MenuItems[MENU_EXIT];
-extern boolean enable3f;
+extern uint8_t EnableC2;
 extern uint16_t maxTemp;
 extern uint8_t ExternalMaster;
 
@@ -488,7 +488,7 @@ const struct {
     {"EMEDIV", "ENE DIVI","Divisor for Energy (kWh) of custom electric meter",  0, 7, EMCUSTOM_EDIVISOR},
     {"EMREAD", "READ MAX","Max register read at once of custom electric meter", 3, 255, 3},
     {"WIFI",   "WIFI",    "Connect to WiFi access point",                       0, 2, WIFI_MODE},
-    {"EV3P",   "3 PHASE",  "Can EV use 3 phases",                               0, 1, USE_3PHASES},
+    {"CONTA2", "ENABLEC2","Enable Contactor 2 0=Always OFF 1=Always ON",        0, 1, ENABLE_C2},
     {"MXTMP",  "MAX TEMP",  "Maximum temperature for the EVSE module",          40, 75, MAX_TEMPERATURE},
 
     {"EXIT", "EXIT", "EXIT", 0, 0, 0}

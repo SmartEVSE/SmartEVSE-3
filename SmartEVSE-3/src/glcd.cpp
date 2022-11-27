@@ -743,8 +743,9 @@ const char * getMenuItemOption(uint8_t nav) {
         case MENU_MAX_TEMP:
             sprintf(Str, "%2u C", maxTemp);
             return Str;
-        case MENU_3F:
-            return enable3f ? "Yes" : "No";
+        case MENU_C2:
+            sprintf(Str, "%1u", EnableC2);
+            return Str;
         case MENU_CONFIG:
             if (Config) return StrFixed;
             else return StrSocket;
@@ -855,7 +856,7 @@ uint8_t getMenuItems (void) {
         MenuItems[m++] = MENU_STOP;                                             // - Stop time (min)
         MenuItems[m++] = MENU_IMPORT;                                           // - Import Current from Grid (A)
     }
-    MenuItems[m++] = MENU_3F;
+    MenuItems[m++] = MENU_C2;
     MenuItems[m++] = MENU_MAX_TEMP;
     MenuItems[m++] = MENU_LOADBL;                                               // Load Balance Setting (0:Disable / 1:Master / 2-8:Node)
     if (Mode && LoadBl < 2) {                                                   // ? Mode Smart/Solar and Load Balancing Disabled/Master?
