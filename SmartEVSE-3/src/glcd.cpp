@@ -744,8 +744,7 @@ const char * getMenuItemOption(uint8_t nav) {
             sprintf(Str, "%2u C", maxTemp);
             return Str;
         case MENU_C2:
-            sprintf(Str, "%1u", EnableC2);
-            return Str;
+            return EnableC2_Str[int(EnableC2)];
         case MENU_CONFIG:
             if (Config) return StrFixed;
             else return StrSocket;
