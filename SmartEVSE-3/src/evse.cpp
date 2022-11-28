@@ -2141,8 +2141,10 @@ void Timer1S(void * parameter) {
                     else
                         Charging_Prob[i] = 0;
                     Max_Charging_Prob = max(Charging_Prob[i], Max_Charging_Prob);
+#ifdef LOG_DEBUG_EVSE
                     _Serialprintf("Detected Charging Phases: Charging_Prob[%i]=%i.\n", i, Charging_Prob[i]);
                     //_Serialprintf("Detected Charging Phases: Old_Irms[%i]=%u.\n", i, Old_Irms[i]);
+#endif
                 }
                 //_Serialprintf("Detected Charging Phases: ChargeCurrent=%u, Balanced[0]=%u.\n", ChargeCurrent, Balanced[0]);
 
@@ -2151,13 +2153,17 @@ void Timer1S(void * parameter) {
                 for (int i=0; i<3; i++) {
 #define THRESHOLD 25
                     if (Charging_Prob[i] == Max_Charging_Prob) {
-                        _Serialprintf("Suspect I am charging at phase: %i.\n", i+1);
+#ifdef LOG_DEBUG_EVSE
+                        _Serialprintf("Suspect I am charging at phase: L%i.\n", i+1);
+#endif
                         Nr_Of_Phases++;
                         Single_Phase = i + 1;     //0 = L1, 1 = L2, 2 = L3
                     }
                     else {
                         if ( Max_Charging_Prob - Charging_Prob[i] <= THRESHOLD ) {
-                            _Serialprintf("Serious candidate for charging at phase: %i.\n", i+1);
+#ifdef LOG_DEBUG_EVSE
+                            _Serialprintf("Serious candidate for charging at phase: L%i.\n", i+1);
+#endif
                             Nr_Of_Phases++;
                         }
                     }
@@ -2166,7 +2172,10 @@ void Timer1S(void * parameter) {
                 if (Nr_Of_Phases > 1) {
                     _Serialprintf("Suspect I am charging at %i phases while Contactor 2 is in mode %i, something is WRONG!.\n", Nr_Of_Phases, EnableC2);
                     Single_Phase = 0; //0 detects: uncertain!!
-                }
+                } //note that single phase charging without phase detection in Smart Mode only means suboptimal charging: charging will be limited with phases taken into account that are not regulated by the EVSE; so charging will be slower (depending on the use of the unused phases by other devices), but no harm will be done.
+                else
+                    _Serialprintf("Single Phase charging detected at fase L%i.\n", Single_Phase);
+
             } //if Det... = 0
         } //if Detecting_Charging_Phases_Timer
 
