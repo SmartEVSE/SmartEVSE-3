@@ -65,12 +65,14 @@ Feel free to use this repository to build it yourself or to use the latest on fr
 
      This way the (dangerous) situation is avoided that some Phases are switched ON, and Neutral is switched OFF.
 
-    -by default C2 is switched OFF; if you want to keep on charging on 3 phases after installing C2, you should change the setting Enable C2 in the Setup Menu.
+    -by default C2 is switched OFF ("Not present"); if you want to keep on charging on 3 phases after installing C2, you should change the setting Enable C2 in the Setup     Menu.
 
-    -this functionality is EXPERIMENTAL; in Normal mode there are not much problems to be expected, but in Smart and Solar mode strange Start/Stop scenario's might
+    -this functionality is EXPERIMENTAL; in Normal and Smart mode there are not much problems to be expected, but in Solar mode strange Start/Stop scenario's might
      occur: we suspect a bug in the original AND our firmware that might make solar charging on 3 phases do strange Start/Stop things; this suspected bug can be
      avoided by using 1 phase charging on solar. Also behaviour with Load Balancing with multiple Nodes is untested.
      As always, YOU ARE EXPERIMENTING AT YOUR OWN RISK!
+
+    -LoadBalancing is allowed; especially the subpanel function (limit EVMeter to MaxCircuit) is well tested, but NOT the use of multiple EVSE's (Nodes)!!
 
     -Currently Enable C2 will turn the contactor OFF (disabled) or ON (enabled) in any mode (Normal, Smart or Solar), regardless if LoadBalancing is on or off.
      So you have to determine MANUALLY which contactor C2 behaviour you want. In the future the firmware [sh|c]ould become smarter in this, switching C2 on and off
