@@ -162,12 +162,12 @@ paths:
           description: |-
             Enables switching between 1 phase mode and 3 phase mode by controlling a 2nd contactor (C2 port) <br /> <br />
             Note 1: The 2nd contactor will only be turned <b>ON</b> when state chages to C (Charging) <br />
-            Note 2: This is just changing the config setting, the contactor will not be controlled immedialty but only when there is a state change. <br />
+            Note 2: This is just changing the config setting, the contactor will not be controlled immediately but only when there is a state change. <br />
             <br />
             If car is charging and you want to change from 1F to 3F or vice versa:  <br />
             - Change mode to OFF <br />
             - Enable or disable C2 contactor <br />
-            - Change mode to desired mode 0 = Always OFF, 1 = Always ON <br />
+            - Change mode to desired mode Not Present, Always OFF, Always ON <br />
           required: false
           schema:
             type: integer
