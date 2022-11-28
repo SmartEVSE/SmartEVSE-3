@@ -126,6 +126,7 @@ int32_t Old_Irms[3]={0, 0, 0};                                              // S
                                                                             // Max 3 phases supported
 uint8_t Detecting_Charging_Phases_Timer = 0;
 uint32_t Charging_Prob[3]={0, 0, 0};
+uint8_t Single_Phase = 0;
 
 uint8_t State = STATE_A;
 uint8_t ErrorFlags = NO_ERROR;
@@ -596,30 +597,28 @@ void setState(uint8_t NewState) {
             SetCurrent(ChargeCurrent);                                          // Enable PWM
             break;      
         case STATE_C:                                                           // State C2
+            uint8_t i;
+            uint8_t ActiveEVSE;
+            ActiveEVSE = 0;
             ActivationMode = 255;                                               // Disable ActivationMode
-            if (EnableC2 == ALWAYS_OFF) {                                       // 1phase charging
-                for (int i=0; i<3; i++)
+            if ( LoadBl == 1 ) {                                                // We are Master, we don't support single phase charging when nodes are active
+                for (i = 0; i < NR_EVSES; i++) if (BalancedState[i] == STATE_C)
+                    ActiveEVSE++;                                               // Count nr of active (charging) EVSE's
+            } //TODO what to do if single phase charging with loadbalancing on and EVSE's are added?
+            if ( EnableC2 == ALWAYS_OFF && Mode != MODE_NORMAL && LoadBl < 2 && ActiveEVSE <= 1 ) { // 1phase charging; in Normal mode nothing special has to be done; not supported for nodes TODO and not supported when multiple EVSEs are active
+                for (i=0; i<3; i++)
                     Charging_Prob[i] = 0;                                       // reset charging phase probabilities
-                switch (Mode) {
-                    case MODE_SOLAR:                                            // start recording currents before charging, so we can detect the phase
-                    case MODE_SMART:                                            // we are charging on
-                        if (EVMeter) {                                          // we prefer EVMeter if present
-                            for (int i=0; i<3; i++) {
-                                Old_Irms[i] = Irms_EV[i];
-                                //_Serialprintf("Detected Charging Phases START Irms_EV[%i]=%u.\n", i, Irms_EV[i]);
-                            }
-                        }
-                        else if (MainsMeter) {                                     // or else MainsMeter will do
-                            for (int i=0; i<3; i++)
-                                Old_Irms[i] = Irms[i];
-                        }
-                        Detecting_Charging_Phases_Timer = 6;                    // we need time for the EV to decide to start charging
-                        break;
-                    case MODE_NORMAL:                                           // in Normal mode we can still have EVMeter or MainsMeter present, 
-                        break;                                                  // but we are going to charge ChargeCurrent anyways irrespective of
-                    default:                                                    // which phases we are charging
-                        break;
+                if (EVMeter) {                                                  // we prefer EVMeter if present
+                    for (i=0; i<3; i++) {
+                        Old_Irms[i] = Irms_EV[i];
+                        //_Serialprintf("Detected Charging Phases START Irms_EV[%i]=%u.\n", i, Irms_EV[i]);
+                    }
                 }
+                else if (MainsMeter) {                                          // or else MainsMeter will do
+                    for (i=0; i<3; i++)
+                        Old_Irms[i] = Irms[i];
+                }
+                Detecting_Charging_Phases_Timer = 6;                            // we need time for the EV to decide to start charging
             }
             CONTACTOR1_ON;      
             if (EnableC2 == ALWAYS_ON)
@@ -1352,14 +1351,20 @@ void UpdateCurrentData(void) {
     uint8_t x;
 
     // reset Imeasured value (grid power used)
-    Imeasured = 0;
-    Imeasured_EV = 0;
-    for (x=0; x<3; x++) {
-        // Imeasured holds highest Irms of all channels
-        if (Irms[x] > Imeasured) Imeasured = Irms[x];
-        if (Irms_EV[x] > Imeasured_EV) Imeasured_EV = Irms_EV[x];
+    if (Single_Phase) {                                                         //we are charging single phase and we detected that phase
+            //TODO if loadbalancing is activated : assume all connected EVSE's have same contactor, at same phase? only enable when only 1 master is available
+        Imeasured = Irms[Single_Phase - 1];
+        Imeasured_EV = Irms[Single_Phase - 1];
     }
-
+    else {
+        Imeasured = 0;
+        Imeasured_EV = 0;
+        for (x=0; x<3; x++) {
+        // Imeasured holds highest Irms of all channels
+            if (Irms[x] > Imeasured) Imeasured = Irms[x];
+            if (Irms_EV[x] > Imeasured_EV) Imeasured_EV = Irms_EV[x];
+        }
+    }
 
     // Load Balancing mode: Smart/Master or Disabled
     if (Mode && LoadBl < 2) {
@@ -2142,20 +2147,26 @@ void Timer1S(void * parameter) {
                 //_Serialprintf("Detected Charging Phases: ChargeCurrent=%u, Balanced[0]=%u.\n", ChargeCurrent, Balanced[0]);
 
                 int Nr_Of_Phases = 0;
+                Single_Phase = 0;
                 for (int i=0; i<3; i++) {
 #define THRESHOLD 25
                     if (Charging_Prob[i] == Max_Charging_Prob) {
                         _Serialprintf("Suspect I am charging at phase: %i.\n", i+1);
                         Nr_Of_Phases++;
+                        Single_Phase = i + 1;     //0 = L1, 1 = L2, 2 = L3
                     }
                     else {
-                        if ( Max_Charging_Prob - Charging_Prob[i] <= THRESHOLD )
+                        if ( Max_Charging_Prob - Charging_Prob[i] <= THRESHOLD ) {
                             _Serialprintf("Serious candidate for charging at phase: %i.\n", i+1);
+                            Nr_Of_Phases++;
+                        }
                     }
                 }
 
-                if (Nr_Of_Phases > 1)
+                if (Nr_Of_Phases > 1) {
                     _Serialprintf("Suspect I am charging at %i phases while Contactor 2 is in mode %i, something is WRONG!.\n", Nr_Of_Phases, EnableC2);
+                    Single_Phase = 0; //0 detects: uncertain!!
+                }
             } //if Det... = 0
         } //if Detecting_Charging_Phases_Timer
 
