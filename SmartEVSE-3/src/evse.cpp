@@ -122,7 +122,11 @@ uint16_t maxTemp = MAX_TEMPERATURE;
 
 int32_t Irms[3]={0, 0, 0};                                                  // Momentary current per Phase (23 = 2.3A) (resolution 100mA)
 int32_t Irms_EV[3]={0, 0, 0};                                               // Momentary current per Phase (23 = 2.3A) (resolution 100mA)
+int32_t Old_Irms[3]={0, 0, 0};                                              // Saved momentary current per Phase (23 = 2.3A) (resolution 100mA)
                                                                             // Max 3 phases supported
+uint8_t Detecting_Charging_Phases_Timer = 0;
+uint32_t Charging_Prob[3]={0, 0, 0};
+
 uint8_t State = STATE_A;
 uint8_t ErrorFlags = NO_ERROR;
 uint8_t NextState;
@@ -596,6 +600,30 @@ void setState(uint8_t NewState, bool forceState) {
             break;      
         case STATE_C:                                                           // State C2
             ActivationMode = 255;                                               // Disable ActivationMode
+            if (EnableC2 == ALWAYS_OFF) {                                       // 1phase charging
+                for (int i=0; i<3; i++)
+                    Charging_Prob[i] = 0;                                       // reset charging phase probabilities
+                switch (Mode) {
+                    case MODE_SOLAR:                                            // start recording currents before charging, so we can detect the phase
+                    case MODE_SMART:                                            // we are charging on
+                        if (EVMeter) {                                          // we prefer EVMeter if present
+                            for (int i=0; i<3; i++) {
+                                Old_Irms[i] = Irms_EV[i];
+                                //_Serialprintf("Detected Charging Phases START Irms_EV[%i]=%u.\n", i, Irms_EV[i]);
+                            }
+                        }
+                        else if (MainsMeter) {                                     // or else MainsMeter will do
+                            for (int i=0; i<3; i++)
+                                Old_Irms[i] = Irms[i];
+                        }
+                        Detecting_Charging_Phases_Timer = 6;                    // we need time for the EV to decide to start charging
+                        break;
+                    case MODE_NORMAL:                                           // in Normal mode we can still have EVMeter or MainsMeter present, 
+                        break;                                                  // but we are going to charge ChargeCurrent anyways irrespective of
+                    default:                                                    // which phases we are charging
+                        break;
+                }
+            }
             CONTACTOR1_ON;      
             if (EnableC2 == ALWAYS_ON)
                 CONTACTOR2_ON;                                                  // Contactor2 ON
@@ -2091,6 +2119,48 @@ void Timer1S(void * parameter) {
 
         // Pause the task for 1 Sec
         vTaskDelay(1000 / portTICK_PERIOD_MS);
+
+        // Autodetect on which phases we are charging
+        if (Detecting_Charging_Phases_Timer) {
+            Detecting_Charging_Phases_Timer--;
+            //_Serialprintf("Detecting_Charging_Phases=%i.\n",Detecting_Charging_Phases_Timer);
+            if (Detecting_Charging_Phases_Timer == 0) {                     // After 3 seconds we should be charging, LCDTimer doesnt get higher than 4?
+
+                uint32_t Max_Charging_Prob = 0;
+                for (int i=0; i<3; i++) {
+                    if (EVMeter) {
+                        //Charging_Prob[i] = 100 * (abs(Irms_EV[i] - Old_Irms[i])) / ChargeCurrent;    //100% means this phase is charging, 0% mwans not charging
+                        Charging_Prob[i] = 100 * (abs(Irms_EV[i] - Old_Irms[i])) / Balanced[0];    //100% means this phase is charging, 0% mwans not charging
+                        //_Serialprintf("Detected Charging Phases: Irms_EV[%i]=%u.\n", i, Irms_EV[i]);
+                    }     //TODO only working in Smart Mode                                                                         //TODO we start charging with ChargeCurrent but in Smart mode this changes to Balanced[0]; how about Solar? generates error 32?
+                    else if (MainsMeter) {
+                        Charging_Prob[i] = 100 * (abs(Irms[i] - Old_Irms[i])) / ChargeCurrent;    //100% means this phase is charging, 0% mwans not charging
+                    }
+                    else
+                        Charging_Prob[i] = 0;
+                    Max_Charging_Prob = max(Charging_Prob[i], Max_Charging_Prob);
+                    _Serialprintf("Detected Charging Phases: Charging_Prob[%i]=%i.\n", i, Charging_Prob[i]);
+                    //_Serialprintf("Detected Charging Phases: Old_Irms[%i]=%u.\n", i, Old_Irms[i]);
+                }
+                //_Serialprintf("Detected Charging Phases: ChargeCurrent=%u, Balanced[0]=%u.\n", ChargeCurrent, Balanced[0]);
+
+                int Nr_Of_Phases = 0;
+                for (int i=0; i<3; i++) {
+#define THRESHOLD 25
+                    if (Charging_Prob[i] == Max_Charging_Prob) {
+                        _Serialprintf("Suspect I am charging at phase: %i.\n", i+1);
+                        Nr_Of_Phases++;
+                    }
+                    else {
+                        if ( Max_Charging_Prob - Charging_Prob[i] <= THRESHOLD )
+                            _Serialprintf("Serious candidate for charging at phase: %i.\n", i+1);
+                    }
+                }
+
+                if (Nr_Of_Phases > 1)
+                    _Serialprintf("Suspect I am charging at %i phases while Contactor 2 is in mode %i, something is WRONG!.\n", Nr_Of_Phases, EnableC2);
+            } //if Det... = 0
+        } //if Detecting_Charging_Phases_Timer
 
     } // while(1)
 }
