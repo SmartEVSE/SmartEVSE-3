@@ -734,17 +734,16 @@ const char * getMenuItemOption(uint8_t nav) {
     const static char StrMainsHomeEVSE[] = "Home+EVSE";
     const static char StrRFIDReader[6][10] = {"Disabled", "EnableAll", "EnableOne", "Learn", "Delete", "DeleteAll"};
     const static char StrWiFi[3][10] = {"Disabled", "Enabled", "SetupWifi"};
+    const static char StrEnableC2[3][12] = { "Not present", "Always Off", "Always On" };
 
-		unsigned int value;
-
-    value = getItemValue(nav);
+    unsigned int value = getItemValue(nav);
 
     switch (nav) {
         case MENU_MAX_TEMP:
             sprintf(Str, "%2u C", maxTemp);
             return Str;
         case MENU_C2:
-            return EnableC2_Str[int(EnableC2)];
+            return StrEnableC2[value];
         case MENU_CONFIG:
             if (Config) return StrFixed;
             else return StrSocket;
