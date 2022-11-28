@@ -117,8 +117,7 @@ uint8_t Show_RFID = 0;
 uint8_t WIFImode = WIFI_MODE;                                               // WiFi Mode (0:Disabled / 1:Enabled / 2:Start Portal)
 String APpassword = "00000000";
 
-EnableC2_type EnableC2 = ENABLE_C2;                                               // Contactor C2 (0:No contactor2 connected / 1: Always OFF / 2:Always ON / 3:Auto //TODO not implemented yet!)
-const char* EnableC2_Str[] = { "Not there", "Always Off", "Always On" };
+EnableC2_t EnableC2 = ENABLE_C2;                                               // Contactor C2 (0:No contactor2 connected / 1: Always OFF / 2:Always ON / 3:Auto //TODO not implemented yet!)
 uint16_t maxTemp = MAX_TEMPERATURE;
 
 int32_t Irms[3]={0, 0, 0};                                                  // Momentary current per Phase (23 = 2.3A) (resolution 100mA)
@@ -1057,7 +1056,7 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
             maxTemp = val;
             break;
         case MENU_C2:
-            EnableC2 = (EnableC2_type) val;
+            EnableC2 = (EnableC2_t) val;
             break;
         case MENU_CONFIG:
             Config = val;
@@ -2605,7 +2604,7 @@ void read_settings(bool write) {
         WIFImode = preferences.getUChar("WIFImode",WIFI_MODE);
         APpassword = preferences.getString("APpassword",AP_PASSWORD);
 
-        EnableC2 = (EnableC2_type) preferences.getUShort("EnableC2", ENABLE_C2);
+        EnableC2 = (EnableC2_t) preferences.getUShort("EnableC2", ENABLE_C2);
         maxTemp = preferences.getUShort("maxTemp", MAX_TEMPERATURE);
 
         preferences.end();                                  
@@ -3008,7 +3007,7 @@ void StartwebServer(void) {
 
         if(request->hasParam("enable_C2")) {
             String enabled = request->getParam("enable_C2")->value();
-            EnableC2 = (EnableC2_type) enabled.toInt();
+            EnableC2 = (EnableC2_t) enabled.toInt();
             write_settings();
         }
 

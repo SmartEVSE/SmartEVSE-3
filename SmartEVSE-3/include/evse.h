@@ -161,7 +161,7 @@ extern RemoteDebug Debug;
 #define RFID_READER 0
 #define WIFI_MODE 0
 #define AP_PASSWORD "00000000"
-#define ENABLE_C2 NOTCONNECTED
+#define ENABLE_C2 NOT_PRESENT
 #define MAX_TEMPERATURE 65
 
 
@@ -435,9 +435,7 @@ extern uint8_t MenuItems[MENU_EXIT];
 extern uint16_t maxTemp;
 extern uint8_t ExternalMaster;
 
-enum EnableC2_type { NOTCONNECTED, ALWAYS_OFF, ALWAYS_ON };
-extern const char* EnableC2_Str[];
-extern EnableC2_type EnableC2;
+enum EnableC2_t { NOT_PRESENT, ALWAYS_OFF, ALWAYS_ON };
 
 const struct {
     char Key[8];
