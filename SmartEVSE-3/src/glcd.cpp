@@ -866,8 +866,10 @@ uint8_t getMenuItems (void) {
     if (Mode && (LoadBl < 2 || LoadBl == 1)) {                                  // ? Mode Smart/Solar or LoadBl Master?
         MenuItems[m++] = MENU_MIN;                                              // - Minimal current the EV is happy with (A) (Mode:Smart/Solar or LoadBl:Master)
     }
-    if (LoadBl == 1) {                                                          // ? Load balancing Master?
-        MenuItems[m++] = MENU_CIRCUIT;                                          // - Max current of the EVSE circuit (A) (LoadBl:Master)
+    if (LoadBl == 1 || (LoadBl == 0 && Mode != MODE_NORMAL)) {                  // ? Load balancing Master?
+                                                                                // Also, when not in Normal Mode, MaxCircuit will limit
+                                                                                // the total current (subpanel configuration)
+        MenuItems[m++] = MENU_CIRCUIT;                                          // - Max current of the EVSE circuit (A)
     }
     MenuItems[m++] = MENU_MAX;                                                  // Max Charge current (A)
     MenuItems[m++] = MENU_SWITCH;                                               // External Switch on SW (0:Disable / 1:Access / 2:Smart-Solar)
