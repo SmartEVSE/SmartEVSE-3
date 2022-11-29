@@ -39,7 +39,9 @@ Feel free to use this repository to build it yourself or to use the latest on fr
                                         |              |
                             [washer breaker 16A]  [smartevse breaker 16A]
 
-   In this example you configure Mains to 25A, MaxCircuit to 16A; the charger will limit itself so that neither the 25A mains nor the 16A from the subpanel will be exceeded...
+   In this example you configure Mains to 25A, MaxCircuit to 16A; the charger will limit itself so that neither the 25A mains nor the 16A from the subpanel will be
+   exceeded...
+   Note that for this functionality you will need to be in Smart or Solar mode; it is no longer necessary to enable Load Balancing for this function.
 
 * Added wifi-debugging: if compiled in, you can debug SmartEVSE device by telnetting to it over your wifi connection
 * Small code optimisations, fixed some small bugs

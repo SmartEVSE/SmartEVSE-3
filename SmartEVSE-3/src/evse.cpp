@@ -710,7 +710,8 @@ char IsCurrentAvailable(void) {
 
         if (ActiveEVSE > NR_EVSES) ActiveEVSE = NR_EVSES;
         // When load balancing is active, and we are the Master, the Circuit option limits the max total current
-        if (LoadBl == 1) {
+        // Also, when not in Normal Mode, if MaxCircuit is set, it will limit the total current (subpanel configuration)
+        if (LoadBl == 1 || (LoadBl == 0 && Mode != MODE_NORMAL && MaxCircuit )) {
             if ((ActiveEVSE * (MinCurrent * 10)) > (MaxCircuit * 10) - Baseload_EV) {
                 return 0;                                                       // Not enough current available!, return with error
             }
@@ -821,10 +822,12 @@ void CalcBalancedCurrent(char mod) {
             setSolarStopTimer(0);
         }
     }
-                                                                                // When Load balancing = Master,  Limit total current of all EVSEs to MaxCircuit
+
+    // When Load balancing = Master,  Limit total current of all EVSEs to MaxCircuit
+    // Also, when not in Normal Mode, if MaxCircuit is set, it will limit the total current (subpanel configuration)
     Baseload_EV = Imeasured_EV - TotalCurrent;                                        // Calculate Baseload (load without any active EVSE)
     if (Baseload_EV < 0) Baseload_EV = 0;
-    if (LoadBl == 1 && (IsetBalanced > (MaxCircuit * 10) - Baseload_EV) ) IsetBalanced = MaxCircuit * 10 - Baseload_EV;
+    if ((LoadBl == 1 || (LoadBl == 0 && Mode != MODE_NORMAL && MaxCircuit)) && (IsetBalanced > (MaxCircuit * 10) - Baseload_EV) ) IsetBalanced = MaxCircuit * 10 - Baseload_EV;
 
 
     Baseload = Imeasured - TotalCurrent;                                        // Calculate Baseload (load without any active EVSE)
@@ -832,7 +835,7 @@ void CalcBalancedCurrent(char mod) {
 
     if (Mode == MODE_NORMAL)                                                    // Normal Mode
     {
-        if (LoadBl == 1) IsetBalanced = MaxCircuit * 10 - Baseload_EV;          // Load Balancing = Master? MaxCircuit is max current for all active EVSE's
+        if (LoadBl == 1) IsetBalanced = MaxCircuit * 10 - Baseload_EV;          // Load Balancing = Master? MaxCircuit is max current for all active EVSE's; subpanel option not valid in Normal Mode
         else IsetBalanced = ChargeCurrent;                                      // No Load Balancing in Normal Mode. Set current to ChargeCurrent (fix: v2.05)
     }
 
@@ -1370,6 +1373,7 @@ void UpdateCurrentData(void) {
     }
 
     // Load Balancing mode: Smart/Master or Disabled
+    // not needed for subpanel mode
     if (Mode && LoadBl < 2) {
         // Calculate dynamic charge current for connected EVSE's
         CalcBalancedCurrent(0);
