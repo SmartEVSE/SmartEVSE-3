@@ -734,7 +734,7 @@ const char * getMenuItemOption(uint8_t nav) {
     const static char StrMainsHomeEVSE[] = "Home+EVSE";
     const static char StrRFIDReader[6][10] = {"Disabled", "EnableAll", "EnableOne", "Learn", "Delete", "DeleteAll"};
     const static char StrWiFi[3][10] = {"Disabled", "Enabled", "SetupWifi"};
-    const static char StrEnableC2[3][12] = { "Not present", "Always Off", "Always On" };
+    const static char StrEnableC2[4][12] = { "Not present", "Always Off", "Solar Off", "Always On" };
 
     unsigned int value = getItemValue(nav);
 

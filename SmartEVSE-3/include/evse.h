@@ -435,7 +435,7 @@ extern uint8_t MenuItems[MENU_EXIT];
 extern uint16_t maxTemp;
 extern uint8_t ExternalMaster;
 
-enum EnableC2_t { NOT_PRESENT, ALWAYS_OFF, ALWAYS_ON };
+enum EnableC2_t { NOT_PRESENT, ALWAYS_OFF, SOLAR_OFF, ALWAYS_ON };
 
 const struct {
     char Key[8];
