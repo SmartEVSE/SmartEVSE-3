@@ -635,7 +635,10 @@ void GLCD(void) {
                 sprintfl(Str, "%dA", Irms[x], 1, 0);
                 GLCD_write_buf_str(46, x, Str, GLCD_ALIGN_RIGHT);               // print to buffer
                 sprintfl(Str, "%dA", Irms_EV[x], 1, 0);
-                GLCD_write_buf_str(90, x, Str, GLCD_ALIGN_RIGHT);               // print to buffer
+                if (Mode == MODE_SOLAR)
+                    GLCD_write_buf_str(100, x, Str, GLCD_ALIGN_RIGHT);          // in Solar mode the sun needs a little more room
+                else
+                    GLCD_write_buf_str(90, x, Str, GLCD_ALIGN_RIGHT);           // print to buffer
             }
         }
         GLCD_sendbuf(0, 4);                                                     // Copy LCD buffer to GLCD
