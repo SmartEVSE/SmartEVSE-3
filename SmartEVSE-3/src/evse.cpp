@@ -3044,7 +3044,8 @@ void StartwebServer(void) {
         doc["settings"]["solar_max_import"] = ImportCurrent;
         doc["settings"]["solar_start_current"] = StartCurrent;
         doc["settings"]["solar_stop_time"] = StopTime;
-        doc["settings"]["enable_C2"] = EnableC2;
+        doc["settings"]["enable_C2"] = StrEnableC2[EnableC2];
+        doc["settings"]["single_phase"] = Single_Phase;
         doc["settings"]["mains_meter"] = EMConfig[MainsMeter].Desc;
         
         doc["home_battery"]["current"] = homeBatteryCurrent;
