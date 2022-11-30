@@ -436,6 +436,7 @@ extern uint16_t maxTemp;
 extern uint8_t ExternalMaster;
 
 enum EnableC2_t { NOT_PRESENT, ALWAYS_OFF, SOLAR_OFF, ALWAYS_ON };
+const static char StrEnableC2[][12] = { "Not present", "Always Off", "Solar Off", "Always On" };
 
 const struct {
     char Key[8];
@@ -489,7 +490,7 @@ const struct {
     {"EMEDIV", "ENE DIVI","Divisor for Energy (kWh) of custom electric meter",  0, 7, EMCUSTOM_EDIVISOR},
     {"EMREAD", "READ MAX","Max register read at once of custom electric meter", 3, 255, 3},
     {"WIFI",   "WIFI",    "Connect to WiFi access point",                       0, 2, WIFI_MODE},
-    {"CONTA2", "CONTACT2","Contactor2 (C2) behaviour",                          0, 2, ENABLE_C2},
+    {"CONTA2", "CONTACT2","Contactor2 (C2) behaviour",                          0, sizeof(StrEnableC2) / sizeof(StrEnableC2[0])-1, ENABLE_C2},
     {"MXTMP",  "MAX TEMP",  "Maximum temperature for the EVSE module",          40, 75, MAX_TEMPERATURE},
 
     {"EXIT", "EXIT", "EXIT", 0, 0, 0}
