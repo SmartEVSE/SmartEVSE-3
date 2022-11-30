@@ -556,6 +556,29 @@ void setSolarStopTimer(uint16_t Timer) {
     SolarStopTimer = Timer;
 }
 
+/**
+ * Checks all parameters to determine whether
+ * we are going to force single phase charging
+ * Returns true if we are going to do single phase charging
+ * Returns false if we are going to do (traditional) 3 phase charing
+ * This is only relevant on a 3f mains and 3f car installation!
+ * 1f car will always charge 1f undetermined by CONTACTOR2
+ */
+uint8_t Force_Single_Phase_Charging() {                                         // abbreviated to FSPC
+    if (LoadBl != 0)                                                            // No FSPC allowed when loadbalancing
+        return 0;       //3f
+    switch (EnableC2) {
+        case NOT_PRESENT:                                                       //no use trying to switch a contactor on that is not present
+        case ALWAYS_OFF:
+            return 1;
+        case SOLAR_OFF:
+            return (Mode == MODE_SOLAR);
+        case ALWAYS_ON:
+            return 0;   //3f charging
+    }
+    //in case we don't know, stick to 3f charging
+    return 0;
+}
 
 void setState(uint8_t NewState) {
 
@@ -604,8 +627,10 @@ void setState(uint8_t NewState) {
             if ( LoadBl == 1 ) {                                                // We are Master, we don't support single phase charging when nodes are active
                 for (i = 0; i < NR_EVSES; i++) if (BalancedState[i] == STATE_C)
                     ActiveEVSE++;                                               // Count nr of active (charging) EVSE's
-            } //TODO what to do if single phase charging with loadbalancing on and EVSE's are added?
-            if ( EnableC2 == ALWAYS_OFF && Mode != MODE_NORMAL && LoadBl < 2 && ActiveEVSE <= 1 ) { // 1phase charging; in Normal mode nothing special has to be done; not supported for nodes TODO and not supported when multiple EVSEs are active
+            }
+
+            //if we are going to do forced single phase charging, record the old Irms's so we can detect which phase we are going to be single charging
+            if (Force_Single_Phase_Charging() && Mode != MODE_NORMAL) {         // 1phase charging; in Normal mode no phase detection necessary
                 for (i=0; i<3; i++)
                     Charging_Prob[i] = 0;                                       // reset charging phase probabilities
                 if (EVMeter) {                                                  // we prefer EVMeter if present
@@ -620,9 +645,10 @@ void setState(uint8_t NewState) {
                 }
                 Detecting_Charging_Phases_Timer = 6;                            // we need time for the EV to decide to start charging
             }
-            CONTACTOR1_ON;      
-            if (EnableC2 == ALWAYS_ON)
+            CONTACTOR1_ON;
+            if (!Force_Single_Phase_Charging())
                 CONTACTOR2_ON;                                                  // Contactor2 ON
+
             LCDTimer = 0;
             break;
         case STATE_C1:
