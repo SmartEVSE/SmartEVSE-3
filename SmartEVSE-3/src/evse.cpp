@@ -403,6 +403,7 @@ void BlinkLed(void * parameter) {
 // Set Charge Current 
 // Current in Amps * 10 (160 = 16A)
 void SetCurrent(uint16_t current) {
+    _Serialprintf("DINGO DEBUG: setcurrent(%i).\n",current);
     uint32_t DutyCycle;
 
     if ((current >= 60) && (current <= 510)) DutyCycle = current / 0.6;
@@ -844,8 +845,13 @@ void CalcBalancedCurrent(char mod) {
         if ( (IsetBalanced < (BalancedLeft * MinCurrent * 10)) || (IsetBalanced < 0) ) {
             IsetBalanced = BalancedLeft * MinCurrent * 10;
                                                                                 // ----------- Check to see if we have to continue charging on solar power alone ----------
+            _Serialprintf("DINGO DEBUG: BalancedLeft=%i, StopTime=%i, IsumImport=%i.\n", BalancedLeft,StopTime,IsumImport);
             if (BalancedLeft && StopTime && (IsumImport > 10)) {
-                if (SolarStopTimer == 0) setSolarStopTimer(StopTime * 60);      // Convert minutes into seconds
+                if (SolarStopTimer == 0) {
+                    _Serialprintf("DINGO DEBUG: setSolarStopTimer(%i).\n", StopTime * 60);
+                    setSolarStopTimer(StopTime * 60);      // Convert minutes into seconds
+                }
+                //if (SolarStopTimer == 0) setSolarStopTimer(StopTime * 60);      // Convert minutes into seconds
             } else {
                 setSolarStopTimer(0);
             }
@@ -858,7 +864,7 @@ void CalcBalancedCurrent(char mod) {
     // Also, when not in Normal Mode, if MaxCircuit is set, it will limit the total current (subpanel configuration)
     Baseload_EV = Imeasured_EV - TotalCurrent;                                        // Calculate Baseload (load without any active EVSE)
     if (Baseload_EV < 0) Baseload_EV = 0;
-    if ((LoadBl == 1 || (LoadBl == 0 && Mode != MODE_NORMAL && MaxCircuit)) && (IsetBalanced > (MaxCircuit * 10) - Baseload_EV) ) IsetBalanced = MaxCircuit * 10 - Baseload_EV;
+    if ((LoadBl == 1 || (LoadBl == 0 && Mode != MODE_NORMAL && MaxCircuit)) && (IsetBalanced > (MaxCircuit * 10) - Baseload_EV) ) IsetBalanced = MaxCircuit * 10 - Baseload_EV; //limiting is per phase so no Nr_Of_Phases_Charging here!
 
 
     Baseload = Imeasured - TotalCurrent;                                        // Calculate Baseload (load without any active EVSE)
@@ -866,7 +872,7 @@ void CalcBalancedCurrent(char mod) {
 
     if (Mode == MODE_NORMAL)                                                    // Normal Mode
     {
-        if (LoadBl == 1) IsetBalanced = MaxCircuit * 10 - Baseload_EV;          // Load Balancing = Master? MaxCircuit is max current for all active EVSE's; subpanel option not valid in Normal Mode
+        if (LoadBl == 1) IsetBalanced = MaxCircuit * 10 - Baseload_EV;          // Load Balancing = Master? MaxCircuit is max current for all active EVSE's; subpanel option not valid in Normal Mode; //limiting is per phase so no Nr_Of_Phases_Charging here!
         else IsetBalanced = ChargeCurrent;                                      // No Load Balancing in Normal Mode. Set current to ChargeCurrent (fix: v2.05)
     }
 
@@ -874,8 +880,15 @@ void CalcBalancedCurrent(char mod) {
     {
         // New EVSE charging, and no Solar mode
         if (mod && Mode != MODE_SOLAR) {                                        // Set max combined charge current to MaxMains - Baseload //TODO so now we ignore MaxCircuit? And all the other calculations we did before on IsetBalanced?
-            IsetBalanced = (MaxMains * 10) - Baseload;
-            IsetBalanced2 = (MaxCircuit * 10 ) - Baseload_EV;
+            if (Nr_Of_Phases_Charging == 0) {
+                _Serialprintf("ERROR: Nr_Of_Phases_Charging = 0, preventing a divide by zero!");
+                IsetBalanced = (MaxMains * 10) - Baseload;                      // retain old software behaviour
+                IsetBalanced2 = (MaxCircuit * 10 ) - Baseload_EV;
+            }
+            else {
+                IsetBalanced = ((MaxMains * 10) - Baseload) / Nr_Of_Phases_Charging;
+                IsetBalanced2 = ((MaxCircuit * 10 ) - Baseload_EV) / Nr_Of_Phases_Charging;
+            }
             if (IsetBalanced2 < IsetBalanced) {
                 IsetBalanced=IsetBalanced2;
             }
@@ -885,14 +898,19 @@ void CalcBalancedCurrent(char mod) {
           || ( Mode == MODE_SOLAR && Isum > 10 && (Imeasured > (MaxMains * 10) || Imeasured_EV > (MaxCircuit * 10))))
                                                                                 //TODO why Isum > 10 ? If Imeasured > MaxMains then Isum is always bigger than 1A, unless MaxMains is set at 0....
         {
-            IsetBalanced = BalancedLeft * MinCurrent * 10;                      // set minimal "MinCurrent" charge per active EVSE
+            if (Nr_Of_Phases_Charging == 0) {
+                _Serialprintf("ERROR: Nr_Of_Phases_Charging = 0, preventing a divide by zero!");
+                IsetBalanced = BalancedLeft * MinCurrent * 10;                      // set minimal "MinCurrent" charge per active EVSE
+            }
+            else
+                IsetBalanced = (BalancedLeft * MinCurrent * 10) / Nr_Of_Phases_Charging; // set minimal "MinCurrent" charge per active EVSE
             NoCurrent++;                                                        // Flag NoCurrent left
 #ifdef LOG_INFO_EVSE
             _Serialprintf("No Current!!\n");
 #endif
         } else NoCurrent = 0;
 
-        if (IsetBalanced > ActiveMax) IsetBalanced = ActiveMax;                 // limit to total maximum Amps (of all active EVSE's)
+        if (IsetBalanced > ActiveMax) IsetBalanced = ActiveMax;                 // limit to total maximum Amps (of all active EVSE's) //TODO not sure if Nr_Of_Phases_Charging should be involved here
 
         MaxBalanced = IsetBalanced;                                             // convert to Amps
 
