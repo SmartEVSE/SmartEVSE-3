@@ -38,6 +38,16 @@
 //don't forget to first store the card before it can activate charging
 //#define FAKE_RFID 1
 
+//uncomment this to emulate a sunny day where your solar charger is injecting current in the grid:
+//#define FAKE_SUNNY_DAY 1
+//disclaimer: might not work for CT1 calibration/uncalibration stuff, since I can't test that
+//the number of Amperes you want to have fake injected into L1
+#ifdef FAKE_SUNNY_DAY
+#define INJECT_CURRENT_L1 10
+#define INJECT_CURRENT_L2 0
+#define INJECT_CURRENT_L3 0
+#endif
+
 #ifndef VERSION
 #ifdef DEBUG_DISABLED
 #define VERSION "v3serkri-0.00"

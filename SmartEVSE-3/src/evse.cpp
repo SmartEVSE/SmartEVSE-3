@@ -2340,11 +2340,19 @@ ModbusMessage MBMainsMeterResponse(ModbusMessage request) {
             phasesLastUpdate=time(NULL);
             Isum = 0;
             int batteryPerPhase = getBatteryCurrent() / 3; // Divide the battery current per phase to spread evenly
-
+#ifdef FAKE_SUNNY_DAY
+            int32_t temp[3]={0, 0, 0};
+            temp[0] = INJECT_CURRENT_L1 * 10;                   //Irms is in units of 100mA
+            temp[1] = INJECT_CURRENT_L2 * 10;
+            temp[2] = INJECT_CURRENT_L3 * 10;
+#endif
             for (x = 0; x < 3; x++) {
                 // Calculate difference of Mains and PV electric meter
                 if (PVMeter) CM[x] = CM[x] - PV[x];             // CurrentMeter and PV values are MILLI AMPERE
                 Irms[x] = (signed int)(CM[x] / 100);            // Convert to AMPERE * 10
+#ifdef FAKE_SUNNY_DAY
+                Irms[x] = Irms[x] - temp[x];
+#endif
                 IrmsOriginal[x] = Irms[x];
                 Irms[x] -= batteryPerPhase;
                 Isum = Isum + Irms[x];
