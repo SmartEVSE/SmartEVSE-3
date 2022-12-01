@@ -125,8 +125,9 @@ int32_t Irms_EV[3]={0, 0, 0};                                               // M
 int32_t Old_Irms[3]={0, 0, 0};                                              // Saved momentary current per Phase (23 = 2.3A) (resolution 100mA)
                                                                             // Max 3 phases supported
 uint8_t Detecting_Charging_Phases_Timer = 0;
-uint32_t Charging_Prob[3]={0, 0, 0};
-uint8_t Single_Phase = 0;
+uint32_t Charging_Prob[3]={0, 0, 0};                                        // Per phase, the probability that Charging is done at this phase
+uint8_t Single_Phase = 0;                                                   // 0 = Undetected, 1 = single phase charging through L1, 2 = through L2, 3 = throug L3
+uint8_t Nr_Of_Phases_Charging = 0;                                          // 0 = Undetected, 1,2,3 = nr of phases that was used at the start of this charging session
 
 uint8_t State = STATE_A;
 uint8_t ErrorFlags = NO_ERROR;
@@ -630,7 +631,7 @@ void setState(uint8_t NewState) {
             }
 
             //if we are going to do forced single phase charging, record the old Irms's so we can detect which phase we are going to be single charging
-            if (Force_Single_Phase_Charging() && Mode != MODE_NORMAL) {         // 1phase charging; in Normal mode no phase detection necessary
+            if (Mode != MODE_NORMAL) {                                          // in Normal mode no phase detection necessary
                 for (i=0; i<3; i++)
                     Charging_Prob[i] = 0;                                       // reset charging phase probabilities
                 if (EVMeter) {                                                  // we prefer EVMeter if present
@@ -2178,7 +2179,7 @@ void Timer1S(void * parameter) {
                 }
                 //_Serialprintf("Detected Charging Phases: ChargeCurrent=%u, Balanced[0]=%u.\n", ChargeCurrent, Balanced[0]);
 
-                int Nr_Of_Phases = 0;
+                int Nr_Of_Phases_Charging = 0;
                 Single_Phase = 0;
                 for (int i=0; i<3; i++) {
 #define THRESHOLD 25
@@ -2186,7 +2187,7 @@ void Timer1S(void * parameter) {
 #ifdef LOG_DEBUG_EVSE
                         _Serialprintf("Suspect I am charging at phase: L%i.\n", i+1);
 #endif
-                        Nr_Of_Phases++;
+                        Nr_Of_Phases_Charging++;
                         Single_Phase = i + 1;     //0 = L1, 1 = L2, 2 = L3
                     }
                     else {
@@ -2194,14 +2195,14 @@ void Timer1S(void * parameter) {
 #ifdef LOG_DEBUG_EVSE
                             _Serialprintf("Serious candidate for charging at phase: L%i.\n", i+1);
 #endif
-                            Nr_Of_Phases++;
+                            Nr_Of_Phases_Charging++;
                         }
                     }
                 }
 
-                if (Nr_Of_Phases > 1) {
-                    _Serialprintf("Suspect I am charging at %i phases while Contactor 2 is in mode %i, something is WRONG!.\n", Nr_Of_Phases, EnableC2);
-                    Single_Phase = 0; //0 detects: uncertain!!
+                if (Nr_Of_Phases_Charging > 1) {
+                    _Serialprintf("Charging at %i phases.\n", Nr_Of_Phases_Charging);
+                    Single_Phase = 0; //0 detects: uncertain or three phase
                 } //note that single phase charging without phase detection in Smart Mode only means suboptimal charging: charging will be limited with phases taken into account that are not regulated by the EVSE; so charging will be slower (depending on the use of the unused phases by other devices), but no harm will be done.
                 else
                     _Serialprintf("Single Phase charging detected at fase L%i.\n", Single_Phase);
