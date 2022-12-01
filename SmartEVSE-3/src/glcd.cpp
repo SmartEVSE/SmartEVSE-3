@@ -617,7 +617,7 @@ void GLCD(void) {
             } else {
                 sprintfl(Str, "%uA", Balanced[0], 1, 0);
             }
-            GLCD_write_buf_str(127,0, Str, GLCD_ALIGN_RIGHT);
+            GLCD_write_buf_str(127,1, Str, GLCD_ALIGN_RIGHT);
         } else if (State == STATE_A) {
             // Remove line between House and Car
             for (x = 73; x < 96; x++) GLCDbuf[3u * 128u + x] = 0;
