@@ -575,6 +575,7 @@ uint8_t Force_Single_Phase_Charging() {                                         
             return 1;
         case SOLAR_OFF:
             return (Mode == MODE_SOLAR);
+        case AUTO:
         case ALWAYS_ON:
             return 0;   //3f charging
     }
@@ -655,7 +656,7 @@ void setState(uint8_t NewState) {
                 }
             }
             CONTACTOR1_ON;
-            if (!Force_Single_Phase_Charging())
+            if (!Force_Single_Phase_Charging())                                 // in AUTO mode we start with 3phases
                 CONTACTOR2_ON;                                                  // Contactor2 ON
 
             LCDTimer = 0;
@@ -846,12 +847,18 @@ void CalcBalancedCurrent(char mod) {
             IsetBalanced = BalancedLeft * MinCurrent * 10;
                                                                                 // ----------- Check to see if we have to continue charging on solar power alone ----------
             _Serialprintf("DINGO DEBUG: BalancedLeft=%i, StopTime=%i, IsumImport=%i.\n", BalancedLeft,StopTime,IsumImport);
+            _Serialprintf("DINGO DEBUG: Nr_Of_Phases_Charging=%i, EnableC2=%s,Detecting_Charging_Phases_Timer=%i.\n", Nr_Of_Phases_Charging, StrEnableC2[EnableC2],Detecting_Charging_Phases_Timer);
             if (BalancedLeft && StopTime && (IsumImport > 10)) {
-                if (SolarStopTimer == 0) {
-                    _Serialprintf("DINGO DEBUG: setSolarStopTimer(%i).\n", StopTime * 60);
-                    setSolarStopTimer(StopTime * 60);      // Convert minutes into seconds
+                if (Nr_Of_Phases_Charging > 1 && EnableC2 == AUTO) {
+                    _Serialprintf("Switching CONTACTOR C2 OFF.\n");
+                    CONTACTOR2_OFF;
+                    setSolarStopTimer(0); //now we switched contactor2 off, review if we need to stop solar charging
+                    Nr_Of_Phases_Charging = 1;
+                    Single_Phase = 0; //undetermined
                 }
-                //if (SolarStopTimer == 0) setSolarStopTimer(StopTime * 60);      // Convert minutes into seconds
+                else {
+                    if (SolarStopTimer == 0) setSolarStopTimer(StopTime * 60);      // Convert minutes into seconds
+                }
             } else {
                 setSolarStopTimer(0);
             }
