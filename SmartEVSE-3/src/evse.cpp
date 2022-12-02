@@ -2199,13 +2199,13 @@ void Timer1S(void * parameter) {
                 for (int i=0; i<3; i++) {
                     if (EVMeter) {
                         //Charging_Prob[i] = 100 * (abs(Irms_EV[i] - Old_Irms[i])) / ChargeCurrent;    //100% means this phase is charging, 0% mwans not charging
-                        Charging_Prob[i] = 100 * (abs(Irms_EV[i] - Old_Irms[i])) / MinCurrent;    //100% means this phase is charging, 0% mwans not charging
+                        Charging_Prob[i] = 10 * (abs(Irms_EV[i] - Old_Irms[i])) / MinCurrent;    //100% means this phase is charging, 0% mwans not charging
 #ifdef LOG_DEBUG_EVSE
                         _Serialprintf("Trying to detect Charging Phases END Irms_EV[%i]=%u.\n", i, Irms_EV[i]);
 #endif
                     }     //TODO only working in Smart Mode                                                                         //TODO we start charging with ChargeCurrent but in Smart mode this changes to Balanced[0]; how about Solar? generates error 32?
                     else if (MainsMeter) {
-                        Charging_Prob[i] = 100 * (abs(Irms[i] - Old_Irms[i])) / MinCurrent;    //100% means this phase is charging, 0% mwans not charging
+                        Charging_Prob[i] = 10 * (abs(Irms[i] - Old_Irms[i])) / MinCurrent;    //100% means this phase is charging, 0% mwans not charging
 #ifdef LOG_DEBUG_EVSE
                         _Serialprintf("Trying to detect Charging Phases END Irms_[%i]=%u.\n", i, Irms[i]);
 #endif
