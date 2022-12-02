@@ -2210,7 +2210,7 @@ void Timer1S(void * parameter) {
 #ifdef LOG_DEBUG_EVSE
                 _Serialprintf("Detected Charging Phases: ChargeCurrent=%u, Balanced[0]=%u, IsetBalanced=%u.\n", ChargeCurrent, Balanced[0],IsetBalanced);
 #endif
-                int Nr_Of_Phases_Charging = 0;
+                Nr_Of_Phases_Charging = 0;
                 Single_Phase = 0;
                 for (int i=0; i<3; i++) {
 #define THRESHOLD 25
