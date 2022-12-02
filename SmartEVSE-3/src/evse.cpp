@@ -128,6 +128,7 @@ uint8_t Detecting_Charging_Phases_Timer = 0;
 uint32_t Charging_Prob[3]={0, 0, 0};                                        // Per phase, the probability that Charging is done at this phase
 uint8_t Single_Phase = 0;                                                   // 0 = Undetected, 1 = single phase charging through L1, 2 = through L2, 3 = throug L3
 uint8_t Nr_Of_Phases_Charging = 0;                                          // 0 = Undetected, 1,2,3 = nr of phases that was used at the start of this charging session
+bool Current_Lock = false;
 
 uint8_t State = STATE_A;
 uint8_t ErrorFlags = NO_ERROR;
@@ -403,16 +404,17 @@ void BlinkLed(void * parameter) {
 // Set Charge Current 
 // Current in Amps * 10 (160 = 16A)
 void SetCurrent(uint16_t current) {
-    _Serialprintf("DINGO DEBUG: setcurrent(%i).\n",current);
     uint32_t DutyCycle;
 
-    if ((current >= 60) && (current <= 510)) DutyCycle = current / 0.6;
-                                                                            // calculate DutyCycle from current
-    else if ((current > 510) && (current <= 800)) DutyCycle = (current / 2.5) + 640;
-    else DutyCycle = 100;                                                   // invalid, use 6A
+    if (!Current_Lock) {
+        if ((current >= 60) && (current <= 510)) DutyCycle = current / 0.6;
+                                                                                // calculate DutyCycle from current
+        else if ((current > 510) && (current <= 800)) DutyCycle = (current / 2.5) + 640;
+        else DutyCycle = 100;                                                   // invalid, use 6A
 
-    DutyCycle = DutyCycle * 1024 / 1000;                                    // conversion to 1024 = 100%
-    ledcWrite(CP_CHANNEL, DutyCycle);                                       // update PWM signal
+        DutyCycle = DutyCycle * 1024 / 1000;                                    // conversion to 1024 = 100%
+        ledcWrite(CP_CHANNEL, DutyCycle);                                       // update PWM signal
+    }
 }
 
 
@@ -634,6 +636,8 @@ void setState(uint8_t NewState) {
 
             //if we are going to do forced single phase charging, record the old Irms's so we can detect which phase we are going to be single charging
             if (Mode != MODE_NORMAL) {                                          // in Normal mode no phase detection necessary
+                SetCurrent(MinCurrent);                                         // for detection of phases we are going to lock the charging current to MinCurrent
+                Current_Lock = true;
                 for (i=0; i<3; i++)
                     Charging_Prob[i] = 0;                                       // reset charging phase probabilities
                 if (EVMeter) {                                                  // we prefer EVMeter if present
@@ -2245,6 +2249,14 @@ void Timer1S(void * parameter) {
                 else
                     _Serialprintf("Single Phase charging detected at fase L%i.\n", Single_Phase);
 
+                if (EnableC2 != AUTO) {
+                    if (Force_Single_Phase_Charging() && Nr_Of_Phases_Charging != 1)
+                        _Serialprintf("Error in detecting phases: EnableC2=%s and Nr_Of_Phases_Charging=%i.\n", StrEnableC2[EnableC2], Nr_Of_Phases_Charging);
+                    if (!Force_Single_Phase_Charging() && Nr_Of_Phases_Charging != 3) //TODO 2phase charging very rare?
+                        _Serialprintf("Error in detecting phases: EnableC2=%s and Nr_Of_Phases_Charging=%i.\n", StrEnableC2[EnableC2], Nr_Of_Phases_Charging);
+                }
+
+                Current_Lock = false;                                           //now that we have determined the nr of phases we can release the current lock
             } //if Det... = 0
         } //if Detecting_Charging_Phases_Timer
 
