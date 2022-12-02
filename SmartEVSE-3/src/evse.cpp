@@ -850,8 +850,6 @@ void CalcBalancedCurrent(char mod) {
         if ( (IsetBalanced < (BalancedLeft * MinCurrent * 10)) || (IsetBalanced < 0) ) {
             IsetBalanced = BalancedLeft * MinCurrent * 10;
                                                                                 // ----------- Check to see if we have to continue charging on solar power alone ----------
-            _Serialprintf("DINGO DEBUG: BalancedLeft=%i, StopTime=%i, IsumImport=%i.\n", BalancedLeft,StopTime,IsumImport);
-            _Serialprintf("DINGO DEBUG: Nr_Of_Phases_Charging=%i, EnableC2=%s,Detecting_Charging_Phases_Timer=%i.\n", Nr_Of_Phases_Charging, StrEnableC2[EnableC2],Detecting_Charging_Phases_Timer);
             if (BalancedLeft && StopTime && (IsumImport > 10)) {
                 if (Nr_Of_Phases_Charging > 1 && EnableC2 == AUTO) {
                     _Serialprintf("Switching CONTACTOR C2 OFF.\n");
