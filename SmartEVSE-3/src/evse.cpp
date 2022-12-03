@@ -3142,6 +3142,9 @@ void StartwebServer(void) {
         doc["phase_currents"]["L2"] = Irms[1];
         doc["phase_currents"]["L3"] = Irms[2];
         doc["phase_currents"]["last_data_update"] = phasesLastUpdate;
+        doc["phase_currents"]["charging_L1"] = Charging_Phase[0];
+        doc["phase_currents"]["charging_L2"] = Charging_Phase[1];
+        doc["phase_currents"]["charging_L3"] = Charging_Phase[2];
         doc["phase_currents"]["original_data"]["TOTAL"] = IrmsOriginal[0] + IrmsOriginal[1] + IrmsOriginal[2];
         doc["phase_currents"]["original_data"]["L1"] = IrmsOriginal[0];
         doc["phase_currents"]["original_data"]["L2"] = IrmsOriginal[1];
