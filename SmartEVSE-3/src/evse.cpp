@@ -2215,6 +2215,11 @@ void Timer1S(void * parameter) {
                     _Serialprintf("Detected Charging Phases: Charging_Prob[%i]=%i.\n", i, Charging_Prob[i]);
                     //_Serialprintf("Detected Charging Phases: Old_Irms[%i]=%u.\n", i, Old_Irms[i]);
 #endif
+                    //normalize percentages so they are in the range [0-100]
+                    if (Charging_Prob[i] >= 200)
+                        Charging_Prob[i] = 0;
+                    if (Charging_Prob[i] > 100)
+                        Charging_Prob[i] = 200 - Charging_Prob[i];
                 }
 #ifdef LOG_DEBUG_EVSE
                 _Serialprintf("Detected Charging Phases: ChargeCurrent=%u, Balanced[0]=%u, IsetBalanced=%u.\n", ChargeCurrent, Balanced[0],IsetBalanced);
