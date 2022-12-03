@@ -636,11 +636,11 @@ void setState(uint8_t NewState) {
 
             //if we are going to do forced single phase charging, record the old Irms's so we can detect which phase we are going to be single charging
             if (Mode != MODE_NORMAL) {                                          // in Normal mode no phase detection necessary
-                SetCurrent(MinCurrent);                                         // for detection of phases we are going to lock the charging current to MinCurrent
-                Current_Lock = true;
                 for (i=0; i<3; i++)
                     Charging_Prob[i] = 0;                                       // reset charging phase probabilities
                 if (EVMeter) {                                                  // we prefer EVMeter if present
+                    SetCurrent(MinCurrent);                                         // for detection of phases we are going to lock the charging current to MinCurrent
+                    Current_Lock = true;
                     for (i=0; i<3; i++) {
                         Old_Irms[i] = Irms_EV[i];
 #ifdef LOG_DEBUG_EVSE
@@ -650,6 +650,8 @@ void setState(uint8_t NewState) {
                     Detecting_Charging_Phases_Timer = 7;                            // we need time for the EV to decide to start charging
                 }
                 else if (MainsMeter) {                                          // or else MainsMeter will do
+                    SetCurrent(MinCurrent);                                         // for detection of phases we are going to lock the charging current to MinCurrent
+                    Current_Lock = true;
                     for (i=0; i<3; i++) {
                         Old_Irms[i] = Irms[i];
 #ifdef LOG_DEBUG_EVSE
