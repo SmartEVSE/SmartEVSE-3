@@ -126,8 +126,9 @@ int32_t Old_Irms[3]={0, 0, 0};                                              // S
                                                                             // Max 3 phases supported
 uint8_t Detecting_Charging_Phases_Timer = 0;
 uint32_t Charging_Prob[3]={0, 0, 0};                                        // Per phase, the probability that Charging is done at this phase
+bool Charging_Phase[3] = {false, false, false};                             // 0 = Undetected, 1,2,3 = nr of phases that was used at the start of this charging session
 uint8_t Single_Phase = 0;                                                   // 0 = Undetected, 1 = single phase charging through L1, 2 = through L2, 3 = throug L3
-uint8_t Nr_Of_Phases_Charging = 0;                                          // 0 = Undetected, 1,2,3 = nr of phases that was used at the start of this charging session
+uint8_t Nr_Of_Phases_Charging = 0;                                          // 1,2,3 = nr of phases that was detected at the start of this charging session
 bool Current_Lock = false;
 
 uint8_t State = STATE_A;
@@ -636,8 +637,13 @@ void setState(uint8_t NewState) {
 
             //if we are going to do forced single phase charging, record the old Irms's so we can detect which phase we are going to be single charging
             if (Mode != MODE_NORMAL) {                                          // in Normal mode no phase detection necessary
-                for (i=0; i<3; i++)
+                for (i=0; i<3; i++) {                                           // every start of STATE_C we have to detect the phases, since we cannot be sure
+                                                                                // which phases the car will use
                     Charging_Prob[i] = 0;                                       // reset charging phase probabilities
+                    Charging_Phase[i] = false;                                  // reset charging phases
+                    Single_Phase = 0;                                           // undetected
+                    Nr_Of_Phases_Charging = 0;                                  // undetected
+                }
                 if (EVMeter) {                                                  // we prefer EVMeter if present
                     SetCurrent(MinCurrent);                                         // for detection of phases we are going to lock the charging current to MinCurrent
                     Current_Lock = true;
@@ -891,8 +897,8 @@ void CalcBalancedCurrent(char mod) {
     {
         // New EVSE charging, and no Solar mode
         if (mod && Mode != MODE_SOLAR) {                                        // Set max combined charge current to MaxMains - Baseload //TODO so now we ignore MaxCircuit? And all the other calculations we did before on IsetBalanced?
-            if (Nr_Of_Phases_Charging == 0) {
-                _Serialprintf("ERROR: Nr_Of_Phases_Charging = 0, preventing a divide by zero!");
+            if (Nr_Of_Phases_Charging == 0) {                                   // undetected
+                //_Serialprintf("ERROR: Nr_Of_Phases_Charging = 0, preventing a divide by zero!");
                 IsetBalanced = (MaxMains * 10) - Baseload;                      // retain old software behaviour
                 IsetBalanced2 = (MaxCircuit * 10 ) - Baseload_EV;
             }
@@ -909,9 +915,9 @@ void CalcBalancedCurrent(char mod) {
           || ( Mode == MODE_SOLAR && Isum > 10 && (Imeasured > (MaxMains * 10) || Imeasured_EV > (MaxCircuit * 10))))
                                                                                 //TODO why Isum > 10 ? If Imeasured > MaxMains then Isum is always bigger than 1A, unless MaxMains is set at 0....
         {
-            if (Nr_Of_Phases_Charging == 0) {
-                _Serialprintf("ERROR: Nr_Of_Phases_Charging = 0, preventing a divide by zero!");
-                IsetBalanced = BalancedLeft * MinCurrent * 10;                      // set minimal "MinCurrent" charge per active EVSE
+            if (Nr_Of_Phases_Charging == 0) {                                   // undetected
+                //_Serialprintf("ERROR: Nr_Of_Phases_Charging = 0, preventing a divide by zero!");
+                IsetBalanced = BalancedLeft * MinCurrent * 10;                  // retain old software behaviour: set minimal "MinCurrent" charge per active EVSE
             }
             else
                 IsetBalanced = (BalancedLeft * MinCurrent * 10) / Nr_Of_Phases_Charging; // set minimal "MinCurrent" charge per active EVSE
@@ -2230,11 +2236,13 @@ void Timer1S(void * parameter) {
                 Single_Phase = 0;
 #define THRESHOLD 25
                 for (int i=0; i<3; i++) {
+                    Charging_Phase[i] = false;
                     if (Charging_Prob[i] == Max_Charging_Prob) {
 #ifdef LOG_DEBUG_EVSE
                         _Serialprintf("Suspect I am charging at phase: L%i.\n", i+1);
 #endif
                         Nr_Of_Phases_Charging++;
+                        Charging_Phase[i] = true;
                         Single_Phase = i + 1;     //0 = L1, 1 = L2, 2 = L3
                     }
                     else {
@@ -2243,6 +2251,7 @@ void Timer1S(void * parameter) {
                             _Serialprintf("Serious candidate for charging at phase: L%i.\n", i+1);
 #endif
                             Nr_Of_Phases_Charging++;
+                            Charging_Phase[i] = true;
                         }
                     }
                 }
@@ -2254,11 +2263,15 @@ void Timer1S(void * parameter) {
                 else
                     _Serialprintf("Single Phase charging detected at fase L%i.\n", Single_Phase);
 
+                // sanity checks
                 if (EnableC2 != AUTO) {
-                    if (Force_Single_Phase_Charging() && Nr_Of_Phases_Charging != 1)
+                    if (Force_Single_Phase_Charging() && Nr_Of_Phases_Charging != 1) {
                         _Serialprintf("Error in detecting phases: EnableC2=%s and Nr_Of_Phases_Charging=%i.\n", StrEnableC2[EnableC2], Nr_Of_Phases_Charging);
+                        Nr_Of_Phases_Charging = 1;
+                        _Serialprintf("Setting Nr_Of_Phases_Charging to 1 and Single_Phase=%i.\n", Single_Phase);
+                    }
                     if (!Force_Single_Phase_Charging() && Nr_Of_Phases_Charging != 3) //TODO 2phase charging very rare?
-                        _Serialprintf("Error in detecting phases: EnableC2=%s and Nr_Of_Phases_Charging=%i.\n", StrEnableC2[EnableC2], Nr_Of_Phases_Charging);
+                        _Serialprintf("Possible error in detecting phases: EnableC2=%s and Nr_Of_Phases_Charging=%i.\n", StrEnableC2[EnableC2], Nr_Of_Phases_Charging);
                 }
 
                 Current_Lock = false;                                           //now that we have determined the nr of phases we can release the current lock
