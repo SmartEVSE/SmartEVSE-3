@@ -46,10 +46,10 @@ Feel free to use this repository to build it yourself or to use the latest on fr
 * Added wifi-debugging: if compiled in, you can debug SmartEVSE device by telnetting to it over your wifi connection
 * Small code optimisations, fixed some small bugs
 * Added EXPERIMENTAL use of Contactor 2 (C2);
-    -one can add a second contactor (C2) that switches off 2 of the 3 phases of a three-phase Mains installation; this can be usefull if one wants to charge of off
-     Solar; EV's have a minimal charge current of 6A, so switching off 2 phases allows you to charge with a current of 6-18A, while 3 phases have a minimum current
-     of 3x6A=18A. This way you can still charge solar-only on smaller solar installations.
-    -one should wire C2 according to this schema:
+    - one can add a second contactor (C2) that switches off 2 of the 3 phases of a three-phase Mains installation; this can be usefull if one wants to charge of off
+      Solar; EV's have a minimal charge current of 6A, so switching off 2 phases allows you to charge with a current of 6-18A, while 3 phases have a minimum current
+      of 3x6A=18A. This way you can still charge solar-only on smaller solar installations.
+    - one should wire C2 according to this schema:
 
             N    L1   L2   L3
             |    |    |    |
@@ -65,20 +65,21 @@ Feel free to use this repository to build it yourself or to use the latest on fr
           |    EV-cable      |
           --------------------
 
-     This way the (dangerous) situation is avoided that some Phases are switched ON, and Neutral is switched OFF.
+      This way the (dangerous) situation is avoided that some Phases are switched ON, and Neutral is switched OFF.
 
-    -by default C2 is switched OFF ("Not present"); if you want to keep on charging on 3 phases after installing C2, you should change the setting Enable C2 in the Setup     Menu.
+    - by default C2 is switched OFF ("Not present"); if you want to keep on charging on 3 phases after installing C2, you should change the setting Enable C2 in the
+      Setup Menu.
 
-    -this functionality is EXPERIMENTAL; in Normal and Smart mode there are not much problems to be expected, but in Solar mode strange Start/Stop scenario's might
-     occur: we suspect a bug in the original AND our firmware that might make solar charging on 3 phases do strange Start/Stop things; this suspected bug can be
-     avoided by using 1 phase charging on solar. Also behaviour with Load Balancing with multiple Nodes is untested.
-     As always, YOU ARE EXPERIMENTING AT YOUR OWN RISK!
+    - this functionality is EXPERIMENTAL; in Normal and Smart mode there are not much problems to be expected, but in Solar mode strange Start/Stop scenario's might
+      occur: we suspect a bug in the original AND our firmware that might make solar charging on 3 phases do strange Start/Stop things; this suspected bug can be
+      avoided by using 1 phase charging on solar. Also behaviour with Load Balancing with multiple Nodes is untested.
+      As always, YOU ARE EXPERIMENTING AT YOUR OWN RISK!
 
-    -LoadBalancing is allowed; especially the subpanel function (limit EVMeter to MaxCircuit) is well tested, but NOT the use of multiple EVSE's (Nodes)!!
+    - LoadBalancing is allowed; especially the subpanel function (limit EVMeter to MaxCircuit) is well tested, but NOT the use of multiple EVSE's (Nodes)!!
 
-    -Currently Enable C2 will turn the contactor OFF (disabled) or ON (enabled) in any mode (Normal, Smart or Solar), regardless if LoadBalancing is on or off.
-     So you have to determine MANUALLY which contactor C2 behaviour you want. In the future the firmware [sh|c]ould become smarter in this, switching C2 on and off
-     (semi-) automatically.
+    - Currently Enable C2 will turn the contactor OFF (disabled) or ON (enabled) in any mode (Normal, Smart or Solar), regardless if LoadBalancing is on or off.
+      So you have to determine MANUALLY which contactor C2 behaviour you want. In the future the firmware [sh|c]ould become smarter in this, switching C2 on and off
+      (semi-) automatically.
 
 
 
