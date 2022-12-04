@@ -75,7 +75,7 @@ Feel free to use this repository to build it yourself or to use the latest on fr
       avoided by using 1 phase charging on solar. Also behaviour with Load Balancing with multiple Nodes is untested.
       As always, YOU ARE EXPERIMENTING AT YOUR OWN RISK!
 
-    - LoadBalancing is allowed; especially the subpanel function (limit EVMeter to MaxCircuit) is well tested, but NOT the use of multiple EVSE's (Nodes)!!
+    - This function will not work when LoadBalancing is enabled.
 
     - Currently Enable C2 will turn the contactor OFF (disabled) or ON (enabled) in any mode (Normal, Smart or Solar), regardless if LoadBalancing is on or off.
       So you have to determine MANUALLY which contactor C2 behaviour you want. In the future the firmware [sh|c]ould become smarter in this, switching C2 on and off
