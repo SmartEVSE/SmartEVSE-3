@@ -127,7 +127,6 @@ int32_t Old_Irms[3]={0, 0, 0};                                              // S
 uint8_t Detecting_Charging_Phases_Timer = 0;
 uint32_t Charging_Prob[3]={0, 0, 0};                                        // Per phase, the probability that Charging is done at this phase
 bool Charging_Phase[3] = {false, false, false};                             // 0 = Undetected, 1,2,3 = nr of phases that was used at the start of this charging session
-uint8_t Single_Phase = 0;                                                   // 0 = Undetected, 1 = single phase charging through L1, 2 = through L2, 3 = throug L3
 uint8_t Nr_Of_Phases_Charging = 0;                                          // 1,2,3 = nr of phases that was detected at the start of this charging session
 bool Current_Lock = false;
 
@@ -641,7 +640,6 @@ void setState(uint8_t NewState) {
                                                                                 // which phases the car will use
                     Charging_Prob[i] = 0;                                       // reset charging phase probabilities
                     Charging_Phase[i] = false;                                  // reset charging phases
-                    Single_Phase = 0;                                           // undetected
                     Nr_Of_Phases_Charging = 0;                                  // undetected
                 }
                 if (EVMeter) {                                                  // we prefer EVMeter if present
@@ -864,7 +862,6 @@ void CalcBalancedCurrent(char mod) {
                     CONTACTOR2_OFF;
                     setSolarStopTimer(0); //now we switched contactor2 off, review if we need to stop solar charging
                     Nr_Of_Phases_Charging = 1;
-                    Single_Phase = 0; //undetermined
                 }
                 else {
                     if (SolarStopTimer == 0) setSolarStopTimer(StopTime * 60);      // Convert minutes into seconds
@@ -1423,16 +1420,11 @@ void UpdateCurrentData(void) {
     uint8_t x;
 
     // reset Imeasured value (grid power used)
-    if (Single_Phase) {                                                         //we are charging single phase and we detected that phase
-            //TODO if loadbalancing is activated : assume all connected EVSE's have same contactor, at same phase? only enable when only 1 master is available
-        Imeasured = Irms[Single_Phase - 1];
-        Imeasured_EV = Irms[Single_Phase - 1];
-    }
-    else {
-        Imeasured = 0;
-        Imeasured_EV = 0;
-        for (x=0; x<3; x++) {
-        // Imeasured holds highest Irms of all channels
+    Imeasured = 0;
+    Imeasured_EV = 0;
+    for (x=0; x<3; x++) {
+    // Imeasured holds highest Irms of all channels
+        if (Charging_Phase[x]) {
             if (Irms[x] > Imeasured) Imeasured = Irms[x];
             if (Irms_EV[x] > Imeasured_EV) Imeasured_EV = Irms_EV[x];
         }
@@ -2233,7 +2225,6 @@ void Timer1S(void * parameter) {
                 _Serialprintf("Detected Charging Phases: ChargeCurrent=%u, Balanced[0]=%u, IsetBalanced=%u.\n", ChargeCurrent, Balanced[0],IsetBalanced);
 #endif
                 Nr_Of_Phases_Charging = 0;
-                Single_Phase = 0;
 #define THRESHOLD 25
                 for (int i=0; i<3; i++) {
                     Charging_Phase[i] = false;
@@ -2243,7 +2234,6 @@ void Timer1S(void * parameter) {
 #endif
                         Nr_Of_Phases_Charging++;
                         Charging_Phase[i] = true;
-                        Single_Phase = i + 1;     //0 = L1, 1 = L2, 2 = L3
                     }
                     else {
                         if ( Max_Charging_Prob - Charging_Prob[i] <= THRESHOLD ) {
@@ -2256,23 +2246,18 @@ void Timer1S(void * parameter) {
                     }
                 }
 
-                if (Nr_Of_Phases_Charging > 1) {
-                    _Serialprintf("Charging at %i phases.\n", Nr_Of_Phases_Charging);
-                    Single_Phase = 0; //0 detects: uncertain or three phase
-                } //note that single phase charging without phase detection in Smart Mode only means suboptimal charging: charging will be limited with phases taken into account that are not regulated by the EVSE; so charging will be slower (depending on the use of the unused phases by other devices), but no harm will be done.
-                else
-                    _Serialprintf("Single Phase charging detected at fase L%i.\n", Single_Phase);
-
                 // sanity checks
                 if (EnableC2 != AUTO) {
                     if (Force_Single_Phase_Charging() && Nr_Of_Phases_Charging != 1) {
                         _Serialprintf("Error in detecting phases: EnableC2=%s and Nr_Of_Phases_Charging=%i.\n", StrEnableC2[EnableC2], Nr_Of_Phases_Charging);
                         Nr_Of_Phases_Charging = 1;
-                        _Serialprintf("Setting Nr_Of_Phases_Charging to 1 and Single_Phase=%i.\n", Single_Phase);
+                        _Serialprintf("Setting Nr_Of_Phases_Charging to 1.\n");
                     }
                     if (!Force_Single_Phase_Charging() && Nr_Of_Phases_Charging != 3) //TODO 2phase charging very rare?
                         _Serialprintf("Possible error in detecting phases: EnableC2=%s and Nr_Of_Phases_Charging=%i.\n", StrEnableC2[EnableC2], Nr_Of_Phases_Charging);
                 }
+
+                _Serialprintf("Charging at %i phases.\n", Nr_Of_Phases_Charging);
 
                 Current_Lock = false;                                           //now that we have determined the nr of phases we can release the current lock
             } //if Det... = 0
@@ -3122,7 +3107,6 @@ void StartwebServer(void) {
         doc["settings"]["solar_start_current"] = StartCurrent;
         doc["settings"]["solar_stop_time"] = StopTime;
         doc["settings"]["enable_C2"] = StrEnableC2[EnableC2];
-        doc["settings"]["single_phase"] = Single_Phase;
         doc["settings"]["mains_meter"] = EMConfig[MainsMeter].Desc;
         
         doc["home_battery"]["current"] = homeBatteryCurrent;

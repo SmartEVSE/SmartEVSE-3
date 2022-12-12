@@ -90,7 +90,6 @@
             $('#current_max').text(data.settings.current_max.toFixed(1) + " A");
             $('#override_current').text((data.settings.override_current/10).toFixed(1) + " A");
             $('#enable_C2').text(data.settings.enable_C2);
-            $('#single_phase').text(data.settings.single_phase);
 
             $('#battery_current').text((data.home_battery.current/10).toFixed(1) + "A");
             $('#battery_last_update_time').text(new Date(data.home_battery.last_update * 1000).toLocaleTimeString());
@@ -272,14 +271,6 @@
                               <div class="row no-gutters align-items-center">
                                   <div class="col mr-2">
                                       <div class="text-xl font-weight-bold text-info text-uppercase mb-1">Current Details</div>
-                                      <div class="row no-gutters align-items-center">
-                                        <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
-                                            1 Phase:
-                                          </div>
-                                          <div class="col">
-                                            <div class="h5 mb-0 mr-3 text-gray-800" id="single_phase" style="text-align: right;"></div>
-                                          </div>
-                                      </div>
                                       <div class="row no-gutters align-items-center">
                                         <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
                                             Override:
