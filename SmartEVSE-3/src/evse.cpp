@@ -129,6 +129,7 @@ uint32_t Charging_Prob[3]={0, 0, 0};                                        // P
 bool Charging_Phase[3] = {false, false, false};                             // 0 = Undetected, 1,2,3 = nr of phases that was used at the start of this charging session
 uint8_t Nr_Of_Phases_Charging = 0;                                          // 1,2,3 = nr of phases that was detected at the start of this charging session
 bool Current_Lock = false;
+bool Switching_To_Single_Phase = false;
 
 uint8_t State = STATE_A;
 uint8_t ErrorFlags = NO_ERROR;
@@ -635,7 +636,8 @@ void setState(uint8_t NewState) {
             }
 
             //if we are going to do forced single phase charging, record the old Irms's so we can detect which phase we are going to be single charging
-            if (Mode != MODE_NORMAL) {                                          // in Normal mode no phase detection necessary
+            if (Mode != MODE_NORMAL && !Switching_To_Single_Phase) {            // in Normal mode no phase detection necessary, 
+                                                                                // also not when already in switching procedure
                 for (i=0; i<3; i++) {                                           // every start of STATE_C we have to detect the phases, since we cannot be sure
                                                                                 // which phases the car will use
                     Charging_Prob[i] = 0;                                       // reset charging phase probabilities
@@ -666,9 +668,16 @@ void setState(uint8_t NewState) {
                 }
             }
             CONTACTOR1_ON;
-            if (!Force_Single_Phase_Charging())                                 // in AUTO mode we start with 3phases
-                CONTACTOR2_ON;                                                  // Contactor2 ON
-
+            if (Switching_To_Single_Phase) {
+                    _Serialprintf("Switching CONTACTOR C2 OFF.\n");
+                    CONTACTOR2_OFF;
+                    setSolarStopTimer(0); //TODO still needed? now we switched contactor2 off, review if we need to stop solar charging
+                    Nr_Of_Phases_Charging = 1;
+                    Switching_To_Single_Phase = false;                          // we finished the switching process
+            } else {
+                if (!Force_Single_Phase_Charging())                             // in AUTO mode we start with 3phases
+                    CONTACTOR2_ON;                                              // Contactor2 ON
+            }
             LCDTimer = 0;
             break;
         case STATE_C1:
@@ -858,10 +867,12 @@ void CalcBalancedCurrent(char mod) {
                                                                                 // ----------- Check to see if we have to continue charging on solar power alone ----------
             if (BalancedLeft && StopTime && (IsumImport > 10)) {
                 if (Nr_Of_Phases_Charging > 1 && EnableC2 == AUTO) {
-                    _Serialprintf("Switching CONTACTOR C2 OFF.\n");
-                    CONTACTOR2_OFF;
-                    setSolarStopTimer(0); //now we switched contactor2 off, review if we need to stop solar charging
-                    Nr_Of_Phases_Charging = 1;
+                    _Serialprintf("Switching to single phase.\n");
+                    //switching contactor2 off works ok for Skoda Enyaq but Hyundai Ioniq 5 goes into error, so we have to switch more elegantly
+                    if (State == STATE_C) setState(STATE_C1);                       // tell EV to stop charging
+                                                                                    // TODO probably delay so EV has time to stop charging
+                    //TODO test: if EV switches off within 3 seconds we goto state B, if not we go to state B1 in 6 seconds, which gives another 3 sec delay..
+                    Switching_To_Single_Phase = true;
                 }
                 else {
                     if (SolarStopTimer == 0) setSolarStopTimer(StopTime * 60);      // Convert minutes into seconds
