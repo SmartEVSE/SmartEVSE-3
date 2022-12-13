@@ -129,7 +129,7 @@ uint32_t Charging_Prob[3]={0, 0, 0};                                        // P
 bool Charging_Phase[3] = {false, false, false};                             // 0 = Undetected, 1,2,3 = nr of phases that was used at the start of this charging session
 uint8_t Nr_Of_Phases_Charging = 0;                                          // 1,2,3 = nr of phases that was detected at the start of this charging session
 bool Current_Lock = false;
-bool Switching_To_Single_Phase = false;
+enum { FALSE, GOING_TO_SWITCH, AFTER_SWITCH } Switching_To_Single_Phase = FALSE;
 
 uint8_t State = STATE_A;
 uint8_t ErrorFlags = NO_ERROR;
@@ -587,7 +587,6 @@ uint8_t Force_Single_Phase_Charging() {                                         
 }
 
 void setState(uint8_t NewState) {
-
     if (State != NewState) {
         
         char Str[50];
@@ -635,8 +634,17 @@ void setState(uint8_t NewState) {
                     ActiveEVSE++;                                               // Count nr of active (charging) EVSE's
             }
 
+            if (Switching_To_Single_Phase == GOING_TO_SWITCH) {
+                    _Serialprintf("Switching CONTACTOR C2 OFF.\n");
+                    CONTACTOR2_OFF;
+                    setSolarStopTimer(0); //TODO still needed? now we switched contactor2 off, review if we need to stop solar charging
+                    //Nr_Of_Phases_Charging = 1; this will be detected automatically
+                    Switching_To_Single_Phase = AFTER_SWITCH;                   // we finished the switching process,
+                                                                                // BUT we don't know which is the single phase
+            }
+
             //if we are going to do forced single phase charging, record the old Irms's so we can detect which phase we are going to be single charging
-            if (Mode != MODE_NORMAL && !Switching_To_Single_Phase) {            // in Normal mode no phase detection necessary, 
+            if (Mode != MODE_NORMAL && Switching_To_Single_Phase != GOING_TO_SWITCH) {            // in Normal mode no phase detection necessary,
                                                                                 // also not when already in switching procedure
                 for (i=0; i<3; i++) {                                           // every start of STATE_C we have to detect the phases, since we cannot be sure
                                                                                 // which phases the car will use
@@ -668,15 +676,12 @@ void setState(uint8_t NewState) {
                 }
             }
             CONTACTOR1_ON;
-            if (Switching_To_Single_Phase) {
-                    _Serialprintf("Switching CONTACTOR C2 OFF.\n");
-                    CONTACTOR2_OFF;
-                    setSolarStopTimer(0); //TODO still needed? now we switched contactor2 off, review if we need to stop solar charging
-                    Nr_Of_Phases_Charging = 1;
-                    Switching_To_Single_Phase = false;                          // we finished the switching process
-            } else {
-                if (!Force_Single_Phase_Charging())                             // in AUTO mode we start with 3phases
-                    CONTACTOR2_ON;                                              // Contactor2 ON
+
+            if (!Force_Single_Phase_Charging() && Switching_To_Single_Phase != AFTER_SWITCH) {                               // in AUTO mode we start with 3phases
+#ifdef LOG_DEBUG_EVSE
+                _Serialprintf("Switching CONTACTOR C2 ON.\n");
+#endif
+                CONTACTOR2_ON;                                                  // Contactor2 ON
             }
             LCDTimer = 0;
             break;
@@ -872,7 +877,7 @@ void CalcBalancedCurrent(char mod) {
                     if (State == STATE_C) setState(STATE_C1);                       // tell EV to stop charging
                                                                                     // TODO probably delay so EV has time to stop charging
                     //TODO test: if EV switches off within 3 seconds we goto state B, if not we go to state B1 in 6 seconds, which gives another 3 sec delay..
-                    Switching_To_Single_Phase = true;
+                    Switching_To_Single_Phase = GOING_TO_SWITCH;
                 }
                 else {
                     if (SolarStopTimer == 0) setSolarStopTimer(StopTime * 60);      // Convert minutes into seconds
@@ -2201,7 +2206,9 @@ void Timer1S(void * parameter) {
         // Autodetect on which phases we are charging
         if (Detecting_Charging_Phases_Timer) {
             Detecting_Charging_Phases_Timer--;
+#ifdef LOG_DEBUG_EVSE
             //_Serialprintf("Detecting_Charging_Phases=%i.\n",Detecting_Charging_Phases_Timer);
+#endif
             if (Detecting_Charging_Phases_Timer == 0) {                     // After 3 seconds we should be charging, LCDTimer doesnt get higher than 4?
 
                 uint32_t Max_Charging_Prob = 0;
@@ -2271,6 +2278,8 @@ void Timer1S(void * parameter) {
                 _Serialprintf("Charging at %i phases.\n", Nr_Of_Phases_Charging);
 
                 Current_Lock = false;                                           //now that we have determined the nr of phases we can release the current lock
+                if (Switching_To_Single_Phase == AFTER_SWITCH)
+                   Switching_To_Single_Phase = FALSE;                           // we finished the switching process
             } //if Det... = 0
         } //if Detecting_Charging_Phases_Timer
 
