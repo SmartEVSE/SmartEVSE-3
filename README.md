@@ -83,7 +83,7 @@ Feel free to use this repository to build it yourself or to use the latest on fr
         - NOT_PRESENT(default),
         - ALWAYS_OFF (= 1 phase charging),
         - ALWAYS_ON (=3 phase charging),
-        - SOLAR_OFF (always on except in Solar Mode,
+        - SOLAR_OFF (always on except in Solar Mode),
         - AUTO (starts charging at 3phase, but when in Solar mode and not enough current available for 3 phases, switches off C2 so it will continue on 1 phase)
 
     - There is a bug in the original firmware, and in the serkri firmware up until this version, that makes charging in Solar mode on a 3phase instalation,
@@ -98,7 +98,6 @@ Feel free to use this repository to build it yourself or to use the latest on fr
     - This means the bug mentioned above is solved ONLY for people having Sensorbox and/or kWh-meter enabled.
 
     - Charging in Normal mode has not changed, and charging in Smart and Solar mode has not changed if you have no Sensorbox and/or kWh-meter enabled.
-    - Also for the old subpanel configuration, where EVMeter is limited at MaxCircuit, it is no longer necessary to have Loadbalancing enabled.
 
 
 # New Status Page
