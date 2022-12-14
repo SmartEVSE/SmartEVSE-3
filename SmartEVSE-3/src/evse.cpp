@@ -129,7 +129,7 @@ uint32_t Charging_Prob[3]={0, 0, 0};                                        // P
 bool Charging_Phase[3] = {false, false, false};                             // 0 = Undetected, 1,2,3 = nr of phases that was used at the start of this charging session
 uint8_t Nr_Of_Phases_Charging = 0;                                          // 1,2,3 = nr of phases that was detected at the start of this charging session
 bool Current_Lock = false;
-enum { FALSE, GOING_TO_SWITCH, AFTER_SWITCH } Switching_To_Single_Phase = FALSE;
+Single_Phase_t Switching_To_Single_Phase = FALSE;
 
 uint8_t State = STATE_A;
 uint8_t ErrorFlags = NO_ERROR;
