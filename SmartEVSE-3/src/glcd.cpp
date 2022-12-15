@@ -36,7 +36,6 @@
 #include "font.cpp"
 #include "font2.cpp"
 
-
 const unsigned char LCD_Flow [] = {
 0x00, 0x00, 0x98, 0xCC, 0x66, 0x22, 0x22, 0x22, 0xF2, 0xAA, 0x26, 0x2A, 0xF2, 0x22, 0x22, 0x22,
 0x66, 0xCC, 0x88, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -659,7 +658,7 @@ void GLCD(void) {
                         if (!ChargeDelay) Str[5] = '\0';
                         break;
                     case GOING_TO_SWITCH:
-                        sprintf(Str, "3F->1F %u", ChargeDelay);
+                        sprintf(Str, "3F -> 1F %u", ChargeDelay);
                         if (!ChargeDelay) Str[7] = '\0';
                         break;
                     case AFTER_SWITCH:                                          // never getting here, just preventing compiler warning
@@ -671,8 +670,12 @@ void GLCD(void) {
                 default:
                     LCDText = 0;
                     if (Mode != MODE_NORMAL) {
-                        if (Mode == MODE_SOLAR) GLCD_print_buf2(5, (const char *) "SOLAR");
-                        else GLCD_print_buf2(5, (const char *) "SMART");
+                        if (Mode == MODE_SOLAR) sprintf(Str, "SOLAR");
+                            else sprintf(Str, "SMART");
+                        if (Nr_Of_Phases_Charging != 0) {
+                            sprintf(Str+5," %uF", Nr_Of_Phases_Charging);
+                        }
+                        GLCD_print_buf2(5, Str);
                         break;
                     } else LCDText++;
                 case 1:
