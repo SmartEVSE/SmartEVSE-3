@@ -85,7 +85,6 @@
               $('#state').append(" (Stopping in " + data.evse.solar_stop_timer + "s)");
             }
 
-            $('#charge_current').text((data.settings.charge_current/10).toFixed(1) + " A");
             $('#current_min').text(data.settings.current_min.toFixed(1) + " A");
             $('#current_max').text(data.settings.current_max.toFixed(1) + " A");
             $('#override_current').text((data.settings.override_current/10).toFixed(1) + " A");
@@ -99,20 +98,30 @@
             $('#phase_1').text((data.phase_currents.L1/10).toFixed(1) + " A");
             $('#phase_2').text((data.phase_currents.L2/10).toFixed(1) + " A");
             $('#phase_3').text((data.phase_currents.L3/10).toFixed(1) + " A");
+            nr_of_phases_charging = 0;
             if(data.phase_currents.charging_L1) {
               $('#phase_1').append("*");
+              nr_of_phases_charging++;
             } else {
               $('#phase_1').append(" ");
             }
             if(data.phase_currents.charging_L2) {
               $('#phase_2').append("*");
+              nr_of_phases_charging++;
             } else {
               $('#phase_2').append(" ");
             }
             if(data.phase_currents.charging_L3) {
               $('#phase_3').append("*");
+              nr_of_phases_charging++;
             } else {
               $('#phase_3').append(" ");
+            }
+            if (nr_of_phases_charging != 0) {
+                $('#charge_current').text(nr_of_phases_charging + " x " + (data.settings.charge_current/10).toFixed(1) + " A");
+            }
+            else {
+                $('#charge_current').text((data.settings.charge_current/10).toFixed(1) + " A");
             }
 
             $('#phase_original_total').text((data.phase_currents.original_data.TOTAL/10).toFixed(1) + " A");
