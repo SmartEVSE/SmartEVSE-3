@@ -626,13 +626,7 @@ void setState(uint8_t NewState) {
             break;      
         case STATE_C:                                                           // State C2
             uint8_t i;
-            uint8_t ActiveEVSE;
-            ActiveEVSE = 0;
             ActivationMode = 255;                                               // Disable ActivationMode
-            if ( LoadBl == 1 ) {                                                // We are Master, we don't support single phase charging when nodes are active
-                for (i = 0; i < NR_EVSES; i++) if (BalancedState[i] == STATE_C)
-                    ActiveEVSE++;                                               // Count nr of active (charging) EVSE's
-            }
 
             if (Switching_To_Single_Phase == GOING_TO_SWITCH) {
                     _Serialprintf("Switching CONTACTOR C2 OFF.\n");
@@ -871,8 +865,9 @@ void CalcBalancedCurrent(char mod) {
             IsetBalanced = BalancedLeft * MinCurrent * 10;
                                                                                 // ----------- Check to see if we have to continue charging on solar power alone ----------
             if (BalancedLeft && StopTime && (IsumImport > 10)) {
-                if (Nr_Of_Phases_Charging > 1 && EnableC2 == AUTO) {
-                    _Serialprintf("Switching to single phase.\n");
+                if (Nr_Of_Phases_Charging > 1 && EnableC2 == AUTO && LoadBl == 0) { // when loadbalancing is enabled we don't do forced single phase charging
+                    _Serialprintf("Switching to single phase.\n");                  // because we wouldnt know which currents to make available to the nodes...
+                                                                                    // since we don't know how many phases the nodes are using...
                     //switching contactor2 off works ok for Skoda Enyaq but Hyundai Ioniq 5 goes into error, so we have to switch more elegantly
                     if (State == STATE_C) setState(STATE_C1);                       // tell EV to stop charging
                                                                                     // TODO probably delay so EV has time to stop charging
