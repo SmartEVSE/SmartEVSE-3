@@ -2511,10 +2511,10 @@ void validate_settings(void) {
     // If value is out of range, reset it to default value
     for (i = MENU_ENTER + 1;i < MENU_EXIT; i++){
         value = getItemValue(i);
-    //    _Serialprintf("value %s set to %i\n",MenuStr[i].LCD, value );
+    //    _Serialprintf("value %s set to %i\n",MenuStr[i].Key, value );
         if (value > MenuStr[i].Max || value < MenuStr[i].Min) {
             value = MenuStr[i].Default;
-    //        _Serialprintf("set default value for %s to %i\n",MenuStr[i].LCD, value );
+    //        _Serialprintf("set default value for %s to %i\n",MenuStr[i].Key, value );
             setItemValue(i, value);
         }
     }
