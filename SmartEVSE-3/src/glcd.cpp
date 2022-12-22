@@ -741,10 +741,10 @@ const char * getMenuItemOption(uint8_t nav) {
 
     switch (nav) {
         case MENU_MAX_TEMP:
-            sprintf(Str, "%2u C", value);
+            sprintf(Str, "%2u C", maxTemp);
             return Str;
         case MENU_3F:
-            return value ? "Yes" : "No";
+            return enable3f ? "Yes" : "No";
         case MENU_CONFIG:
             if (Config) return StrFixed;
             else return StrSocket;
@@ -771,8 +771,8 @@ const char * getMenuItemOption(uint8_t nav) {
             sprintf(Str, "%2u A", value);
             return Str;
         case MENU_LOCK:
-            if (value == 1) return StrSolenoid;
-            else if (value == 2) return StrMotor;
+            if (Lock == 1) return StrSolenoid;
+            else if (Lock == 2) return StrMotor;
             else return StrDisabled;
         case MENU_SWITCH:
             return StrSwitch[Switch];
@@ -796,7 +796,7 @@ const char * getMenuItemOption(uint8_t nav) {
             else sprintf(Str, "%u %X", value, value);
             return Str;
         case MENU_MAINSMETERMEASURE:
-            if (value) return StrMainsHomeEVSE;
+            if (MainsMeterMeasure) return StrMainsHomeEVSE;
             else return StrMainsAll;
         case MENU_EMCUSTOM_ENDIANESS:
             switch(value) {
@@ -880,7 +880,7 @@ uint8_t getMenuItems (void) {
             } else if(MainsMeter) {                                             // - - ? Other?
                 MenuItems[m++] = MENU_MAINSMETERADDRESS;                        // - - - Address of Mains electric meter (5 - 254)
                 MenuItems[m++] = MENU_MAINSMETERMEASURE;                        // - - - What does Mains electric meter measure (0: Mains (Home+EVSE+PV) / 1: Home+EVSE / 2: Home)
-                if (getItemValue(MENU_MAINSMETERMEASURE)) {                     // - - - ? PV not measured by Mains electric meter?
+                if (MainsMeterMeasure) {                                        // - - - ? PV not measured by Mains electric meter?
                     MenuItems[m++] = MENU_PVMETER;                              // - - - - Type of PV electric meter (0: Disabled / Constants EM_*)
                     if (PVMeter) MenuItems[m++] = MENU_PVMETERADDRESS;          // - - - - - Address of PV electric meter (5 - 254)
                 }
