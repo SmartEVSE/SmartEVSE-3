@@ -256,15 +256,14 @@ void DeleteAllRFID(void) {
 #ifdef LOG_INFO_EVSE
     _Serialprintf("All RFID cards erased!\n");
 #endif
-    setItemValue(MENU_RFIDREADER, 0);                                           // RFID Reader Disabled
+    RFIDReader = 0;                                                             // RFID Reader Disabled
 }
 
 void CheckRFID(void) {
     unsigned char x;
     static unsigned char cardoffset = 0;
     // When RFID is enabled, a OneWire RFID reader is expected on the SW input
-    uint8_t RFIDReader = getItemValue(MENU_RFIDREADER);
-    if (RFIDReader) {                                        // RFID Reader set to Enabled, Learn or Delete
+    if (RFIDReader) {                                                           // RFID Reader set to Enabled, Learn or Delete
         if (OneWireReadCardId() ) {                                             // Read card ID
             switch (RFIDReader) {
                 case 1:                                                         // EnableAll. All learned cards accepted for locking /unlocking

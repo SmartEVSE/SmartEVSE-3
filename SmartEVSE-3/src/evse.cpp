@@ -154,6 +154,7 @@ struct NodeStatus Node[NR_EVSES] = {                                            
     {  false,       1,     0,       0,       0,      0,     0 }
 };
 
+uint8_t menu = 0;
 uint8_t lock1 = 0, lock2 = 1;
 uint8_t UnlockCable = 0, LockCable = 0;
 uint8_t timeout = 5;                                                        // communication timeout (sec)
@@ -167,6 +168,7 @@ uint8_t OldButtonState = 0x0f;                                              // H
 uint8_t LCDNav = 0;
 uint8_t SubMenu = 0;
 uint32_t ScrollTimer = 0;
+uint8_t LCDpos = 0;
 uint8_t LCDupdate = 0;                                                      // flag to update the LCD every 1000ms
 uint8_t ChargeDelay = 0;                                                    // Delays charging at least 60 seconds in case of not enough current available.
 uint8_t C1Timer = 0;
@@ -1308,7 +1310,7 @@ uint16_t getItemValue(uint8_t nav) {
         case STATUS_MAX:
             return MaxCapacity;
         case STATUS_TEMP:
-            return (signed int)TempEVSE;
+            return (signed int)TempEVSE + 273;
         case STATUS_SERIAL:
             return serialnr;
 

@@ -368,22 +368,33 @@ extern portMUX_TYPE rtc_spinlock;   //TODO: Will be placed in the appropriate po
 #define RTC_EXIT_CRITICAL()     portEXIT_CRITICAL(&rtc_spinlock)
 
 
+extern String APhostname;
 extern String APpassword;
 extern struct tm timeinfo;
 
 
+extern uint16_t MaxMains;                                                       // Max Mains Amps (hard limit, limited by the MAINS connection)
+extern uint16_t MaxCurrent;                                                     // Max Charge current
+extern uint16_t MinCurrent;                                                     // Minimal current the EV is happy with
 extern uint16_t ICal;                                                           // CT calibration value
 extern uint8_t Mode;                                                            // EVSE mode
+extern uint16_t MaxCircuit;                                                     // Max current of the EVSE circuit
+extern uint8_t Config;                                                          // Configuration (Fixed Cable or Type 2 Socket)
 extern uint8_t LoadBl;                                                          // Load Balance Setting (Disable, Master or Node)
+extern uint8_t Switch;                                                          // Allow access to EVSE with button on SW
+extern uint8_t RCmon;                                                           // Residual Current monitor
 extern uint8_t Grid;
+extern uint8_t MainsMeter;                                                      // Type of Mains electric meter (0: Disabled / Constants EM_*)
 extern uint8_t MainsMeterAddress;
 extern uint8_t PVMeter;                                                         // Type of PV electric meter (0: Disabled / Constants EM_*)
 extern uint8_t PVMeterAddress;
 extern uint8_t EVMeter;                                                         // Type of EV electric meter (0: Disabled / Constants EM_*)
 extern uint8_t EVMeterAddress;
+extern uint8_t RFIDReader;
 #ifdef FAKE_RFID
 extern uint8_t Show_RFID;
 #endif
+extern uint8_t WIFImode;
 
 extern int32_t Irms[3];                                                         // Momentary current per Phase (Amps *10) (23 = 2.3A)
 extern int32_t Irms_EV[3];                                                         // Momentary current per Phase (Amps *10) (23 = 2.3A)
@@ -395,14 +406,17 @@ extern uint8_t NextState;
 extern int16_t Isum;
 extern uint16_t Balanced[NR_EVSES];                                             // Amps value per EVSE
 
+extern uint8_t menu;
 extern uint8_t LCDTimer;
 extern uint16_t BacklightTimer;                                                 // remaining seconds the LCD backlight is active
+extern int8_t TempEVSE;                                                         // Temperature EVSE in deg C (-40 - +125)
 extern uint8_t ButtonState;                                                     // Holds latest push Buttons state (LSB 2:0)
 extern uint8_t OldButtonState;                                                  // Holds previous push Buttons state (LSB 2:0)
 extern uint8_t LCDNav;
 extern uint8_t LCDupdate;
 extern uint8_t SubMenu;
 extern uint32_t ScrollTimer;
+extern uint8_t LCDpos;
 extern uint8_t ChargeDelay;                                                     // Delays charging in seconds.
 extern uint8_t TestState;
 extern uint8_t Access_bit;
