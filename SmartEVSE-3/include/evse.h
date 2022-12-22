@@ -50,7 +50,7 @@
 
 #ifndef VERSION
 #ifdef DEBUG_DISABLED
-#define VERSION "v3serkri-0.00"
+#define VERSION "v3serkri-1.5.0"
 #else
 //please note that this version will only be displayed with the correct time/date if the program is recompiled
 //so the webserver will show correct version if evse.cpp is recompiled
