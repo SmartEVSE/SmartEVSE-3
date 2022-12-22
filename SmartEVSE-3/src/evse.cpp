@@ -549,10 +549,13 @@ void setSolarStopTimer(uint16_t Timer) {
     SolarStopTimer = Timer;
 }
 
-
 void setState(uint8_t NewState) {
+    setState(NewState, false);
+}
 
-    if (State != NewState) {
+void setState(uint8_t NewState, bool forceState) {
+
+    if (State != NewState || forceState) {
         
         char Str[50];
         snprintf(Str, sizeof(Str), "#%02d:%02d:%02d STATE %s -> %s\n",timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec, getStateName(State), getStateName(NewState) );
