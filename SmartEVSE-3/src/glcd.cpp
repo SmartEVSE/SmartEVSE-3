@@ -867,9 +867,6 @@ uint8_t getMenuItems (void) {
         MenuItems[m++] = MENU_STOP;                                             // - Stop time (min)
         MenuItems[m++] = MENU_IMPORT;                                           // - Import Current from Grid (A)
     }
-    if (LoadBl == 0)
-        MenuItems[m++] = MENU_C2;
-    MenuItems[m++] = MENU_MAX_TEMP;
     MenuItems[m++] = MENU_LOADBL;                                               // Load Balance Setting (0:Disable / 1:Master / 2-8:Node)
     if (Mode && LoadBl < 2) {                                                   // ? Mode Smart/Solar and Load Balancing Disabled/Master?
         MenuItems[m++] = MENU_MAINS;                                            // - Max Mains Amps (hard limit, limited by the MAINS connection) (A) (Mode:Smart/Solar)
@@ -882,6 +879,8 @@ uint8_t getMenuItems (void) {
                                                                                 // the total current (subpanel configuration)
         MenuItems[m++] = MENU_CIRCUIT;                                          // - Max current of the EVSE circuit (A)
     }
+    if (LoadBl == 0)
+        MenuItems[m++] = MENU_C2;
     MenuItems[m++] = MENU_MAX;                                                  // Max Charge current (A)
     MenuItems[m++] = MENU_SWITCH;                                               // External Switch on SW (0:Disable / 1:Access / 2:Smart-Solar)
     MenuItems[m++] = MENU_RCMON;                                                // Residual Current Monitor on RCM (0:Disable / 1:Enable)
@@ -922,6 +921,7 @@ uint8_t getMenuItems (void) {
         }
     }
     MenuItems[m++] = MENU_WIFI;                                                 // Wifi Disabled / Enabled / Portal
+    MenuItems[m++] = MENU_MAX_TEMP;
     MenuItems[m++] = MENU_EXIT;
 
     return m;
