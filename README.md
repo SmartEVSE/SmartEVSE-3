@@ -67,31 +67,26 @@ Feel free to use this repository to build it yourself or to use the latest on fr
 
       This way the (dangerous) situation is avoided that some Phases are switched ON, and Neutral is switched OFF.
 
-    - by default C2 is switched OFF ("Not present"); if you want to keep on charging on 3 phases after installing C2, you should change the setting Enable C2 in the
+    - by default C2 is switched OFF ("Not present"); if you want to keep on charging on 3 phases after installing C2, you should change the setting Contact2 in the
       Setup Menu.
 
-    - this functionality is EXPERIMENTAL; in Normal and Smart mode there are not much problems to be expected, but in Solar mode strange Start/Stop scenario's might
-      occur. As always, YOU ARE EXPERIMENTING AT YOUR OWN RISK!
 
-    - This function will not work when LoadBalancing is enabled.
-
-    - Currently Enable C2 will turn the contactor OFF (disabled) or ON (enabled) in any mode (Normal, Smart or Solar), regardless if LoadBalancing is on or off.
-      So you have to determine MANUALLY which contactor C2 behaviour you want. In the future the firmware [sh|c]ould become smarter in this, switching C2 on and off
-      (semi-) automatically.
-
-    - For this a new parameter EnableC2 is introduced, with values
+    - For this a new parameter Contact2 is introduced, with values
         - NOT_PRESENT(default),
         - ALWAYS_OFF (= 1 phase charging),
         - ALWAYS_ON (=3 phase charging),
-        - SOLAR_OFF (always on except in Solar Mode),
+        - SOLAR_OFF (always on except in Solar Mode where it is always off),
         - AUTO (starts charging at 3phase, but when in Solar mode and not enough current available for 3 phases, switches off C2 so it will continue on 1 phase)
+          Note: this option will not work when LoadBalancing is enabled; CONTACT2 will be set to ALWAYS_ON when Loadbalancing is enabled.
+          Disclaimer: this option is EXPERIMENTAL; in Normal and Smart mode there are not much problems to be expected, but in Solar mode strange Start/Stop
+          scenario's might occur. As always, YOU ARE EXPERIMENTING AT YOUR OWN RISK!
 
     - There is a bug in the original firmware, and in the serkri firmware up until this version, that makes charging in Solar mode on a 3phase instalation,
       with a 3phase car toggle into an infinite start/stop/start.... sequence when not enough sun is available (e.g. when you only have a 1x16A solar feed).
       In order to fix this bug the behaviour of SmartEVSE is adapted:
     - When EVMeter and/of MainsMeter enabled, AND when in Smart or Solar mode, SmartEVSE now starts charging at MinCurrent (usually 6A); in the first 7 seconds it
       detects on which phases it is charging through EVMeter or MainsMeter (might be a Sensorbox)
-    - if it is in Solar mode, and EnableC2 is on "AUTO", and has not enough current to stay within ImportCurrent limits, it will switch
+    - if it is in Solar mode, and Contact2 is on "AUTO", and has not enough current to stay within ImportCurrent limits, it will switch
       C2 off to 1 phase charging. It will then move up the charging current to whatever is suitable.
       If current goes up again, it will NOT switch back to 3 phase charging since this is known to give problems with certain EVs.
     - if it is in Smart mode, it will now correctly limit its currents to the phases it is actually charging
