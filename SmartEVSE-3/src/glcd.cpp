@@ -125,14 +125,13 @@ void glcd_clrln_buffer(unsigned char ln) {
         GLCDbuf[i+ (ln * 128)] = 0;
     }
 }
-
+*/
 void glcd_clear(void) {
     unsigned char i;
     for (i = 0; i < 8; i++) {
         glcd_clrln(i, 0);
     }
 }
-*/
 
 void GLCD_buffer_clr(void) {
     unsigned char x = 0;
