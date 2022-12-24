@@ -26,7 +26,7 @@
 #define __EVSE_MAIN
 
 //the wifi-debugger is available by telnetting to your SmartEVSE device
-//#define DBG 1  //comment or set to 0 for production release, 0 = no debug 1 = debug over telnet, 2 = debug over usb AND telnet
+#define DBG 0  //comment or set to 0 for production release, 0 = no debug 1 = debug over telnet, 2 = debug over usb AND telnet
 
 //uncomment this to emulate an rfid reader with rfid of card = 123456
 //showing the rfid card is simulated by executing http://smartevse-xxx.lan/debug?showrfid=1
@@ -57,17 +57,17 @@
 #if DBG == 0
 //used to steer RemoteDebug
 #define DEBUG_DISABLED 1
-#define LOGW( ... ) //dummy
-#define LOGI( ... ) //dummy
-#define LOGD( ... ) //dummy
-#define LOGV( ... ) //dummy
-#define LOGA( ... ) //dummy
+#define _LOG_W( ... ) //dummy
+#define _LOG_I( ... ) //dummy
+#define _LOG_D( ... ) //dummy
+#define _LOG_V( ... ) //dummy
+#define _LOG_A( ... ) //dummy
 #else
-#define LOGW( ... ) rdebugW( __VA_ARGS__ )
-#define LOGI( ... ) rdebugI( __VA_ARGS__ )
-#define LOGD( ... ) rdebugD( __VA_ARGS__ )
-#define LOGV( ... ) rdebugV( __VA_ARGS__ )
-#define LOGA( ... ) rdebugA( __VA_ARGS__ )
+#define _LOG_W( ... ) rdebugW( __VA_ARGS__ )
+#define _LOG_I( ... ) rdebugI( __VA_ARGS__ )
+#define _LOG_D( ... ) rdebugD( __VA_ARGS__ )
+#define _LOG_V( ... ) rdebugV( __VA_ARGS__ )
+#define _LOG_A( ... ) rdebugA( __VA_ARGS__ )
 #include "RemoteDebug.h"  //https://github.com/JoaoLopesF/RemoteDebug
 extern RemoteDebug Debug;
 #endif
