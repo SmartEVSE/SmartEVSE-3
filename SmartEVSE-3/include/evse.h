@@ -25,13 +25,8 @@
 
 #define __EVSE_MAIN
 
-
-//for wifi-debugging, don't forget to set the debug levels LOG_EVSE_LOG and LOG_MODBUS_LOG before compiling
 //the wifi-debugger is available by telnetting to your SmartEVSE device
-//the on-screen instructions for verbose/warning/info/... do not apply, 
-//the debug messages that are compiled in are always shown for backwards compatibility reasons
-//uncomment for production release, comment this to debug via wifi:
-#define DEBUG_DISABLED 1
+//#define DBG 1  //comment or set to 0 for production release, 0 = no debug 1 = debug over telnet, 2 = debug over usb AND telnet
 
 //uncomment this to emulate an rfid reader with rfid of card = 123456
 //showing the rfid card is simulated by executing http://smartevse-xxx.lan/debug?showrfid=1
@@ -49,7 +44,7 @@
 #endif
 
 #ifndef VERSION
-#ifdef DEBUG_DISABLED
+#if DBG == 0
 #define VERSION "v3serkri-1.5.0"
 #else
 //please note that this version will only be displayed with the correct time/date if the program is recompiled
@@ -59,24 +54,20 @@
 #endif
 #endif
 
-
-#define LOG_DEBUG 3                                                             // Debug messages including measurement data
-#define LOG_INFO 2                                                              // Information messages without measurement data
-#define LOG_WARN 1                                                              // Warning or error messages
-#define LOG_OFF 0
-
-#define LOG_EVSE LOG_INFO                                                       // Default: LOG_INFO
-#define LOG_MODBUS LOG_WARN                                                     // Default: LOG_WARN
-
-
-#ifdef DEBUG_DISABLED
-#define _Serialprintf Serial.printf //for standard use of the serial line
-#define _Serialprintln Serial.println //for standard use of the serial line
-#define _Serialprint Serial.print //for standard use of the serial line
+#if DBG == 0
+//used to steer RemoteDebug
+#define DEBUG_DISABLED 1
+#define LOGW( ... ) //dummy
+#define LOGI( ... ) //dummy
+#define LOGD( ... ) //dummy
+#define LOGV( ... ) //dummy
+#define LOGA( ... ) //dummy
 #else
-#define _Serialprintf rdebugA //for debugging over the serial line
-#define _Serialprintln rdebugA //for debugging over the serial line
-#define _Serialprint rdebugA //for debugging over the serial line
+#define LOGW( ... ) rdebugW( __VA_ARGS__ )
+#define LOGI( ... ) rdebugI( __VA_ARGS__ )
+#define LOGD( ... ) rdebugD( __VA_ARGS__ )
+#define LOGV( ... ) rdebugV( __VA_ARGS__ )
+#define LOGA( ... ) rdebugA( __VA_ARGS__ )
 #include "RemoteDebug.h"  //https://github.com/JoaoLopesF/RemoteDebug
 extern RemoteDebug Debug;
 #endif
@@ -322,25 +313,6 @@ extern RemoteDebug Debug;
 #define MENU_EXIT 40
 
 #define MENU_STATE 50
-
-#if LOG_EVSE >= LOG_DEBUG
-#define LOG_DEBUG_EVSE
-#endif
-#if LOG_EVSE >= LOG_INFO
-#define LOG_INFO_EVSE
-#endif
-#if LOG_EVSE >= LOG_WARN
-#define LOG_WARN_EVSE
-#endif
-#if LOG_MODBUS >= LOG_DEBUG
-#define LOG_DEBUG_MODBUS
-#endif
-#if LOG_MODBUS >= LOG_INFO
-#define LOG_INFO_MODBUS
-#endif
-#if LOG_MODBUS >= LOG_WARN
-#define LOG_WARN_MODBUS
-#endif
 
 #define _RSTB_0 digitalWrite(PIN_LCD_RST, LOW);
 #define _RSTB_1 digitalWrite(PIN_LCD_RST, HIGH);

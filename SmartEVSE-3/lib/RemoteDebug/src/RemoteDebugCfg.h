@@ -101,7 +101,7 @@
 
 ///// Websocket server to support debug over web browser (RemoteDebugApp)
 // Uncomment this to disable it
-//#define WEBSOCKET_DISABLED true
+#define WEBSOCKET_DISABLED true
 
 ///////////// For RemoteDebugWS ///////////////////
 

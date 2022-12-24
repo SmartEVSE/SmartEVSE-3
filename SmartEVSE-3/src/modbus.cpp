@@ -49,12 +49,12 @@ extern struct ModBus MB;
 void ModbusSend8(uint8_t address, uint8_t function, uint16_t reg, uint16_t data) {
     // 0x12345678 is a token to keep track of modbus requests/responses. currently unused.
     MBclient.addRequest(0x12345678, address, function, reg, data);
-#ifdef LOG_INFO_MODBUS
-    _Serialprint("Sent packet");
-#endif
-#ifdef LOG_DEBUG_MODBUS
-    _Serialprintf("address: %02x, function: %02x, reg: %04x, data: %04x.\n", address, function, reg, data);
-#endif
+//#ifdef LOG_INFO_MODBUS
+    LOGD("Sent packet");
+//#endif
+//#ifdef LOG_DEBUG_MODBUS
+    LOGV("address: %02x, function: %02x, reg: %04x, data: %04x.\n", address, function, reg, data);
+//#endif
 }
 
 /**
@@ -144,7 +144,7 @@ void ModbusReadInputRequest(uint8_t address, uint8_t function, uint16_t reg, uin
  * @param uint8_t count of values
  */
 void ModbusReadInputResponse(uint8_t address, uint8_t function, uint16_t *values, uint8_t count) {
-    _Serialprintf("ModbusReadInputResponse, to do!\n");
+    LOGA("ModbusReadInputResponse, to do!\n");
     //ModbusSend(address, function, count * 2u, values, count);
 }
 
@@ -177,10 +177,10 @@ void ModbusWriteMultipleRequest(uint8_t address, uint16_t reg, uint16_t *values,
     MB.RequestRegister = reg;
     // 0x12345678 is a token to keep track of modbus requests/responses. currently unused.
     MBclient.addRequest(0x12345678, address, 0x10, reg, (uint16_t) count, count * 2u, values);
-#ifdef LOG_INFO_MODBUS
-    _Serialprint("Sent packet");
-#endif
-#ifdef LOG_DEBUG_MODBUS
+//#ifdef LOG_INFO_MODBUS
+    LOGD("Sent packet");
+//#endif
+//#ifdef LOG_DEBUG_MODBUS
     uint16_t i;
     char Str[MODBUS_SYS_CONFIG_COUNT * 5 + 10];
     char *cur = Str, * const end = Str + sizeof Str;
@@ -188,8 +188,8 @@ void ModbusWriteMultipleRequest(uint8_t address, uint16_t reg, uint16_t *values,
         if (cur < end) cur += snprintf(cur, end-cur, "%04x ", values[i]);
         else strcpy(end-sizeof("**truncated**"), "**truncated**");
     }
-    _Serialprintf("address: %02x, function: 0x10, reg: %04x, count: %u, values: %s.\n", address, reg, count, Str);
-#endif
+    LOGV("address: %02x, function: 0x10, reg: %04x, count: %u, values: %s.\n", address, reg, count, Str);
+//#endif
 }
 
 /**
@@ -201,7 +201,7 @@ void ModbusWriteMultipleRequest(uint8_t address, uint16_t reg, uint16_t *values,
  */
 void ModbusException(uint8_t address, uint8_t function, uint8_t exception) {
     //uint16_t temp[1];
-    _Serialprint("ModbusException, to do!\n");
+    LOGA("ModbusException, to do!\n");
     //ModbusSend(address, function, exception, temp, 0);
 }
 
@@ -222,18 +222,18 @@ void ModbusDecode(uint8_t * buf, uint8_t len) {
     MB.Type = MODBUS_INVALID;
     MB.Exception = 0;
 
-#ifdef LOG_INFO_MODBUS
-    _Serialprint("Received packet");
-#endif
-#ifdef LOG_DEBUG_MODBUS
+//#ifdef LOG_INFO_MODBUS
+    LOGD("Received packet");
+//#endif
+//#ifdef LOG_DEBUG_MODBUS
     char Str[128];
     char *cur = Str, * const end = Str + sizeof Str;
     for (uint8_t x=0; x<len; x++) {
         if (cur < end) cur += snprintf(cur, end-cur, "%02x ", buf[x]);
         else strcpy(end-sizeof("**truncated**"), "**truncated**");
     }
-    _Serialprintf(" (%i bytes) %s\n", len, Str);
-#endif
+    LOGV(" (%i bytes) %s\n", len, Str);
+//#endif
 
     // Modbus error packets length is 5 bytes
     if (len == 3) {
@@ -251,9 +251,9 @@ void ModbusDecode(uint8_t * buf, uint8_t len) {
         // Modbus function
         MB.Function = buf[1];
 
-#ifdef LOG_DEBUG_MODBUS
-            _Serialprintf(" valid Modbus packet: Address %02x Function %02x\n", MB.Address, MB.Function);
-#endif
+//#ifdef LOG_DEBUG_MODBUS
+            LOGV(" valid Modbus packet: Address %02x Function %02x\n", MB.Address, MB.Function);
+//#endif
         switch (MB.Function) {
             case 0x03: // (Read holding register)
             case 0x04: // (Read input register)
@@ -271,10 +271,10 @@ void ModbusDecode(uint8_t * buf, uint8_t len) {
                         // packet length OK
                         // response packet
                         MB.Type = MODBUS_RESPONSE;
-#ifdef LOG_WARN_MODBUS
+//#ifdef LOG_WARN_MODBUS
                     } else {
-                        _Serialprint("Invalid modbus FC=04 packet\n");
-#endif
+                        LOGW("Invalid modbus FC=04 packet\n");
+//#endif
                     }
                 }
                 break;
@@ -289,10 +289,10 @@ void ModbusDecode(uint8_t * buf, uint8_t len) {
                     MB.RegisterCount = 1;
                     // value
                     MB.Value = (uint16_t)(buf[4] <<8) | buf[5];
-#ifdef LOG_WARN_MODBUS
+//#ifdef LOG_WARN_MODBUS
                 } else {
-                    _Serialprint("Invalid modbus FC=06 packet\n");
-#endif
+                    LOGW("Invalid modbus FC=06 packet\n");
+//#endif
                 }
                 break;
             case 0x10:
@@ -311,10 +311,10 @@ void ModbusDecode(uint8_t * buf, uint8_t len) {
                         // packet length OK
                         // request packet
                         MB.Type = MODBUS_REQUEST;
-#ifdef LOG_WARN_MODBUS
+//#ifdef LOG_WARN_MODBUS
                     } else {
-                        _Serialprint("Invalid modbus FC=16 packet\n");
-#endif
+                        LOGW("Invalid modbus FC=16 packet\n");
+//#endif
                     }
                 }
                 break;
@@ -364,21 +364,21 @@ void ModbusDecode(uint8_t * buf, uint8_t len) {
                 break;
         }
     }
-#ifdef LOG_DEBUG_MODBUS
+//#ifdef LOG_DEBUG_MODBUS
     if(MB.Type) {
-        _Serialprintf(" Register %04x\n", MB.Register);
+        LOGV(" Register %04x\n", MB.Register);
     }
-#endif
-#ifdef LOG_INFO_MODBUS
+//#endif
+//#ifdef LOG_INFO_MODBUS
     switch (MB.Type) {
         case MODBUS_REQUEST:
-            _Serialprintln(" Request\n");
+            LOGD(" Request\n");
             break;
         case MODBUS_RESPONSE:
-            _Serialprintln(" Response\n");
+            LOGD(" Response\n");
             break;
     }
-#endif
+//#endif
 }
 
 
