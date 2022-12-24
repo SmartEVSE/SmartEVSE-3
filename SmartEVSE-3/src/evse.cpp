@@ -3490,7 +3490,7 @@ void setup() {
     
     // Initialize SPIFFS
     if (!SPIFFS.begin(true)) {
-        LOG_E("SPIFFS failed! Already tried formatting. HALT\n");
+        LOGA("SPIFFS failed! Already tried formatting. HALT\n");
         while (true) {
           delay(1);
         }
@@ -3506,7 +3506,10 @@ void setup() {
     // SmartEVSE v3 have programmed ECDSA-256 keys stored in nvs
     // Unused for now.
     if (preferences.begin("KeyStorage", true) == true) {                        // readonly
-        uint16_t hwversion = preferences.getUShort("hwversion");                // 0x0101 (01 = SmartEVSE,  01 = hwver 01)  WARNING: variable is used when DBG !=0
+//prevent compiler warning
+#if DBG != 0
+        uint16_t hwversion = preferences.getUShort("hwversion");                // 0x0101 (01 = SmartEVSE,  01 = hwver 01)
+#endif
         serialnr = preferences.getUInt("serialnr");      
         String ec_private = preferences.getString("ec_private");
         String ec_public = preferences.getString("ec_public");
