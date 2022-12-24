@@ -181,9 +181,7 @@ void WriteRFIDlist(void) {
     } else LOGA("Error opening preferences!\n");
     
 
-//#ifdef LOG_DEBUG_EVSE
     LOGI("\nRFID list saved\n");
-//#endif
 }
 
 // scan for matching RFID in RFIDlist
@@ -221,10 +219,8 @@ unsigned char StoreRFID(void) {
     LOGA("offset %u ",offset);
     memcpy(RFIDlist + offset, RFID+1, 6);
 
-//#ifdef LOG_DEBUG_EVSE
     LOGI("\nRFIDlist:");
     for (r=0; r<120; r++) LOGI("%02x",RFIDlist[r]);
-//#endif
 
     WriteRFIDlist();
     return 1;
@@ -253,9 +249,7 @@ void DeleteAllRFID(void) {
 
     for (i = 0; i < 120; i++) RFIDlist[i] = 0xff;
     WriteRFIDlist();
-//#ifdef LOG_INFO_EVSE
     LOGI("All RFID cards erased!\n");
-//#endif
     setItemValue(MENU_RFIDREADER, 0);                                           // RFID Reader Disabled
 }
 
