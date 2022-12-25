@@ -239,7 +239,7 @@ void ModbusDecode(uint8_t * buf, uint8_t len) {
         // Modbus function
         MB.Function = buf[1];
 
-            _LOG_V(" valid Modbus packet: Address %02x Function %02x\n", MB.Address, MB.Function);
+        _LOG_V(" valid Modbus packet: Address %02x Function %02x\n", MB.Address, MB.Function);
         switch (MB.Function) {
             case 0x03: // (Read holding register)
             case 0x04: // (Read input register)
@@ -345,7 +345,7 @@ void ModbusDecode(uint8_t * buf, uint8_t len) {
         }
     }
     if(MB.Type) {
-        _LOG_V(" Register %04x\n", MB.Register);
+        _LOG_V(" Register %04x", MB.Register);
     }
     switch (MB.Type) {
         case MODBUS_REQUEST:
