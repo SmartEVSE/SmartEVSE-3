@@ -3286,6 +3286,7 @@ void WiFiSetup(void) {
         _LOG_A("Error setting up MDNS responder!\n");
     } else {
         _LOG_A("mDNS responder started. http://%s.local\n",APhostname.c_str());
+        MDNS.addService("http", "tcp", 80);   // announce Web server
     }
 
     //WiFi.setAutoReconnect(true);
@@ -3516,7 +3517,7 @@ void setup() {
         preferences.end(); 
 
         // overwrite APhostname if serialnr is programmed
-        APhostname = "SmartEVSE-" + String( serialnr & 0xffff, 10);           // SmartEVSE access point Name = SmartEVSE-xxxxx
+        //APhostname = "SmartEVSE-" + String( serialnr & 0xffff, 10);           // SmartEVSE access point Name = SmartEVSE-xxxxx
         _LOG_A("hwversion %04x serialnr:%u \n",hwversion, serialnr);
         //_LOG_A(ec_public);
 
