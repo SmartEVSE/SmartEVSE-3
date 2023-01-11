@@ -2069,7 +2069,9 @@ void Timer1S(void * parameter) {
             if (BalancedState[x] == STATE_C) Node[x].Timer++;
         }
 
-        if ( (timeout == 0) && !(ErrorFlags & CT_NOCOMM)) { // timeout if current measurement takes > 10 secs
+        if ( (timeout == 0) && !(ErrorFlags & CT_NOCOMM) && (Mode != MODE_NORMAL)) { // timeout if current measurement takes > 10 secs
+            // In Normal mode do not timeout; there might be MainsMeter/EVMeter configured that can be retrieved through the API,
+            // but in Normal mode we just want to charge ChargeCurrent, irrespective of communication problems.
             ErrorFlags |= CT_NOCOMM;
             if (State == STATE_C) setState(STATE_C1);                       // tell EV to stop charging
             else setState(STATE_B1);                                        // when we are not charging switch to State B1
