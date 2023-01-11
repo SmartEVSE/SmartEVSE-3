@@ -1391,6 +1391,17 @@ uint16_t getItemValue(uint8_t nav) {
 }
 
 
+void printStatus(void)
+{
+        char Str[140];
+        snprintf(Str, sizeof(Str) , "#STATE: %s Error: %u StartCurrent: -%i ChargeDelay: %u SolarStopTimer: %u NoCurrent: %u Imeasured: %.1f A IsetBalanced: %.1f A\n", getStateName(State), ErrorFlags, StartCurrent,
+                                                                        ChargeDelay, SolarStopTimer,  NoCurrent,
+                                                                        (float)Imeasured/10,
+                                                                        (float)IsetBalanced/10);
+        _LOG_I("%s",Str+1);
+        _LOG_I("L1: %.1f A L2: %.1f A L3: %.1f A Isum: %.1f A\n", (float)Irms[0]/10, (float)Irms[1]/10, (float)Irms[2]/10, (float)Isum/10);
+}
+
 /**
  * Update current data after received current measurement
  */
@@ -1431,15 +1442,7 @@ void UpdateCurrentData(void) {
             // Set current for Master EVSE in Smart Mode
             SetCurrent(Balanced[0]);
         }
-
-        char Str[140];
-        snprintf(Str, sizeof(Str) , "#STATE: %s Error: %u StartCurrent: -%i ChargeDelay: %u SolarStopTimer: %u NoCurrent: %u Imeasured: %.1f A IsetBalanced: %.1f A\n", getStateName(State), ErrorFlags, StartCurrent,
-                                                                        ChargeDelay, SolarStopTimer,  NoCurrent,
-                                                                        (float)Imeasured/10,
-                                                                        (float)IsetBalanced/10);
-        _LOG_I("%s",Str+1);
-        _LOG_I("L1: %.1f A L2: %.1f A L3: %.1f A Isum: %.1f A\n", (float)Irms[0]/10, (float)Irms[1]/10, (float)Irms[2]/10, (float)Isum/10);
-
+        printStatus();  //for debug purposes
     } else Imeasured = 0; // In case Sensorbox is connected in Normal mode. Clear measurement.
 }
 
@@ -2111,7 +2114,10 @@ void Timer1S(void * parameter) {
             Broadcast = 1;                                                  // repeat every two seconds
         }
 
-          
+        // in Normal mode UpdateCurrentData is never called, so we have to show debug info here...
+        if (Mode == 0)
+            printStatus();  //for debug purposes
+
 
         // this will run every 5 seconds
         // if (Timer5sec++ >= 5) {
@@ -3590,8 +3596,8 @@ void setup() {
 
 void loop() {
 
-    //time_t current_time;
     delay(1000);
+    //time_t current_time;
     //current_time = time(NULL);
     /*
     LocalTimeSet = getLocalTime(&timeinfo, 1000U);
