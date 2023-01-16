@@ -1807,8 +1807,13 @@ void requestEnergyMeasurement(uint8_t Meter, uint8_t Address, bool Export) {
             if (Export) ModbusReadInputRequest(Address, EMConfig[Meter].Function, EMConfig[Meter].ERegister_Exp, 2);
             else        ModbusReadInputRequest(Address, EMConfig[Meter].Function, EMConfig[Meter].ERegister, 2);
             break;
-        case EM_FINDER:
         case EM_ABB:
+            // Note:
+            // - ABB uses 64bit values for this register (size 2)
+            if (Export) requestMeasurement(Meter, Address, EMConfig[Meter].ERegister_Exp, 2);
+            else        requestMeasurement(Meter, Address, EMConfig[Meter].ERegister, 2);
+            break;
+        case EM_FINDER:
         case EM_EASTRON:
         case EM_WAGO:
             if (Export) requestMeasurement(Meter, Address, EMConfig[Meter].ERegister_Exp, 1);
@@ -2221,6 +2226,11 @@ void Timer1S(void * parameter) {
  */
 signed int receiveEnergyMeasurement(uint8_t *buf, uint8_t Meter) {
     switch (Meter) {
+        case EM_ABB:
+            // Note:
+            // - ABB uses 32-bit values, except for this measurement it uses 64bit unsigned int format
+            // We skip the first 4 bytes (effectivaly creating uint 32). Will work as long as the value does not exeed  roughly 20 million
+            return receiveMeasurement(buf, 1, EMConfig[Meter].Endianness, MB_DATATYPE_INT32, EMConfig[Meter].EDivisor-3);
         case EM_SOLAREDGE:
             // Note:
             // - SolarEdge uses 16-bit values, except for this measurement it uses 32bit int format
