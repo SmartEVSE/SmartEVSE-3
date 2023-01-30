@@ -3063,7 +3063,7 @@ void StartwebServer(void) {
 
         doc["ev_meter"]["description"] = EMConfig[EVMeter].Desc;
         doc["ev_meter"]["address"] = EVMeterAddress;
-        doc["ev_meter"]["import_active_energy"] = round(PowerMeasured / 100)/10; //in kW, precision 1 decimal
+        doc["ev_meter"]["import_active_energy"] = round(PowerMeasured / 100)/10; //in kWh, precision 1 decimal
         doc["ev_meter"]["total_kwh"] = round(EnergyEV / 100)/10; //in kWh, precision 1 decimal
         doc["ev_meter"]["charged_kwh"] = round(EnergyCharged / 100)/10; //in kWh, precision 1 decimal
 
