@@ -67,6 +67,8 @@ Make sure to have read the original README.md (e.g. on howto connect to wifi).
           --------------------
 
       This way the (dangerous) situation is avoided that some Phases are switched ON, and Neutral is switched OFF.
+      Note that it is important that you actually DO NOT switch the L1 pin of the CCS plug with the C2 contactor; some cars (e.g. Tesla Model 3) will go into error;
+      they expect the charging phase to be on the L1 pin when single-phase charging...
 
     - by default C2 is switched OFF ("Not present"); if you want to keep on charging on 3 phases after installing C2, you should change the setting Contact2 in the
       Setup Menu.
