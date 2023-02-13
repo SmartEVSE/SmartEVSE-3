@@ -2995,7 +2995,7 @@ void StartwebServer(void) {
 
         boolean evConnected = pilot != PILOT_12V;                    //when access bit = 1, p.ex. in OFF mode, the STATEs are no longer updated
 
-        DynamicJsonDocument doc(1024); // https://arduinojson.org/v6/assistant/
+        DynamicJsonDocument doc(1152); // https://arduinojson.org/v6/assistant/
         doc["version"] = String(VERSION);
         doc["mode"] = mode;
         doc["mode_id"] = modeId;
