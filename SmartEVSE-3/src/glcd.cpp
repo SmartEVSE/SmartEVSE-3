@@ -978,11 +978,11 @@ void GLCDMenu(uint8_t Buttons) {
                     case MENU_CAL:
                         CT1 = MenuNavInt(Buttons, CT1, 100, 999);
                         break;
-                    case MENU_EVMETER:                                          // do not display the Sensorbox here
+                    case MENU_EVMETER:                                          // do not display the Sensorbox or EM_API here
                         value = getItemValue(LCDNav);
                         do {
                             value = MenuNavInt(Buttons, value, MenuStr[LCDNav].Min, MenuStr[LCDNav].Max);
-                        } while (value == EM_SENSORBOX);
+                        } while (value == EM_SENSORBOX || value == EM_API);
                         setItemValue(LCDNav, value);
                         break;
                     default:
