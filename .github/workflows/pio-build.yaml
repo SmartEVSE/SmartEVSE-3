@@ -65,11 +65,6 @@ jobs:
         run: |
           cd SmartEVSE-3
           pio lib install
-      - name: Fix modbus
-        run: |
-          sed -i '197 i serial.read(); //See https://github.com/SmartEVSE/SmartEVSE-3/issues/2 and https://github.com/eModbus/eModbus/issues/170' ./SmartEVSE-3/.pio/libdeps/release/eModbus/src/RTUutils.cpp
-          sed -i '326 s/./\/\/&/' ./SmartEVSE-3/.pio/libdeps/release/eModbus/src/RTUutils.cpp
-          cat ./SmartEVSE-3/.pio/libdeps/release/eModbus/src/RTUutils.cpp
       - name: Build
         run: PLATFORMIO_BUILD_FLAGS=-DVERSION='\"SERKRI-${{ steps.version.outputs.version }}\"' pio run -d SmartEVSE-3/ -c SmartEVSE-3/platformio.ini
       - name: Build spiffs
