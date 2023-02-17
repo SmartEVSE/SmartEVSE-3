@@ -68,7 +68,7 @@ jobs:
       - name: Build normal version
         run: PLATFORMIO_BUILD_FLAGS='-DVERSION=\"SERKRI-${{ steps.version.outputs.version }}\" -DDBG=0' pio run -d SmartEVSE-3/ -c SmartEVSE-3/platformio.ini
       - name: Build spiffs
-        run: PLATFORMIO_BUILD_FLAGS=-DVERSION='\"SERKRI-${{ steps.version.outputs.version }}\"' pio run -d SmartEVSE-3/ -c SmartEVSE-3/platformio.ini -t buildfs
+        run: PLATFORMIO_BUILD_FLAGS='-DVERSION=\"SERKRI-${{ steps.version.outputs.version }}\" -DDBG=0' pio run -d SmartEVSE-3/ -c SmartEVSE-3/platformio.ini -t buildfs
       - id: artifact
         run: echo "::set-output name=value::dist-${{ steps.branch.outputs.branch }}-${{ steps.datetime.outputs.datetime }}"
       - name: Upload Artifact
