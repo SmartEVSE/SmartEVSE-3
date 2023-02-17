@@ -25,8 +25,10 @@
 
 #define __EVSE_MAIN
 
+#ifndef DBG
 //the wifi-debugger is available by telnetting to your SmartEVSE device
 #define DBG 0  //comment or set to 0 for production release, 0 = no debug 1 = debug over telnet, 2 = debug over usb AND telnet
+#endif
 
 //uncomment this to emulate an rfid reader with rfid of card = 123456
 //showing the rfid card is simulated by executing http://smartevse-xxx.lan/debug?showrfid=1
