@@ -14,8 +14,6 @@ jobs:
       major: ${{ steps.get_version.outputs.major }}
       minor: ${{ steps.get_version.outputs.minor }}
       patch: ${{ steps.get_version.outputs.patch }}
-    permissions:
-      contents: write
   build:
     needs: version
     uses: ./.github/workflows/pio-build.yaml
