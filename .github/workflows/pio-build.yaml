@@ -65,14 +65,8 @@ jobs:
         run: |
           cd SmartEVSE-3
           pio lib install
-      - name: Build debug version
-        run: |
-          PLATFORMIO_BUILD_FLAGS='-DVERSION=\"SERKRI-${{ steps.version.outputs.version }}\" -DDBG=1' pio run -d SmartEVSE-3/ -c SmartEVSE-3/platformio.ini
-          mv ./SmartEVSE-3/.pio/build/release/firmware.bin ./firmware.debug.bin
       - name: Build normal version
-        run: |
-          PLATFORMIO_BUILD_FLAGS='-DVERSION=\"SERKRI-${{ steps.version.outputs.version }}\" -DDBG=0' pio run -d SmartEVSE-3/ -c SmartEVSE-3/platformio.ini
-          mv ./firmware.debug.bin ./SmartEVSE-3/.pio/build/release
+        run: PLATFORMIO_BUILD_FLAGS='-DVERSION=\"SERKRI-${{ steps.version.outputs.version }}\" -DDBG=0' pio run -d SmartEVSE-3/ -c SmartEVSE-3/platformio.ini
       - name: Build spiffs
         run: PLATFORMIO_BUILD_FLAGS=-DVERSION='\"SERKRI-${{ steps.version.outputs.version }}\"' pio run -d SmartEVSE-3/ -c SmartEVSE-3/platformio.ini -t buildfs
       - id: artifact
@@ -89,5 +83,16 @@ jobs:
           name: ${{ steps.artifact.outputs.value }}
           path: ./SmartEVSE-3/HowToFlash.txt
           retention-days: 10
+      - name: Build debug version
+        run: |
+          PLATFORMIO_BUILD_FLAGS='-DVERSION=\"SERKRI-${{ steps.version.outputs.version }}\" -DDBG=1' pio run -d SmartEVSE-3/ -c SmartEVSE-3/platformio.ini
+          mv ./SmartEVSE-3/.pio/build/release/firmware.bin ./SmartEVSE-3/.pio/build/release/firmware.debug.bin
+      - name: Upload Artifact debug firmware
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ steps.artifact.outputs.value }}
+          path: ./SmartEVSE-3/.pio/build/release/firmware.debug.bin
+          retention-days: 10
+
     outputs:
       artifact: ${{ steps.artifact.outputs.value }}
