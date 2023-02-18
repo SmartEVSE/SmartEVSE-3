@@ -76,7 +76,7 @@ extern RemoteDebug Debug;
 
 
 #define TRANSFORMER_COMP 100   
-
+#define PHASE_DETECTION_TIME 11
 
 // Pin definitions left side ESP32
 #define PIN_TEMP 36
