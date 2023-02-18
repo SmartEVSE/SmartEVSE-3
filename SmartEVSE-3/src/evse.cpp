@@ -646,16 +646,16 @@ void setState(uint8_t NewState) {
                         Old_Irms[i] = Irms_EV[i];
                         _LOG_D("Trying to detect Charging Phases START Irms_EV[%i]=%u.\n", i, Irms_EV[i]);
                     }
-                    Detecting_Charging_Phases_Timer = PHASE_DETECTION_TIME;                            // we need time for the EV to decide to start charging
+                    Detecting_Charging_Phases_Timer = PHASE_DETECTION_TIME;     // we need time for the EV to decide to start charging
                 }
                 else if (MainsMeter) {                                          // or else MainsMeter will do
-                    SetCurrent(MinCurrent);                                         // for detection of phases we are going to lock the charging current to MinCurrent
+                    SetCurrent(MinCurrent);                                     // for detection of phases we are going to lock the charging current to MinCurrent
                     Current_Lock = true;
                     for (i=0; i<3; i++) {
                         Old_Irms[i] = Irms[i];
                         _LOG_D("Trying to detect Charging Phases START Irms[%i]=%u.\n", i, Irms[i]);
                     }
-                    Detecting_Charging_Phases_Timer = PHASE_DETECTION_TIME;                            // we need time for the EV to decide to start charging
+                    Detecting_Charging_Phases_Timer = PHASE_DETECTION_TIME;     // we need time for the EV to decide to start charging
                 }
             }
             CONTACTOR1_ON;
@@ -2995,7 +2995,7 @@ void StartwebServer(void) {
 
         boolean evConnected = pilot != PILOT_12V;                    //when access bit = 1, p.ex. in OFF mode, the STATEs are no longer updated
 
-        DynamicJsonDocument doc(1152); // https://arduinojson.org/v6/assistant/
+        DynamicJsonDocument doc(1200); // https://arduinojson.org/v6/assistant/
         doc["version"] = String(VERSION);
         doc["mode"] = mode;
         doc["mode_id"] = modeId;
@@ -3066,6 +3066,10 @@ void StartwebServer(void) {
         doc["ev_meter"]["import_active_energy"] = round(PowerMeasured / 100)/10; //in kWh, precision 1 decimal
         doc["ev_meter"]["total_kwh"] = round(EnergyEV / 100)/10; //in kWh, precision 1 decimal
         doc["ev_meter"]["charged_kwh"] = round(EnergyCharged / 100)/10; //in kWh, precision 1 decimal
+        doc["ev_meter"]["currents"]["TOTAL"] = Irms_EV[0] + Irms_EV[1] + Irms_EV[2];
+        doc["ev_meter"]["currents"]["L1"] = Irms_EV[0];
+        doc["ev_meter"]["currents"]["L2"] = Irms_EV[1];
+        doc["ev_meter"]["currents"]["L3"] = Irms_EV[2];
 
         doc["mains_meter"]["import_active_energy"] = round(Mains_import_active_energy / 100)/10; //in kWh, precision 1 decimal
         doc["mains_meter"]["export_active_energy"] = round(Mains_export_active_energy / 100)/10; //in kWh, precision 1 decimal
