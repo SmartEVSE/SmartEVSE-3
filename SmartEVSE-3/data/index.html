@@ -156,8 +156,9 @@
             }
 
             $('#evmeter_description').text(data.ev_meter.description);
-            $('#evmeter_total_kwh').text(data.ev_meter.total_kwh.toFixed(1) + "kWh");
-            $('#evmeter_charged_kwh').text(data.ev_meter.charged_kwh.toFixed(1) + "kWh");
+            $('#evmeter_power').text(data.ev_meter.import_active_energy.toFixed(1) + " kW");
+            $('#evmeter_total_kwh').text(data.ev_meter.total_kwh.toFixed(1) + " kWh");
+            $('#evmeter_charged_kwh').text(data.ev_meter.charged_kwh.toFixed(1) + " kWh");
             $('#evmeter_currents_total').text((data.ev_meter.currents.TOTAL/10).toFixed(1) + " A");
             $('#evmeter_currents_1').text((data.ev_meter.currents.L1/10).toFixed(1) + " A");
             $('#evmeter_currents_2').text((data.ev_meter.currents.L2/10).toFixed(1) + " A");
