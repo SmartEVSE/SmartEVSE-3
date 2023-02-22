@@ -1880,7 +1880,7 @@ uint8_t PollEVNode = NR_EVSES;
             switch (ModbusRequest++) {                                          // State
                 case 1:                                                         // PV kwh meter
                     if (PVMeter) {
-                    _LOG_D("ModbusRequest %u: Request PVMeter Measurement\n", ModbusRequest);
+                        _LOG_D("ModbusRequest %u: Request PVMeter Measurement\n", ModbusRequest);
                         requestCurrentMeasurement(PVMeter, PVMeterAddress);
                         break;
                     }
@@ -1952,7 +1952,7 @@ uint8_t PollEVNode = NR_EVSES;
                     ModbusRequest++;
                 case 21:
                     // Request active energy if Mainsmeter is configured
-                    if (MainsMeter ) {
+                    if (MainsMeter) {
                         energytimer++; //this ticks approx every second?!?
                         if (energytimer == 30) {
                             _LOG_D("ModbusRequest %u: Request MainsMeter Import Active Energy Measurement\n", ModbusRequest);
