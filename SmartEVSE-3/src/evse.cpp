@@ -1886,9 +1886,12 @@ uint8_t PollEVNode = NR_EVSES;
                     }
                     ModbusRequest++;
                 case 2:                                                         // Sensorbox or kWh meter that measures -all- currents
-                    _LOG_D("ModbusRequest %u: Request MainsMeter Measurement\n", ModbusRequest);
-                    requestCurrentMeasurement(MainsMeter, MainsMeterAddress);
-                    break;
+                    if (MainsMeter && MainsMeter != EM_API) {                   // we don't want modbus meter currents to conflict with EM_API currents
+                        _LOG_D("ModbusRequest %u: Request MainsMeter Measurement\n", ModbusRequest);
+                        requestCurrentMeasurement(MainsMeter, MainsMeterAddress);
+                        break;
+                    }
+                    ModbusRequest++;
                 case 3:
                     // Find next online SmartEVSE
                     do {
@@ -1952,7 +1955,7 @@ uint8_t PollEVNode = NR_EVSES;
                     ModbusRequest++;
                 case 21:
                     // Request active energy if Mainsmeter is configured
-                    if (MainsMeter) {
+                    if (MainsMeter && MainsMeter != EM_API) {                   // EM_API does not support energy postings
                         energytimer++; //this ticks approx every second?!?
                         if (energytimer == 30) {
                             _LOG_D("ModbusRequest %u: Request MainsMeter Import Active Energy Measurement\n", ModbusRequest);
@@ -2567,8 +2570,6 @@ void MBhandleError(Error error, uint32_t token)
   
 void ConfigureModbusMode(uint8_t newmode) {
 
-    if(MainsMeter == EM_API) return;
-
     _LOG_A("changing LoadBL from %u to %u\n",LoadBl, newmode);
     
     if ((LoadBl < 2 && newmode > 1) || (LoadBl > 1 && newmode < 2) || (newmode == 255) ) {
@@ -2667,6 +2668,9 @@ void validate_settings(void) {
     if (RFIDReader == 5) {
        DeleteAllRFID();
     }
+    // If mainsmeter disabled we can only run in Normal Mode
+    if (!MainsMeter)
+        Mode = MODE_NORMAL;
 
     // Update master node config
     Node[0].EVMeter = EVMeter;

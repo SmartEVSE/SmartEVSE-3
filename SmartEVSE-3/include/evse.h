@@ -140,7 +140,7 @@ extern RemoteDebug Debug;
 #define START_CURRENT 4                                                         // Start charging when surplus current on sum of all phases exceeds 4A (Solar)
 #define STOP_TIME 10                                                            // Stop charging after 10 minutes at MIN charge current (Solar)
 #define IMPORT_CURRENT 0                                                        // Allow the use of grid power when solar charging (Amps)
-#define MAINS_METER 1                                                           // Mains Meter, 1= Sensorbox, 2=Phoenix, 3= Finder, 4= Eastron, 5=Custom
+#define MAINS_METER 0                                                           // Mains Meter, 0=Disabled, 1= Sensorbox, 2=Phoenix, 3= Finder, 4= Eastron, 5=Custom
 #define GRID 0                                                                  // Grid, 0= 4-Wire CW, 1= 4-Wire CCW, 2= 3-Wire CW, 3= 3-Wire CCW
 #define MAINS_METER_ADDRESS 10
 #define MAINS_METER_MEASURE 0
@@ -441,7 +441,7 @@ const struct {
     {"START",   "Surplus energy start Current (sum of phases)",       0, 48, START_CURRENT},
     {"STOP",    "Stop solar charging at 6A after this time",          0, 60, STOP_TIME},
     {"IMPORT",  "Allow grid power when solar charging (sum of phase)",0, 20, IMPORT_CURRENT},
-    {"MAINSMET","Type of mains electric meter",                       1, EM_CUSTOM, MAINS_METER},
+    {"MAINSMET","Type of mains electric meter",                       0, EM_CUSTOM, MAINS_METER},
     {"MAINSADR","Address of mains electric meter",                    MIN_METER_ADDRESS, MAX_METER_ADDRESS, MAINS_METER_ADDRESS},
     {"MAINSMES","Mains electric meter scope (What does it measure?)", 0, 1, MAINS_METER_MEASURE},
     {"PV METER","Type of PV electric meter",                          0, EM_CUSTOM, PV_METER},
