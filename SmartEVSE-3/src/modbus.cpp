@@ -423,8 +423,9 @@ void requestCurrentMeasurement(uint8_t Meter, uint8_t Address) {
         case EM_SENSORBOX:
             ModbusReadInputRequest(Address, 4, 0, 20);
             break;
-        case EM_EASTRON:
-        case EM_EASTRON_INV:
+        case EM_EASTRON1P:
+        case EM_EASTRON3P:
+        case EM_EASTRON3P_INV:
             // Phase 1-3 current: Register 0x06 - 0x0B (unsigned)
             // Phase 1-3 power:   Register 0x0C - 0x11 (signed)
             ModbusReadInputRequest(Address, 4, 0x06, 12);
@@ -526,12 +527,15 @@ uint8_t receiveCurrentMeasurement(uint8_t *buf, uint8_t Meter, signed int *var) 
 
     // Get sign from power measurement on some electric meters
     switch(Meter) {
-        case EM_EASTRON:
+        case EM_EASTRON1P:
+            if (receiveMeasurement(buf, 3u, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, EMConfig[Meter].PDivisor) < 0) var[x] = -var[x];
+            break;
+        case EM_EASTRON3P:
             for (x = 0; x < 3; x++) {
                 if (receiveMeasurement(buf, x + 3u, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, EMConfig[Meter].PDivisor) < 0) var[x] = -var[x];
             }
             break;
-        case EM_EASTRON_INV:
+        case EM_EASTRON3P_INV:
             for (x = 0; x < 3; x++) {
                 if (receiveMeasurement(buf, x + 3u, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, EMConfig[Meter].PDivisor) > 0) var[x] = -var[x];
             }
