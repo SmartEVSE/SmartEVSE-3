@@ -2217,7 +2217,7 @@ void Timer1S(void * parameter) {
                 }
 
                 if (EnableC2 != AUTO) {
-                    if (Force_Single_Phase_Charging() && Nr_Of_Phases_Charging != 1) {
+                    if (Nr_Of_Phases_Charging != 1 && (EnableC2 == ALWAYS_OFF || (EnableC2 == SOLAR_OFF && Mode == MODE_SOLAR))) {
                         _LOG_A("Error in detecting phases: EnableC2=%s and Nr_Of_Phases_Charging=%i.\n", StrEnableC2[EnableC2], Nr_Of_Phases_Charging);
                         Nr_Of_Phases_Charging = 1;
                         _LOG_A("Setting Nr_Of_Phases_Charging to 1.\n");
