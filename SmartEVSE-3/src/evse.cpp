@@ -646,24 +646,30 @@ void setState(uint8_t NewState) {
                     Charging_Phase[i] = false;                                  // reset charging phases
                     Nr_Of_Phases_Charging = 0;                                  // undetected
                 }
-                if (EVMeter) {                                                  // we prefer EVMeter if present
-                    SetCurrent(MinCurrent);                                         // for detection of phases we are going to lock the charging current to MinCurrent
-                    Current_Lock = true;
-                    for (i=0; i<3; i++) {
-                        Old_Irms[i] = Irms_EV[i];
-                        _LOG_D("Trying to detect Charging Phases START Irms_EV[%i]=%u.\n", i, Irms_EV[i]);
+                if (LoadBl == 0) {                                               // when loadbalancing with other node smartevse's, don't detect phases...
+                    if (EVMeter) {                                                  // we prefer EVMeter if present
+                        SetCurrent(MinCurrent);                                         // for detection of phases we are going to lock the charging current to MinCurrent
+                        Current_Lock = true;
+                        for (i=0; i<3; i++) {
+                            Old_Irms[i] = Irms_EV[i];
+                            _LOG_D("Trying to detect Charging Phases START Irms_EV[%i]=%u.\n", i, Irms_EV[i]);
+                        }
+                        Detecting_Charging_Phases_Timer = PHASE_DETECTION_TIME;     // we need time for the EV to decide to start charging
                     }
-                    Detecting_Charging_Phases_Timer = PHASE_DETECTION_TIME;     // we need time for the EV to decide to start charging
-                }
-                else if (MainsMeter) {                                          // or else MainsMeter will do
-                    SetCurrent(MinCurrent);                                     // for detection of phases we are going to lock the charging current to MinCurrent
-                    Current_Lock = true;
-                    for (i=0; i<3; i++) {
-                        Old_Irms[i] = Irms[i];
-                        _LOG_D("Trying to detect Charging Phases START Irms[%i]=%u.\n", i, Irms[i]);
+                    else if (MainsMeter) {                                          // or else MainsMeter will do
+                        SetCurrent(MinCurrent);                                     // for detection of phases we are going to lock the charging current to MinCurrent
+                        Current_Lock = true;
+                        for (i=0; i<3; i++) {
+                            Old_Irms[i] = Irms[i];
+                            _LOG_D("Trying to detect Charging Phases START Irms[%i]=%u.\n", i, Irms[i]);
+                        }
+                        Detecting_Charging_Phases_Timer = PHASE_DETECTION_TIME;     // we need time for the EV to decide to start charging
                     }
-                    Detecting_Charging_Phases_Timer = PHASE_DETECTION_TIME;     // we need time for the EV to decide to start charging
                 }
+                else //we are loadbalancing:
+                    for (i=0; i<3; i++)
+                        Charging_Phase[i] = true;                                  // so Imeasure will be taking into account all phases
+
             }
             CONTACTOR1_ON;
 
@@ -2203,6 +2209,13 @@ void Timer1S(void * parameter) {
                 }
 
                 // sanity checks
+                if (LoadBl != 0) {
+                    _LOG_A("ERROR: detecting phases while LoadBl=%i, this should never happen!\n", LoadBl);
+                    Nr_Of_Phases_Charging = 0; //undetected
+                    for (int i=0; i<3; i++)
+                        Charging_Phase[i] = true;                                           // so all phases will be taken into account when loadbalancing
+                }
+
                 if (EnableC2 != AUTO) {
                     if (Force_Single_Phase_Charging() && Nr_Of_Phases_Charging != 1) {
                         _LOG_A("Error in detecting phases: EnableC2=%s and Nr_Of_Phases_Charging=%i.\n", StrEnableC2[EnableC2], Nr_Of_Phases_Charging);
