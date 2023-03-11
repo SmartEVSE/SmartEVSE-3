@@ -527,7 +527,9 @@ uint8_t receiveCurrentMeasurement(uint8_t *buf, uint8_t Meter, signed int *var) 
 
     // Get sign from power measurement on some electric meters
     switch(Meter) {
-        case EM_EASTRON1P:
+        case EM_EASTRON1P:                                                      // for some reason the EASTRON1P also needs to loop through the 3 var[x]
+                                                                                // if you only loop through x=0, the minus sign of the current is incorrect
+                                                                                // when exporting current
         case EM_EASTRON3P:
             for (x = 0; x < 3; x++) {
                 if (receiveMeasurement(buf, x + 3u, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, EMConfig[Meter].PDivisor) < 0) var[x] = -var[x];
