@@ -331,7 +331,12 @@ extern RemoteDebug Debug;
 #define EM_WAGO 8
 #define EM_API 9
 #define EM_EASTRON1P 10
-#define EM_CUSTOM 11
+#define EM_UNUSED_SLOT1 11
+#define EM_UNUSED_SLOT2 12
+#define EM_UNUSED_SLOT3 13
+#define EM_UNUSED_SLOT4 14
+#define EM_UNUSED_SLOT5 15
+#define EM_CUSTOM 16
 
 #define ENDIANESS_LBF_LWF 0
 #define ENDIANESS_LBF_HWF 1

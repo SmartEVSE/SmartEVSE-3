@@ -978,11 +978,19 @@ void GLCDMenu(uint8_t Buttons) {
                     case MENU_CAL:
                         CT1 = MenuNavInt(Buttons, CT1, 100, 999);
                         break;
-                    case MENU_EVMETER:                                          // do not display the Sensorbox or EM_API here
+                    case MENU_MAINSMETER:
+                    case MENU_PVMETER:
                         value = getItemValue(LCDNav);
                         do {
                             value = MenuNavInt(Buttons, value, MenuStr[LCDNav].Min, MenuStr[LCDNav].Max);
-                        } while (value == EM_SENSORBOX || value == EM_API);
+                        } while (value >= EM_UNUSED_SLOT1 && value <= EM_UNUSED_SLOT5);
+                        setItemValue(LCDNav, value);
+                        break;
+                    case MENU_EVMETER:                                          // do not display the Sensorbox or EM_API or unused slots here
+                        value = getItemValue(LCDNav);
+                        do {
+                            value = MenuNavInt(Buttons, value, MenuStr[LCDNav].Min, MenuStr[LCDNav].Max);
+                        } while (value == EM_SENSORBOX || value == EM_API || (value >= EM_UNUSED_SLOT1 && value <= EM_UNUSED_SLOT5));
                         setItemValue(LCDNav, value);
                         break;
                     default:
