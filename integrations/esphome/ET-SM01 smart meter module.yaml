@@ -1,0 +1,156 @@
+substitutions:
+  device_name: et-sm01
+  human_devicename: DSMR
+  device_description: "espthings.io ET-SM01 DIY P1 module to read your smart meter"
+  pcb_version: "220818-01"
+  url: "http://espthings.io/sm01"
+     
+esphome:
+  name: ${device_name}
+  comment: "${device_description} ${pcb_version}"
+  platform: ESP8266
+  esp8266_restore_from_flash: true
+  board: d1_mini
+  name_add_mac_suffix: false
+  project:
+    name: "espthings.io-ET-SM01"
+    version: "${pcb_version}"
+ 
+wifi:
+  networks:
+    - ssid: !secret esphome_wifi_ssid
+      password: !secret esphome_wifi_password
+ 
+logger:
+  baud_rate: 0
+
+api:
+  encryption:
+    key: !secret esphome_api_key
+ 
+ota:
+  password: !secret esphome_ota_password
+ 
+web_server:
+  port: 80
+ 
+uart:
+  baud_rate: 115200
+  rx_pin: D7
+ 
+http_request:
+  useragent: esphome/device
+  timeout: 1s
+
+dsmr:
+  id: dsmr_instance
+
+sensor:
+  - platform: dsmr
+    energy_delivered_tariff1:
+      name: "$human_devicename - Energy Consumed Tariff 1"
+      state_class: total_increasing
+    energy_delivered_tariff2:
+      name: "$human_devicename - Energy Consumed Tariff 2"
+      state_class: total_increasing
+    energy_returned_tariff1:
+      name: "$human_devicename - Energy Produced Tariff 1"
+      state_class: total_increasing
+    energy_returned_tariff2:
+      name: "$human_devicename - Energy Produced Tariff 2"
+      state_class: total_increasing
+    power_delivered:
+      name: "$human_devicename - Power Consumed"
+      accuracy_decimals: 3
+    power_returned:
+      name: "$human_devicename - Power Produced"
+      accuracy_decimals: 3
+    electricity_failures:
+      name: "$human_devicename - Electricity Failures"
+      icon: mdi:alert
+    electricity_long_failures:
+      name: "$human_devicename - Long Electricity Failures"
+      icon: mdi:alert
+    voltage_l1:
+      name: "$human_devicename - Voltage Phase 1"
+    voltage_l2:
+      name: "$human_devicename - Voltage Phase 2"
+    voltage_l3:
+      name: "$human_devicename - Voltage Phase 3"
+    current_l1:
+      name: "$human_devicename - Current Phase 1"
+      id: currentl1
+    current_l2:
+      name: "$human_devicename - Current Phase 2"
+      id: currentl2
+    current_l3:
+      name: "$human_devicename - Current Phase 3"
+      id: currentl3
+    power_delivered_l1:
+      name: "$human_devicename - Power Consumed Phase 1"
+      accuracy_decimals: 3
+    power_delivered_l2:
+      name: "$human_devicename - Power Consumed Phase 2"
+      accuracy_decimals: 3
+    power_delivered_l3:
+      name: "$human_devicename - Power Consumed Phase 3"
+      accuracy_decimals: 3
+    power_returned_l1:
+      name: "$human_devicename - Power Produced Phase 1"
+      accuracy_decimals: 3
+    power_returned_l2:
+      name: "$human_devicename - Power Produced Phase 2"
+      accuracy_decimals: 3
+    power_returned_l3:
+      name: "$human_devicename - Power Produced Phase 3"
+      accuracy_decimals: 3
+    gas_delivered:
+      name: "$human_devicename - Gas Consumed"
+      state_class: total_increasing
+    gas_delivered_be:
+      name: "$human_devicename - Gas Consumed Belgium"
+      state_class: total_increasing
+  - platform: uptime
+    name: "$human_devicename - Uptime"
+  - platform: wifi_signal
+    name: "$human_devicename - Wi-Fi Signal"
+    update_interval: 60s
+
+text_sensor:
+  - platform: dsmr
+    identification:
+      name: "$human_devicename - Identification"
+    p1_version:
+      name: "$human_devicename - Version"
+    p1_version_be:
+      name: "$human_devicename - Version Belgium"
+    electricity_tariff:
+      name: "$human_devicename - Tarief"
+  - platform: wifi_info
+    ip_address:
+      name: "$human_devicename - IP Address"
+    ssid:
+      name: "$human_devicename - Wi-Fi SSID"
+    bssid:
+      name: "$human_devicename - Wi-Fi BSSID"
+  - platform: version
+    name: "$human_devicename - ESPHome Version"
+    hide_timestamp: true
+    
+switch:
+  - platform: restart
+    name: "$human_devicename - Restart"
+
+interval:
+  - interval: 5sec
+    then:
+      - http_request.post: 
+          url: !lambda |-
+              std::string url;
+              url.append("http://192.168.207.121/currents?L1=");
+              url.append(to_string(id(currentl1).state *10));
+              url.append("&L2=");
+              url.append(to_string(id(currentl2).state *10));
+              url.append("&L3=");
+              url.append(to_string(id(currentl3).state *10));
+              return url.c_str();
