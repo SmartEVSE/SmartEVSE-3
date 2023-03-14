@@ -16,7 +16,7 @@ Make sure to have read the original README.md (e.g. on howto connect to wifi).
 * Home battery integration
 * Endpoint to send L1/2/3 data, this removed the need for a SensorBox
   * Note: Set MainsMeter to the new 'API' option in the config menu when sending L1/2/3
-* Callable API endpoints for easy integration (e.g. Home Assistant) - (See [API Overview](#API-Overview))
+* Callable API endpoints for easy integration (see [API Overview](#API-Overview) and [Home Assistant Integration](#Integration-with-Home-Assistant))
   * Change charging mode
   * Override charge current
   * Pass in current measurements (p1, battery, ...) - this eliminates having to use additionalhard
@@ -127,6 +127,9 @@ View API <a href="https://swagger-ui.serkri.be/" target="_blank">https://swagger
 
 
 Have an idea for the API? Edit it here <a href="https://swagger-editor.serkri.be/" target="_blank">https://swagger-editor.serkri.be/</a> and copy/paste it in a new issue with your request (https://github.com/serkri/SmartEVSE-3/issues)
+
+# Integration with Home Assistant
+If you want to integrate your SmartEVSE with Home Asisstant, please have a look at [the SmartEVSE `custom_component` for Home Assistant](https://github.com/dingo35/ha-SmartEVSEv3). This `custom_component` uses the API to share data from the SmartEVSE to Home Assistant, and enables you to set SmartEVSE settings from Home Assistant. You will need firmware version 1.5.2 or higher to use this integration.
 
 # Building the firmware
 
