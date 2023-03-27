@@ -4,7 +4,7 @@ substitutions:
   device_description: "espthings.io ET-SM01 DIY P1 module to read your smart meter"
   pcb_version: "220818-01"
   url: "http://espthings.io/sm01"
-     
+
 esphome:
   name: ${device_name}
   comment: "${device_description} ${pcb_version}"
@@ -15,29 +15,29 @@ esphome:
   project:
     name: "espthings.io-ET-SM01"
     version: "${pcb_version}"
- 
+
 wifi:
   networks:
     - ssid: !secret esphome_wifi_ssid
       password: !secret esphome_wifi_password
- 
+
 logger:
   baud_rate: 0
 
 api:
   encryption:
     key: !secret esphome_api_key
- 
+
 ota:
   password: !secret esphome_ota_password
- 
+
 web_server:
   port: 80
- 
+
 uart:
   baud_rate: 115200
   rx_pin: D7
- 
+
 http_request:
   useragent: esphome/device
   timeout: 1s
@@ -98,12 +98,15 @@ sensor:
     power_returned_l1:
       name: "$human_devicename - Power Produced Phase 1"
       accuracy_decimals: 3
+      id: returnedl1
     power_returned_l2:
       name: "$human_devicename - Power Produced Phase 2"
       accuracy_decimals: 3
+      id: returnedl2
     power_returned_l3:
       name: "$human_devicename - Power Produced Phase 3"
       accuracy_decimals: 3
+      id: returnedl3
     gas_delivered:
       name: "$human_devicename - Gas Consumed"
       state_class: total_increasing
@@ -136,7 +139,7 @@ text_sensor:
   - platform: version
     name: "$human_devicename - ESPHome Version"
     hide_timestamp: true
-    
+
 switch:
   - platform: restart
     name: "$human_devicename - Restart"
@@ -144,13 +147,18 @@ switch:
 interval:
   - interval: 5sec
     then:
-      - http_request.post: 
+      - http_request.post:
           url: !lambda |-
               std::string url;
+
+              float l1 = id(returnedl1).state > 0 ? - id(currentl1).state : id(currentl1).state;
+              float l2 = id(returnedl2).state > 0 ? - id(currentl2).state : id(currentl2).state;
+              float l3 = id(returnedl3).state > 0 ? - id(currentl3).state : id(currentl3).state;
+
               url.append("http://192.168.207.121/currents?L1=");
-              url.append(to_string(id(currentl1).state *10));
+              url.append(to_string(l1*10));
               url.append("&L2=");
-              url.append(to_string(id(currentl2).state *10));
+              url.append(to_string(l2*10));
               url.append("&L3=");
-              url.append(to_string(id(currentl3).state *10));
+              url.append(to_string(l3*10));
               return url.c_str();
