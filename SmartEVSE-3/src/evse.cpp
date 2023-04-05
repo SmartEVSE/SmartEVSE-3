@@ -3116,7 +3116,7 @@ void StartwebServer(void) {
         if(request->hasParam("backlight")) {
             String current = request->getParam("backlight")->value();
             int backlight = current.toInt();
-            ledcWrite(LCD_CHANNEL, backlight);
+            BacklightTimer = backlight * BACKLIGHT;
             doc["Backlight"] = backlight;
         }
 
