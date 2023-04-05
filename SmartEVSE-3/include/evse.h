@@ -46,14 +46,10 @@
 #endif
 
 #ifndef VERSION
-#if DBG == 0
-#define VERSION "v3serkri-1.5.2"
-#else
 //please note that this version will only be displayed with the correct time/date if the program is recompiled
 //so the webserver will show correct version if evse.cpp is recompiled
 //the lcd display will show correct version if glcd.cpp is recompiled
 #define VERSION (__TIME__ " @" __DATE__)
-#endif
 #endif
 
 #if DBG == 0
