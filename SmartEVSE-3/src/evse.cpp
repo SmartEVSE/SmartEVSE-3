@@ -193,7 +193,6 @@ int32_t EnergyCharged = 0;                                                  // k
 int32_t EnergyMeterStart = 0;                                               // kWh meter value is stored once EV is connected to EVSE (Wh)
 int32_t PowerMeasured = 0;                                                  // Measured Charge power in Watt by kWh meter
 uint8_t RFIDstatus = 0;
-uint8_t ExternalMaster = 0;
 int32_t EnergyEV = 0;   
 int32_t Mains_export_active_energy = 0;                                     // Mainsmeter exported active energy, only for API purposes so you can guard the
                                                                             // enery usage of your house
@@ -2080,9 +2079,6 @@ void Timer1S(void * parameter) {
             ModbusWriteSingleRequest(BROADCAST_ADR, 0x0001, ErrorFlags);    // Broadcast
         }
 
-        if (ExternalMaster) {
-            ExternalMaster--;
-        }
 
         // Charge timer
         for (x = 0; x < NR_EVSES; x++) {
@@ -2125,7 +2121,7 @@ void Timer1S(void * parameter) {
 
         // Every two seconds request measurement data from sensorbox/kwh meters.
         // and send broadcast to Node controllers.
-        if (LoadBl < 2 && !ExternalMaster && !Broadcast--) {                // Load Balancing mode: Master or Disabled
+        if (LoadBl < 2 && !Broadcast--) {                // Load Balancing mode: Master or Disabled
             ModbusRequest = 1;                                          // Start with state 1, also in Normal mode we want MainsMeter and EVmeter updated 
             //timeout = 10; not sure if necessary, statement was missing in original code    // reset timeout counter (not checked for Master)
             Broadcast = 1;                                                  // repeat every two seconds

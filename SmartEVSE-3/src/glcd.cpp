@@ -775,8 +775,7 @@ const char * getMenuItemOption(uint8_t nav) {
                 return Str;
             } else return StrDisabled;
         case MENU_LOADBL:
-            if (ExternalMaster && value == 1) return "Node 0";
-            else return StrLoadBl[LoadBl];
+            return StrLoadBl[LoadBl];
         case MENU_MAINS:
         case MENU_MIN:
         case MENU_MAX:
