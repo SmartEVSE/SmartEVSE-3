@@ -61,11 +61,11 @@
 #define _LOG_V( ... ) //dummy
 #define _LOG_A( ... ) //dummy
 #else
-#define _LOG_W( ... ) rdebugW( __VA_ARGS__ )
-#define _LOG_I( ... ) rdebugI( __VA_ARGS__ )
-#define _LOG_D( ... ) rdebugD( __VA_ARGS__ )
-#define _LOG_V( ... ) rdebugV( __VA_ARGS__ )
-#define _LOG_A( ... ) rdebugA( __VA_ARGS__ )
+#define _LOG_W( ... ) rdebugW( __VA_ARGS__ ) //Warning
+#define _LOG_I( ... ) rdebugI( __VA_ARGS__ ) //Info
+#define _LOG_D( ... ) rdebugD( __VA_ARGS__ ) //Debug
+#define _LOG_V( ... ) rdebugV( __VA_ARGS__ ) //Verbose
+#define _LOG_A( ... ) rdebugA( __VA_ARGS__ ) //Always = Errors!!!
 #include "RemoteDebug.h"  //https://github.com/JoaoLopesF/RemoteDebug
 extern RemoteDebug Debug;
 #endif
