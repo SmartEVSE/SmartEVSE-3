@@ -199,6 +199,8 @@ int32_t Mains_export_active_energy = 0;                                     // M
                                                                             // enery usage of your house
 int32_t Mains_import_active_energy = 0;                                     // Mainsmeter imported active energy, only for API purposes so you can guard the
                                                                             // enery usage of your house
+int32_t EV_export_active_energy = 0;
+int32_t EV_import_active_energy = 0;
 int32_t CM[3]={0, 0, 0};
 int32_t PV[3]={0, 0, 0};
 uint8_t ResetKwh = 2;                                                       // if set, reset EV kwh meter at state transition B->C
@@ -2282,6 +2284,27 @@ signed int receivePowerMeasurement(uint8_t *buf, uint8_t Meter) {
 
 // Modbus functions
 
+// stores energy responses; returns 0 if it stored a value, returns 1 if the response didnt match
+int StoreEnergyResponse(uint8_t Meter, int32_t& Import, int32_t& Export ) {
+    if (MB.Register == EMConfig[Meter].ERegister) {
+        //import active energy
+        if (Meter == EM_EASTRON3P_INV)
+            Export = receiveEnergyMeasurement(MB.Data, Meter);
+        else
+            Import = receiveEnergyMeasurement(MB.Data, Meter);
+        return 0;
+    }
+    else if (MB.Register == EMConfig[Meter].ERegister_Exp) {
+        //export active energy
+        if (Meter == EM_EASTRON3P_INV)
+            Import = receiveEnergyMeasurement(MB.Data, Meter);
+        else
+            Export = receiveEnergyMeasurement(MB.Data, Meter);
+        return 0;
+    }
+    return 1;
+}
+
 // Monitor EV Meter responses, and update Enery and Power and Current measurements
 // Does not send any data back.
 //
@@ -2295,12 +2318,11 @@ ModbusMessage MBEVMeterResponse(ModbusMessage request) {
     if (MB.Type == MODBUS_RESPONSE) {
        // _LOG_A("EVMeter Response\n");
         // Packet from EV electric meter
-        if (MB.Register == EMConfig[EVMeter].ERegister) {
+        if (!StoreEnergyResponse(EVMeter, EV_import_active_energy, EV_export_active_energy)) {
             // Energy measurement
-            EnergyEV = receiveEnergyMeasurement(MB.Data, EVMeter);
+            EnergyEV = EV_import_active_energy - EV_export_active_energy;
             if (ResetKwh == 2) EnergyMeterStart = EnergyEV;                 // At powerup, set EnergyEV to kwh meter value
             EnergyCharged = EnergyEV - EnergyMeterStart;                    // Calculate Energy
-
         } else if (MB.Register == EMConfig[EVMeter].PRegister) {
             // Power measurement
             PowerMeasured = receivePowerMeasurement(MB.Data, EVMeter);
@@ -2377,20 +2399,8 @@ ModbusMessage MBMainsMeterResponse(ModbusMessage request) {
                 Isum = Isum + Irms[x];
             }
         }
-        else if (MB.Register == EMConfig[MainsMeter].ERegister) {
-            //import active energy
-            if (MainsMeter == EM_EASTRON3P_INV)
-                Mains_export_active_energy = receiveEnergyMeasurement(MB.Data, MainsMeter);
-            else
-                Mains_import_active_energy = receiveEnergyMeasurement(MB.Data, MainsMeter);
-        }
-        else if (MB.Register == EMConfig[MainsMeter].ERegister_Exp) {
-            //export active energy
-            if (MainsMeter == EM_EASTRON3P_INV)
-                Mains_import_active_energy = receiveEnergyMeasurement(MB.Data, MainsMeter);
-            else
-                Mains_export_active_energy = receiveEnergyMeasurement(MB.Data, MainsMeter);
-        }
+        else
+            StoreEnergyResponse(MainsMeter, Mains_import_active_energy, Mains_export_active_energy);
     }
 
     // As this is a response to an earlier request, do not send response.
@@ -3074,13 +3084,15 @@ void StartwebServer(void) {
 
         doc["ev_meter"]["description"] = EMConfig[EVMeter].Desc;
         doc["ev_meter"]["address"] = EVMeterAddress;
-        doc["ev_meter"]["import_active_energy"] = round(PowerMeasured / 100)/10; //in kWh, precision 1 decimal
+        doc["ev_meter"]["import_active_power"] = round(PowerMeasured / 100)/10; //in kW, precision 1 decimal
         doc["ev_meter"]["total_kwh"] = round(EnergyEV / 100)/10; //in kWh, precision 1 decimal
         doc["ev_meter"]["charged_kwh"] = round(EnergyCharged / 100)/10; //in kWh, precision 1 decimal
         doc["ev_meter"]["currents"]["TOTAL"] = Irms_EV[0] + Irms_EV[1] + Irms_EV[2];
         doc["ev_meter"]["currents"]["L1"] = Irms_EV[0];
         doc["ev_meter"]["currents"]["L2"] = Irms_EV[1];
         doc["ev_meter"]["currents"]["L3"] = Irms_EV[2];
+        doc["ev_meter"]["import_active_energy"] = round(EV_import_active_energy / 100)/10; //in kWh, precision 1 decimal
+        doc["ev_meter"]["export_active_energy"] = round(EV_export_active_energy / 100)/10; //in kWh, precision 1 decimal
 
         doc["mains_meter"]["import_active_energy"] = round(Mains_import_active_energy / 100)/10; //in kWh, precision 1 decimal
         doc["mains_meter"]["export_active_energy"] = round(Mains_export_active_energy / 100)/10; //in kWh, precision 1 decimal
