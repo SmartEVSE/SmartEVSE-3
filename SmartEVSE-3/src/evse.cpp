@@ -127,7 +127,6 @@ uint8_t Detecting_Charging_Phases_Timer = 0;
 uint32_t Charging_Prob[3]={0, 0, 0};                                        // Per phase, the probability that Charging is done at this phase
 bool Charging_Phase[3] = {false, false, false};                             // 0 = Undetected, 1,2,3 = nr of phases that was used at the start of this charging session
 uint8_t Nr_Of_Phases_Charging = 0;                                          // 1,2,3 = nr of phases that was detected at the start of this charging session
-bool Current_Lock = false;
 Single_Phase_t Switching_To_Single_Phase = FALSE;
 
 uint8_t State = STATE_A;
@@ -138,6 +137,7 @@ uint8_t pilot;
 uint16_t MaxCapacity;                                                       // Cable limit (A) (limited by the wire in the charge cable, set automatically, or manually if Config=Fixed Cable)
 uint16_t ChargeCurrent;                                                     // Calculated Charge Current (Amps *10)
 uint16_t OverrideCurrent = 0;                                               // Temporary assigned current (Amps *10) (modbus)
+uint16_t OverrideCurrent_save = 0;                                               // Temporary assigned current (Amps *10) (modbus)
 int16_t Imeasured = 0;                                                      // Max of all Phases (Amps *10) of mains power
 int16_t Imeasured_EV = 0;                                                   // Max of all Phases (Amps *10) of EV power
 int16_t Isum = 0;                                                           // Sum of all measured Phases (Amps *10) (can be negative)
@@ -411,15 +411,12 @@ void BlinkLed(void * parameter) {
 void SetCurrent(uint16_t current) {
     uint32_t DutyCycle;
 
-    if (!Current_Lock) {
-        if ((current >= 60) && (current <= 510)) DutyCycle = current / 0.6;
-                                                                                // calculate DutyCycle from current
-        else if ((current > 510) && (current <= 800)) DutyCycle = (current / 2.5) + 640;
-        else DutyCycle = 100;                                                   // invalid, use 6A
-
-        DutyCycle = DutyCycle * 1024 / 1000;                                    // conversion to 1024 = 100%
-        ledcWrite(CP_CHANNEL, DutyCycle);                                       // update PWM signal
-    }
+    if ((current >= 60) && (current <= 510)) DutyCycle = current / 0.6;
+                                                                            // calculate DutyCycle from current
+    else if ((current > 510) && (current <= 800)) DutyCycle = (current / 2.5) + 640;
+    else DutyCycle = 100;                                                   // invalid, use 6A
+    DutyCycle = DutyCycle * 1024 / 1000;                                    // conversion to 1024 = 100%
+    ledcWrite(CP_CHANNEL, DutyCycle);                                       // update PWM signal
 }
 
 
@@ -648,8 +645,8 @@ void setState(uint8_t NewState) {
                 }
                 if (LoadBl == 0) {                                               // when loadbalancing with other node smartevse's, don't detect phases...
                     if (EVMeter) {                                                  // we prefer EVMeter if present
-                        SetCurrent(MinCurrent);                                         // for detection of phases we are going to lock the charging current to MinCurrent
-                        Current_Lock = true;
+                        OverrideCurrent_save = OverrideCurrent;
+                        OverrideCurrent = MinCurrent * 10;                          // for detection of phases we are going to lock the charging current to MinCurrent
                         for (i=0; i<3; i++) {
                             Old_Irms[i] = Irms_EV[i];
                             _LOG_D("Trying to detect Charging Phases START Irms_EV[%i]=%u.\n", i, Irms_EV[i]);
@@ -657,8 +654,8 @@ void setState(uint8_t NewState) {
                         Detecting_Charging_Phases_Timer = PHASE_DETECTION_TIME;     // we need time for the EV to decide to start charging
                     }
                     else if (MainsMeter) {                                          // or else MainsMeter will do
-                        SetCurrent(MinCurrent);                                     // for detection of phases we are going to lock the charging current to MinCurrent
-                        Current_Lock = true;
+                        OverrideCurrent_save = OverrideCurrent;
+                        OverrideCurrent = MinCurrent * 10;                          // for detection of phases we are going to lock the charging current to MinCurrent
                         for (i=0; i<3; i++) {
                             Old_Irms[i] = Irms[i];
                             _LOG_D("Trying to detect Charging Phases START Irms[%i]=%u.\n", i, Irms[i]);
@@ -2228,7 +2225,7 @@ void Timer1S(void * parameter) {
 
                 _LOG_A("Charging at %i phases.\n", Nr_Of_Phases_Charging);
 
-                Current_Lock = false;                                           //now that we have determined the nr of phases we can release the current lock
+                OverrideCurrent = OverrideCurrent_save;                         //restore the old OverrideCurrent value
                 if (Switching_To_Single_Phase == AFTER_SWITCH)
                    Switching_To_Single_Phase = FALSE;                           // we finished the switching process
             } //if Det... = 0
