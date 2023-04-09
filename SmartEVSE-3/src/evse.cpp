@@ -3162,7 +3162,6 @@ void StartwebServer(void) {
                     setMode(MODE_SOLAR);
                     break;
                 case 3:
-                    OverrideCurrent = 0;
                     setAccess(1);
                     setMode(MODE_SMART);
                     break;
@@ -3191,10 +3190,10 @@ void StartwebServer(void) {
 
         }
 
-        if(Mode == MODE_NORMAL) {
+        if(Mode == MODE_NORMAL || Mode == MODE_SMART) {
             if(request->hasParam("override_current")) {
                 String current = request->getParam("override_current")->value();
-                if(current.toInt() >= ( MinCurrent * 10 ) && current.toInt() <= ( MaxCurrent * 10 )) {
+                if(current.toInt() == 0 || (current.toInt() >= ( MinCurrent * 10 ) && current.toInt() <= ( MaxCurrent * 10 ))) {
                     OverrideCurrent = current.toInt();
                     doc["override_current"] = OverrideCurrent;
                 } else {
