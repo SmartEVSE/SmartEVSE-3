@@ -2134,23 +2134,6 @@ void Timer1S(void * parameter) {
         if (Mode == 0)
             printStatus();  //for debug purposes
 
-
-        // this will run every 5 seconds
-        // if (Timer5sec++ >= 5) {
-        //     // Connected to WiFi?
-        //     if (WiFi.status() == WL_CONNECTED) {
-        //         ws.printfAll("T:%d",TempEVSE);                              // Send internal temperature to clients 
-        //         ws.printfAll("S:%s",getStateNameWeb(State));
-        //         ws.printfAll("E:%s",getErrorNameWeb(ErrorFlags));
-        //         ws.printfAll("C:%2.1f",(float)Balanced[0]/10);
-        //         ws.printfAll("I:%3.1f,%3.1f,%3.1f",(float)Irms[0]/10,(float)Irms[1]/10,(float)Irms[2]/10);
-        //         ws.printfAll("R:%u", esp_reset_reason() );
-
-        //         ws.cleanupClients();                                        // Cleanup old websocket clients
-        //     } 
-        //     Timer5sec = 0;
-        // }
-
         //_LOG_A("Task 1s free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
 
 
@@ -2837,54 +2820,6 @@ void write_settings(void) {
     ConfigChanged = 1;
 }
 
-
-/*
-void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info) {
-    _LOG_A("WiFi lost connection.\n");
-    // try to reconnect when not connected to AP
-    if (WiFi.getMode() != WIFI_AP_STA) {                        
-        _LOG_A("Trying to Reconnect\n");
-        WiFi.begin();
-    }
-}
-*/
-
-/*
-void WiFiStationGotIp(WiFiEvent_t event, WiFiEventInfo_t info) {
-    _LOG_A("Connected to AP: %s\nLocal IP: %s\n", WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
-}
-*/
-
-
-
-/*
-//
-// WebSockets event handler
-//
-void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len){
-
-  if (type == WS_EVT_CONNECT) {
-    _LOG_A("ws[%s][%u] connect\n", server->url(), client->id());
-    //client->printf("Hello Client %u\n", client->id());
-    //client->ping();                                                               // this will crash the ESP on IOS 15.3.1 / Safari
-    //client->text("Hello from ESP32 Server");
-
-  } else if (type == WS_EVT_DISCONNECT) {
-    _LOG_A("ws[%s][%u] disconnect\n", server->url(), client->id());
-  } else if(type == WS_EVT_PONG){
-//   _LOG_A("ws[%s][%u] pong[%u]: %s\n", server->url(), client->id(), len, (len)?(char*)data:"");
-  } else if (type == WS_EVT_DATA){
-
-    _LOG_A("Data received: ");
-    for (int i=0; i < len; i++) {
-      _LOG_A("%c",(char) data[i]);
-    }
-
-    _LOG_A("\nFree: %d\n",ESP.getFreeHeap() );
-  }
-}
-
-*/
 //
 // Replaces %variables% in html file with local variables
 //
@@ -3197,14 +3132,6 @@ void StartwebServer(void) {
                     doc["override_current"] = "Value not allowed!";
                 }
             }
-
-            // if(request->hasParam("force_contactors")) {
-            //     String force_contactors = request->getParam("force_contactors")->value();
-            //     if(force_contactors.equalsIgnoreCase("true")) {
-            //         setState(State, true);
-            //         doc["force_contactors"] = "OK";
-            //     }
-            // }
         }
 
         String json;
@@ -3286,10 +3213,6 @@ void StartwebServer(void) {
     // setup 404 handler 'onRequest'
     webServer.onNotFound(onRequest);
 
-    // setup websockets handler 'onWsEvent'
-    // ws.onEvent(onWsEvent);
-    // webServer.addHandler(&ws);
-    
     // Setup async webserver
     webServer.begin();
     _LOG_A("HTTP server started\n");
@@ -3341,12 +3264,6 @@ void WiFiSetup(void) {
     //WiFi.setAutoReconnect(true);
     //WiFi.persistent(true);
     WiFi.onEvent(onWifiEvent);
-
-    // On disconnect Event, call function
-    //WiFi.onEvent(WiFiStationDisconnected, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
-    // On IP, call function
-    //
-    //WiFi.onEvent (WiFiAPstop, SYSTEM_EVENT_AP_STOP);
 
     // Init and get the time
     // See https://github.com/nayarsystems/posix_tz_db/blob/master/zones.csv for Timezone codes for your region
