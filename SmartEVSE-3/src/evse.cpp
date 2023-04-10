@@ -3089,14 +3089,18 @@ void StartwebServer(void) {
                     setMode(MODE_NORMAL);
                     break;
                 case 2:
-                    OverrideCurrent = 0;
-                    setAccess(1);
-                    setMode(MODE_SOLAR);
-                    break;
+                    if (MainsMeter) {
+                        OverrideCurrent = 0;
+                        setAccess(1);
+                        setMode(MODE_SOLAR);
+                        break;
+                    }
                 case 3:
-                    setAccess(1);
-                    setMode(MODE_SMART);
-                    break;
+                    if (MainsMeter) {
+                        setAccess(1);
+                        setMode(MODE_SMART);
+                        break;
+                    }
                 default:
                     mode = "Value not allowed!";
             }

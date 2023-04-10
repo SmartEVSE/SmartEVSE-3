@@ -151,6 +151,12 @@
               $('#battery_status').text(data.home_battery.current < 0 ? "Discharging" : "Charging");
             }
 
+            if(data.settings.mains_meter == "Disabled") {
+              $('[id=with_mainsmeter]').hide();
+            } else {
+              $('[id=with_mainsmeter]').show();
+            }
+
             if(data.ev_meter.description == "Disabled") {
               $('[id=with_evmeter]').hide();
             } else {
@@ -324,7 +330,7 @@
                       </div>
                   </div>
 
-                  <div class="col-xl-3 col-md-6 mb-4">
+                  <div class="col-xl-3 col-md-6 mb-4" id="with_mainsmeter" style="display: none;">
                     <div class="card border-left-success shadow h-100 py-2">
                         <div class="card-body">
                             <div class="row no-gutters align-items-center">
@@ -632,8 +638,10 @@
                                         <div class="col">
                                           <button id="mode_0" onclick="activate('0')" style="width: 100px; display:inline-block;">OFF</button>
                                           <button id="mode_1" onclick="activate('1')" style="width: 120px; display:inline-block;">NORMAL</button>
-                                          <button id="mode_2" onclick="activate('2')" style="width: 100px; display:inline-block;">SOLAR</button>
-                                          <button id="mode_3" onclick="activate('3')" style="width: 100px; display:inline-block;">SMART</button>
+                                          <div id="with_mainsmeter" style="display: inline">
+                                            <button id="mode_2" onclick="activate('2')" style="width: 100px; display:inline-block;">SOLAR</button>
+                                            <button id="mode_3" onclick="activate('3')" style="width: 100px; display:inline-block;">SMART</button>
+                                          </div>
                                         </div>
                                     </div>
                                     <div class="row no-gutters align-items-center">
