@@ -100,21 +100,28 @@
             $('#phase_1').text((data.phase_currents.L1/10).toFixed(1) + " A");
             $('#phase_2').text((data.phase_currents.L2/10).toFixed(1) + " A");
             $('#phase_3').text((data.phase_currents.L3/10).toFixed(1) + " A");
+            $('#evmeter_currents_total').text((data.ev_meter.currents.TOTAL/10).toFixed(1) + " A");
+            $('#evmeter_currents_1').text((data.ev_meter.currents.L1/10).toFixed(1) + " A");
+            $('#evmeter_currents_2').text((data.ev_meter.currents.L2/10).toFixed(1) + " A");
+            $('#evmeter_currents_3').text((data.ev_meter.currents.L3/10).toFixed(1) + " A");
             nr_of_phases_charging = 0;
             if(data.phase_currents.charging_L1) {
               $('#phase_1').append("*");
+              $('#evmeter_currents_1').append("*");
               nr_of_phases_charging++;
             } else {
               $('#phase_1').append(" ");
             }
             if(data.phase_currents.charging_L2) {
               $('#phase_2').append("*");
+              $('#evmeter_currents_2').append("*");
               nr_of_phases_charging++;
             } else {
               $('#phase_2').append(" ");
             }
             if(data.phase_currents.charging_L3) {
               $('#phase_3').append("*");
+              $('#evmeter_currents_3').append("*");
               nr_of_phases_charging++;
             } else {
               $('#phase_3').append(" ");
@@ -167,10 +174,6 @@
             $('#evmeter_power').text(data.ev_meter.import_active_power.toFixed(1) + " kW");
             $('#evmeter_total_kwh').text(data.ev_meter.total_kwh.toFixed(1) + " kWh");
             $('#evmeter_charged_kwh').text(data.ev_meter.charged_kwh.toFixed(1) + " kWh");
-            $('#evmeter_currents_total').text((data.ev_meter.currents.TOTAL/10).toFixed(1) + " A");
-            $('#evmeter_currents_1').text((data.ev_meter.currents.L1/10).toFixed(1) + " A");
-            $('#evmeter_currents_2').text((data.ev_meter.currents.L2/10).toFixed(1) + " A");
-            $('#evmeter_currents_3').text((data.ev_meter.currents.L3/10).toFixed(1) + " A");
 
             setTimeout("loadData()", 5000);
           });
