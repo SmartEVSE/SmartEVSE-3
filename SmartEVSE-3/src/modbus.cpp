@@ -48,7 +48,12 @@ extern struct ModBus MB;
  */
 void ModbusSend8(uint8_t address, uint8_t function, uint16_t reg, uint16_t data) {
     // 0x12345678 is a token to keep track of modbus requests/responses. currently unused.
-    MBclient.addRequest(0x12345678, address, function, reg, data);
+    Error err = MBclient.addRequest(0x12345678, address, function, reg, data);
+    if (err!=SUCCESS) {
+      ModbusError e(err);
+      _LOG_A("Error creating request: %02X - %s\n", (int)e, (const char *)e);
+    }
+
     _LOG_D("Sent packet");
     _LOG_V("address: %02x, function: %02x, reg: %04x, data: %04x.\n", address, function, reg, data);
 }
