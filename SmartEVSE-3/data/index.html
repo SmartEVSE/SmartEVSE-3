@@ -609,11 +609,12 @@
 
                 <script>
                     function activate(mode) {
+                      var starttime = document.querySelector('input[name="starttime"]').value;
                       if(mode == 1 || mode == 3) {
                         override_current=$('#mode_override_current').val();
-                        $.post( "/settings?mode=" + mode +  "&override_current=" + (override_current * 10));
+                        $.post( "/settings?mode=" + mode +  "&override_current=" + (override_current * 10) + "&starttime=" + starttime);
                       } else {
-                        $.post( "/settings?mode=" + mode);
+                        $.post( "/settings?mode=" + mode  + "&starttime=" + starttime);
                       }
                     }
                     function reboot() {
@@ -639,12 +640,20 @@
                                           Mode:
                                         </div>
                                         <div class="col">
-                                          <button id="mode_0" onclick="activate('0')" style="width: 100px; display:inline-block;">OFF</button>
-                                          <button id="mode_1" onclick="activate('1')" style="width: 120px; display:inline-block;">NORMAL</button>
-                                          <div id="with_mainsmeter" style="display: inline">
-                                            <button id="mode_2" onclick="activate('2')" style="width: 100px; display:inline-block;">SOLAR</button>
-                                            <button id="mode_3" onclick="activate('3')" style="width: 100px; display:inline-block;">SMART</button>
-                                          </div>
+                                          <form class="form-inline">
+                                            <button id="mode_0" onclick="activate('0')" style="width: 100px; display:inline-block;">OFF</button>
+                                            <button id="mode_1" onclick="activate('1')" style="width: 120px; display:inline-block;">NORMAL</button>
+                                            <div id="with_mainsmeter" style="display: inline">
+                                              <button id="mode_2" onclick="activate('2')" style="width: 100px; display:inline-block;">SOLAR</button>
+                                              <button id="mode_3" onclick="activate('3')" style="width: 100px; display:inline-block;">SMART</button>
+                                            </div>
+                                            <div class="form-group">
+                                              <label for="starttime">...STARTING:</label>
+                                              <div class="input-group">
+                                                <input type="datetime-local" id="starttime" name="starttime" class="form-control" style="max-width: 200px;">
+                                              </div>
+                                            </div>
+                                          </form>
                                         </div>
                                     </div>
                                     <div class="row no-gutters align-items-center">
@@ -684,6 +693,17 @@
         </div>
       </div>
   </div>
+  <script>
+    // Get the current date and time
+    var now = new Date();
 
+    // Format the date and time as a string that can be used as the value of the input field
+    var dateString = now.getFullYear() + '-' + ('0' + (now.getMonth() + 1)).slice(-2) + '-' + ('0' + now.getDate()).slice(-2);
+    var timeString = ('0' + now.getHours()).slice(-2) + ':' + ('0' + now.getMinutes()).slice(-2);
+    var dateTimeString = dateString + 'T' + timeString;
+
+    // Set the value of the input field to the current date and time
+    document.getElementById('starttime').value = dateTimeString;
+  </script>
 </body>
 </html>

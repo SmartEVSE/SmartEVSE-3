@@ -400,6 +400,9 @@ extern int32_t EnergyCharged;
 extern int32_t PowerMeasured;
 extern uint8_t RFIDstatus;
 extern bool LocalTimeSet;
+extern time_t StartTime;
+extern tm StartTime_tm;
+extern double StartTime_diff;
 
 extern uint8_t MenuItems[MENU_EXIT];
 
