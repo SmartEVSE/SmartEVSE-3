@@ -2196,7 +2196,7 @@ void Timer1S(void * parameter) {
                         Charging_Phase[i] = true;                                           // so all phases will be taken into account when loadbalancing
                 }
 
-                if (EnableC2 != AUTO) {
+                if (EnableC2 != AUTO && EnableC2 != NOT_PRESENT) {                         // no further sanity checks possible when AUTO or NOT_PRESENT
                     if (Nr_Of_Phases_Charging != 1 && (EnableC2 == ALWAYS_OFF || (EnableC2 == SOLAR_OFF && Mode == MODE_SOLAR))) {
                         _LOG_A("Error in detecting phases: EnableC2=%s and Nr_Of_Phases_Charging=%i.\n", StrEnableC2[EnableC2], Nr_Of_Phases_Charging);
                         Nr_Of_Phases_Charging = 1;
