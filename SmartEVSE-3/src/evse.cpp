@@ -1453,7 +1453,7 @@ void UpdateCurrentData(void) {
             SetCurrent(Balanced[0]);
         }
         printStatus();  //for debug purposes
-    } else Imeasured = 0; // In case Sensorbox is connected in Normal mode. Clear measurement.
+    }
 }
 
 
