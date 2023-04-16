@@ -824,6 +824,7 @@ void CalcBalancedCurrent(char mod) {
             ActiveMax += BalancedMax[n];                                        // Calculate total Max Amps for all active EVSEs
             TotalCurrent += Balanced[n];                                        // Calculate total of all set charge currents
         }
+    _LOG_V("Checkpoint 1 Isetbalanced=%.1f A Imeasured=%.1f A MaxCircuit=%i Imeasured_EV=%.1f A, mode=%i.\n", (float)IsetBalanced/10, (float)Imeasured/10, MaxCircuit, (float)Imeasured_EV/10, Mode);
 
     if (!mod && Mode != MODE_SOLAR) {                                           // Normal and Smart mode
         Idifference = (MaxMains * 10) - Imeasured;                              // Difference between MaxMains and Measured current (can be negative)
@@ -837,8 +838,7 @@ void CalcBalancedCurrent(char mod) {
         if (IsetBalanced < 0) IsetBalanced = 0;
         if (IsetBalanced > 800) IsetBalanced = 800;                             // hard limit 80A (added 11-11-2017)
     }
-
-
+    _LOG_V("Checkpoint 2 Isetbalanced=%.1f A Imeasured=%.1f A.\n", (float)IsetBalanced/10, (float)Imeasured/10);
 
     if (Mode == MODE_SOLAR)                                                     // Solar version
     {
@@ -881,6 +881,7 @@ void CalcBalancedCurrent(char mod) {
             setSolarStopTimer(0);
         }
     }
+    _LOG_V("Checkpoint 3 Isetbalanced=%.1f A Imeasured=%.1f A.\n", (float)IsetBalanced/10, (float)Imeasured/10);
 
     // When Load balancing = Master,  Limit total current of all EVSEs to MaxCircuit
     // Also, when not in Normal Mode, if MaxCircuit is set, it will limit the total current (subpanel configuration)
@@ -897,6 +898,7 @@ void CalcBalancedCurrent(char mod) {
         if (LoadBl == 1) IsetBalanced = MaxCircuit * 10 - Baseload_EV;          // Load Balancing = Master? MaxCircuit is max current for all active EVSE's; subpanel option not valid in Normal Mode; //limiting is per phase so no Nr_Of_Phases_Charging here!
         else IsetBalanced = ChargeCurrent;                                      // No Load Balancing in Normal Mode. Set current to ChargeCurrent (fix: v2.05)
     }
+    _LOG_V("Checkpoint 4 Isetbalanced=%.1f A Imeasured=%.1f A.\n", (float)IsetBalanced/10, (float)Imeasured/10);
 
     if (BalancedLeft)                                                           // Only if we have active EVSE's
     {
@@ -968,6 +970,7 @@ void CalcBalancedCurrent(char mod) {
 
 
     } // BalancedLeft
+    _LOG_V("Checkpoint 5 Isetbalanced=%.1f A Imeasured=%.1f A.\n", (float)IsetBalanced/10, (float)Imeasured/10);
 
     char Str[128];
     char *cur = Str, * const end = Str + sizeof Str;
