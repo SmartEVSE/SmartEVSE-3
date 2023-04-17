@@ -125,8 +125,9 @@ int32_t Old_Irms[3]={0, 0, 0};                                              // S
                                                                             // Max 3 phases supported
 uint8_t Detecting_Charging_Phases_Timer = 0;
 uint32_t Charging_Prob[3]={0, 0, 0};                                        // Per phase, the probability that Charging is done at this phase
-bool Charging_Phase[3] = {false, false, false};                             // 0 = Undetected, 1,2,3 = nr of phases that was used at the start of this charging session
-uint8_t Nr_Of_Phases_Charging = 0;                                          // 1,2,3 = nr of phases that was detected at the start of this charging session
+bool Charging_Phase[3] = {true, true, true};                                // phases that are used at the start of this charging session; default is all true,
+                                                                            // then conservatively we switch off phases of which we think are not charging
+uint8_t Nr_Of_Phases_Charging = 0;                                          // 0 = Undetected, 1,2,3 = nr of phases that was detected at the start of this charging session
 Single_Phase_t Switching_To_Single_Phase = FALSE;
 
 uint8_t State = STATE_A;
@@ -640,7 +641,7 @@ void setState(uint8_t NewState) {
                 for (i=0; i<3; i++) {                                           // every start of STATE_C we have to detect the phases, since we cannot be sure
                                                                                 // which phases the car will use
                     Charging_Prob[i] = 0;                                       // reset charging phase probabilities
-                    Charging_Phase[i] = false;                                  // reset charging phases
+                    Charging_Phase[i] = true;                                   // reset charging phases
                     Nr_Of_Phases_Charging = 0;                                  // undetected
                 }
                 if (LoadBl == 0) {                                               // when loadbalancing with other node smartevse's, don't detect phases...
@@ -2174,7 +2175,7 @@ void Timer1S(void * parameter) {
 #define THRESHOLD 40
 #define BOTTOM_THRESHOLD 25
                 for (int i=0; i<3; i++) {
-                    Charging_Phase[i] = false;
+                    Charging_Phase[i] = true;  //lets stay conservative
                     if (Charging_Prob[i] == Max_Charging_Prob) {
                         _LOG_D("Suspect I am charging at phase: L%i.\n", i+1);
                         Nr_Of_Phases_Charging++;
@@ -2183,13 +2184,18 @@ void Timer1S(void * parameter) {
                     else {
                         if ( Charging_Prob[i] <= BOTTOM_THRESHOLD ) {
                             _LOG_D("Suspect I am NOT charging at phase: L%i.\n", i+1);
+                            Charging_Phase[i] = false;
                         }
-                    }
-                    else {
-                        if ( Max_Charging_Prob - Charging_Prob[i] <= THRESHOLD ) {
-                            _LOG_D("Serious candidate for charging at phase: L%i.\n", i+1);
-                            Nr_Of_Phases_Charging++;
-                            Charging_Phase[i] = true;
+                        else {
+                            if ( Max_Charging_Prob - Charging_Prob[i] <= THRESHOLD ) {
+                                _LOG_D("Serious candidate for charging at phase: L%i.\n", i+1);
+                                Nr_Of_Phases_Charging++;
+                                Charging_Phase[i] = true;
+                            }
+                            else {
+                                Charging_Phase[i] = false;                                  //if we really want to stay conservative we set this to true
+                                                                                            //but then it would be out of line with Nr_Of_Phases_Charging
+                            }
                         }
                     }
                 }
@@ -2206,14 +2212,16 @@ void Timer1S(void * parameter) {
                     if (Nr_Of_Phases_Charging != 1 && (EnableC2 == ALWAYS_OFF || (EnableC2 == SOLAR_OFF && Mode == MODE_SOLAR))) {
                         _LOG_A("Error in detecting phases: EnableC2=%s and Nr_Of_Phases_Charging=%i.\n", StrEnableC2[EnableC2], Nr_Of_Phases_Charging);
                         Nr_Of_Phases_Charging = 1;
-                        Charging_Phase[0] = true;                                      // so L1 phase will be taken into account when loadbalancing
+                        Charging_Phase[0] = true;                                      // so L1 phase will be taken into accouny
+                        Charging_Phase[1] = false;                                     // so L2 phase will NOT be taken into account
+                        Charging_Phase[2] = false;                                     // so L3 phase will NOT be taken into account
                         _LOG_A("Setting Nr_Of_Phases_Charging to 1.\n");
                     }
                     if (!Force_Single_Phase_Charging() && Nr_Of_Phases_Charging != 3) //TODO 2phase charging very rare?
                         _LOG_A("Possible error in detecting phases: EnableC2=%s and Nr_Of_Phases_Charging=%i.\n", StrEnableC2[EnableC2], Nr_Of_Phases_Charging);
                 }
 
-                _LOG_A("Charging at %i phases.\n", Nr_Of_Phases_Charging);
+                _LOG_A("Charging at %i phases, L1=%i, L2=%i, L3=%i.\n", Nr_Of_Phases_Charging, Charging_Phase[0], Charging_Phase[1], Charging_Phase[2]);
 
                 OverrideCurrent = OverrideCurrent_save;                         //restore the old OverrideCurrent value
                 if (Switching_To_Single_Phase == AFTER_SWITCH)
