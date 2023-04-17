@@ -546,24 +546,24 @@ void GLCD(void) {
                         GLCD_print_buf2(4, (const char *) "RFID CARD");
                     }
                 } else {
-                    if (StartTime) {
+                    if (StartTime.epoch) {
                         GLCD_print_buf2(2, (const char *) "STARTING @");
 #define _24H 24*60*60
 #define _WEEK 7*_24H
                         String StrFormat;
-                        if (StartTime_diff <= _24H)
+                        if (StartTime.diff <= _24H)
                             //if it starts in the next 24 hours, just print hours : minutes
                             StrFormat = "%R";
                         else {
                             //if it starts in the next week, print day of week, day of month, hours: minutes
-                            if (StartTime_diff <= _WEEK)
+                            if (StartTime.diff <= _WEEK)
                                 StrFormat = "%a %e %R";
                             else
                             //if it starts later, print day of week, day of month, month, year perhaps scrolling hours/minutes?
                                 StrFormat = "%a %e %b";
                                 //StrFormat = "%a %e %b '%C %R";
                         }
-                        if (!strftime(Str, 26, StrFormat.c_str(), &StartTime_tm))
+                        if (!strftime(Str, 26, StrFormat.c_str(), &StartTime.tmformat))
                             sprintf(Str, "later...");
                         GLCD_print_buf2(4, Str);
                         //print current time

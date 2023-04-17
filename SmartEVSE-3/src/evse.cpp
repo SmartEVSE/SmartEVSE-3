@@ -101,9 +101,7 @@ uint8_t RCmon = RC_MON;                                                     // R
 uint16_t StartCurrent = START_CURRENT;
 uint16_t StopTime = STOP_TIME;
 uint16_t ImportCurrent = IMPORT_CURRENT;
-time_t StartTime = 0;                                                       // in case of Delayed Charging the StartTime in epoch; if zero we are NOT Delayed Charging
-tm StartTime_tm = {};                                                       // StartTime in tm format
-double StartTime_diff = 0;                                                  // StartTime - current time in seconds
+struct StartTimestruct StartTime;
 uint8_t MainsMeter = MAINS_METER;                                           // Type of Mains electric meter (0: Disabled / Constants EM_*)
 uint8_t MainsMeterAddress = MAINS_METER_ADDRESS;
 uint8_t MainsMeterMeasure = MAINS_METER_MEASURE;                            // What does Mains electric meter measure (0: Mains (Home+EVSE+PV) / 1: Home+EVSE / 2: Home)
@@ -3039,6 +3037,7 @@ void StartwebServer(void) {
         doc["settings"]["solar_stop_time"] = StopTime;
         doc["settings"]["enable_C2"] = StrEnableC2[EnableC2];
         doc["settings"]["mains_meter"] = EMConfig[MainsMeter].Desc;
+        doc["settings"]["starttime"] = StartTime.epoch; //TODO tm format? string format?
         
         doc["home_battery"]["current"] = homeBatteryCurrent;
         doc["home_battery"]["last_update"] = homeBatteryLastUpdate;
@@ -3107,30 +3106,30 @@ void StartwebServer(void) {
                 //string time_str = "2023-04-14T11:31";
 
                 // Parse the time string
-                tm starttime_tm = {};
-                strptime(StartTimeStr.c_str(), "%Y-%m-%dT%H:%M", &starttime_tm);
-                StartTime_tm = starttime_tm;
-                StartTime = mktime(&starttime_tm);      //this sets/unsets the isdst flag, but also 'corrects' &time
-                                                        //we would be needing timegm instead of mktime, but that does not exist on Arduino
-                if (starttime_tm.tm_isdst == 1)         //so if the flag is set,
-                    StartTime -= 3600;                  //we need to 'uncorrect' the mktime mess
-                //TODO bring starttime to API!
-                //TODO we might need a delay because the first so many seconds ntp has not kicked in yet
+                if (strptime(StartTimeStr.c_str(), "%Y-%m-%dT%H:%M", &StartTime.tmformat)) {
+                    StartTime.epoch = mktime(&StartTime.tmformat);      //this sets/unsets the isdst flag, but also 'corrects' &time
+                                                                  //we would be needing timegm instead of mktime, but that does not exist on Arduino
+                    if (StartTime.tmformat.tm_isdst == 1)         //so if the flag is set,
+                        StartTime.epoch -= 3600;                  //we need to 'uncorrect' the mktime mess
+                    //TODO bring starttime to API!
+                    //TODO we might need a delay because the first so many seconds ntp has not kicked in yet
 
-                // Compare the times
-                time_t now = time(nullptr);             //get current local time
-                StartTime_diff = difftime(StartTime, mktime(localtime(&now)));
-                if (StartTime_diff > 0) {
-                  _LOG_A("The time is in the future.\n");
-                  setAccess(0);                         //switch to OFF, we are Delayed Charging
-                                                        //doc[mode] = "OFF" TODO
-                  //delay before switching mode, but a delay cant be canceled
+                    // Compare the times
+                    time_t now = time(nullptr);             //get current local time
+                    StartTime.diff = difftime(StartTime.epoch, mktime(localtime(&now)));
+                    if (StartTime.diff > 0) {
+                      _LOG_A("The time is in the future.\n");
+                      setAccess(0);                         //switch to OFF, we are Delayed Charging
+                                                            //doc[mode] = "OFF" TODO
+                      //delay before switching mode, but a delay cant be canceled
+                    }
                 }
-                else
-                    //starttime is in the past so we are NOT Delayed Charging
-                    StartTime = 0;
+                //starttime is in the past OR we couldn't parse the string, so we are NOT Delayed Charging
+                StartTime.epoch = 0;
+                StartTime.tmformat = {};
                 //TODO no delayed charging when RFID reader is installed?!?
                 //TODO write_settings(); perhaps write the starttime in the non-volatile ram in case of reboot?
+                doc["starttime"] = StartTimeStr;
             }
 
             switch(mode.toInt()) {
@@ -3138,19 +3137,19 @@ void StartwebServer(void) {
                     setAccess(0);
                     break;
                 case 1:
-                    setAccess(!StartTime);              //if StartTime not zero then we are Delayed Charging
+                    setAccess(!StartTime.epoch);              //if StartTime not zero then we are Delayed Charging
                     setMode(MODE_NORMAL);
                     break;
                 case 2:
                     if (MainsMeter) {
                         OverrideCurrent = 0;
-                        setAccess(!StartTime);
+                        setAccess(!StartTime.epoch);
                         setMode(MODE_SOLAR);
                         break;
                     }
                 case 3:
                     if (MainsMeter) {
-                        setAccess(!StartTime);
+                        setAccess(!StartTime.epoch);
                         setMode(MODE_SMART);
                         break;
                     }
@@ -3626,22 +3625,22 @@ void loop() {
     //printf("RSSI: %d\r",WiFi.RSSI() );
     */
     // TODO move this to a once a minute loop?
-    if (StartTime) {
+    if (StartTime.epoch) {
         // Compare the times
         time_t now = time(nullptr);             //get current local time
-        StartTime_diff = difftime(StartTime, mktime(localtime(&now)));
-        if (StartTime_diff > 0) {
+        StartTime.diff = difftime(StartTime.epoch, mktime(localtime(&now)));
+        if (StartTime.diff > 0) {
             //_LOG_A("StartTime is in the future.\n");
             if (Access_bit != 0)
                 setAccess(0);                         //switch to OFF, we are Delayed Charging
                                                 //doc[mode] = "OFF" TODO
-                                                //TODO show waiting status on LCD screen
                                                 //TODO show waiting status on webserver
         }
         else {
             //starttime is in the past so we are NOT Delayed Charging
-            StartTime = 0;
-            setAccess(1);                       //start charging TODO does this actually starts charging?
+            StartTime.epoch = 0;
+            StartTime.tmformat = {};
+            setAccess(1);
         }
     }
 }
