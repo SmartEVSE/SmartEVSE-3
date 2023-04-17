@@ -2174,13 +2174,19 @@ void Timer1S(void * parameter) {
                 }
                 _LOG_D("Detected Charging Phases: ChargeCurrent=%u, Balanced[0]=%u, IsetBalanced=%u.\n", ChargeCurrent, Balanced[0],IsetBalanced);
                 Nr_Of_Phases_Charging = 0;
-#define THRESHOLD 25
+#define THRESHOLD 40
+#define BOTTOM_THRESHOLD 25
                 for (int i=0; i<3; i++) {
                     Charging_Phase[i] = false;
                     if (Charging_Prob[i] == Max_Charging_Prob) {
                         _LOG_D("Suspect I am charging at phase: L%i.\n", i+1);
                         Nr_Of_Phases_Charging++;
                         Charging_Phase[i] = true;
+                    }
+                    else {
+                        if ( Charging_Prob[i] <= BOTTOM_THRESHOLD ) {
+                            _LOG_D("Suspect I am NOT charging at phase: L%i.\n", i+1);
+                        }
                     }
                     else {
                         if ( Max_Charging_Prob - Charging_Prob[i] <= THRESHOLD ) {
