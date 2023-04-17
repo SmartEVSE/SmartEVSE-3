@@ -2140,9 +2140,6 @@ void Timer1S(void * parameter) {
         //_LOG_A("Task 1s free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
 
 
-        // Pause the task for 1 Sec
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-
         // Autodetect on which phases we are charging
         if (Detecting_Charging_Phases_Timer) {
             Detecting_Charging_Phases_Timer--;
@@ -2209,6 +2206,7 @@ void Timer1S(void * parameter) {
                     if (Nr_Of_Phases_Charging != 1 && (EnableC2 == ALWAYS_OFF || (EnableC2 == SOLAR_OFF && Mode == MODE_SOLAR))) {
                         _LOG_A("Error in detecting phases: EnableC2=%s and Nr_Of_Phases_Charging=%i.\n", StrEnableC2[EnableC2], Nr_Of_Phases_Charging);
                         Nr_Of_Phases_Charging = 1;
+                        Charging_Phase[0] = true;                                      // so L1 phase will be taken into account when loadbalancing
                         _LOG_A("Setting Nr_Of_Phases_Charging to 1.\n");
                     }
                     if (!Force_Single_Phase_Charging() && Nr_Of_Phases_Charging != 3) //TODO 2phase charging very rare?
@@ -2222,6 +2220,9 @@ void Timer1S(void * parameter) {
                    Switching_To_Single_Phase = FALSE;                           // we finished the switching process
             } //if Det... = 0
         } //if Detecting_Charging_Phases_Timer
+
+        // Pause the task for 1 Sec
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
 
     } // while(1)
 }
