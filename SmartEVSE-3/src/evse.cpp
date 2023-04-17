@@ -3120,6 +3120,7 @@ void StartwebServer(void) {
             String enabled = request->getParam("enable_C2")->value();
             EnableC2 = (EnableC2_t) enabled.toInt();
             write_settings();
+            doc["settings"]["enable_C2"] = StrEnableC2[EnableC2];
         }
 
         if(request->hasParam("stop_timer")) {
