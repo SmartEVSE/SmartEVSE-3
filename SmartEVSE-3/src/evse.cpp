@@ -2760,6 +2760,11 @@ void read_settings(bool write) {
         EMConfig[EM_CUSTOM].Function = preferences.getUChar("EMFunction",EMCUSTOM_FUNCTION);
         WIFImode = preferences.getUChar("WIFImode",WIFI_MODE);
         APpassword = preferences.getString("APpassword",AP_PASSWORD);
+        StartTime.epoch = preferences.getULong("StartTime", STARTTIME); //epoch is 4 bytes long on arduino
+        if (StartTime.epoch)
+            StartTime.tmformat = *localtime(&StartTime.epoch); //TODO test if this has the right time!
+        else
+            StartTime.tmformat = {};
 
         EnableC2 = (EnableC2_t) preferences.getUShort("EnableC2", ENABLE_C2);
         maxTemp = preferences.getUShort("maxTemp", MAX_TEMPERATURE);
@@ -2814,6 +2819,7 @@ void write_settings(void) {
     preferences.putUChar("EMFunction", EMConfig[EM_CUSTOM].Function);
     preferences.putUChar("WIFImode", WIFImode);
     preferences.putString("APpassword", APpassword);
+    preferences.putULong("StartTime", StartTime.epoch); //epoch is 4 bytes long on arduino
 
     preferences.putUShort("EnableC2", EnableC2);
     preferences.putUShort("maxTemp", maxTemp);
@@ -3103,6 +3109,8 @@ void StartwebServer(void) {
             //first check if we have a delayed mode switch
             if(request->hasParam("starttime")) {
                 String StartTimeStr = request->getParam("starttime")->value();
+                _LOG_A("DINGO: TimeStr=%s.\n", StartTimeStr.c_str());
+                _LOG_A("DINGO: TimeStr=%s.\n", StartTimeStr.c_str());
                 //string time_str = "2023-04-14T11:31";
 
                 // Parse the time string
@@ -3111,24 +3119,25 @@ void StartwebServer(void) {
                                                                   //we would be needing timegm instead of mktime, but that does not exist on Arduino
                     if (StartTime.tmformat.tm_isdst == 1)         //so if the flag is set,
                         StartTime.epoch -= 3600;                  //we need to 'uncorrect' the mktime mess
-                    //TODO bring starttime to API!
                     //TODO we might need a delay because the first so many seconds ntp has not kicked in yet
 
                     // Compare the times
                     time_t now = time(nullptr);             //get current local time
                     StartTime.diff = difftime(StartTime.epoch, mktime(localtime(&now)));
                     if (StartTime.diff > 0) {
-                      _LOG_A("The time is in the future.\n");
                       setAccess(0);                         //switch to OFF, we are Delayed Charging
-                                                            //doc[mode] = "OFF" TODO
                       //delay before switching mode, but a delay cant be canceled
                     }
+                    else //we are in the past so no delayed charging
+                        StartTime.epoch = STARTTIME;
                 }
-                //starttime is in the past OR we couldn't parse the string, so we are NOT Delayed Charging
-                StartTime.epoch = 0;
-                StartTime.tmformat = {};
+                else
+                    //we couldn't parse the string, so we are NOT Delayed Charging
+                    StartTime.epoch = STARTTIME;
+                if (!StartTime.epoch)
+                    StartTime.tmformat = {};
                 //TODO no delayed charging when RFID reader is installed?!?
-                //TODO write_settings(); perhaps write the starttime in the non-volatile ram in case of reboot?
+                write_settings();
                 doc["starttime"] = StartTimeStr;
             }
 
@@ -3638,7 +3647,7 @@ void loop() {
         }
         else {
             //starttime is in the past so we are NOT Delayed Charging
-            StartTime.epoch = 0;
+            StartTime.epoch = STARTTIME;
             StartTime.tmformat = {};
             setAccess(1);
         }

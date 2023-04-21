@@ -162,6 +162,7 @@ extern RemoteDebug Debug;
 #define AP_PASSWORD "00000000"
 #define ENABLE_C2 NOT_PRESENT
 #define MAX_TEMPERATURE 65
+#define STARTTIME 0                                                             // The default StartTime for delayed charged, 0 = not delaying
 
 
 // Mode settings
