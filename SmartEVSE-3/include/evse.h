@@ -499,7 +499,6 @@ extern struct EMstruct EMConfig[EM_CUSTOM + 1];
 
 struct StartTimestruct {
     time_t epoch;           // in case of Delayed Charging the StartTime in epoch; if zero we are NOT Delayed Charging
-    tm tmformat;            // StartTime in tm format
     double diff;            // StartTime minus current time in seconds
 };
 

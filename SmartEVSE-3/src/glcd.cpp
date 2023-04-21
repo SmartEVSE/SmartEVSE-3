@@ -77,6 +77,8 @@ bool LCDToggle = false;                                                         
 unsigned char LCDText = 0;                                                      // Cycle through text messages
 unsigned int GLCDx, GLCDy;
 uint8_t GLCDbuf[512];                                                       // GLCD buffer (half of the display)
+tm StartTimeTM;
+time_t StartTime_Old;
 
 void st7565_command(unsigned char data) {
     _A0_0;
@@ -563,7 +565,9 @@ void GLCD(void) {
                                 StrFormat = "%a %e %b";
                                 //StrFormat = "%a %e %b '%C %R";
                         }
-                        if (!strftime(Str, 26, StrFormat.c_str(), &StartTime.tmformat))
+                        if (StartTime.epoch && LocalTimeSet && StartTime.epoch != StartTime_Old)
+                            StartTimeTM = *localtime(&StartTime.epoch);
+                        if (!strftime(Str, 26, StrFormat.c_str(), &StartTimeTM))
                             sprintf(Str, "later...");
                         GLCD_print_buf2(4, Str);
                         //print current time

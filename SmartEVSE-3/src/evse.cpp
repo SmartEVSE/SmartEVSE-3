@@ -2761,10 +2761,6 @@ void read_settings(bool write) {
         WIFImode = preferences.getUChar("WIFImode",WIFI_MODE);
         APpassword = preferences.getString("APpassword",AP_PASSWORD);
         StartTime.epoch = preferences.getULong("StartTime", STARTTIME); //epoch is 4 bytes long on arduino
-        if (StartTime.epoch)
-            StartTime.tmformat = *localtime(&StartTime.epoch); //TODO test if this has the right time!
-        else
-            StartTime.tmformat = {};
 
         EnableC2 = (EnableC2_t) preferences.getUShort("EnableC2", ENABLE_C2);
         maxTemp = preferences.getUShort("maxTemp", MAX_TEMPERATURE);
@@ -3109,16 +3105,14 @@ void StartwebServer(void) {
             //first check if we have a delayed mode switch
             if(request->hasParam("starttime")) {
                 String StartTimeStr = request->getParam("starttime")->value();
-                _LOG_A("DINGO: TimeStr=%s.\n", StartTimeStr.c_str());
-                _LOG_A("DINGO: TimeStr=%s.\n", StartTimeStr.c_str());
                 //string time_str = "2023-04-14T11:31";
 
                 // Parse the time string
-                if (strptime(StartTimeStr.c_str(), "%Y-%m-%dT%H:%M", &StartTime.tmformat)) {
-                    StartTime.epoch = mktime(&StartTime.tmformat);      //this sets/unsets the isdst flag, but also 'corrects' &time
+                tm starttime_tm = {};
+                if (strptime(StartTimeStr.c_str(), "%Y-%m-%dT%H:%M", &starttime_tm)) {
+                    starttime_tm.tm_isdst = -1;                 //so mktime is going to figure out whether DST is there or not
+                    StartTime.epoch = mktime(&starttime_tm);      //this sets/unsets the isdst flag, but also 'corrects' &time
                                                                   //we would be needing timegm instead of mktime, but that does not exist on Arduino
-                    if (StartTime.tmformat.tm_isdst == 1)         //so if the flag is set,
-                        StartTime.epoch -= 3600;                  //we need to 'uncorrect' the mktime mess
                     //TODO we might need a delay because the first so many seconds ntp has not kicked in yet
 
                     // Compare the times
@@ -3134,8 +3128,6 @@ void StartwebServer(void) {
                 else
                     //we couldn't parse the string, so we are NOT Delayed Charging
                     StartTime.epoch = STARTTIME;
-                if (!StartTime.epoch)
-                    StartTime.tmformat = {};
                 //TODO no delayed charging when RFID reader is installed?!?
                 write_settings();
                 doc["starttime"] = StartTimeStr;
@@ -3634,21 +3626,17 @@ void loop() {
     //printf("RSSI: %d\r",WiFi.RSSI() );
     */
     // TODO move this to a once a minute loop?
-    if (StartTime.epoch) {
+    if (StartTime.epoch && LocalTimeSet) {
         // Compare the times
         time_t now = time(nullptr);             //get current local time
         StartTime.diff = difftime(StartTime.epoch, mktime(localtime(&now)));
         if (StartTime.diff > 0) {
-            //_LOG_A("StartTime is in the future.\n");
             if (Access_bit != 0)
                 setAccess(0);                         //switch to OFF, we are Delayed Charging
-                                                //doc[mode] = "OFF" TODO
-                                                //TODO show waiting status on webserver
         }
         else {
             //starttime is in the past so we are NOT Delayed Charging
             StartTime.epoch = STARTTIME;
-            StartTime.tmformat = {};
             setAccess(1);
         }
     }
