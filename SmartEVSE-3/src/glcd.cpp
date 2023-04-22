@@ -573,7 +573,7 @@ void GLCD(void) {
                         //print current time
                         if (LocalTimeSet) {
                             GLCD_buffer_clr();
-                            if (strftime(Str, 26, "%a %e %b '%C %R", &timeinfo))
+                            if (strftime(Str, 26, "%a %e %b '%y %R", &timeinfo))
                                 GLCD_write_buf_str(0,0, Str, GLCD_ALIGN_LEFT);
                             GLCD_sendbuf(7, 1);
                         }
