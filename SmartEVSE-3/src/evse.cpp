@@ -3188,6 +3188,26 @@ void StartwebServer(void) {
             }
         }
 
+        if(request->hasParam("solar_start_current")) {
+            String current = request->getParam("solar_start_current")->value();
+            if(current.toInt() == 0 || (current.toInt() >= 0 && current.toInt() <= 48)) {
+                StartCurrent = current.toInt();
+                doc["solar_start_current"] = StartCurrent;
+            } else {
+                doc["solar_start_current"] = "Value not allowed!";
+            }
+        }
+
+        if(request->hasParam("solar_max_import")) {
+            String current = request->getParam("solar_max_import")->value();
+            if(current.toInt() == 0 || (current.toInt() >= 0 && current.toInt() <= 20)) {
+                ImportCurrent = current.toInt();
+                doc["solar_max_import"] = ImportCurrent;
+            } else {
+                doc["solar_max_import"] = "Value not allowed!";
+            }
+        }
+
         String json;
         serializeJson(doc, json);
 
