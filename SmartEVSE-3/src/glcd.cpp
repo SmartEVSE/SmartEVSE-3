@@ -858,15 +858,10 @@ const char * getMenuItemOption(uint8_t nav) {
 uint8_t getMenuItems (void) {
     uint8_t m = 0;
 
+    MenuItems[m++] = MENU_MODE;                                                 // EVSE mode (0:Normal / 1:Smart)
     MenuItems[m++] = MENU_CONFIG;                                               // Configuration (0:Socket / 1:Fixed Cable)
     if (!getItemValue(MENU_CONFIG)) {                                                              // ? Fixed Cable?
         MenuItems[m++] = MENU_LOCK;                                             // - Cable lock (0:Disable / 1:Solenoid / 2:Motor)
-    }
-    MenuItems[m++] = MENU_MODE;                                                 // EVSE mode (0:Normal / 1:Smart)
-    if (Mode == MODE_SOLAR && LoadBl < 2) {                                     // ? Solar mode and Load Balancing Disabled/Master?
-        MenuItems[m++] = MENU_START;                                            // - Start Surplus Current (A)
-        MenuItems[m++] = MENU_STOP;                                             // - Stop time (min)
-        MenuItems[m++] = MENU_IMPORT;                                           // - Import Current from Grid (A)
     }
     MenuItems[m++] = MENU_LOADBL;                                               // Load Balance Setting (0:Disable / 1:Master / 2-8:Node)
     if (Mode && LoadBl < 2) {                                                   // ? Mode Smart/Solar and Load Balancing Disabled/Master?
@@ -874,6 +869,11 @@ uint8_t getMenuItems (void) {
     }
     if (Mode && (LoadBl < 2 || LoadBl == 1)) {                                  // ? Mode Smart/Solar or LoadBl Master?
         MenuItems[m++] = MENU_MIN;                                              // - Minimal current the EV is happy with (A) (Mode:Smart/Solar or LoadBl:Master)
+    }
+    if (Mode == MODE_SOLAR && LoadBl < 2) {                                     // ? Solar mode and Load Balancing Disabled/Master?
+        MenuItems[m++] = MENU_START;                                            // - Start Surplus Current (A)
+        MenuItems[m++] = MENU_STOP;                                             // - Stop time (min)
+        MenuItems[m++] = MENU_IMPORT;                                           // - Import Current from Grid (A)
     }
     if (LoadBl == 1 || (LoadBl == 0 && Mode != MODE_NORMAL)) {                  // ? Load balancing Master?
                                                                                 // Also, when not in Normal Mode, MaxCircuit will limit
@@ -956,7 +956,7 @@ void GLCDMenu(uint8_t Buttons) {
         LCDNav = MENU_ENTER;                                                    // about to enter menu
         ButtonTimer = millis();
     } else if (LCDNav == MENU_ENTER && ((ButtonTimer + 2000) < millis() )) {    // <CONFIG>
-        LCDNav = MENU_CONFIG;                                                   // Main Menu entered
+        LCDNav = MENU_MODE;                                                     // Main Menu entered
         ButtonRelease = 1;
     } else if ((LCDNav == MENU_ENTER) && (Buttons == 0x7)) {                    // Button 2 released before entering menu?
         LCDNav = 0;
