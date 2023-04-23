@@ -3611,16 +3611,7 @@ void setup() {
 void loop() {
 
     delay(1000);
-    //time_t current_time;
-    //current_time = time(NULL);
-    /*
-    LocalTimeSet = getLocalTime(&timeinfo, 1000U);
-    
-    //_LOG_A("\ntime: %02d:%02d:%02d dst:%u epoch:%ld",timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec, timeinfo.tm_isdst, (long)current_time);
-  
 
-    //printf("RSSI: %d\r",WiFi.RSSI() );
-    */
     // TODO move this to a once a minute loop?
     if (StartTime.epoch2 && LocalTimeSet) {
         // Compare the times
