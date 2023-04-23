@@ -548,7 +548,7 @@ void GLCD(void) {
                         GLCD_print_buf2(4, (const char *) "RFID CARD");
                     }
                 } else {
-                    if (StartTime.epoch) {
+                    if (StartTime.epoch2) {
                         GLCD_print_buf2(2, (const char *) "STARTING @");
 #define _24H 24*60*60
 #define _WEEK 7*_24H
@@ -565,8 +565,10 @@ void GLCD(void) {
                                 StrFormat = "%a %e %b";
                                 //StrFormat = "%a %e %b '%C %R";
                         }
-                        if (StartTime.epoch && LocalTimeSet && StartTime.epoch != StartTime_Old)
-                            StartTimeTM = *localtime(&StartTime.epoch);
+                        if (StartTime.epoch2 && LocalTimeSet && StartTime.epoch2 != StartTime_Old) {
+                            time_t epoch = StartTime.epoch2 + EPOCH2_OFFSET;
+                            StartTimeTM = *localtime(&epoch);
+                        }
                         if (!strftime(Str, 26, StrFormat.c_str(), &StartTimeTM))
                             sprintf(Str, "later...");
                         GLCD_print_buf2(4, Str);

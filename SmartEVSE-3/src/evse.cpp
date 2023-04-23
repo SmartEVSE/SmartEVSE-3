@@ -2760,7 +2760,7 @@ void read_settings(bool write) {
         EMConfig[EM_CUSTOM].Function = preferences.getUChar("EMFunction",EMCUSTOM_FUNCTION);
         WIFImode = preferences.getUChar("WIFImode",WIFI_MODE);
         APpassword = preferences.getString("APpassword",AP_PASSWORD);
-        StartTime.epoch = preferences.getULong("StartTime", STARTTIME); //epoch is 4 bytes long on arduino
+        StartTime.epoch2 = preferences.getULong("StartTime", STARTTIME); //epoch2 is 4 bytes long on arduino
 
         EnableC2 = (EnableC2_t) preferences.getUShort("EnableC2", ENABLE_C2);
         maxTemp = preferences.getUShort("maxTemp", MAX_TEMPERATURE);
@@ -2815,7 +2815,7 @@ void write_settings(void) {
     preferences.putUChar("EMFunction", EMConfig[EM_CUSTOM].Function);
     preferences.putUChar("WIFImode", WIFImode);
     preferences.putString("APpassword", APpassword);
-    preferences.putULong("StartTime", StartTime.epoch); //epoch is 4 bytes long on arduino
+    preferences.putULong("StartTime", StartTime.epoch2); //epoch2 only needs 4 bytes
 
     preferences.putUShort("EnableC2", EnableC2);
     preferences.putUShort("maxTemp", maxTemp);
@@ -3039,7 +3039,7 @@ void StartwebServer(void) {
         doc["settings"]["solar_stop_time"] = StopTime;
         doc["settings"]["enable_C2"] = StrEnableC2[EnableC2];
         doc["settings"]["mains_meter"] = EMConfig[MainsMeter].Desc;
-        doc["settings"]["starttime"] = StartTime.epoch; //TODO tm format? string format?
+        doc["settings"]["starttime"] = (StartTime.epoch2 ? StartTime.epoch2 + EPOCH2_OFFSET : 0);
         
         doc["home_battery"]["current"] = homeBatteryCurrent;
         doc["home_battery"]["last_update"] = homeBatteryLastUpdate;
@@ -3111,26 +3111,22 @@ void StartwebServer(void) {
                 tm starttime_tm = {};
                 if (strptime(StartTimeStr.c_str(), "%Y-%m-%dT%H:%M", &starttime_tm)) {
                     starttime_tm.tm_isdst = -1;                 //so mktime is going to figure out whether DST is there or not
-                    StartTime.epoch = mktime(&starttime_tm);      //this sets/unsets the isdst flag, but also 'corrects' &time
-                                                                  //we would be needing timegm instead of mktime, but that does not exist on Arduino
-                    //TODO we might need a delay because the first so many seconds ntp has not kicked in yet
-
+                    StartTime.epoch2 = mktime(&starttime_tm) - EPOCH2_OFFSET;
                     // Compare the times
                     time_t now = time(nullptr);             //get current local time
-                    StartTime.diff = difftime(StartTime.epoch, mktime(localtime(&now)));
+                    StartTime.diff = StartTime.epoch2 - (mktime(localtime(&now)) - EPOCH2_OFFSET);
                     if (StartTime.diff > 0) {
                       setAccess(0);                         //switch to OFF, we are Delayed Charging
-                      //delay before switching mode, but a delay cant be canceled
                     }
                     else //we are in the past so no delayed charging
-                        StartTime.epoch = STARTTIME;
+                        StartTime.epoch2 = STARTTIME;
                 }
                 else
                     //we couldn't parse the string, so we are NOT Delayed Charging
-                    StartTime.epoch = STARTTIME;
+                    StartTime.epoch2 = STARTTIME;
                 //TODO no delayed charging when RFID reader is installed?!?
                 write_settings();
-                doc["starttime"] = StartTimeStr;
+                doc["starttime"] = (StartTime.epoch2 ? StartTime.epoch2 + EPOCH2_OFFSET : 0);
             }
 
             switch(mode.toInt()) {
@@ -3138,19 +3134,19 @@ void StartwebServer(void) {
                     setAccess(0);
                     break;
                 case 1:
-                    setAccess(!StartTime.epoch);              //if StartTime not zero then we are Delayed Charging
+                    setAccess(!StartTime.epoch2);              //if StartTime not zero then we are Delayed Charging
                     setMode(MODE_NORMAL);
                     break;
                 case 2:
                     if (MainsMeter) {
                         OverrideCurrent = 0;
-                        setAccess(!StartTime.epoch);
+                        setAccess(!StartTime.epoch2);
                         setMode(MODE_SOLAR);
                         break;
                     }
                 case 3:
                     if (MainsMeter) {
-                        setAccess(!StartTime.epoch);
+                        setAccess(!StartTime.epoch2);
                         setMode(MODE_SMART);
                         break;
                     }
@@ -3626,17 +3622,17 @@ void loop() {
     //printf("RSSI: %d\r",WiFi.RSSI() );
     */
     // TODO move this to a once a minute loop?
-    if (StartTime.epoch && LocalTimeSet) {
+    if (StartTime.epoch2 && LocalTimeSet) {
         // Compare the times
         time_t now = time(nullptr);             //get current local time
-        StartTime.diff = difftime(StartTime.epoch, mktime(localtime(&now)));
+        StartTime.diff = StartTime.epoch2 - (mktime(localtime(&now)) - EPOCH2_OFFSET);
         if (StartTime.diff > 0) {
             if (Access_bit != 0)
                 setAccess(0);                         //switch to OFF, we are Delayed Charging
         }
         else {
             //starttime is in the past so we are NOT Delayed Charging
-            StartTime.epoch = STARTTIME;
+            StartTime.epoch2 = STARTTIME;
             setAccess(1);
         }
     }
