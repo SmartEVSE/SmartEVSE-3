@@ -906,15 +906,8 @@ void CalcBalancedCurrent(char mod) {
     {
         // New EVSE charging, and no Solar mode
         if (mod && Mode != MODE_SOLAR) {                                        // Set max combined charge current to MaxMains - Baseload //TODO so now we ignore MaxCircuit? And all the other calculations we did before on IsetBalanced?
-            if (Nr_Of_Phases_Charging == 0) {                                   // undetected
-                //_LOG_A("ERROR: Nr_Of_Phases_Charging = 0, preventing a divide by zero!");
-                IsetBalanced = (MaxMains * 10) - Baseload;                      // retain old software behaviour
-                IsetBalanced2 = (MaxCircuit * 10 ) - Baseload_EV;
-            }
-            else {
-                IsetBalanced = ((MaxMains * 10) - Baseload) / Nr_Of_Phases_Charging;
-                IsetBalanced2 = ((MaxCircuit * 10 ) - Baseload_EV) / Nr_Of_Phases_Charging;
-            }
+            IsetBalanced = (MaxMains * 10) - Baseload;                          // retain old software behaviour
+            IsetBalanced2 = (MaxCircuit * 10 ) - Baseload_EV;
             if (IsetBalanced2 < IsetBalanced) {
                 IsetBalanced=IsetBalanced2;
             }
