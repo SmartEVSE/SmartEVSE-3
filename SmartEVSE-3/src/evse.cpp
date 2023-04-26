@@ -924,12 +924,7 @@ void CalcBalancedCurrent(char mod) {
           || ( Mode == MODE_SOLAR && Isum > 10 && (Imeasured > (MaxMains * 10) || Imeasured_EV > (MaxCircuit * 10))))
                                                                                 //TODO why Isum > 10 ? If Imeasured > MaxMains then Isum is always bigger than 1A, unless MaxMains is set at 0....
         {
-            if (Nr_Of_Phases_Charging == 0) {                                   // undetected
-                //_LOG_A("ERROR: Nr_Of_Phases_Charging = 0, preventing a divide by zero!");
-                IsetBalanced = BalancedLeft * MinCurrent * 10;                  // retain old software behaviour: set minimal "MinCurrent" charge per active EVSE
-            }
-            else
-                IsetBalanced = (BalancedLeft * MinCurrent * 10) / Nr_Of_Phases_Charging; // set minimal "MinCurrent" charge per active EVSE
+            IsetBalanced = BalancedLeft * MinCurrent * 10;                      // retain old software behaviour: set minimal "MinCurrent" charge per active EVSE
             NoCurrent++;                                                        // Flag NoCurrent left
             _LOG_I("No Current!!\n");
         } else NoCurrent = 0;
