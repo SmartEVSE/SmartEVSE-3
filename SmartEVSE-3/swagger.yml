@@ -114,7 +114,7 @@ paths:
         - in: query
           name: backlight
           description: |-
-           Turns backlight on (1) or off (0)
+           Turns backlight on (1) or off (0) for the duration of the backlighttimer.
           required: false
           schema:
             type: integer
@@ -148,17 +148,18 @@ paths:
         - in: query
           name: override_current
           description: |-
-            Works only when using <b>NORMAL</b> mode <br />
+            Works only when using <b>NORMAL</b> or <b>SMART</b> mode <br />
             Desired current multiplied by 10 <br />
+            If set to 0, override_current is disabled<br />
             <br />
             Examples: <br />
-            If the desired current is <b>8.3A</b> the value to be send is <b>83</b> <br />
-            If the desired current is <b>6A</b> the value to be send is <b>60</b>
+            If the desired current is <b>8.3A</b> the value to be sent is <b>83</b> <br />
+            If the desired current is <b>6A</b> the value to be sent is <b>60</b>
           required: false
           schema:
             type: integer
         - in: query
-          name: enable_contactor2
+          name: enable_C2
           description: |-
             Enables switching between 1 phase mode and 3 phase mode by controlling a 2nd contactor (C2 port) <br /> <br />
             Note 1: The 2nd contactor will only be turned <b>ON</b> when state chages to C (Charging) <br />
@@ -167,7 +168,43 @@ paths:
             If car is charging and you want to change from 1F to 3F or vice versa:  <br />
             - Change mode to OFF <br />
             - Enable or disable C2 contactor <br />
-            - Change mode to desired mode Not Present, Always OFF, Always ON <br />
+            - Change mode to desired mode "Not present", "Always Off", "Solar Off", "Always On", "Auto" <br />
+            Examples: <br />
+            If the desired C2 mode is "Solar Off", the string to be sent is <b>Solar Off</b> <br />
+          required: false
+          schema:
+            type: integer
+        - in: query
+          name: starttime
+          description: |-
+            Enables delayed charging; always has to be combined with sending the mode in which you want to start charging. <br /> <br />
+            Note 1: The time string has to be in the format "2023-04-14T23:31". <br />
+            Note 2: The time must be in the future, in local time. <br />
+            <br />
+            Examples: <br />
+            If you want the car to start charging at 23:31 on April 14th 2023, in Smart mode, the strings to be sent are <b>"2023-04-14T23:31"</b> and mode value <b>3</b> <br />
+          required: false
+          schema:
+            type: integer
+        - in: query
+          name: solar_start_current
+          description: |-
+            The Start Current at which the car starts charging when in Solar Mode.
+            Note 1: The 2nd contactor will only be turned <b>ON</b> when state chages to C (Charging) <br />
+            Note 2: This is just changing the config setting, the contactor will not be controlled immediately but only when there is a state change. <br />
+            <br />
+            Examples: <br />
+            If you want the car to start charging when the sum of all 3 phases of the MainsMeter is exporting 6A or more to the grid, the value to be sent is <b>6</b> <br />
+          required: false
+          schema:
+            type: integer
+        - in: query
+          name: solar_max_import
+          description: |-
+            The maximum current (sum of all phases) of the MainsMeter that can be imported before the solar timer is fired off, after expiration the car will stop charging. <br /> <br />
+            <br />
+            Examples: <br />
+            If you want the car to stop charging when the sum of all 3 phases of the MainsMeter is importing 0A or more to the grid, the value to be sent is <b>0</b> <br />
           required: false
           schema:
             type: integer
