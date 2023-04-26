@@ -836,7 +836,7 @@ void CalcBalancedCurrent(char mod) {
             Idifference = Idifference2;
         }
         if (Idifference > 0) IsetBalanced += (Idifference / 4);                 // increase with 1/4th of difference (slowly increase current)
-        else IsetBalanced += (Idifference * 100 / TRANSFORMER_COMP);            // last PWM setting + difference (immediately decrease current)
+        else IsetBalanced += Idifference;                                       // last PWM setting + difference (immediately decrease current)
         if (IsetBalanced < 0) IsetBalanced = 0;
         if (IsetBalanced > 800) IsetBalanced = 800;                             // hard limit 80A (added 11-11-2017)
     }
