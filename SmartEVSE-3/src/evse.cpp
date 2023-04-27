@@ -828,71 +828,6 @@ void CalcBalancedCurrent(char mod) {
         }
     _LOG_V("Checkpoint 1 Isetbalanced=%.1f A Imeasured=%.1f A MaxCircuit=%i Imeasured_EV=%.1f A, mode=%i.\n", (float)IsetBalanced/10, (float)Imeasured/10, MaxCircuit, (float)Imeasured_EV/10, Mode);
 
-    // adapt IsetBalanced in Smart Mode, and ensure the MaxMains/MaxCircuit settings for Solar
-    if (!mod && Mode != MODE_NORMAL) {                                          // For Normal mode Isetbalance is overwritten later on
-                                                                                // For Smart mode, no new EVSE asking for current
-                                                                                // But for Solar mode we _also_ have to guard MaxCircuit and Maxmains!
-        Idifference = (MaxMains * 10) - Imeasured;                              // Difference between MaxMains and Measured current (can be negative)
-        Idifference2 = (MaxCircuit * 10) - Imeasured_EV;                        // Difference between MaxCircuit and Measured EV current (can be negative)
-
-        if (Idifference2 < Idifference) {
-            Idifference = Idifference2;
-        }
-
-        if (Idifference > 0) {
-            if (Mode == MODE_SMART)
-                IsetBalanced += (Idifference / 4);                              // increase with 1/4th of difference (slowly increase current)
-        }                                                                       // in Solar mode we compute increase of current later on!
-        else IsetBalanced += Idifference;                                       // last PWM setting + difference (immediately decrease current)
-        if (IsetBalanced < 0) IsetBalanced = 0;
-        if (IsetBalanced > 800) IsetBalanced = 800;                             // hard limit 80A (added 11-11-2017)
-    }
-    _LOG_V("Checkpoint 2 Isetbalanced=%.1f A Imeasured=%.1f A.\n", (float)IsetBalanced/10, (float)Imeasured/10);
-
-    if (Mode == MODE_SOLAR)                                                     // Solar version
-    {
-        IsumImport = Isum - (10 * ImportCurrent);                               // Allow Import of power from the grid when solar charging
-        if (Idifference > 0) {                                                  // so we had some room for power as far as MaxCircuit and MaxMains are concerned
-            if (IsumImport < 0)
-            {
-                // negative, we have surplus (solar) power available
-                if (IsumImport < -10 && Idifference > 10) IsetBalanced = IsetBalanced + 5;          // more then 1A available, increase Balanced charge current with 0.5A
-                else IsetBalanced = IsetBalanced + 1;                           // less then 1A available, increase with 0.1A
-            } else {
-                // positive, we use more power then is generated
-                if (IsumImport > 20) IsetBalanced = IsetBalanced - (IsumImport / 2);// we use atleast 2A more then available, decrease Balanced charge current.
-                else if (IsumImport > 10) IsetBalanced = IsetBalanced - 5;      // we use 1A more then available, decrease with 0.5A
-                else if (IsumImport > 3) IsetBalanced = IsetBalanced - 1;       // we still use > 0.3A more then available, decrease with 0.1A
-                                                                                // if we use <= 0.3A we do nothing
-            }
-        }                                                                       // we already corrected Isetbalance in case of NOT enough power MaxCircuit/MaxMains
-
-        // If IsetBalanced is below MinCurrent or negative, make sure it's set to MinCurrent.
-        if ( (IsetBalanced < (BalancedLeft * MinCurrent * 10)) || (IsetBalanced < 0) ) {
-            IsetBalanced = BalancedLeft * MinCurrent * 10;
-                                                                                // ----------- Check to see if we have to continue charging on solar power alone ----------
-            if (BalancedLeft && StopTime && (IsumImport > 10)) {
-                if (Nr_Of_Phases_Charging > 1 && EnableC2 == AUTO && LoadBl == 0) { // when loadbalancing is enabled we don't do forced single phase charging
-                    _LOG_A("Switching to single phase.\n");                           // because we wouldnt know which currents to make available to the nodes...
-                                                                                    // since we don't know how many phases the nodes are using...
-                    //switching contactor2 off works ok for Skoda Enyaq but Hyundai Ioniq 5 goes into error, so we have to switch more elegantly
-                    if (State == STATE_C) setState(STATE_C1);                       // tell EV to stop charging
-                                                                                    // TODO probably delay so EV has time to stop charging
-                    //TODO test: if EV switches off within 3 seconds we goto state B, if not we go to state B1 in 6 seconds, which gives another 3 sec delay..
-                    Switching_To_Single_Phase = GOING_TO_SWITCH;
-                }
-                else {
-                    if (SolarStopTimer == 0) setSolarStopTimer(StopTime * 60);      // Convert minutes into seconds
-                }
-            } else {
-                setSolarStopTimer(0);
-            }
-        } else {
-            setSolarStopTimer(0);
-        }
-    }
-    _LOG_V("Checkpoint 3 Isetbalanced=%.1f A Imeasured=%.1f A.\n", (float)IsetBalanced/10, (float)Imeasured/10);
-
     // When Load balancing = Master,  Limit total current of all EVSEs to MaxCircuit
     // Also, when not in Normal Mode, if MaxCircuit is set, it will limit the total current (subpanel configuration)
     Baseload_EV = Imeasured_EV - TotalCurrent;                                        // Calculate Baseload (load without any active EVSE)
@@ -907,20 +842,94 @@ void CalcBalancedCurrent(char mod) {
     {
         if (LoadBl == 1) IsetBalanced = MaxCircuit * 10 - Baseload_EV;          // Load Balancing = Master? MaxCircuit is max current for all active EVSE's; subpanel option not valid in Normal Mode; //limiting is per phase so no Nr_Of_Phases_Charging here!
         else IsetBalanced = ChargeCurrent;                                      // No Load Balancing in Normal Mode. Set current to ChargeCurrent (fix: v2.05)
-    }
-    _LOG_V("Checkpoint 4 Isetbalanced=%.1f A Imeasured=%.1f A.\n", (float)IsetBalanced/10, (float)Imeasured/10);
-
-    if (BalancedLeft)                                                           // Only if we have active EVSE's
-    {
-        // New EVSE charging, and no Solar mode
-        if (mod && Mode != MODE_SOLAR) {                                        // Set max combined charge current to MaxMains - Baseload //TODO so now we ignore MaxCircuit? And all the other calculations we did before on IsetBalanced?
+        if (BalancedLeft && mod) {                                              // Only if we have active EVSE's and New EVSE charging
+            // Set max combined charge current to MaxMains - Baseload
             IsetBalanced = (MaxMains * 10) - Baseload;                          // retain old software behaviour
             IsetBalanced2 = (MaxCircuit * 10 ) - Baseload_EV;
             if (IsetBalanced2 < IsetBalanced) {
                 IsetBalanced=IsetBalanced2;
             }
         }
+    } //end MODE_NORMAL
+    else { // start MODE_SOLAR || MODE_SMART
+        // adapt IsetBalanced in Smart Mode, and ensure the MaxMains/MaxCircuit settings for Solar
+        if (!mod) {
+                                                                                    // For Smart mode, no new EVSE asking for current
+                                                                                    // But for Solar mode we _also_ have to guard MaxCircuit and Maxmains!
+            Idifference = (MaxMains * 10) - Imeasured;                              // Difference between MaxMains and Measured current (can be negative)
+            Idifference2 = (MaxCircuit * 10) - Imeasured_EV;                        // Difference between MaxCircuit and Measured EV current (can be negative)
 
+            if (Idifference2 < Idifference) {
+                Idifference = Idifference2;
+            }
+
+            if (Idifference > 0) {
+                if (Mode == MODE_SMART)
+                    IsetBalanced += (Idifference / 4);                              // increase with 1/4th of difference (slowly increase current)
+            }                                                                       // in Solar mode we compute increase of current later on!
+            else IsetBalanced += Idifference;                                       // last PWM setting + difference (immediately decrease current)
+            if (IsetBalanced < 0) IsetBalanced = 0;
+            if (IsetBalanced > 800) IsetBalanced = 800;                             // hard limit 80A (added 11-11-2017)
+        }
+        _LOG_V("Checkpoint 2 Isetbalanced=%.1f A Imeasured=%.1f A.\n", (float)IsetBalanced/10, (float)Imeasured/10);
+
+        if (Mode == MODE_SOLAR)                                                     // Solar version
+        {
+            IsumImport = Isum - (10 * ImportCurrent);                               // Allow Import of power from the grid when solar charging
+            if (Idifference > 0) {                                                  // so we had some room for power as far as MaxCircuit and MaxMains are concerned
+                if (IsumImport < 0)
+                {
+                    // negative, we have surplus (solar) power available
+                    if (IsumImport < -10 && Idifference > 10) IsetBalanced = IsetBalanced + 5;          // more then 1A available, increase Balanced charge current with 0.5A
+                    else IsetBalanced = IsetBalanced + 1;                           // less then 1A available, increase with 0.1A
+                } else {
+                    // positive, we use more power then is generated
+                    if (IsumImport > 20) IsetBalanced = IsetBalanced - (IsumImport / 2);// we use atleast 2A more then available, decrease Balanced charge current.
+                    else if (IsumImport > 10) IsetBalanced = IsetBalanced - 5;      // we use 1A more then available, decrease with 0.5A
+                    else if (IsumImport > 3) IsetBalanced = IsetBalanced - 1;       // we still use > 0.3A more then available, decrease with 0.1A
+                                                                                    // if we use <= 0.3A we do nothing
+                }
+            }                                                                       // we already corrected Isetbalance in case of NOT enough power MaxCircuit/MaxMains
+
+            // If IsetBalanced is below MinCurrent or negative, make sure it's set to MinCurrent.
+            if ( (IsetBalanced < (BalancedLeft * MinCurrent * 10)) || (IsetBalanced < 0) ) {
+                IsetBalanced = BalancedLeft * MinCurrent * 10;
+                                                                                    // ----------- Check to see if we have to continue charging on solar power alone ----------
+                if (BalancedLeft && StopTime && (IsumImport > 10)) {
+                    if (Nr_Of_Phases_Charging > 1 && EnableC2 == AUTO && LoadBl == 0) { // when loadbalancing is enabled we don't do forced single phase charging
+                        _LOG_A("Switching to single phase.\n");                           // because we wouldnt know which currents to make available to the nodes...
+                                                                                        // since we don't know how many phases the nodes are using...
+                        //switching contactor2 off works ok for Skoda Enyaq but Hyundai Ioniq 5 goes into error, so we have to switch more elegantly
+                        if (State == STATE_C) setState(STATE_C1);                       // tell EV to stop charging
+                                                                                        // TODO probably delay so EV has time to stop charging
+                        //TODO test: if EV switches off within 3 seconds we goto state B, if not we go to state B1 in 6 seconds, which gives another 3 sec delay..
+                        Switching_To_Single_Phase = GOING_TO_SWITCH;
+                    }
+                    else {
+                        if (SolarStopTimer == 0) setSolarStopTimer(StopTime * 60);      // Convert minutes into seconds
+                    }
+                } else {
+                    setSolarStopTimer(0);
+                }
+            } else {
+                setSolarStopTimer(0);
+            }
+        } //end MODE_SOLAR
+        else { // MODE_SMART
+        // New EVSE charging, and only if we have active EVSE's
+            if (mod && BalancedLeft) {                                        // Set max combined charge current to MaxMains - Baseload //TODO so now we ignore MaxCircuit? And all the other calculations we did before on IsetBalanced?
+                IsetBalanced = (MaxMains * 10) - Baseload;                          // retain old software behaviour
+                IsetBalanced2 = (MaxCircuit * 10 ) - Baseload_EV;
+                if (IsetBalanced2 < IsetBalanced) {
+                    IsetBalanced=IsetBalanced2;
+                }
+            }
+        } //end MODE_SMART
+        _LOG_V("Checkpoint 3 Isetbalanced=%.1f A Imeasured=%.1f A.\n", (float)IsetBalanced/10, (float)Imeasured/10);
+    } // end MODE_SOLAR || MODE_SMART
+
+    if (BalancedLeft)                                                           // Only if we have active EVSE's
+    {
         if (IsetBalanced < 0 || IsetBalanced < (BalancedLeft * MinCurrent * 10)) {
 //          || ( Mode == MODE_SOLAR && Isum > 10 && (Imeasured > (MaxMains * 10) || Imeasured_EV > (MaxCircuit * 10))))
                                                                                 //TODO why Isum > 10 ? If Imeasured > MaxMains then Isum is always bigger than 1A, unless MaxMains is set at 0....
