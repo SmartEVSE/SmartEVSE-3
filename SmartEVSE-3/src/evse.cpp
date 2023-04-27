@@ -828,14 +828,21 @@ void CalcBalancedCurrent(char mod) {
         }
     _LOG_V("Checkpoint 1 Isetbalanced=%.1f A Imeasured=%.1f A MaxCircuit=%i Imeasured_EV=%.1f A, mode=%i.\n", (float)IsetBalanced/10, (float)Imeasured/10, MaxCircuit, (float)Imeasured_EV/10, Mode);
 
-    if (!mod && Mode != MODE_SOLAR) {                                           // Normal and Smart mode
+    // adapt IsetBalanced in Smart Mode, and ensure the MaxMains/MaxCircuit settings for Solar
+    if (!mod && Mode != MODE_NORMAL) {                                          // For Normal mode Isetbalance is overwritten later on
+                                                                                // For Smart mode, no new EVSE asking for current
+                                                                                // But for Solar mode we _also_ have to guard MaxCircuit and Maxmains!
         Idifference = (MaxMains * 10) - Imeasured;                              // Difference between MaxMains and Measured current (can be negative)
         Idifference2 = (MaxCircuit * 10) - Imeasured_EV;                        // Difference between MaxCircuit and Measured EV current (can be negative)
 
         if (Idifference2 < Idifference) {
             Idifference = Idifference2;
         }
-        if (Idifference > 0) IsetBalanced += (Idifference / 4);                 // increase with 1/4th of difference (slowly increase current)
+
+        if (Idifference > 0) {
+            if (Mode == MODE_SMART)
+                IsetBalanced += (Idifference / 4);                              // increase with 1/4th of difference (slowly increase current)
+        }                                                                       // in Solar mode we compute increase of current later on!
         else IsetBalanced += Idifference;                                       // last PWM setting + difference (immediately decrease current)
         if (IsetBalanced < 0) IsetBalanced = 0;
         if (IsetBalanced > 800) IsetBalanced = 800;                             // hard limit 80A (added 11-11-2017)
@@ -845,21 +852,22 @@ void CalcBalancedCurrent(char mod) {
     if (Mode == MODE_SOLAR)                                                     // Solar version
     {
         IsumImport = Isum - (10 * ImportCurrent);                               // Allow Import of power from the grid when solar charging
-
-        if (IsumImport < 0)                                                     
-        {
-            // negative, we have surplus (solar) power available
-            if (IsumImport < -10) IsetBalanced = IsetBalanced + 5;              // more then 1A available, increase Balanced charge current with 0.5A
-            else IsetBalanced = IsetBalanced + 1;                               // less then 1A available, increase with 0.1A
-        } else {
-            // positive, we use more power then is generated
-            if (IsumImport > 20) IsetBalanced = IsetBalanced - (IsumImport / 2);// we use atleast 2A more then available, decrease Balanced charge current.
-            else if (IsumImport > 10) IsetBalanced = IsetBalanced - 5;          // we use 1A more then available, decrease with 0.5A     
-            else if (IsumImport > 3) IsetBalanced = IsetBalanced - 1;           // we still use > 0.3A more then available, decrease with 0.1A
+        if (Idifference > 0) {                                                  // so we had some room for power as far as MaxCircuit and MaxMains are concerned
+            if (IsumImport < 0)
+            {
+                // negative, we have surplus (solar) power available
+                if (IsumImport < -10 && Idifference > 10) IsetBalanced = IsetBalanced + 5;          // more then 1A available, increase Balanced charge current with 0.5A
+                else IsetBalanced = IsetBalanced + 1;                           // less then 1A available, increase with 0.1A
+            } else {
+                // positive, we use more power then is generated
+                if (IsumImport > 20) IsetBalanced = IsetBalanced - (IsumImport / 2);// we use atleast 2A more then available, decrease Balanced charge current.
+                else if (IsumImport > 10) IsetBalanced = IsetBalanced - 5;      // we use 1A more then available, decrease with 0.5A
+                else if (IsumImport > 3) IsetBalanced = IsetBalanced - 1;       // we still use > 0.3A more then available, decrease with 0.1A
                                                                                 // if we use <= 0.3A we do nothing
-        }
-        
-                                                                                // If IsetBalanced is below MinCurrent or negative, make sure it's set to MinCurrent.
+            }
+        }                                                                       // we already corrected Isetbalance in case of NOT enough power MaxCircuit/MaxMains
+
+        // If IsetBalanced is below MinCurrent or negative, make sure it's set to MinCurrent.
         if ( (IsetBalanced < (BalancedLeft * MinCurrent * 10)) || (IsetBalanced < 0) ) {
             IsetBalanced = BalancedLeft * MinCurrent * 10;
                                                                                 // ----------- Check to see if we have to continue charging on solar power alone ----------
@@ -913,10 +921,9 @@ void CalcBalancedCurrent(char mod) {
             }
         }
 
-        if (IsetBalanced < 0 || IsetBalanced < (BalancedLeft * MinCurrent * 10)
-          || ( Mode == MODE_SOLAR && Isum > 10 && (Imeasured > (MaxMains * 10) || Imeasured_EV > (MaxCircuit * 10))))
+        if (IsetBalanced < 0 || IsetBalanced < (BalancedLeft * MinCurrent * 10)) {
+//          || ( Mode == MODE_SOLAR && Isum > 10 && (Imeasured > (MaxMains * 10) || Imeasured_EV > (MaxCircuit * 10))))
                                                                                 //TODO why Isum > 10 ? If Imeasured > MaxMains then Isum is always bigger than 1A, unless MaxMains is set at 0....
-        {
             IsetBalanced = BalancedLeft * MinCurrent * 10;                      // retain old software behaviour: set minimal "MinCurrent" charge per active EVSE
             NoCurrent++;                                                        // Flag NoCurrent left
             _LOG_I("No Current!!\n");
