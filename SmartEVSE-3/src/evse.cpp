@@ -876,7 +876,7 @@ void CalcBalancedCurrent(char mod) {
             if (IsetBalanced < 0) IsetBalanced = 0;
             if (IsetBalanced > 800) IsetBalanced = 800;                         // hard limit 80A (added 11-11-2017)
         }
-        _LOG_V("Checkpoint 2 Isetbalanced=%.1f A Imeasured=%.1f A.\n", (float)IsetBalanced/10, (float)Imeasured/10);
+        _LOG_V("Checkpoint 2 Isetbalanced=%.1f A Imeasured=%.1f A, Idifference=%.1f, mod=%i.\n", (float)IsetBalanced/10, (float)Imeasured/10, (float)Idifference/10, mod);
 
         if (Mode == MODE_SOLAR)                                                 // Solar version
         {
@@ -899,6 +899,7 @@ void CalcBalancedCurrent(char mod) {
                                                                                 // if we use <= 0.3A we do nothing
                 }
             }                                                                   // we already corrected Isetbalance in case of NOT enough power MaxCircuit/MaxMains
+            _LOG_V("Checkpoint 3 Isetbalanced=%.1f A Imeasured=%.1f A, IsumImport=%.1f, Isum=%.1f, ImportCurrent=%i.\n", (float)IsetBalanced/10, (float)Imeasured/10, (float)IsumImport/10, (float)Isum/10, ImportCurrent);
 
             // If IsetBalanced is below MinCurrent or negative, make sure it's set to MinCurrent.
             if ( (IsetBalanced < (BalancedLeft * MinCurrent * 10)) || (IsetBalanced < 0) ) {
@@ -932,7 +933,7 @@ void CalcBalancedCurrent(char mod) {
             }
         } //end MODE_SMART
     } // end MODE_SOLAR || MODE_SMART
-    _LOG_V("Checkpoint 3 Isetbalanced=%.1f A Imeasured=%.1f A.\n", (float)IsetBalanced/10, (float)Imeasured/10);
+    _LOG_V("Checkpoint 4 Isetbalanced=%.1f A Imeasured=%.1f A.\n", (float)IsetBalanced/10, (float)Imeasured/10);
 
     if (BalancedLeft) {                                                         // Only if we have active EVSE's
         if (IsetBalanced < 0 || IsetBalanced < (BalancedLeft * MinCurrent * 10)) {
@@ -1430,14 +1431,23 @@ void UpdateCurrentData(void) {
     uint8_t x;
 
     // reset Imeasured value (grid power used)
-    Imeasured = 0;
-    Imeasured_EV = 0;
+    Imeasured = (MaxMains) * -20;                                               // init to 0 is problematic with negative Irms values, so init to -2x Maxmains
+    Imeasured_EV = (MaxCircuit) * -20;
     for (x=0; x<3; x++) {
     // Imeasured holds highest Irms of all channels
         if (Charging_Phase[x]) {
             if (Irms[x] > Imeasured) Imeasured = Irms[x];
             if (Irms_EV[x] > Imeasured_EV) Imeasured_EV = Irms_EV[x];
         }
+    }
+    //sanity check
+    if (Imeasured == (MaxMains) * -20) {                                        // if it equals the initialized value, something went wrong!
+        _LOG_A("UpdateCurrentData: Imeasured=%.1f, this looks wrong, correcting it to 0 for safety!", (float)Imeasured/10);
+        Imeasured = 0;
+    }
+    if (Imeasured_EV == (MaxCircuit) * -20) {                                        // if it equals the initialized value, something went wrong!
+        _LOG_A("UpdateCurrentData: Imeasured_EV=%.1f, this looks wrong, correcting it to 0 for safety!", (float)Imeasured_EV/10);
+        Imeasured_EV = 0;
     }
 
     // Load Balancing mode: Smart/Master or Disabled
