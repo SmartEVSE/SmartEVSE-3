@@ -923,8 +923,8 @@ void CalcBalancedCurrent(char mod) {
                 }
             }
         } //end MODE_SMART
-        _LOG_V("Checkpoint 3 Isetbalanced=%.1f A Imeasured=%.1f A.\n", (float)IsetBalanced/10, (float)Imeasured/10);
     } // end MODE_SOLAR || MODE_SMART
+    _LOG_V("Checkpoint 3 Isetbalanced=%.1f A Imeasured=%.1f A.\n", (float)IsetBalanced/10, (float)Imeasured/10);
 
     if (BalancedLeft)                                                           // Only if we have active EVSE's
     {
