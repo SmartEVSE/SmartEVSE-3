@@ -180,6 +180,7 @@ paths:
             Enables delayed charging; always has to be combined with sending the mode in which you want to start charging. <br /> <br />
             Note 1: The time string has to be in the format "2023-04-14T23:31". <br />
             Note 2: The time must be in the future, in local time. <br />
+            Note 3: Only valid when combined with Normal or Smart mode. Solar mode will itself decide when to start... <br />
             <br />
             Examples: <br />
             If you want the car to start charging at 23:31 on April 14th 2023, in Smart mode, the strings to be sent are <b>"2023-04-14T23:31"</b> and mode value <b>3</b> <br />
