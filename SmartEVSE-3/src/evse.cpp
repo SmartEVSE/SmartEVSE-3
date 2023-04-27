@@ -853,16 +853,14 @@ void CalcBalancedCurrent(char mod) {
     } //end MODE_NORMAL
     else { // start MODE_SOLAR || MODE_SMART
         // adapt IsetBalanced in Smart Mode, and ensure the MaxMains/MaxCircuit settings for Solar
-        if (!mod) {
+        Idifference = (MaxMains * 10) - Imeasured;                              // Difference between MaxMains and Measured current (can be negative)
+        Idifference2 = (MaxCircuit * 10) - Imeasured_EV;                        // Difference between MaxCircuit and Measured EV current (can be negative)
+        if (Idifference2 < Idifference) {
+            Idifference = Idifference2;
+        }
+        if (!mod) {                                                                 // no new EVSE's charging
                                                                                     // For Smart mode, no new EVSE asking for current
                                                                                     // But for Solar mode we _also_ have to guard MaxCircuit and Maxmains!
-            Idifference = (MaxMains * 10) - Imeasured;                              // Difference between MaxMains and Measured current (can be negative)
-            Idifference2 = (MaxCircuit * 10) - Imeasured_EV;                        // Difference between MaxCircuit and Measured EV current (can be negative)
-
-            if (Idifference2 < Idifference) {
-                Idifference = Idifference2;
-            }
-
             if (Idifference > 0) {
                 if (Mode == MODE_SMART)
                     IsetBalanced += (Idifference / 4);                              // increase with 1/4th of difference (slowly increase current)
