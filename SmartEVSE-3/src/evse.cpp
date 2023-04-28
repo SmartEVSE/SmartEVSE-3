@@ -548,8 +548,34 @@ const char * getErrorNameWeb(uint8_t ErrorCode) {
  * @param uint8_t Mode
  */
 void setMode(uint8_t NewMode) {
+    // when switching modes, we just keep charging at the phases we were charging at;
+    // it's only the regulation algorithm that is changing...
+    // EXCEPT when EnableC2 == Solar Off, because we would expect C2 to be off when in Solar Mode and EnableC2 == Solar Off
+    // and also the other way around, multiple phases might be wanted when changing from Solar to Normal or Smart
+    bool SwitchAccessOn = false;
+    if (EnableC2 == SOLAR_OFF) {
+        if (Mode != MODE_SOLAR && NewMode == MODE_SOLAR) {
+            //we are switching from non-solar to solar
+            //since we EnableC2 == SOLAR_OFF C2 is turned On now, and should be turned off
+            setAccess(0);                                                       //switch to OFF
+            SwitchAccessOn = true;
+        }
+        if (Mode == MODE_SOLAR && NewMode != MODE_SOLAR) {
+            //we are switching from solar to non-solar
+            //because EnableC2 == SOLAR_OFF, CONTACT2 is turned off
+            //so phase detection has to start allover again
+            setAccess(0);                                                       //switch to OFF
+            //next time we switch on, CONTACTOR2 is going to switched on automatically
+            SwitchAccessOn = true;
+        }
+    }
+
     if (LoadBl == 1) ModbusWriteSingleRequest(BROADCAST_ADR, 0x0003, NewMode);
     Mode = NewMode;
+    if (SwitchAccessOn) {
+        delay (3000);                                                                // not sure if this is needed
+        setAccess(1);
+    }
 }
 
 /**
