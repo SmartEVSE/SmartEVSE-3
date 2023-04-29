@@ -842,7 +842,7 @@ void CalcBalancedCurrent(char mod) {
             ActiveMax += BalancedMax[n];                                        // Calculate total Max Amps for all active EVSEs
             TotalCurrent += Balanced[n];                                        // Calculate total of all set charge currents
     }
-    _LOG_V("Checkpoint 1 Isetbalanced=%.1f A Imeasured=%.1f A MaxCircuit=%i Imeasured_EV=%.1f A, mode=%i.\n", (float)IsetBalanced/10, (float)Imeasured/10, MaxCircuit, (float)Imeasured_EV/10, Mode);
+    _LOG_V("Checkpoint 1 Isetbalanced=%.1f A Imeasured=%.1f A MaxCircuit=%i Imeasured_EV=%.1f A, Battery Current = %.1f A, mode=%i.\n", (float)IsetBalanced/10, (float)Imeasured/10, MaxCircuit, (float)Imeasured_EV/10, (float)homeBatteryCurrent/10, Mode);
 
     // When Load balancing = Master,  Limit total current of all EVSEs to MaxCircuit
     // Also, when not in Normal Mode, if MaxCircuit is set, it will limit the total current (subpanel configuration)
@@ -2677,7 +2677,7 @@ void CheckAPpassword(void) {
             APpassword[i] = c;
         }
     }
-    _LOG_A("APpassword: %s",APpassword.c_str());
+    _LOG_A("APpassword: %s\n",APpassword.c_str());
 }
 
 /**
@@ -2842,7 +2842,7 @@ void write_settings(void) {
 
     preferences.end();
 
-    _LOG_I("\nsettings saved\n");
+    _LOG_I("settings saved\n");
 
  } else {
      _LOG_A("Can not open preferences!\n");
