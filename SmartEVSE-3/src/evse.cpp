@@ -3145,7 +3145,6 @@ void StartwebServer(void) {
                     //we couldn't parse the string, so we are NOT Delayed Charging
                     StartTime.epoch2 = STARTTIME;
                 //TODO no delayed charging when RFID reader is installed?!?
-                write_settings();
                 doc["starttime"] = (StartTime.epoch2 ? StartTime.epoch2 + EPOCH2_OFFSET : 0);
             }
 
@@ -3173,6 +3172,7 @@ void StartwebServer(void) {
                 default:
                     mode = "Value not allowed!";
             }
+            write_settings();
             doc["mode"] = mode;
         }
 
