@@ -883,7 +883,7 @@ void CalcBalancedCurrent(char mod) {
             if (IsetBalanced < 0) IsetBalanced = 0;
             if (IsetBalanced > 800) IsetBalanced = 800;                         // hard limit 80A (added 11-11-2017)
         }
-        _LOG_V("Checkpoint 2 Isetbalanced=%.1f A Imeasured=%.1f A, Idifference=%.1f, mod=%i.\n", (float)IsetBalanced/10, (float)Imeasured/10, (float)Idifference/10, mod);
+        _LOG_V("Checkpoint 2 Isetbalanced=%.1f A, Idifference=%.1f, mod=%i.\n", (float)IsetBalanced/10, (float)Idifference/10, mod);
 
         if (Mode == MODE_SOLAR)                                                 // Solar version
         {
@@ -906,7 +906,7 @@ void CalcBalancedCurrent(char mod) {
                                                                                 // if we use <= 0.3A we do nothing
                 }
             }                                                                   // we already corrected Isetbalance in case of NOT enough power MaxCircuit/MaxMains
-            _LOG_V("Checkpoint 3 Isetbalanced=%.1f A Imeasured=%.1f A, IsumImport=%.1f, Isum=%.1f, ImportCurrent=%i.\n", (float)IsetBalanced/10, (float)Imeasured/10, (float)IsumImport/10, (float)Isum/10, ImportCurrent);
+            _LOG_V("Checkpoint 3 Isetbalanced=%.1f A, IsumImport=%.1f, Isum=%.1f, ImportCurrent=%i.\n", (float)IsetBalanced/10, (float)IsumImport/10, (float)Isum/10, ImportCurrent);
 
             // If IsetBalanced is below MinCurrent or negative, make sure it's set to MinCurrent.
             if ( (IsetBalanced < (BalancedLeft * MinCurrent * 10)) || (IsetBalanced < 0) ) {
@@ -937,7 +937,7 @@ void CalcBalancedCurrent(char mod) {
             }
         } //end MODE_SMART
     } // end MODE_SOLAR || MODE_SMART
-    _LOG_V("Checkpoint 4 Isetbalanced=%.1f A Imeasured=%.1f A.\n", (float)IsetBalanced/10, (float)Imeasured/10);
+    _LOG_V("Checkpoint 4 Isetbalanced=%.1f A.\n", (float)IsetBalanced/10);
 
     if (BalancedLeft) {                                                         // Only if we have active EVSE's
         if (IsetBalanced < 0 || IsetBalanced < (BalancedLeft * MinCurrent * 10)) {
@@ -983,7 +983,7 @@ void CalcBalancedCurrent(char mod) {
 
 
     } // BalancedLeft
-    _LOG_V("Checkpoint 5 Isetbalanced=%.1f A Imeasured=%.1f A.\n", (float)IsetBalanced/10, (float)Imeasured/10);
+    _LOG_V("Checkpoint 5 Isetbalanced=%.1f A.\n", (float)IsetBalanced/10);
 
     char Str[128];
     char *cur = Str, * const end = Str + sizeof Str;
