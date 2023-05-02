@@ -16,7 +16,7 @@
 #include <Logging.h>
 #include <ModbusServerRTU.h>        // Slave/node
 #include <ModbusClientRTU.h>        // Master
-
+#include "ModbusBridgeWiFi.h"       // Modbus TCP bridge
 #include <time.h>
 
 #include <nvs_flash.h>              // nvs initialisation code (can be removed?)
@@ -66,9 +66,10 @@ ESPAsync_WiFiManager ESPAsync_wifiManager(&webServer, &dnsServer, APhostname.c_s
 String Router_SSID;
 String Router_Pass;
 
-// Create a ModbusRTU server and client instance on Serial1 
+// Create a ModbusRTU server, client and bridge instance on Serial1
 ModbusServerRTU MBserver(2000, PIN_RS485_DIR);     // TCP timeout set to 2000 ms
 ModbusClientRTU MBclient(PIN_RS485_DIR);
+ModbusBridgeWiFi MBbridge;
 
 hw_timer_t * timerA = NULL;
 Preferences preferences;
@@ -2656,8 +2657,20 @@ void ConfigureModbusMode(uint8_t newmode) {
             MBclient.onDataHandler(&MBhandleData);
             MBclient.onErrorHandler(&MBhandleError);
 
-            // Start ModbusRTU Master backgroud task
+            // Start ModbusRTU Master background task
             MBclient.begin(Serial1);
+            // Modbus TCP bridge
+            // Second address is the RTU slave address that is mapped to the first TCP slave address
+            // TODO not sure if I should create a separate RTUclient for the bridge
+            if (MainsMeter)
+                MBbridge.attachServer(MainsMeterAddress, MainsMeterAddress, ANY_FUNCTION_CODE, &MBclient);
+            if (EVMeter)
+                MBbridge.attachServer(EVMeterAddress, EVMeterAddress, ANY_FUNCTION_CODE, &MBclient);
+            if (PVMeter)
+                MBbridge.attachServer(PVMeterAddress, PVMeterAddress, ANY_FUNCTION_CODE, &MBclient);
+            // Port number 502, maximum of 3 clients in parallel, 10 seconds timeout
+            MBbridge.start(502, 3, 10000);
+
         } 
     } else if (newmode > 1) {
         // Register worker. at serverID 'LoadBl', all function codes
@@ -3668,5 +3681,16 @@ void loop() {
             StartTime.epoch2 = STARTTIME;
             setAccess(1);
         }
+    }
+
+
+    // Modbus TCP stuff
+    static uint32_t statusTime = millis();
+    const uint32_t statusInterval(10000);
+
+    // We will be idling around here - all is done in subtasks :D
+    if (millis() - statusTime > statusInterval) {
+      _LOG_A("%d clients running.\n", MBbridge.activeClients());
+      statusTime = millis();
     }
 }
