@@ -237,6 +237,7 @@ void ModbusDecode(uint8_t * buf, uint8_t len) {
         MB.Function = buf[1];
         // Modbus Exception code
         MB.Exception = buf[2];
+        _LOG_A("Modbus Exception %i, Address=%i, Function=%i.\n", MB.Exception, MB.Address, MB.Function);
     // Modbus data packets minimum length is 8 bytes
     } else if (len >= 6) {
         // Modbus device address

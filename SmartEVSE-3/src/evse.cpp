@@ -2608,7 +2608,7 @@ void MBhandleError(Error error, uint32_t token)
 {
   // ModbusError wraps the error code and provides a readable error message for it
   ModbusError me(error);
-  //_LOG_A("Error response: %02X - %s\n", error, (const char *)me);
+  _LOG_A("Error response: %02X - %s\n", error, (const char *)me);
 }
 
 
