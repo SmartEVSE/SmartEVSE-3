@@ -105,6 +105,12 @@
                 $('#stoptime_date').text("none");
                 $('#stoptime_time').text("");
             }
+            if (data.settings.repeat == 1) {
+                $('#repeat').text("Daily");
+            }
+            else {
+                $('#repeat').text("none");
+            }
             $('#battery_current').text((data.home_battery.current/10).toFixed(1) + "A");
             $('#battery_last_update_time').text(new Date(data.home_battery.last_update * 1000).toLocaleTimeString());
             $('#battery_last_update_date').text(new Date(data.home_battery.last_update * 1000).toLocaleDateString());
@@ -304,6 +310,14 @@
                                             </div>
                                             <div class="col">
                                               <div class="h5 mb-0 mr-3 text-gray-800" id="stoptime_time"></div>
+                                            </div>
+                                        </div>
+                                        <div class="row no-gutters align-items-center">
+                                          <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                              Repeat:
+                                            </div>
+                                            <div class="col">
+                                              <div class="h5 mb-0 mr-3 text-gray-800" id="repeat"></div>
                                             </div>
                                         </div>
                                     </div>

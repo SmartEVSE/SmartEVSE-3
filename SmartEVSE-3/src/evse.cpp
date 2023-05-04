@@ -104,6 +104,7 @@ uint16_t StopTime = STOP_TIME;
 uint16_t ImportCurrent = IMPORT_CURRENT;
 struct DelayedTimeStruct DelayedStartTime;
 struct DelayedTimeStruct DelayedStopTime;
+uint8_t DelayedRepeat;                                                      // 0 = no repeat, 1 = daily repeat
 uint8_t MainsMeter = MAINS_METER;                                           // Type of Mains electric meter (0: Disabled / Constants EM_*)
 uint8_t MainsMeterAddress = MAINS_METER_ADDRESS;
 uint8_t MainsMeterMeasure = MAINS_METER_MEASURE;                            // What does Mains electric meter measure (0: Mains (Home+EVSE+PV) / 1: Home+EVSE / 2: Home)
@@ -3111,6 +3112,7 @@ void StartwebServer(void) {
         doc["settings"]["mains_meter"] = EMConfig[MainsMeter].Desc;
         doc["settings"]["starttime"] = (DelayedStartTime.epoch2 ? DelayedStartTime.epoch2 + EPOCH2_OFFSET : 0);
         doc["settings"]["stoptime"] = (DelayedStopTime.epoch2 ? DelayedStopTime.epoch2 + EPOCH2_OFFSET : 0);
+        doc["settings"]["repeat"] = DelayedRepeat;
         
         doc["home_battery"]["current"] = homeBatteryCurrent;
         doc["home_battery"]["last_update"] = homeBatteryLastUpdate;
@@ -3205,6 +3207,13 @@ void StartwebServer(void) {
                             //we couldn't parse the string, so no DelayedStopTime
                             DelayedStopTime.epoch2 = DELAYEDSTOPTIME;
                         doc["stoptime"] = (DelayedStopTime.epoch2 ? DelayedStopTime.epoch2 + EPOCH2_OFFSET : 0);
+                        if(request->hasParam("repeat")) {
+                            int Repeat = request->getParam("repeat")->value().toInt();
+                            if (Repeat >= 0 && Repeat <= 1) {                                   //boundary check
+                                DelayedRepeat = Repeat;
+                                doc["repeat"] = Repeat;
+                            }
+                        }
                     }
 
                 }
@@ -3724,8 +3733,11 @@ void loop() {
                 setAccess(0);                         //switch to OFF, we are Delayed Charging
         }
         else {
-            //starttime is in the past so we are NOT Delayed Charging
-            DelayedStartTime.epoch2 = DELAYEDSTARTTIME;
+            //starttime is in the past so we are NOT Delayed Charging, or we are Delayed Charging but the starttime has passed!
+            if (DelayedRepeat == 1)
+                DelayedStartTime.epoch2 += 24 * 3600;                           //add 24 hours so we now have a new starttime
+            else
+                DelayedStartTime.epoch2 = DELAYEDSTARTTIME;
             setAccess(1);
         }
     }
@@ -3737,7 +3749,10 @@ void loop() {
             DelayedStopTime.diff = DelayedStopTime.epoch2 - (mktime(localtime(&now)) - EPOCH2_OFFSET);
             if (DelayedStopTime.diff <= 0) {
                 //DelayedStopTime has passed
-                DelayedStopTime.epoch2 = DELAYEDSTOPTIME;
+                if (DelayedRepeat == 1)                                         //we are on a daily repetition schedule
+                    DelayedStopTime.epoch2 += 24 * 3600;                        //add 24 hours so we now have a new starttime
+                else
+                    DelayedStopTime.epoch2 = DELAYEDSTOPTIME;
                 setAccess(0);                         //switch to OFF
             }
         }
