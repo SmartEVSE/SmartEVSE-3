@@ -690,13 +690,13 @@
                                                 <input type="datetime-local" id="starttime" name="starttime" class="form-control" style="max-width: 220px;">
                                               </div>
                                             </div>
-                                            <div class="form-group">
+                                            <div class="form-group" id="stoptime_group">
                                               <label for="stoptime"> ENDING:</label>
                                               <div class="input-group">
                                                 <input type="datetime-local" id="stoptime" name="stoptime" class="form-control" style="max-width: 220px;">
                                               </div>
                                             </div>
-                                            <div class="form-group">
+                                            <div class="form-group" id="daily_repeat_group">
                                               <label for="daily_repeat"> Daily</label>
                                               <div class="input-group">
                                                 <input type="checkbox" id="daily_repeat" name="daily_repeat" class="form-control" style="max-width: 60px;">
@@ -745,6 +745,8 @@
   <script>
     // Get the current date and time
     var now = new Date();
+    $('[id=stoptime_group]').hide();
+    $('[id=daily_repeat_group]').hide();
 
     // Format the date and time as a string that can be used as the value of the input field
     var dateString = now.getFullYear() + '-' + ('0' + (now.getMonth() + 1)).slice(-2) + '-' + ('0' + now.getDate()).slice(-2);
@@ -754,6 +756,12 @@
     // Set the value of the input field to the current date and time
     document.getElementById('starttime').value = dateTimeString;
     document.getElementById('stoptime').value = dateTimeString;
+    document.getElementById('starttime').onchange = function () {
+        $('[id=stoptime_group]').show();
+    }
+    document.getElementById('stoptime').onchange = function () {
+        $('[id=daily_repeat_group]').show();
+    }
   </script>
 </body>
 </html>
