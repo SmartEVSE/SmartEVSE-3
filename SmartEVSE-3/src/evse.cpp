@@ -102,8 +102,8 @@ uint8_t RCmon = RC_MON;                                                     // R
 uint16_t StartCurrent = START_CURRENT;
 uint16_t StopTime = STOP_TIME;
 uint16_t ImportCurrent = IMPORT_CURRENT;
-struct StartTimestruct StartTime;
-struct StartTimestruct DelayedStopTime;
+struct DelayedTimeStruct DelayedStartTime;
+struct DelayedTimeStruct DelayedStopTime;
 uint8_t MainsMeter = MAINS_METER;                                           // Type of Mains electric meter (0: Disabled / Constants EM_*)
 uint8_t MainsMeterAddress = MAINS_METER_ADDRESS;
 uint8_t MainsMeterMeasure = MAINS_METER_MEASURE;                            // What does Mains electric meter measure (0: Mains (Home+EVSE+PV) / 1: Home+EVSE / 2: Home)
@@ -2807,7 +2807,7 @@ void read_settings(bool write) {
         EMConfig[EM_CUSTOM].Function = preferences.getUChar("EMFunction",EMCUSTOM_FUNCTION);
         WIFImode = preferences.getUChar("WIFImode",WIFI_MODE);
         APpassword = preferences.getString("APpassword",AP_PASSWORD);
-        StartTime.epoch2 = preferences.getULong("StartTime", STARTTIME); //epoch2 is 4 bytes long on arduino
+        DelayedStartTime.epoch2 = preferences.getULong("DelayedStartTime", DELAYEDSTARTTIME); //epoch2 is 4 bytes long on arduino
         DelayedStopTime.epoch2 = preferences.getULong("DelayedStopTime", DELAYEDSTOPTIME);    //epoch2 is 4 bytes long on arduino
 
         EnableC2 = (EnableC2_t) preferences.getUShort("EnableC2", ENABLE_C2);
@@ -2863,7 +2863,7 @@ void write_settings(void) {
     preferences.putUChar("EMFunction", EMConfig[EM_CUSTOM].Function);
     preferences.putUChar("WIFImode", WIFImode);
     preferences.putString("APpassword", APpassword);
-    preferences.putULong("StartTime", StartTime.epoch2); //epoch2 only needs 4 bytes
+    preferences.putULong("DelayedStartTime", DelayedStartTime.epoch2); //epoch2 only needs 4 bytes
     preferences.putULong("DelayedStopTime", DelayedStopTime.epoch2);   //epoch2 only needs 4 bytes
 
     preferences.putUShort("EnableC2", EnableC2);
@@ -2926,23 +2926,23 @@ void StopwebServer(void) {
 
 /* Takes TimeString in format
  * String = "2023-04-14T11:31"
- * and store it in the StartTimestruct
+ * and store it in the DelayedTimeStruct
  * returns 0 on success, 1 on failure
 */
-int StoreTimeString(String StartTimeStr, StartTimestruct StartTime) {
+int StoreTimeString(String DelayedTimeStr, DelayedTimeStruct DelayedTime) {
     // Parse the time string
-    tm starttime_tm = {};
-    if (strptime(StartTimeStr.c_str(), "%Y-%m-%dT%H:%M", &starttime_tm)) {
-        starttime_tm.tm_isdst = -1;                 //so mktime is going to figure out whether DST is there or not
-        StartTime.epoch2 = mktime(&starttime_tm) - EPOCH2_OFFSET;
+    tm delayedtime_tm = {};
+    if (strptime(DelayedTimeStr.c_str(), "%Y-%m-%dT%H:%M", &delayedtime_tm)) {
+        delayedtime_tm.tm_isdst = -1;                 //so mktime is going to figure out whether DST is there or not
+        DelayedTime.epoch2 = mktime(&delayedtime_tm) - EPOCH2_OFFSET;
         // Compare the times
         time_t now = time(nullptr);             //get current local time
-        StartTime.diff = StartTime.epoch2 - (mktime(localtime(&now)) - EPOCH2_OFFSET);
+        DelayedTime.diff = DelayedTime.epoch2 - (mktime(localtime(&now)) - EPOCH2_OFFSET);
         return 0;
     }
     //error TODO not sure whether we keep the old time or reset it to zero?
-    //StartTime.epoch2 = STARTTIME;
-    //StartTime.diff = DELAYEDSTOPTIME;
+    //DelayedTime.epoch2 = 0;
+    //DelayedTime.diff = 0;
     return 1;
 }
 
@@ -3109,8 +3109,8 @@ void StartwebServer(void) {
         doc["settings"]["solar_stop_time"] = StopTime;
         doc["settings"]["enable_C2"] = StrEnableC2[EnableC2];
         doc["settings"]["mains_meter"] = EMConfig[MainsMeter].Desc;
-        doc["settings"]["starttime"] = (StartTime.epoch2 ? StartTime.epoch2 + EPOCH2_OFFSET : 0);
-        doc["settings"]["delayedstoptime"] = (DelayedStopTime.epoch2 ? DelayedStopTime.epoch2 + EPOCH2_OFFSET : 0);
+        doc["settings"]["starttime"] = (DelayedStartTime.epoch2 ? DelayedStartTime.epoch2 + EPOCH2_OFFSET : 0);
+        doc["settings"]["stoptime"] = (DelayedStopTime.epoch2 ? DelayedStopTime.epoch2 + EPOCH2_OFFSET : 0);
         
         doc["home_battery"]["current"] = homeBatteryCurrent;
         doc["home_battery"]["last_update"] = homeBatteryLastUpdate;
@@ -3175,40 +3175,40 @@ void StartwebServer(void) {
 
             //first check if we have a delayed mode switch
             if(request->hasParam("starttime")) {
-                String StartTimeStr = request->getParam("starttime")->value();
+                String DelayedStartTimeStr = request->getParam("starttime")->value();
                 //string time_str = "2023-04-14T11:31";
-                if (!StoreTimeString(StartTimeStr, StartTime)) {
+                if (!StoreTimeString(DelayedStartTimeStr, DelayedStartTime)) {
                     //parse OK
-                    if (StartTime.diff > 0)
+                    if (DelayedStartTime.diff > 0)
                         setAccess(0);                         //switch to OFF, we are Delayed Charging
                     else //we are in the past so no delayed charging
-                        StartTime.epoch2 = STARTTIME;
+                        DelayedStartTime.epoch2 = DELAYEDSTARTTIME;
                 }
                 else
                     //we couldn't parse the string, so we are NOT Delayed Charging
-                    StartTime.epoch2 = STARTTIME;
+                    DelayedStartTime.epoch2 = DELAYEDSTARTTIME;
                 //TODO no delayed charging when RFID reader is installed?!?
 
                 // so now we might have a starttime and we might be Delayed Charging
-                if (StartTime.epoch2) {
-                    //we only accept a DelayedStopTime if we have a valid StartTime
-                    if(request->hasParam("delayedstoptime")) {
-                        String DelayedStopTimeStr = request->getParam("delayedstoptime")->value();
+                if (DelayedStartTime.epoch2) {
+                    //we only accept a DelayedStopTime if we have a valid DelayedStartTime
+                    if(request->hasParam("stoptime")) {
+                        String DelayedStopTimeStr = request->getParam("stoptime")->value();
                         //string time_str = "2023-04-14T11:31";
                         if (!StoreTimeString(DelayedStopTimeStr, DelayedStopTime)) {
                             //parse OK
-                            if (DelayedStopTime.diff <= 0 || DelayedStopTime.epoch2 <= StartTime.epoch2)
-                                //we are in the past or DelayedStopTime before StartTime so no DelayedStopTime
+                            if (DelayedStopTime.diff <= 0 || DelayedStopTime.epoch2 <= DelayedStartTime.epoch2)
+                                //we are in the past or DelayedStopTime before DelayedStartTime so no DelayedStopTime
                                 DelayedStopTime.epoch2 = DELAYEDSTOPTIME;
                         }
                         else
                             //we couldn't parse the string, so no DelayedStopTime
                             DelayedStopTime.epoch2 = DELAYEDSTOPTIME;
-                        doc["delayedstoptime"] = (DelayedStopTime.epoch2 ? DelayedStopTime.epoch2 + EPOCH2_OFFSET : 0);
+                        doc["stoptime"] = (DelayedStopTime.epoch2 ? DelayedStopTime.epoch2 + EPOCH2_OFFSET : 0);
                     }
 
                 }
-                doc["starttime"] = (StartTime.epoch2 ? StartTime.epoch2 + EPOCH2_OFFSET : 0);
+                doc["starttime"] = (DelayedStartTime.epoch2 ? DelayedStartTime.epoch2 + EPOCH2_OFFSET : 0);
             }
 
             switch(mode.toInt()) {
@@ -3216,19 +3216,19 @@ void StartwebServer(void) {
                     setAccess(0);
                     break;
                 case 1:
-                    setAccess(!StartTime.epoch2);              //if StartTime not zero then we are Delayed Charging
+                    setAccess(!DelayedStartTime.epoch2);              //if DelayedStartTime not zero then we are Delayed Charging
                     setMode(MODE_NORMAL);
                     break;
                 case 2:
                     if (MainsMeter) {
                         OverrideCurrent = 0;
-                        setAccess(!StartTime.epoch2);
+                        setAccess(!DelayedStartTime.epoch2);
                         setMode(MODE_SOLAR);
                         break;
                     }
                 case 3:
                     if (MainsMeter) {
-                        setAccess(!StartTime.epoch2);
+                        setAccess(!DelayedStartTime.epoch2);
                         setMode(MODE_SMART);
                         break;
                     }
@@ -3715,17 +3715,17 @@ void loop() {
     delay(1000);
 
     // TODO move this to a once a minute loop?
-    if (StartTime.epoch2 && LocalTimeSet) {
+    if (DelayedStartTime.epoch2 && LocalTimeSet) {
         // Compare the times
         time_t now = time(nullptr);             //get current local time
-        StartTime.diff = StartTime.epoch2 - (mktime(localtime(&now)) - EPOCH2_OFFSET);
-        if (StartTime.diff > 0) {
+        DelayedStartTime.diff = DelayedStartTime.epoch2 - (mktime(localtime(&now)) - EPOCH2_OFFSET);
+        if (DelayedStartTime.diff > 0) {
             if (Access_bit != 0)
                 setAccess(0);                         //switch to OFF, we are Delayed Charging
         }
         else {
             //starttime is in the past so we are NOT Delayed Charging
-            StartTime.epoch2 = STARTTIME;
+            DelayedStartTime.epoch2 = DELAYEDSTARTTIME;
             setAccess(1);
         }
     }

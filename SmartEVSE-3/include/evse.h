@@ -161,7 +161,7 @@ extern RemoteDebug Debug;
 #define AP_PASSWORD "00000000"
 #define ENABLE_C2 NOT_PRESENT
 #define MAX_TEMPERATURE 65
-#define STARTTIME 0                                                             // The default StartTime for delayed charged, 0 = not delaying
+#define DELAYEDSTARTTIME 0                                                             // The default StartTime for delayed charged, 0 = not delaying
 #define DELAYEDSTOPTIME 0                                                       // The default StopTime for delayed charged, 0 = not stopping
 
 
@@ -497,7 +497,7 @@ struct EMstruct {
 
 extern struct EMstruct EMConfig[EM_CUSTOM + 1];
 
-struct StartTimestruct {
+struct DelayedTimeStruct {
     uint32_t epoch2;        // in case of Delayed Charging the StartTime in epoch2; if zero we are NOT Delayed Charging
                             // epoch2 is the number of seconds since 1/1/2023 00:00 UTC, which equals epoch 1672531200
                             // we avoid using epoch so we don't need expensive 64bits arithmetics with difftime
@@ -507,7 +507,7 @@ struct StartTimestruct {
 
 #define EPOCH2_OFFSET 1672531200
 
-extern struct StartTimestruct StartTime;
+extern struct DelayedTimeStruct DelayedStartTime;
 
 void CheckAPpassword(void);
 void read_settings(bool write);

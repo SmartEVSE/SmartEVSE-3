@@ -77,8 +77,8 @@ bool LCDToggle = false;                                                         
 unsigned char LCDText = 0;                                                      // Cycle through text messages
 unsigned int GLCDx, GLCDy;
 uint8_t GLCDbuf[512];                                                       // GLCD buffer (half of the display)
-tm StartTimeTM;
-time_t StartTime_Old;
+tm DelayedStartTimeTM;
+time_t DelayedStartTime_Old;
 
 void st7565_command(unsigned char data) {
     _A0_0;
@@ -548,28 +548,28 @@ void GLCD(void) {
                         GLCD_print_buf2(4, (const char *) "RFID CARD");
                     }
                 } else {
-                    if (StartTime.epoch2) {
+                    if (DelayedStartTime.epoch2) {
                         GLCD_print_buf2(2, (const char *) "STARTING @");
 #define _24H 24*60*60
 #define _WEEK 7*_24H
                         String StrFormat;
-                        if (StartTime.diff <= _24H)
+                        if (DelayedStartTime.diff <= _24H)
                             //if it starts in the next 24 hours, just print hours : minutes
                             StrFormat = "%R";
                         else {
                             //if it starts in the next week, print day of week, day of month, hours: minutes
-                            if (StartTime.diff <= _WEEK)
+                            if (DelayedStartTime.diff <= _WEEK)
                                 StrFormat = "%a %e %R";
                             else
                             //if it starts later, print day of week, day of month, month, year perhaps scrolling hours/minutes?
                                 StrFormat = "%a %e %b";
                                 //StrFormat = "%a %e %b '%C %R";
                         }
-                        if (StartTime.epoch2 && LocalTimeSet && StartTime.epoch2 != StartTime_Old) {
-                            time_t epoch = StartTime.epoch2 + EPOCH2_OFFSET;
-                            StartTimeTM = *localtime(&epoch);
+                        if (DelayedStartTime.epoch2 && LocalTimeSet && DelayedStartTime.epoch2 != DelayedStartTime_Old) {
+                            time_t epoch = DelayedStartTime.epoch2 + EPOCH2_OFFSET;
+                            DelayedStartTimeTM = *localtime(&epoch);
                         }
-                        if (!strftime(Str, 26, StrFormat.c_str(), &StartTimeTM))
+                        if (!strftime(Str, 26, StrFormat.c_str(), &DelayedStartTimeTM))
                             sprintf(Str, "later...");
                         GLCD_print_buf2(4, Str);
                         //print current time
