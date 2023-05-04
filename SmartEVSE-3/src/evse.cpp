@@ -2929,15 +2929,15 @@ void StopwebServer(void) {
  * and store it in the DelayedTimeStruct
  * returns 0 on success, 1 on failure
 */
-int StoreTimeString(String DelayedTimeStr, DelayedTimeStruct DelayedTime) {
+int StoreTimeString(String DelayedTimeStr, DelayedTimeStruct *DelayedTime) {
     // Parse the time string
     tm delayedtime_tm = {};
     if (strptime(DelayedTimeStr.c_str(), "%Y-%m-%dT%H:%M", &delayedtime_tm)) {
         delayedtime_tm.tm_isdst = -1;                 //so mktime is going to figure out whether DST is there or not
-        DelayedTime.epoch2 = mktime(&delayedtime_tm) - EPOCH2_OFFSET;
+        DelayedTime->epoch2 = mktime(&delayedtime_tm) - EPOCH2_OFFSET;
         // Compare the times
         time_t now = time(nullptr);             //get current local time
-        DelayedTime.diff = DelayedTime.epoch2 - (mktime(localtime(&now)) - EPOCH2_OFFSET);
+        DelayedTime->diff = DelayedTime->epoch2 - (mktime(localtime(&now)) - EPOCH2_OFFSET);
         return 0;
     }
     //error TODO not sure whether we keep the old time or reset it to zero?
@@ -3177,7 +3177,7 @@ void StartwebServer(void) {
             if(request->hasParam("starttime")) {
                 String DelayedStartTimeStr = request->getParam("starttime")->value();
                 //string time_str = "2023-04-14T11:31";
-                if (!StoreTimeString(DelayedStartTimeStr, DelayedStartTime)) {
+                if (!StoreTimeString(DelayedStartTimeStr, &DelayedStartTime)) {
                     //parse OK
                     if (DelayedStartTime.diff > 0)
                         setAccess(0);                         //switch to OFF, we are Delayed Charging
@@ -3195,7 +3195,7 @@ void StartwebServer(void) {
                     if(request->hasParam("stoptime")) {
                         String DelayedStopTimeStr = request->getParam("stoptime")->value();
                         //string time_str = "2023-04-14T11:31";
-                        if (!StoreTimeString(DelayedStopTimeStr, DelayedStopTime)) {
+                        if (!StoreTimeString(DelayedStopTimeStr, &DelayedStopTime)) {
                             //parse OK
                             if (DelayedStopTime.diff <= 0 || DelayedStopTime.epoch2 <= DelayedStartTime.epoch2)
                                 //we are in the past or DelayedStopTime before DelayedStartTime so no DelayedStopTime
