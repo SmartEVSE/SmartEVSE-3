@@ -98,6 +98,13 @@
                 $('#starttime_date').text("none");
                 $('#starttime_time').text("");
             }
+            if (data.settings.stoptime) {
+                $('#stoptime_date').text(new Date(data.settings.stoptime * 1000).toLocaleDateString());
+                $('#stoptime_time').text(new Date(data.settings.stoptime * 1000).toLocaleTimeString());
+            } else {
+                $('#stoptime_date').text("none");
+                $('#stoptime_time').text("");
+            }
             $('#battery_current').text((data.home_battery.current/10).toFixed(1) + "A");
             $('#battery_last_update_time').text(new Date(data.home_battery.last_update * 1000).toLocaleTimeString());
             $('#battery_last_update_date').text(new Date(data.home_battery.last_update * 1000).toLocaleDateString());
@@ -286,6 +293,17 @@
                                             </div>
                                             <div class="col">
                                               <div class="h5 mb-0 mr-3 text-gray-800" id="starttime_time"></div>
+                                            </div>
+                                        </div>
+                                        <div class="row no-gutters align-items-center">
+                                          <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                              StopTime:
+                                            </div>
+                                            <div class="col">
+                                              <div class="h5 mb-0 mr-3 text-gray-800" id="stoptime_date"></div>
+                                            </div>
+                                            <div class="col">
+                                              <div class="h5 mb-0 mr-3 text-gray-800" id="stoptime_time"></div>
                                             </div>
                                         </div>
                                     </div>
@@ -627,11 +645,12 @@
                 <script>
                     function activate(mode) {
                       var starttime = document.querySelector('input[name="starttime"]').value;
+                      var stoptime = document.querySelector('input[name="stoptime"]').value;
                       if(mode == 1 || mode == 3) {
                         override_current=$('#mode_override_current').val();
-                        $.post( "/settings?mode=" + mode +  "&override_current=" + (override_current * 10) + "&starttime=" + starttime);
+                        $.post( "/settings?mode=" + mode +  "&override_current=" + (override_current * 10) + "&starttime=" + starttime + "&stoptime=" + stoptime);
                       } else {
-                        $.post( "/settings?mode=" + mode  + "&starttime=" + starttime);
+                        $.post( "/settings?mode=" + mode  + "&starttime=" + starttime + "&stoptime=" + stoptime);
                       }
                       event.preventDefault();
                     }
@@ -669,6 +688,12 @@
                                               <label for="starttime">...STARTING:</label>
                                               <div class="input-group">
                                                 <input type="datetime-local" id="starttime" name="starttime" class="form-control" style="max-width: 220px;">
+                                              </div>
+                                            </div>
+                                            <div class="form-group">
+                                              <label for="stoptime"> ENDING:</label>
+                                              <div class="input-group">
+                                                <input type="datetime-local" id="stoptime" name="stoptime" class="form-control" style="max-width: 220px;">
                                               </div>
                                             </div>
                                           </form>
@@ -722,6 +747,7 @@
 
     // Set the value of the input field to the current date and time
     document.getElementById('starttime').value = dateTimeString;
+    document.getElementById('stoptime').value = dateTimeString;
   </script>
 </body>
 </html>

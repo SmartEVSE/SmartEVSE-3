@@ -103,6 +103,7 @@ uint16_t StartCurrent = START_CURRENT;
 uint16_t StopTime = STOP_TIME;
 uint16_t ImportCurrent = IMPORT_CURRENT;
 struct StartTimestruct StartTime;
+struct StartTimestruct DelayedStopTime;
 uint8_t MainsMeter = MAINS_METER;                                           // Type of Mains electric meter (0: Disabled / Constants EM_*)
 uint8_t MainsMeterAddress = MAINS_METER_ADDRESS;
 uint8_t MainsMeterMeasure = MAINS_METER_MEASURE;                            // What does Mains electric meter measure (0: Mains (Home+EVSE+PV) / 1: Home+EVSE / 2: Home)
@@ -2807,6 +2808,7 @@ void read_settings(bool write) {
         WIFImode = preferences.getUChar("WIFImode",WIFI_MODE);
         APpassword = preferences.getString("APpassword",AP_PASSWORD);
         StartTime.epoch2 = preferences.getULong("StartTime", STARTTIME); //epoch2 is 4 bytes long on arduino
+        DelayedStopTime.epoch2 = preferences.getULong("DelayedStopTime", DELAYEDSTOPTIME);    //epoch2 is 4 bytes long on arduino
 
         EnableC2 = (EnableC2_t) preferences.getUShort("EnableC2", ENABLE_C2);
         maxTemp = preferences.getUShort("maxTemp", MAX_TEMPERATURE);
@@ -2862,6 +2864,7 @@ void write_settings(void) {
     preferences.putUChar("WIFImode", WIFImode);
     preferences.putString("APpassword", APpassword);
     preferences.putULong("StartTime", StartTime.epoch2); //epoch2 only needs 4 bytes
+    preferences.putULong("DelayedStopTime", DelayedStopTime.epoch2);   //epoch2 only needs 4 bytes
 
     preferences.putUShort("EnableC2", EnableC2);
     preferences.putUShort("maxTemp", maxTemp);
@@ -2921,6 +2924,27 @@ void StopwebServer(void) {
     webServer.end();
 }
 
+/* Takes TimeString in format
+ * String = "2023-04-14T11:31"
+ * and store it in the StartTimestruct
+ * returns 0 on success, 1 on failure
+*/
+int StoreTimeString(String StartTimeStr, StartTimestruct StartTime) {
+    // Parse the time string
+    tm starttime_tm = {};
+    if (strptime(StartTimeStr.c_str(), "%Y-%m-%dT%H:%M", &starttime_tm)) {
+        starttime_tm.tm_isdst = -1;                 //so mktime is going to figure out whether DST is there or not
+        StartTime.epoch2 = mktime(&starttime_tm) - EPOCH2_OFFSET;
+        // Compare the times
+        time_t now = time(nullptr);             //get current local time
+        StartTime.diff = StartTime.epoch2 - (mktime(localtime(&now)) - EPOCH2_OFFSET);
+        return 0;
+    }
+    //error TODO not sure whether we keep the old time or reset it to zero?
+    //StartTime.epoch2 = STARTTIME;
+    //StartTime.diff = DELAYEDSTOPTIME;
+    return 1;
+}
 
 void StartwebServer(void) {
 
@@ -3086,6 +3110,7 @@ void StartwebServer(void) {
         doc["settings"]["enable_C2"] = StrEnableC2[EnableC2];
         doc["settings"]["mains_meter"] = EMConfig[MainsMeter].Desc;
         doc["settings"]["starttime"] = (StartTime.epoch2 ? StartTime.epoch2 + EPOCH2_OFFSET : 0);
+        doc["settings"]["delayedstoptime"] = (DelayedStopTime.epoch2 ? DelayedStopTime.epoch2 + EPOCH2_OFFSET : 0);
         
         doc["home_battery"]["current"] = homeBatteryCurrent;
         doc["home_battery"]["last_update"] = homeBatteryLastUpdate;
@@ -3152,18 +3177,10 @@ void StartwebServer(void) {
             if(request->hasParam("starttime")) {
                 String StartTimeStr = request->getParam("starttime")->value();
                 //string time_str = "2023-04-14T11:31";
-
-                // Parse the time string
-                tm starttime_tm = {};
-                if (strptime(StartTimeStr.c_str(), "%Y-%m-%dT%H:%M", &starttime_tm)) {
-                    starttime_tm.tm_isdst = -1;                 //so mktime is going to figure out whether DST is there or not
-                    StartTime.epoch2 = mktime(&starttime_tm) - EPOCH2_OFFSET;
-                    // Compare the times
-                    time_t now = time(nullptr);             //get current local time
-                    StartTime.diff = StartTime.epoch2 - (mktime(localtime(&now)) - EPOCH2_OFFSET);
-                    if (StartTime.diff > 0) {
-                      setAccess(0);                         //switch to OFF, we are Delayed Charging
-                    }
+                if (!StoreTimeString(StartTimeStr, StartTime)) {
+                    //parse OK
+                    if (StartTime.diff > 0)
+                        setAccess(0);                         //switch to OFF, we are Delayed Charging
                     else //we are in the past so no delayed charging
                         StartTime.epoch2 = STARTTIME;
                 }
@@ -3171,6 +3188,26 @@ void StartwebServer(void) {
                     //we couldn't parse the string, so we are NOT Delayed Charging
                     StartTime.epoch2 = STARTTIME;
                 //TODO no delayed charging when RFID reader is installed?!?
+
+                // so now we might have a starttime and we might be Delayed Charging
+                if (StartTime.epoch2) {
+                    //we only accept a DelayedStopTime if we have a valid StartTime
+                    if(request->hasParam("delayedstoptime")) {
+                        String DelayedStopTimeStr = request->getParam("delayedstoptime")->value();
+                        //string time_str = "2023-04-14T11:31";
+                        if (!StoreTimeString(DelayedStopTimeStr, DelayedStopTime)) {
+                            //parse OK
+                            if (DelayedStopTime.diff <= 0 || DelayedStopTime.epoch2 <= StartTime.epoch2)
+                                //we are in the past or DelayedStopTime before StartTime so no DelayedStopTime
+                                DelayedStopTime.epoch2 = DELAYEDSTOPTIME;
+                        }
+                        else
+                            //we couldn't parse the string, so no DelayedStopTime
+                            DelayedStopTime.epoch2 = DELAYEDSTOPTIME;
+                        doc["delayedstoptime"] = (DelayedStopTime.epoch2 ? DelayedStopTime.epoch2 + EPOCH2_OFFSET : 0);
+                    }
+
+                }
                 doc["starttime"] = (StartTime.epoch2 ? StartTime.epoch2 + EPOCH2_OFFSET : 0);
             }
 
@@ -3692,7 +3729,19 @@ void loop() {
             setAccess(1);
         }
     }
-
+    else {
+        //only update StopTime.diff if starttime has already passed
+        if (DelayedStopTime.epoch2 && LocalTimeSet) {
+            // Compare the times
+            time_t now = time(nullptr);             //get current local time
+            DelayedStopTime.diff = DelayedStopTime.epoch2 - (mktime(localtime(&now)) - EPOCH2_OFFSET);
+            if (DelayedStopTime.diff <= 0) {
+                //DelayedStopTime has passed
+                DelayedStopTime.epoch2 = DELAYEDSTOPTIME;
+                setAccess(0);                         //switch to OFF
+            }
+        }
+    }
 
     // Modbus TCP stuff
     static uint32_t statusTime = millis();

@@ -162,6 +162,7 @@ extern RemoteDebug Debug;
 #define ENABLE_C2 NOT_PRESENT
 #define MAX_TEMPERATURE 65
 #define STARTTIME 0                                                             // The default StartTime for delayed charged, 0 = not delaying
+#define DELAYEDSTOPTIME 0                                                       // The default StopTime for delayed charged, 0 = not stopping
 
 
 // Mode settings
