@@ -660,11 +660,19 @@
                     function activate(mode) {
                       var starttime = document.querySelector('input[name="starttime"]').value;
                       var stoptime = document.querySelector('input[name="stoptime"]').value;
+                      var repeatstr = document.querySelector("#daily_repeat").value;
+                      var repeat2 = 0;
+                      if (repeatstr == 1) {
+                        repeat2 = 1;
+                      }
+                      else {
+                        repeat2 = 0
+                      }
                       if(mode == 1 || mode == 3) {
                         override_current=$('#mode_override_current').val();
-                        $.post( "/settings?mode=" + mode +  "&override_current=" + (override_current * 10) + "&starttime=" + starttime + "&stoptime=" + stoptime);
+                        $.post( "/settings?mode=" + mode +  "&override_current=" + (override_current * 10) + "&starttime=" + starttime + "&stoptime=" + stoptime + "&repeat=" + repeat2);
                       } else {
-                        $.post( "/settings?mode=" + mode  + "&starttime=" + starttime + "&stoptime=" + stoptime);
+                        $.post( "/settings?mode=" + mode  + "&starttime=" + starttime + "&stoptime=" + stoptime + "&repeat=" + repeat2);
                       }
                       event.preventDefault();
                     }
@@ -713,7 +721,7 @@
                                             <div class="form-group" id="daily_repeat_group">
                                               <label for="daily_repeat"> Daily</label>
                                               <div class="input-group">
-                                                <input type="checkbox" id="daily_repeat" name="daily_repeat" class="form-control" style="max-width: 60px;">
+                                                <input type="checkbox" id="daily_repeat" name="daily_repeat" class="form-control" value="1" style="max-width: 60px;">
                                               </div>
                                             </div>
                                           </form>
