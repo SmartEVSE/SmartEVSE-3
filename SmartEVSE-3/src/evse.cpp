@@ -554,18 +554,19 @@ void setMode(uint8_t NewMode) {
     // and also the other way around, multiple phases might be wanted when changing from Solar to Normal or Smart
     if (EnableC2 == SOLAR_OFF) {
         if ((Mode != MODE_SOLAR && NewMode == MODE_SOLAR) || (Mode == MODE_SOLAR && NewMode != MODE_SOLAR)) {
+            //we are switching from non-solar to solar
+            //since we EnableC2 == SOLAR_OFF C2 is turned On now, and should be turned off
             setAccess(0);                                                       //switch to OFF
             if (LoadBl == 1) ModbusWriteSingleRequest(BROADCAST_ADR, 0x0003, NewMode);
             Mode = NewMode;
             setAccess(1);
+            return;
         }
     }
-    else {
-        if (LoadBl == 1) ModbusWriteSingleRequest(BROADCAST_ADR, 0x0003, NewMode);
-        Mode = NewMode;
-    }
-}
 
+    if (LoadBl == 1) ModbusWriteSingleRequest(BROADCAST_ADR, 0x0003, NewMode);
+    Mode = NewMode;
+}
 /**
  * Set the solar stop timer
  * 
