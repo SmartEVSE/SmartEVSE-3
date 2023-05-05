@@ -47,8 +47,13 @@ extern struct ModBus MB;
  * @param uint16_t data
  */
 void ModbusSend8(uint8_t address, uint8_t function, uint16_t reg, uint16_t data) {
-    // 0x12345678 is a token to keep track of modbus requests/responses. currently unused.
-    Error err = MBclient.addRequest(0x12345678, address, function, reg, data);
+    // 0x12345678 is a token to keep track of modbus requests/responses.
+    // token: first byte address, second byte function, third and fourth reg
+    uint32_t token;
+    token = reg;
+    token += address << 24;
+    token += function << 16;
+    Error err = MBclient.addRequest(token, address, function, reg, data);
     if (err!=SUCCESS) {
       ModbusError e(err);
       _LOG_A("Error creating request: %02X - %s\n", (int)e, (const char *)e);
@@ -176,8 +181,13 @@ void ModbusWriteMultipleRequest(uint8_t address, uint16_t reg, uint16_t *values,
     MB.RequestAddress = address;
     MB.RequestFunction = 0x10;
     MB.RequestRegister = reg;
-    // 0x12345678 is a token to keep track of modbus requests/responses. currently unused.
-    MBclient.addRequest(0x12345678, address, 0x10, reg, (uint16_t) count, count * 2u, values);
+    // 0x12345678 is a token to keep track of modbus requests/responses.
+    // token: first byte address, second byte function, third and fourth reg
+    uint32_t token;
+    token = reg;
+    token += address << 24;
+    token += 0x10 << 16;
+    MBclient.addRequest(token, address, 0x10, reg, (uint16_t) count, count * 2u, values);
     _LOG_D("Sent packet");
     uint16_t i;
     char Str[MODBUS_SYS_CONFIG_COUNT * 5 + 10];
