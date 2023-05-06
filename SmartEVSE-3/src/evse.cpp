@@ -3735,7 +3735,7 @@ void loop() {
         time_t now = time(nullptr);             //get current local time
         DelayedStartTime.diff = DelayedStartTime.epoch2 - (mktime(localtime(&now)) - EPOCH2_OFFSET);
         if (DelayedStartTime.diff > 0) {
-            if (Access_bit != 0)
+            if (Access_bit != 0 && (DelayedStopTime.epoch2 == 0 || DelayedStopTime.epoch2 > DelayedStartTime.epoch2))
                 setAccess(0);                         //switch to OFF, we are Delayed Charging
         }
         else {
