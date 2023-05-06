@@ -3747,20 +3747,18 @@ void loop() {
             setAccess(1);
         }
     }
-    else {
-        //only update StopTime.diff if starttime has already passed
-        if (DelayedStopTime.epoch2 && LocalTimeSet) {
-            // Compare the times
-            time_t now = time(nullptr);             //get current local time
-            DelayedStopTime.diff = DelayedStopTime.epoch2 - (mktime(localtime(&now)) - EPOCH2_OFFSET);
-            if (DelayedStopTime.diff <= 0) {
-                //DelayedStopTime has passed
-                if (DelayedRepeat == 1)                                         //we are on a daily repetition schedule
-                    DelayedStopTime.epoch2 += 24 * 3600;                        //add 24 hours so we now have a new starttime
-                else
-                    DelayedStopTime.epoch2 = DELAYEDSTOPTIME;
-                setAccess(0);                         //switch to OFF
-            }
+    //only update StopTime.diff if starttime has already passed
+    if (DelayedStopTime.epoch2 && LocalTimeSet) {
+        // Compare the times
+        time_t now = time(nullptr);             //get current local time
+        DelayedStopTime.diff = DelayedStopTime.epoch2 - (mktime(localtime(&now)) - EPOCH2_OFFSET);
+        if (DelayedStopTime.diff <= 0) {
+            //DelayedStopTime has passed
+            if (DelayedRepeat == 1)                                         //we are on a daily repetition schedule
+                DelayedStopTime.epoch2 += 24 * 3600;                        //add 24 hours so we now have a new starttime
+            else
+                DelayedStopTime.epoch2 = DELAYEDSTOPTIME;
+            setAccess(0);                         //switch to OFF
         }
     }
 
