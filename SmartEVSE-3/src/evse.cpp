@@ -3183,12 +3183,18 @@ void StartwebServer(void) {
                     //parse OK
                     if (DelayedStartTime.diff > 0)
                         setAccess(0);                         //switch to OFF, we are Delayed Charging
-                    else //we are in the past so no delayed charging
+                    else {//we are in the past so no delayed charging
                         DelayedStartTime.epoch2 = DELAYEDSTARTTIME;
+                        DelayedStopTime.epoch2 = DELAYEDSTOPTIME;
+                        DelayedRepeat = 0;
+                    }
                 }
-                else
+                else {
                     //we couldn't parse the string, so we are NOT Delayed Charging
                     DelayedStartTime.epoch2 = DELAYEDSTARTTIME;
+                    DelayedStopTime.epoch2 = DELAYEDSTOPTIME;
+                    DelayedRepeat = 0;
+                }
                 //TODO no delayed charging when RFID reader is installed?!?
 
                 // so now we might have a starttime and we might be Delayed Charging
