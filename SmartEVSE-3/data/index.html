@@ -660,15 +660,8 @@
                     function activate(mode) {
                       var starttime = document.querySelector('input[name="starttime"]').value;
                       var stoptime = document.querySelector('input[name="stoptime"]').value;
-                      //var repeatstr = document.querySelector("#daily_repeat").value;
                       var isChecked = document.getElementById('daily_repeat').checked; 
-                      var repeat2 = 0;
-                      if (isChecked) {
-                        repeat2 = 1;
-                      }
-                      else {
-                        repeat2 = 0
-                      }
+                      var repeat2 = +isChecked;
                       if(mode == 1 || mode == 3) {
                         override_current=$('#mode_override_current').val();
                         $.post( "/settings?mode=" + mode +  "&override_current=" + (override_current * 10) + "&starttime=" + starttime + "&stoptime=" + stoptime + "&repeat=" + repeat2);
