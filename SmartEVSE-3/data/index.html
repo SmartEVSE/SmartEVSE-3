@@ -660,9 +660,10 @@
                     function activate(mode) {
                       var starttime = document.querySelector('input[name="starttime"]').value;
                       var stoptime = document.querySelector('input[name="stoptime"]').value;
-                      var repeatstr = document.querySelector("#daily_repeat").value;
+                      //var repeatstr = document.querySelector("#daily_repeat").value;
+                      var isChecked = document.getElementById('daily_repeat').checked; 
                       var repeat2 = 0;
-                      if (repeatstr == 1) {
+                      if (isChecked) {
                         repeat2 = 1;
                       }
                       else {
@@ -721,7 +722,7 @@
                                             <div class="form-group" id="daily_repeat_group">
                                               <label for="daily_repeat"> Daily</label>
                                               <div class="input-group">
-                                                <input type="checkbox" id="daily_repeat" name="daily_repeat" class="form-control" value="1" style="max-width: 60px;">
+                                                <input type="checkbox" id="daily_repeat" name="daily_repeat" class="form-control" value="daily" style="max-width: 60px;">
                                               </div>
                                             </div>
                                           </form>
@@ -784,6 +785,7 @@
     document.getElementById('stoptime').onchange = function () {
         $('[id=daily_repeat_group]').show();
     }
+    $('daily_repeat').prop('checked', false);
   </script>
 </body>
 </html>
