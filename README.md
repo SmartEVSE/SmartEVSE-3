@@ -133,6 +133,15 @@ Have an idea for the API? Edit it here <a href="https://swagger-editor.serkri.be
 # Integration with Home Assistant
 If you want to integrate your SmartEVSE with Home Asisstant, please have a look at [the SmartEVSE `custom_component` for Home Assistant](https://github.com/dingo35/ha-SmartEVSEv3). This `custom_component` uses the API to share data from the SmartEVSE to Home Assistant, and enables you to set SmartEVSE settings from Home Assistant. You will need firmware version 1.5.2 or higher to use this integration.
 
+# Modbus TCP bridge
+
+Your MainsMeter, EVMeter and PVMeter will present themselves at port 502 of your SmartEVSE, via the modbus-tcp protocol. 
+So this makes it possible for you to use whatever modbus function you want on whatever modbus register you want. 
+The addresses on the tcp modbus are the same addresses as they are on the RTU modbus.
+
+E.g. my MainsMeter is at slave address 0x0a, so this command reads register 70decimal and following:
+mbpoll -a10 -t 3:hex -r 70 -c 10 10.0.0.76
+
 # Building the firmware
 
 * Install platformio-core https://docs.platformio.org/en/latest/core/installation/methods/index.html
