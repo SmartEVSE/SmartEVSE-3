@@ -3300,6 +3300,7 @@ void StartwebServer(void) {
             if(current.toInt() == 0 || (current.toInt() >= 0 && current.toInt() <= 48)) {
                 StartCurrent = current.toInt();
                 doc["solar_start_current"] = StartCurrent;
+                write_settings();
             } else {
                 doc["solar_start_current"] = "Value not allowed!";
             }
@@ -3310,6 +3311,7 @@ void StartwebServer(void) {
             if(current.toInt() == 0 || (current.toInt() >= 0 && current.toInt() <= 48)) {
                 ImportCurrent = current.toInt();
                 doc["solar_max_import"] = ImportCurrent;
+                write_settings();
             } else {
                 doc["solar_max_import"] = "Value not allowed!";
             }
