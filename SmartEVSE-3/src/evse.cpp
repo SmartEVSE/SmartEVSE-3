@@ -3297,7 +3297,7 @@ void StartwebServer(void) {
 
         if(request->hasParam("solar_max_import")) {
             String current = request->getParam("solar_max_import")->value();
-            if(current.toInt() == 0 || (current.toInt() >= 0 && current.toInt() <= 20)) {
+            if(current.toInt() == 0 || (current.toInt() >= 0 && current.toInt() <= 48)) {
                 ImportCurrent = current.toInt();
                 doc["solar_max_import"] = ImportCurrent;
             } else {
