@@ -158,11 +158,13 @@
             $('#phase_original_3').text((data.phase_currents.original_data.L3/10).toFixed(1) + " A");
 
             if(data.phase_currents.last_data_update > 0) {
-            $('#p1_data_time').text(new Date(data.phase_currents.last_data_update * 1000).toLocaleTimeString());
-            $('#p1_data_date').text(new Date(data.phase_currents.last_data_update * 1000).toLocaleDateString());
-              $('[id=with_p1_api_data]').show();
+              $('#p1_data_time').text(new Date(data.phase_currents.last_data_update * 1000).toLocaleTimeString());
+              $('#p1_data_date').text(new Date(data.phase_currents.last_data_update * 1000).toLocaleDateString());
+              $('[id=with_p1_api_data_date]').show();
+              $('[id=with_p1_api_data_time]').show();
             } else {
-              $('[id=with_p1_api_data]').hide();
+              $('[id=with_p1_api_data_date]').hide();
+              $('[id=with_p1_api_data_time]').hide();
             }
 
             if(data.home_battery.last_update == 0) {
@@ -420,13 +422,15 @@
                                           <div class="h5 mb-0 mr-3 text-gray-800" id="phase_3" style="text-align: right;"></div>
                                         </div>
                                     </div>
-                                    <div class="row no-gutters align-items-center" id="with_p1_api_data">
+                                    <div class="row no-gutters align-items-center" id="with_p1_api_data_date">
                                       <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
                                           Date:
                                         </div>
                                         <div class="col">
                                           <div class="h5 mb-0 mr-3 text-gray-800" id="p1_data_date" style="text-align: right;"></div>
                                         </div>
+                                    </div>
+                                    <div class="row no-gutters align-items-center" id="with_p1_api_data_time">
                                       <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
                                           Time:
                                         </div>
@@ -653,7 +657,8 @@
                     </div>
                 </div>
               </div>
-          
+            </div>
+            <!-- END ROW -->
               <div class="row">
 
                 <script>
@@ -750,8 +755,7 @@
 
                 
 
-                </div>
-                <!-- END ROW -->
+               
           
             </div>
         </div>
