@@ -30,11 +30,14 @@
 #define DBG 0  //comment or set to 0 for production release, 0 = no debug 1 = debug over telnet, 2 = debug over usb AND telnet
 #endif
 
+#ifndef FAKE_RFID
 //uncomment this to emulate an rfid reader with rfid of card = 123456
 //showing the rfid card is simulated by executing http://smartevse-xxx.lan/debug?showrfid=1
 //don't forget to first store the card before it can activate charging
 //#define FAKE_RFID 1
+#endif
 
+#ifndef FAKE_SUNNY_DAY
 //uncomment this to emulate a sunny day where your solar charger is injecting current in the grid:
 //#define FAKE_SUNNY_DAY 1
 //disclaimer: might not work for CT1 calibration/uncalibration stuff, since I can't test that
@@ -43,6 +46,7 @@
 #define INJECT_CURRENT_L1 10
 #define INJECT_CURRENT_L2 0
 #define INJECT_CURRENT_L3 0
+#endif
 #endif
 
 #ifndef VERSION
