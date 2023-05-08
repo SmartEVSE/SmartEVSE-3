@@ -937,7 +937,7 @@ uint8_t getMenuItems (void) {
         }
     }
     MenuItems[m++] = MENU_EVMETER;                                          // - Type of EV electric meter (0: Disabled / Constants EM_*)
-    if (EVMeter) {                                                          // - ? EV meter configured?
+    if (EVMeter && EVMeter != EM_API) {                                                          // - ? EV meter configured?
         MenuItems[m++] = MENU_EVMETERADDRESS;                               // - - Address of EV electric meter (5 - 254)
     }
     if (LoadBl < 2) {                                                       // - ? Load Balancing Disabled/Master?
@@ -1018,11 +1018,11 @@ void GLCDMenu(uint8_t Buttons) {
                         } while (value >= EM_UNUSED_SLOT1 && value <= EM_UNUSED_SLOT5);
                         setItemValue(LCDNav, value);
                         break;
-                    case MENU_EVMETER:                                          // do not display the Sensorbox or EM_API or unused slots here
+                    case MENU_EVMETER:                                          // do not display the Sensorbox or unused slots here
                         value = getItemValue(LCDNav);
                         do {
                             value = MenuNavInt(Buttons, value, MenuStr[LCDNav].Min, MenuStr[LCDNav].Max);
-                        } while (value == EM_SENSORBOX || value == EM_API || (value >= EM_UNUSED_SLOT1 && value <= EM_UNUSED_SLOT5));
+                        } while (value == EM_SENSORBOX || (value >= EM_UNUSED_SLOT1 && value <= EM_UNUSED_SLOT5));
                         setItemValue(LCDNav, value);
                         break;
                     case MENU_MODE:                                          // do not display Smart or Solar mode if no mainsmeter configured

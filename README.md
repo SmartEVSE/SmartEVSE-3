@@ -16,6 +16,8 @@ Make sure to have read the original README.md (e.g. on howto connect to wifi).
 * Home battery integration
 * Endpoint to send L1/2/3 data, this removed the need for a SensorBox
   * Note: Set MainsMeter to the new 'API' option in the config menu when sending L1/2/3
+* Endpoint to send EvMeter L1/2/3 data (and energy/power)
+  * Note: Set EvMeter to the new 'API' option in the config menu when sending L1/2/3
 * Callable API endpoints for easy integration (see [API Overview](#API-Overview) and [Home Assistant Integration](#Integration-with-Home-Assistant))
   * Change charging mode
   * Override charge current

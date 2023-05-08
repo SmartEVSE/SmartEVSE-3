@@ -281,6 +281,81 @@ paths:
                 properties:
                   result: 
                     type: string
+  /ev_meter:
+    post:
+      operationId: updateEvMeter
+      tags:
+        - Operations
+      parameters:
+        - in: query
+          name: L1
+          description: |-
+            Note: Only works when EvMeter == API <br />
+            L1, L2 and L3 must be send all together otherwise the data won't be registered.<br />
+            Ampere must be multiplied by 10 <br />
+          required: false
+          schema:
+            type: integer
+        - in: query
+          name: L2
+          description: |-
+            Note: Only works when EvMeter == API <br />
+            L1, L2 and L3 must be send all together otherwise the data won't be registered.<br />
+            Ampere must be multiplied by 10 <br />
+          required: false
+          schema:
+            type: integer
+        - in: query
+          name: L3
+          description: |-
+            Note: Only works when EvMeter == API <br />
+            L1, L2 and L3 must be send all together otherwise the data won't be registered.<br />
+            Ampere must be multiplied by 10 <br />
+          required: false
+          schema:
+            type: integer
+        - in: query
+          name: import_active_energy
+          description: |-
+            Note: Only works when EvMeter == API <br />
+            import_active_energy, export_active_energy and import_active_power must be send all together otherwise the data won't be registered.<br />
+            Data should be in Wh (kWh * 1000) <br />
+          required: false
+          schema:
+            type: integer
+        - in: query
+          name: export_active_energy
+          description: |-
+            Note: Only works when EvMeter == API <br />
+            import_active_energy, export_active_energy and import_active_power must be send all together otherwise the data won't be registered.<br />
+            Data should be in Wh (kWh * 1000) <br />
+          required: false
+          schema:
+            type: integer
+        - in: query
+          name: import_active_power
+          description: |-
+            Note: Only works when EvMeter == API <br />
+            import_active_energy, export_active_energy and import_active_power must be send all together otherwise the data won't be registered.<br />
+            Data should be in w(att) <br />
+          required: false
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Nullable'
+      responses:
+        '200':
+          description: Operation OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result: 
+                    type: string                    
   /reboot:
     post:
       operationId: rebootEvse
