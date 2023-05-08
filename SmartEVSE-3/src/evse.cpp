@@ -3199,7 +3199,6 @@ void StartwebServer(void) {
                     DelayedStopTime.epoch2 = DELAYEDSTOPTIME;
                     DelayedRepeat = 0;
                 }
-                //TODO no delayed charging when RFID reader is installed?!?
 
                 // so now we might have a starttime and we might be Delayed Charging
                 if (DelayedStartTime.epoch2) {
