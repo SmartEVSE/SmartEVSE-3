@@ -22,13 +22,14 @@ jobs:
       minor: ${{ needs.version.outputs.minor }}
       patch: ${{ needs.version.outputs.patch }}
   release:
+    permissions: write-all
     needs: build
     name: Upload Release Asset
     runs-on: ubuntu-latest
     steps:
       - name: Get current tag
         id: tag
-        run: echo "{tag}=${GITHUB_REF##*/}" >> $GITHUB_OUTPUT
+        run: echo "tag=${GITHUB_REF##*/}" >> $GITHUB_OUTPUT
       - uses: actions/checkout@v3
       - uses: actions/download-artifact@v3
         id: download
