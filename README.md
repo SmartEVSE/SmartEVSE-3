@@ -79,9 +79,9 @@ Make sure to have read the original README.md (e.g. on howto connect to wifi).
 
 
     - For this a new parameter Contact2 is introduced, with values
-        - NOT_PRESENT(default),
+        - NOT_PRESENT (default),
         - ALWAYS_OFF (= 1 phase charging),
-        - ALWAYS_ON (=3 phase charging),
+        - ALWAYS_ON (= 3 phase charging),
         - SOLAR_OFF (always on except in Solar Mode where it is always off),
         - AUTO (starts charging at 3phase, but when in Solar mode and not enough current available for 3 phases, switches off C2 so it will continue on 1 phase)
           Note: this option will not work when LoadBalancing is enabled; CONTACT2 will be set to ALWAYS_ON when Loadbalancing is enabled.
