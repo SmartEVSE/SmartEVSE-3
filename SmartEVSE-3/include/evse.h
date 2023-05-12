@@ -164,6 +164,7 @@ extern RemoteDebug Debug;
 #define WIFI_MODE 0
 #define AP_PASSWORD "00000000"
 #define ENABLE_C2 NOT_PRESENT
+#define MODEM NOTPRESENT
 #define MAX_TEMPERATURE 65
 #define DELAYEDSTARTTIME 0                                                             // The default StartTime for delayed charged, 0 = not delaying
 #define DELAYEDSTOPTIME 0                                                       // The default StopTime for delayed charged, 0 = not stopping
@@ -313,7 +314,8 @@ extern RemoteDebug Debug;
 #define MENU_WIFI 37                                                            // 0x0219: WiFi mode
 #define MENU_C2 38
 #define MENU_MAX_TEMP 39
-#define MENU_EXIT 40
+#define MENU_MODEM 40
+#define MENU_EXIT 41
 
 #define MENU_STATE 50
 
@@ -409,7 +411,9 @@ extern bool LocalTimeSet;
 extern uint8_t MenuItems[MENU_EXIT];
 
 enum EnableC2_t { NOT_PRESENT, ALWAYS_OFF, SOLAR_OFF, ALWAYS_ON, AUTO };
+enum Modem_t { NOTPRESENT, EXPERIMENT };
 const static char StrEnableC2[][12] = { "Not present", "Always Off", "Solar Off", "Always On", "Auto" };
+const static char StrModem[][12] = { "Not present", "Experiment" };
 enum Single_Phase_t { FALSE, GOING_TO_SWITCH, AFTER_SWITCH };
 extern Single_Phase_t Switching_To_Single_Phase;
 extern uint8_t Nr_Of_Phases_Charging;
@@ -467,6 +471,7 @@ const struct {
     {"WIFI",    "Connect to WiFi access point",                       0, 2, WIFI_MODE},
     {"CONTACT2","Contactor2 (C2) behaviour",                          0, sizeof(StrEnableC2) / sizeof(StrEnableC2[0])-1, ENABLE_C2},
     {"MAX TEMP","Maximum temperature for the EVSE module",            40, 75, MAX_TEMPERATURE},
+    {"MODEM",   "Is an ISO15118 modem installed (experimental)",      0, 1, MODEM},
 
     {"EXIT", "EXIT", 0, 0, 0}
 };

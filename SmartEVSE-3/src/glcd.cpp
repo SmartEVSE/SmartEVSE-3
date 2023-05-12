@@ -794,6 +794,8 @@ const char * getMenuItemOption(uint8_t nav) {
             return Str;
         case MENU_C2:
             return StrEnableC2[value];
+        case MENU_MODEM:
+            return StrModem[value];
         case MENU_CONFIG:
             if (value) return StrFixed;
             else return StrSocket;
@@ -957,6 +959,7 @@ uint8_t getMenuItems (void) {
     }
     MenuItems[m++] = MENU_WIFI;                                                 // Wifi Disabled / Enabled / Portal
     MenuItems[m++] = MENU_MAX_TEMP;
+    MenuItems[m++] = MENU_MODEM;
     MenuItems[m++] = MENU_EXIT;
 
     return m;

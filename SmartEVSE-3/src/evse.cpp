@@ -122,7 +122,8 @@ uint8_t Show_RFID = 0;
 uint8_t WIFImode = WIFI_MODE;                                               // WiFi Mode (0:Disabled / 1:Enabled / 2:Start Portal)
 String APpassword = "00000000";
 
-EnableC2_t EnableC2 = ENABLE_C2;                                               // Contactor C2 (0:No contactor2 connected / 1: Always OFF / 2:Always ON / 3:Auto //TODO not implemented yet!)
+EnableC2_t EnableC2 = ENABLE_C2;                                            // Contactor C2
+Modem_t Modem = MODEM;                                                      // Is an ISO15118 modem installed (experimental)
 uint16_t maxTemp = MAX_TEMPERATURE;
 
 int32_t Irms[3]={0, 0, 0};                                                  // Momentary current per Phase (23 = 2.3A) (resolution 100mA)
@@ -1169,6 +1170,9 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
     }
 
     switch (nav) {
+        case MENU_MODEM:
+            Modem = (Modem_t) val;
+            break;
         case MENU_MAX_TEMP:
             maxTemp = val;
             break;
@@ -1331,6 +1335,8 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
  */
 uint16_t getItemValue(uint8_t nav) {
     switch (nav) {
+        case MENU_MODEM:
+            return Modem;
         case MENU_MAX_TEMP:
             return maxTemp;
         case MENU_C2:
@@ -2825,6 +2831,7 @@ void read_settings(bool write) {
         DelayedStopTime.epoch2 = preferences.getULong("DelayedStopTime", DELAYEDSTOPTIME);    //epoch2 is 4 bytes long on arduino
 
         EnableC2 = (EnableC2_t) preferences.getUShort("EnableC2", ENABLE_C2);
+        Modem = (Modem_t) preferences.getUShort("Modem", MODEM);
         maxTemp = preferences.getUShort("maxTemp", MAX_TEMPERATURE);
 
         preferences.end();                                  
@@ -2881,6 +2888,7 @@ void write_settings(void) {
     preferences.putULong("DelayedStopTime", DelayedStopTime.epoch2);   //epoch2 only needs 4 bytes
 
     preferences.putUShort("EnableC2", EnableC2);
+    preferences.putUShort("Modem", Modem);
     preferences.putUShort("maxTemp", maxTemp);
 
     preferences.end();
@@ -3123,6 +3131,7 @@ void StartwebServer(void) {
         doc["settings"]["solar_start_current"] = StartCurrent;
         doc["settings"]["solar_stop_time"] = StopTime;
         doc["settings"]["enable_C2"] = StrEnableC2[EnableC2];
+        doc["settings"]["modem"] = StrModem[Modem];
         doc["settings"]["mains_meter"] = EMConfig[MainsMeter].Desc;
         doc["settings"]["starttime"] = (DelayedStartTime.epoch2 ? DelayedStartTime.epoch2 + EPOCH2_OFFSET : 0);
         doc["settings"]["stoptime"] = (DelayedStopTime.epoch2 ? DelayedStopTime.epoch2 + EPOCH2_OFFSET : 0);
@@ -3277,6 +3286,12 @@ void StartwebServer(void) {
             EnableC2 = (EnableC2_t) enabled.toInt();
             write_settings();
             doc["settings"]["enable_C2"] = StrEnableC2[EnableC2];
+        }
+
+        if(request->hasParam("modem")) {
+            String modem = request->getParam("modem")->value();
+            EnableC2 = (EnableC2_t) modem.toInt();
+            doc["settings"]["modem"] = StrModem[Modem];
         }
 
         if(request->hasParam("stop_timer")) {
