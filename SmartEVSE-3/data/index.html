@@ -64,6 +64,7 @@
 
 
             $('#mode').text(data.mode);
+            $('#dutycycle').text(data.pwm);
             $('#car_connected').text(data.car_connected ? "Yes" : "No");
             $('#state').text(data.evse.state);
             $('#temp').text(data.evse.temp + " °C / " + data.evse.temp_max + " °C");
@@ -234,6 +235,14 @@
                                             </div>
                                             <div class="col">
                                               <div class="h5 mb-0 mr-3 text-gray-800" id="mode"></div>
+                                            </div>
+                                        </div>
+                                        <div class="row no-gutters align-items-center">
+                                            <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                                Duty cycle (/1024):
+                                            </div>
+                                            <div class="col">
+                                                <div class="h5 mb-0 mr-3 text-gray-800" id="dutycycle"></div>
                                             </div>
                                         </div>
                                         <div class="row no-gutters align-items-center">
@@ -683,6 +692,10 @@
                     function rawData() {
                       window.location.href = "/settings";
                     }
+                    function postPWM(value) {
+                       $.post("/pwm?value=" + value);
+                       event.preventDefault();
+                     }
                 </script>
 
                 <!-- Earnings (Monthly) Card Example -->
@@ -743,6 +756,18 @@
                                           <button onclick="reboot()" style="width: 100px; display:inline-block;">Reboot</button>
                                           <button onclick="update()" style="width: 100px; display:inline-block;">Update</button>
                                           <button onclick="rawData()" style="width: 120px; display:inline-block;">Raw Data</button>
+                                        </div>
+                                        <div class="row no-gutters align-items-center">
+                                            <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                                Override PWM:
+                                            </div>
+                                            <div class="col">
+                                                <button onclick="postPWM(0)" style="width: 120px; display:inline-block;">0&#37;</button>
+                                                <button onclick="postPWM(50)" style="width: 120px; display:inline-block;">5&#37;</button>
+                                                <button onclick="postPWM(250)" style="width: 120px; display:inline-block;">25&#37;</button>
+                                                <button onclick="postPWM(1024)" style="width: 120px; display:inline-block;">100&#37;</button>
+                                                <button onclick="postPWM(-1)" style="width: 120px; display:inline-block;">reset</button>
+                                            </div>
                                         </div>
                                     </div>
 

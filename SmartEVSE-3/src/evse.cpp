@@ -92,6 +92,8 @@ uint16_t MaxCurrent = MAX_CURRENT;                                          // M
 uint16_t MinCurrent = MIN_CURRENT;                                          // Minimal current the EV is happy with (A)
 uint16_t ICal = ICAL;                                                       // CT calibration value
 uint8_t Mode = MODE;                                                        // EVSE mode (0:Normal / 1:Smart / 2:Solar)
+uint32_t CurrentPWM = 0;                                                        // EVSE mode (0:Normal / 1:Smart / 2:Solar)
+bool CPDutyOverride = false;
 uint8_t Lock = LOCK;                                                        // Cable lock (0:Disable / 1:Solenoid / 2:Motor)
 uint16_t MaxCircuit = MAX_CIRCUIT;                                          // Max current of the EVSE circuit (A)
 uint8_t Config = CONFIG;                                                    // Configuration (0:Socket / 1:Fixed Cable)
@@ -421,7 +423,14 @@ void SetCurrent(uint16_t current) {
     else if ((current > 510) && (current <= 800)) DutyCycle = (current / 2.5) + 640;
     else DutyCycle = 100;                                                   // invalid, use 6A
     DutyCycle = DutyCycle * 1024 / 1000;                                    // conversion to 1024 = 100%
+    SetCPDuty(DutyCycle);
+}
+
+// Write duty cycle to pin
+// Value in range 0 (0% duty) to 1024 (100% duty)
+void SetCPDuty(uint32_t DutyCycle){
     ledcWrite(CP_CHANNEL, DutyCycle);                                       // update PWM signal
+    CurrentPWM = DutyCycle;
 }
 
 
@@ -628,7 +637,7 @@ void setState(uint8_t NewState) {
         case STATE_A:                                                           // State A1
             CONTACTOR1_OFF;  
             CONTACTOR2_OFF;  
-            ledcWrite(CP_CHANNEL, 1024);                                        // PWM off,  channel 0, duty cycle 100%
+            SetCPDuty(1024);                                                    // PWM off,  channel 0, duty cycle 100%
             timerAlarmWrite(timerA, PWM_100, true);                             // Alarm every 1ms, auto reload 
             if (NewState == STATE_A) {
                 ErrorFlags &= ~NO_SUN;
@@ -702,7 +711,7 @@ void setState(uint8_t NewState) {
             LCDTimer = 0;
             break;
         case STATE_C1:
-            ledcWrite(CP_CHANNEL, 1024);                                        // PWM off,  channel 0, duty cycle 100%
+            SetCPDuty(1024);                                                    // PWM off,  channel 0, duty cycle 100%
             timerAlarmWrite(timerA, PWM_100, true);                             // Alarm every 1ms, auto reload 
                                                                                 // EV should detect and stop charging within 3 seconds
             C1Timer = 6;                                                        // Wait maximum 6 seconds, before forcing the contactor off.
@@ -1762,7 +1771,7 @@ void EVSEStates(void * parameter) {
                     setState(STATE_ACTSTART);
                     ActivationTimer = 3;
 
-                    ledcWrite(CP_CHANNEL, 0);                                   // PWM off,  channel 0, duty cycle 0%
+                    SetCPDuty(0);                                               // PWM off,  channel 0, duty cycle 0%
                                                                                 // Control pilot static -12V
                 }
             }
@@ -2022,7 +2031,7 @@ uint8_t PollEVNode = NR_EVSES;
                     } else {                                                    // Normal Mode
                         CalcBalancedCurrent(0);                                 // Calculate charge current for connected EVSE's
                         if (LoadBl == 1) BroadcastCurrent();                    // Send to all EVSE's (only in Master mode)
-                        if ((State == STATE_B) || (State == STATE_C)) SetCurrent(Balanced[0]); // set PWM output for Master
+                        if ((State == STATE_B || State == STATE_C) && !CPDutyOverride) SetCurrent(Balanced[0]); // set PWM output for Master
                     }
                     ModbusRequest = 0;
                     //_LOG_A("Task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
@@ -3055,6 +3064,7 @@ void StartwebServer(void) {
         DynamicJsonDocument doc(1200); // https://arduinojson.org/v6/assistant/
         doc["version"] = String(VERSION);
         doc["mode"] = mode;
+        doc["pwm"] = CurrentPWM;
         doc["mode_id"] = modeId;
         doc["car_connected"] = evConnected;
 
@@ -3413,6 +3423,28 @@ void StartwebServer(void) {
     },[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
     });
 
+    webServer.on("/pwm", HTTP_POST, [](AsyncWebServerRequest *request) {
+        DynamicJsonDocument doc(200);
+
+        if(request->hasParam("value")) {
+            String mode = request->getParam("value")->value();
+            int pwm = mode.toInt();
+            if (pwm < 0){
+                CPDutyOverride = false;
+                pwm = 150; // 15% until next loop, to be safe
+            }else{
+                CPDutyOverride = true;
+            }
+            SetCPDuty(pwm);
+            doc["value"] = pwm;
+
+            String json;
+            serializeJson(doc, json);
+            request->send(200, "application/json", json);
+
+        }
+    });
+
 #ifdef FAKE_RFID
     //this can be activated by: http://smartevse-xxx.lan/debug?showrfid=1
     webServer.on("/debug", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -3648,7 +3680,7 @@ void setup() {
     ledcAttachPin(PIN_LEDB, BLUE_CHANNEL);
     ledcAttachPin(PIN_LCD_LED, LCD_CHANNEL);
 
-    ledcWrite(CP_CHANNEL, 1024);                // channel 0, duty cycle 100%
+    SetCPDuty(1024);                            // channel 0, duty cycle 100%
     ledcWrite(RED_CHANNEL, 255);
     ledcWrite(GREEN_CHANNEL, 0);
     ledcWrite(BLUE_CHANNEL, 255);
