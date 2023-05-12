@@ -281,6 +281,38 @@ paths:
                 properties:
                   result: 
                     type: string
+  /modem:
+    post:
+      operationId: updateModem
+      tags:
+        - Operations
+      parameters:
+        - in: query
+          name: pwm
+          description: |-
+            The duty cycle (PWM) multiplied by 10 <br />
+            Examples: <br />
+            If the desired dutycycle is <b>5%</b> the value to be sent is <b>50</b> <br />
+            Note: EXPERIMENTAL FEATURE ONLY FOR EXPERTS <br />
+            DO NOT USE THIS IF YOU ARE NOT AN EVSE EXPERT. DANGEROUS!<br />
+          required: false
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Nullable'
+      responses:
+        '200':
+          description: Operation OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
   /ev_meter:
     post:
       operationId: updateEvMeter

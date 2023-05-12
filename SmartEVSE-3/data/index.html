@@ -700,7 +700,7 @@
                       window.location.href = "/settings";
                     }
                     function postPWM(value) {
-                       $.post("/pwm?value=" + value);
+                       $.post("/modem?pwm=" + value);
                        event.preventDefault();
                      }
                 </script>

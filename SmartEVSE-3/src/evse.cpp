@@ -3438,11 +3438,12 @@ void StartwebServer(void) {
     },[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
     });
 
-    webServer.on("/pwm", HTTP_POST, [](AsyncWebServerRequest *request) {
+    webServer.on("/modem", HTTP_POST, [](AsyncWebServerRequest *request) {
         DynamicJsonDocument doc(200);
 
-        if(request->hasParam("value")) {
-            String mode = request->getParam("value")->value();
+        //special section to post stuff for experimenting with an ISO15118 modem
+        if(request->hasParam("pwm")) {
+            String mode = request->getParam("pwm")->value();
             int pwm = mode.toInt();
             if (pwm < 0){
                 CPDutyOverride = false;
@@ -3451,7 +3452,7 @@ void StartwebServer(void) {
                 CPDutyOverride = true;
             }
             SetCPDuty(pwm);
-            doc["value"] = pwm;
+            doc["pwm"] = pwm;
 
             String json;
             serializeJson(doc, json);
