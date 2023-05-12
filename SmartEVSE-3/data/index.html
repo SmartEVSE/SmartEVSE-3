@@ -64,7 +64,8 @@
 
 
             $('#mode').text(data.mode);
-            $('#dutycycle').text(data.pwm);
+            $('#dutycycle').text((data.pwm*100/1024).toFixed(0) + " %");
+
             $('#car_connected').text(data.car_connected ? "Yes" : "No");
             $('#state').text(data.evse.state);
             $('#temp').text(data.evse.temp + " °C / " + data.evse.temp_max + " °C");
@@ -243,9 +244,9 @@
                                               <div class="h5 mb-0 mr-3 text-gray-800" id="mode"></div>
                                             </div>
                                         </div>
-                                        <div class="row no-gutters align-items-center">
+                                        <div class="row no-gutters align-items-center" id="with_modem">
                                             <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
-                                                Duty cycle (/1024):
+                                                Duty cycle:
                                             </div>
                                             <div class="col">
                                                 <div class="h5 mb-0 mr-3 text-gray-800" id="dutycycle"></div>
@@ -763,18 +764,17 @@
                                           <button onclick="update()" style="width: 100px; display:inline-block;">Update</button>
                                           <button onclick="rawData()" style="width: 120px; display:inline-block;">Raw Data</button>
                                         </div>
-                                        <div class="row no-gutters align-items-center" id="with_modem">
-                                            <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
-                                                Override PWM:
-                                            </div>
-                                            <div class="col">
-                                                <button onclick="postPWM(0)" style="width: 120px; display:inline-block;">0&#37;</button>
-                                                <button onclick="postPWM(50)" style="width: 120px; display:inline-block;">5&#37;</button>
-                                                <button onclick="postPWM(-1)" style="width: 120px; display:inline-block;">reset</button>
-                                            </div>
+                                    </div>
+                                    <div class="row no-gutters align-items-center" id="with_modem">
+                                        <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                            Override PWM:
+                                        </div>
+                                        <div class="col">
+                                            <button onclick="postPWM(0)" style="width: 120px; display:inline-block;">0&#37;</button>
+                                            <button onclick="postPWM(50)" style="width: 120px; display:inline-block;">5&#37;</button>
+                                            <button onclick="postPWM(-1)" style="width: 120px; display:inline-block;">reset</button>
                                         </div>
                                     </div>
-
                                   </div>
                                 </div>
                             </div>
