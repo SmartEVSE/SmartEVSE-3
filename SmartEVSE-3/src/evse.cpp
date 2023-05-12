@@ -3446,7 +3446,7 @@ void StartwebServer(void) {
             int pwm = mode.toInt();
             if (pwm < 0){
                 CPDutyOverride = false;
-                pwm = 150; // 15% until next loop, to be safe
+                pwm = 100; // 10% until next loop, to be safe, corresponds to 6A
             }else{
                 CPDutyOverride = true;
             }
