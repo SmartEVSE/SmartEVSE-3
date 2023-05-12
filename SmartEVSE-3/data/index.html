@@ -64,7 +64,7 @@
 
 
             $('#mode').text(data.mode);
-            $('#dutycycle').text((data.pwm*100/1024).toFixed(0) + " %");
+            $('#dutycycle').text((data.evse.pwm*100/1024).toFixed(0) + " %");
 
             $('#car_connected').text(data.car_connected ? "Yes" : "No");
             $('#state').text(data.evse.state);

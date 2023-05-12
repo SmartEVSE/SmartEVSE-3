@@ -3072,7 +3072,6 @@ void StartwebServer(void) {
         DynamicJsonDocument doc(1200); // https://arduinojson.org/v6/assistant/
         doc["version"] = String(VERSION);
         doc["mode"] = mode;
-        doc["pwm"] = CurrentPWM;
         doc["mode_id"] = modeId;
         doc["car_connected"] = evConnected;
 
@@ -3101,6 +3100,7 @@ void StartwebServer(void) {
         doc["evse"]["connected"] = evConnected;
         doc["evse"]["access"] = Access_bit == 1;
         doc["evse"]["mode"] = Mode;
+        doc["evse"]["pwm"] = CurrentPWM;
         doc["evse"]["solar_stop_timer"] = SolarStopTimer;
         doc["evse"]["state"] = evstate;
         doc["evse"]["state_id"] = State;
