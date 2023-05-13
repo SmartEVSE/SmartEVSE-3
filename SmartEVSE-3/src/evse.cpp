@@ -3290,7 +3290,7 @@ void StartwebServer(void) {
 
         if(request->hasParam("modem")) {
             String modem = request->getParam("modem")->value();
-            EnableC2 = (EnableC2_t) modem.toInt();
+            Modem = (Modem_t) modem.toInt();
             doc["settings"]["modem"] = StrModem[Modem];
         }
 
