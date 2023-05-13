@@ -3184,8 +3184,7 @@ void StartwebServer(void) {
         DynamicJsonDocument doc(512); // https://arduinojson.org/v6/assistant/
 
         if(request->hasParam("backlight")) {
-            String current = request->getParam("backlight")->value();
-            int backlight = current.toInt();
+            int backlight = request->getParam("backlight")->value().toInt();
             BacklightTimer = backlight * BACKLIGHT;
             doc["Backlight"] = backlight;
         }
@@ -3282,23 +3281,21 @@ void StartwebServer(void) {
         }
 
         if(request->hasParam("enable_C2")) {
-            String enabled = request->getParam("enable_C2")->value();
-            EnableC2 = (EnableC2_t) enabled.toInt();
+            EnableC2 = (EnableC2_t) request->getParam("enable_C2")->value().toInt();
             write_settings();
             doc["settings"]["enable_C2"] = StrEnableC2[EnableC2];
         }
 
         if(request->hasParam("modem")) {
-            String modem = request->getParam("modem")->value();
-            Modem = (Modem_t) modem.toInt();
+            Modem = (Modem_t) request->getParam("modem")->value().toInt();
             doc["settings"]["modem"] = StrModem[Modem];
         }
 
         if(request->hasParam("stop_timer")) {
-            String stop_timer = request->getParam("stop_timer")->value();
+            int stop_timer = request->getParam("stop_timer")->value().toInt();
 
-            if(stop_timer.toInt() >= 0 && stop_timer.toInt() <= 60) {
-                StopTime = stop_timer.toInt();
+            if(stop_timer >= 0 && stop_timer <= 60) {
+                StopTime = stop_timer;
                 doc["stop_timer"] = true;
                 write_settings();
             } else {
@@ -3309,9 +3306,9 @@ void StartwebServer(void) {
 
         if(Mode == MODE_NORMAL || Mode == MODE_SMART) {
             if(request->hasParam("override_current")) {
-                String current = request->getParam("override_current")->value();
-                if(current.toInt() == 0 || (current.toInt() >= ( MinCurrent * 10 ) && current.toInt() <= ( MaxCurrent * 10 ))) {
-                    OverrideCurrent = current.toInt();
+                int current = request->getParam("override_current")->value().toInt();
+                if(current == 0 || (current >= ( MinCurrent * 10 ) && current <= ( MaxCurrent * 10 ))) {
+                    OverrideCurrent = current;
                     doc["override_current"] = OverrideCurrent;
                 } else {
                     doc["override_current"] = "Value not allowed!";
@@ -3320,9 +3317,9 @@ void StartwebServer(void) {
         }
 
         if(request->hasParam("solar_start_current")) {
-            String current = request->getParam("solar_start_current")->value();
-            if(current.toInt() == 0 || (current.toInt() >= 0 && current.toInt() <= 48)) {
-                StartCurrent = current.toInt();
+            int current = request->getParam("solar_start_current")->value().toInt();
+            if(current >= 0 && current <= 48) {
+                StartCurrent = current;
                 doc["solar_start_current"] = StartCurrent;
                 write_settings();
             } else {
@@ -3331,9 +3328,9 @@ void StartwebServer(void) {
         }
 
         if(request->hasParam("solar_max_import")) {
-            String current = request->getParam("solar_max_import")->value();
-            if(current.toInt() == 0 || (current.toInt() >= 0 && current.toInt() <= 48)) {
-                ImportCurrent = current.toInt();
+            int current = request->getParam("solar_max_import")->value().toInt();
+            if(current >= 0 && current <= 48) {
+                ImportCurrent = current;
                 doc["solar_max_import"] = ImportCurrent;
                 write_settings();
             } else {
@@ -3352,8 +3349,7 @@ void StartwebServer(void) {
         DynamicJsonDocument doc(200);
 
         if(request->hasParam("battery_current")) {
-            String value = request->getParam("battery_current")->value();
-            homeBatteryCurrent = value.toInt();
+            homeBatteryCurrent = request->getParam("battery_current")->value().toInt();
             homeBatteryLastUpdate = time(NULL);
             doc["battery_current"] = homeBatteryCurrent;
         }
@@ -3443,8 +3439,7 @@ void StartwebServer(void) {
 
         //special section to post stuff for experimenting with an ISO15118 modem
         if(request->hasParam("pwm")) {
-            String mode = request->getParam("pwm")->value();
-            int pwm = mode.toInt();
+            int pwm = request->getParam("pwm")->value().toInt();
             if (pwm < 0){
                 CPDutyOverride = false;
                 pwm = 100; // 10% until next loop, to be safe, corresponds to 6A
