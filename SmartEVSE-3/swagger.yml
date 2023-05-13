@@ -200,6 +200,16 @@ paths:
           schema:
             type: integer
         - in: query
+          name: current_min
+          description: |-
+            The Minimum Charging Current in Ampères, per phase. Usually you should leave this setting at its default value (6A) since this is standarized.
+            Note: This setting is useful for EV's that don't obey standards, like the Renault Zoe, whose MinCurrents not only differ from the standard, but also change when charging at 1 phase and charging at 2 phases. The values even differ per build year.
+            Examples: <br />
+            If you want the car to start charging at minimally 6A, the value to be sent is <b>6</b> <br />
+          required: false
+          schema:
+            type: integer
+        - in: query
           name: solar_max_import
           description: |-
             The maximum current (sum of all phases) of the MainsMeter that can be imported before the solar timer is fired off, after expiration the car will stop charging. <br /> <br />

@@ -3189,6 +3189,17 @@ void StartwebServer(void) {
             doc["Backlight"] = backlight;
         }
 
+        if(request->hasParam("current_min")) {
+            int current = request->getParam("current_min")->value().toInt();
+            if(current >= 6 && current <= 16) {
+                MinCurrent = current;
+                doc["current_min"] = MinCurrent;
+                write_settings();
+            } else {
+                doc["current_min"] = "Value not allowed!";
+            }
+        }
+
         if(request->hasParam("disable_override_current")) {
             OverrideCurrent = 0;
             doc["disable_override_current"] = "OK";
