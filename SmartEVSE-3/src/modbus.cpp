@@ -187,7 +187,11 @@ void ModbusWriteMultipleRequest(uint8_t address, uint16_t reg, uint16_t *values,
     token = reg;
     token += address << 24;
     token += 0x10 << 16;
-    MBclient.addRequest(token, address, 0x10, reg, (uint16_t) count, count * 2u, values);
+    Error err = MBclient.addRequest(token, address, 0x10, reg, (uint16_t) count, count * 2u, values);
+    if (err!=SUCCESS) {
+      ModbusError e(err);
+      _LOG_A("Error creating request: %02X - %s\n", (int)e, (const char *)e);
+    }
     _LOG_D("Sent packet");
     uint16_t i;
     char Str[MODBUS_SYS_CONFIG_COUNT * 5 + 10];
