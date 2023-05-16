@@ -3554,31 +3554,37 @@ void WiFiSetup(void) {
     Debug.setSerialEnabled(true); // if you wants serial echo - only recommended if ESP is plugged in USB
 #endif
 #endif
+    handleWIFImode();                                                           //go into the mode that was saved in nonvolatile memory
+    StartwebServer();
 }
 
+void SetupPortalTask(void * parameter) {
+    _LOG_A("Start Portal...\n");
+    StopwebServer();
+    WiFi.disconnect(true);
+    delay(1000);
+    ESPAsync_wifiManager.startConfigPortal(APhostname.c_str(), APpassword.c_str());         // blocking until connected or timeout.
+    WiFi.disconnect(true);
+    WIFImode = 1;
+    handleWIFImode();
+    write_settings();
+    LCDNav = 0;
+    StartwebServer();                                                           //restart webserver
+    vTaskDelete(NULL);                                                          //end this task so it will not take up resources
+}
 
-void SetupNetworkTask(void * parameter) {
+void handleWIFImode() {
 
-  WiFiSetup();
-  StartwebServer();
-
-  while(1) {
-
-    // retrieve time from NTP server
-    LocalTimeSet = getLocalTime(&timeinfo, 1000U);
-    
-    // Cleanup old websocket clients
-    // ws.cleanupClients();
-
-    if (WIFImode == 2 && LCDTimer > 10 && WiFi.getMode() != WIFI_AP_STA) {
-        _LOG_A("Start Portal...\n");
-        StopwebServer();
-        ESPAsync_wifiManager.startConfigPortal(APhostname.c_str(), APpassword.c_str());         // blocking until connected or timeout.
-        WIFImode = 1;
-        write_settings();
-        LCDNav = 0;
-        StartwebServer();       //restart webserver
-    }
+    if (WIFImode == 2 && WiFi.getMode() != WIFI_AP_STA)
+        //now start the portal in the background, so other tasks keep running
+        xTaskCreate(
+            SetupPortalTask,     // Function that should be called
+            "SetupPortalTask",   // Name of the task (for debugging)
+            10000,                // Stack size (bytes)                              // printf needs atleast 1kb
+            NULL,                 // Parameter to pass
+            1,                    // Task priority
+            NULL                  // Task handleCTReceive
+        );
 
     if (WIFImode == 1 && WiFi.getMode() == WIFI_OFF) {
         _LOG_A("Starting WiFi..\n");
@@ -3590,15 +3596,6 @@ void SetupNetworkTask(void * parameter) {
         _LOG_A("Stopping WiFi..\n");
         WiFi.disconnect(true);
     }    
-
-#ifndef DEBUG_DISABLED
-    // Remote debug over WiFi
-    Debug.handle();
-#endif
-
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
-  } // while(1)
-
 }
 
 
@@ -3805,17 +3802,8 @@ void setup() {
     // Setup WiFi, webserver and firmware OTA
     // Please be aware that after doing a OTA update, its possible that the active partition is set to OTA1.
     // Uploading a new firmware through USB will however update OTA0, and you will not notice any changes...
+    WiFiSetup();
 
-    // Create Task that setups the network, and the webserver 
-    xTaskCreate(
-        SetupNetworkTask,     // Function that should be called
-        "SetupNetworkTask",   // Name of the task (for debugging)
-        10000,                // Stack size (bytes)                              // printf needs atleast 1kb
-        NULL,                 // Parameter to pass
-        1,                    // Task priority
-        NULL                  // Task handleCTReceive
-    );
-    
     // Set eModbus LogLevel to 1, to suppress possible E5 errors
     MBUlogLvl = LOG_LEVEL_CRITICAL;
     ConfigureModbusMode(255);
@@ -3828,6 +3816,14 @@ void setup() {
 void loop() {
 
     delay(1000);
+    // retrieve time from NTP server
+    LocalTimeSet = getLocalTime(&timeinfo, 1000U);
+
+#ifndef DEBUG_DISABLED
+    // Remote debug over WiFi
+    Debug.handle();
+#endif
+
 
     // TODO move this to a once a minute loop?
     if (DelayedStartTime.epoch2 && LocalTimeSet) {
