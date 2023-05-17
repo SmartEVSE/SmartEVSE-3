@@ -3765,7 +3765,7 @@ void setup() {
         "EVSEStates",   // Name of the task (for debugging)
         4096,           // Stack size (bytes)                              // printf needs atleast 1kb
         NULL,           // Parameter to pass
-        1,              // Task priority
+        5,              // Task priority - high
         NULL            // Task handle
     );
 
@@ -3775,7 +3775,7 @@ void setup() {
         "BlinkLed",     // Name of the task (for debugging)
         1024,           // Stack size (bytes)                              // printf needs atleast 1kb
         NULL,           // Parameter to pass
-        1,              // Task priority
+        1,              // Task priority - low
         NULL            // Task handle
     );
 
@@ -3785,7 +3785,7 @@ void setup() {
         "Timer100ms",   // Name of the task (for debugging)
         3072,           // Stack size (bytes)                              
         NULL,           // Parameter to pass
-        1,              // Task priority
+        3,              // Task priority - medium
         NULL            // Task handle
     );
 
@@ -3795,7 +3795,7 @@ void setup() {
         "Timer1S",      // Name of the task (for debugging)
         4096,           // Stack size (bytes)                              
         NULL,           // Parameter to pass
-        1,              // Task priority
+        3,              // Task priority - medium
         NULL            // Task handle
     );
 
