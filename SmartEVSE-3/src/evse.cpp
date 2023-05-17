@@ -1838,7 +1838,7 @@ void EVSEStates(void * parameter) {
         // update LCD (every 1000ms) when not in the setup menu
         if (LCDupdate) {
             // This is also the ideal place for debug messages that should not be printed every 10ms
-            //_LOG_A("States task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
+            //_LOG_A("EVSEStates task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
             GLCD();
             LCDupdate = 0;
         }    
@@ -2040,7 +2040,7 @@ uint8_t PollEVNode = NR_EVSES;
                         if ((State == STATE_B || State == STATE_C) && !CPDutyOverride) SetCurrent(Balanced[0]); // set PWM output for Master
                     }
                     ModbusRequest = 0;
-                    //_LOG_A("Task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
+                    //_LOG_A("Timer100ms task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
                     break;
             } //switch
         }
@@ -2183,7 +2183,7 @@ void Timer1S(void * parameter) {
         if (Mode == 0)
             printStatus();  //for debug purposes
 
-        //_LOG_A("Task 1s free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
+        //_LOG_A("Timer1S task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
 
 
         // Autodetect on which phases we are charging
@@ -2661,7 +2661,7 @@ void ConfigureModbusMode(uint8_t newmode) {
             _LOG_A("Setup MBserver/Node workers, end Master/Client\n");
             // Stop Master background task (if active)
             if (newmode != 255 ) MBclient.end();    
-            _LOG_A("task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
+            _LOG_A("ConfigureModbusMode1 task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
 
             // Register worker. at serverID 'LoadBl', all function codes
             MBserver.registerWorker(LoadBl, ANY_FUNCTION_CODE, &MBNodeRequest);      
@@ -2682,7 +2682,7 @@ void ConfigureModbusMode(uint8_t newmode) {
             _LOG_A("Setup Modbus as Master/Client, stop Server/Node handler\n");
 
             if (newmode != 255) MBserver.end();
-            _LOG_A("task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
+            _LOG_A("ConfigureModbusMode2 task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
 
             MBclient.setTimeout(100);       // timeout 100ms
             MBclient.onDataHandler(&MBhandleData);
@@ -3564,6 +3564,7 @@ void SetupPortalTask(void * parameter) {
     WiFi.disconnect(true);
     delay(1000);
     ESPAsync_wifiManager.startConfigPortal(APhostname.c_str(), APpassword.c_str());         // blocking until connected or timeout.
+    //_LOG_A("SetupPortalTask free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
     WiFi.disconnect(true);
     WIFImode = 1;
     handleWIFImode();
@@ -3783,7 +3784,7 @@ void setup() {
     xTaskCreate(
         Timer100ms,     // Function that should be called
         "Timer100ms",   // Name of the task (for debugging)
-        3072,           // Stack size (bytes)                              
+        4608,           // Stack size (bytes)
         NULL,           // Parameter to pass
         3,              // Task priority - medium
         NULL            // Task handle
