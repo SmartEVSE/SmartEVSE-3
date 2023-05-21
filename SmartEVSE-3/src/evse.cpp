@@ -684,7 +684,7 @@ void setState(uint8_t NewState) {
                         OverrideCurrent = MinCurrent * 10;                          // for detection of phases we are going to lock the charging current to MinCurrent
                         for (i=0; i<3; i++) {
                             Old_Irms[i] = Irms_EV[i];
-                            _LOG_D("Trying to detect Charging Phases START Irms_EV[%i]=%u.\n", i, Irms_EV[i]);
+                            _LOG_D("Trying to detect Charging Phases START Irms_EV[%i]=%.1f A.\n", i, (float)Irms_EV[i]/10);
                         }
                         Detecting_Charging_Phases_Timer = PHASE_DETECTION_TIME;     // we need time for the EV to decide to start charging
                     }
@@ -693,7 +693,7 @@ void setState(uint8_t NewState) {
                         OverrideCurrent = MinCurrent * 10;                          // for detection of phases we are going to lock the charging current to MinCurrent
                         for (i=0; i<3; i++) {
                             Old_Irms[i] = Irms[i];
-                            _LOG_D("Trying to detect Charging Phases START Irms[%i]=%u.\n", i, Irms[i]);
+                            _LOG_D("Trying to detect Charging Phases START Irms[%i]=%.1f A.\n", i, (float)Irms[i]/10);
                         }
                         Detecting_Charging_Phases_Timer = PHASE_DETECTION_TIME;     // we need time for the EV to decide to start charging
                     }
@@ -2197,11 +2197,11 @@ void Timer1S(void * parameter) {
                     if (EVMeter) {
                         //Charging_Prob[i] = 100 * (abs(Irms_EV[i] - Old_Irms[i])) / ChargeCurrent;    //100% means this phase is charging, 0% mwans not charging
                         Charging_Prob[i] = 10 * (abs(Irms_EV[i] - Old_Irms[i])) / MinCurrent;    //100% means this phase is charging, 0% mwans not charging
-                        _LOG_D("Trying to detect Charging Phases END Irms_EV[%i]=%u.\n", i, Irms_EV[i]);
+                        _LOG_D("Trying to detect Charging Phases END Irms_EV[%i]=%.1f A.\n", i, (float)Irms_EV[i]/10);
                     }     //TODO only working in Smart Mode                                                                         //TODO we start charging with ChargeCurrent but in Smart mode this changes to Balanced[0]; how about Solar? generates error 32?
                     else if (MainsMeter) {
                         Charging_Prob[i] = 10 * (abs(Irms[i] - Old_Irms[i])) / MinCurrent;    //100% means this phase is charging, 0% mwans not charging
-                        _LOG_D("Trying to detect Charging Phases END Irms_[%i]=%u.\n", i, Irms[i]);
+                        _LOG_D("Trying to detect Charging Phases END Irms_[%i]=%.1f A.\n", i, (float)Irms[i]/10);
                     }
                     else
                         Charging_Prob[i] = 0;
