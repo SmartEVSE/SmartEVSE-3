@@ -2017,12 +2017,12 @@ uint8_t PollEVNode = NR_EVSES;
                     // Request active energy if Mainsmeter is configured
                     if (MainsMeter && MainsMeter != EM_API) {                   // EM_API does not support energy postings
                         energytimer++; //this ticks approx every second?!?
-                        if (energytimer == 30 || Mains_import_active_energy == 0) {
+                        if (energytimer == 30) {
                             _LOG_D("ModbusRequest %u: Request MainsMeter Import Active Energy Measurement\n", ModbusRequest);
                             requestEnergyMeasurement(MainsMeter, MainsMeterAddress, 0);
                             break;
                         }
-                        if (energytimer >= 60 || Mains_export_active_energy == 0) {
+                        if (energytimer >= 60) {
                             _LOG_D("ModbusRequest %u: Request MainsMeter Export Active Energy Measurement\n", ModbusRequest);
                             requestEnergyMeasurement(MainsMeter, MainsMeterAddress, 1);
                             energytimer = 0;
