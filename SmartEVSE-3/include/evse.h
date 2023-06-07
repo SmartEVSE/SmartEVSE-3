@@ -75,7 +75,7 @@ extern RemoteDebug Debug;
 #endif
 
 
-#define PHASE_DETECTION_TIME 11
+#define PHASE_DETECTION_TIME 22                                                 // especially Tesla seems to need up to 20 seconds to have all its phases activated
 
 // Pin definitions left side ESP32
 #define PIN_TEMP 36
