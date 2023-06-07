@@ -682,7 +682,7 @@
                       var starttime = document.querySelector('input[name="starttime"]').value;
                       var stoptime = document.querySelector('input[name="stoptime"]').value;
                       var repeat2 = +document.getElementById('daily_repeat').checked;
-                      if(mode == 1 || mode == 3) {
+                      if(mode == 1 || mode == 2 || mode == 3) {
                         override_current=$('#mode_override_current').val();
                         $.post( "/settings?mode=" + mode +  "&override_current=" + (override_current * 10) + "&starttime=" + starttime + "&stoptime=" + stoptime + "&repeat=" + repeat2);
                       } else {
