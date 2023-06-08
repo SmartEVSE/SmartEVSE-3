@@ -1689,9 +1689,9 @@ void EVSEStates(void * parameter) {
 
             if (pilot == PILOT_12V) {                                           // Check if we are disconnected, or forced to State A, but still connected to the EV
 
-                // If the RFID reader is set to EnableOne mode, and the Charging cable is disconnected
+                // If the RFID reader is set to EnableOne or EnableAll mode, and the Charging cable is disconnected
                 // We start a timer to re-lock the EVSE (and unlock the cable) after 60 seconds.
-                if (RFIDReader == 2 && AccessTimer == 0 && Access_bit == 1) AccessTimer = RFIDLOCKTIME;
+                if ((RFIDReader == 2 || RFIDReader == 1) && AccessTimer == 0 && Access_bit == 1) AccessTimer = RFIDLOCKTIME;
 
                 if (State != STATE_A) setState(STATE_A);                        // reset state, incase we were stuck in STATE_COMM_B
                 ChargeDelay = 0;                                                // Clear ChargeDelay when disconnected.
