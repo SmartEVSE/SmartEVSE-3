@@ -63,6 +63,11 @@
             $('#mode_' + data.mode_id).css("background-color", "#1CC88A");
 
 
+            let initial_soc = data.car_modem.ev_initial_soc;
+            let computed_soc = data.car_modem.computed_soc;
+            $('#modem_initial_soc').html(initial_soc >= 0 ? initial_soc + " &#37;" : "N/A");
+            $('#modem_computed_soc').html(computed_soc >= 0 ? computed_soc + " &#37;" : "N/A");
+
             $('#mode').text(data.mode);
             $('#dutycycle').text((data.evse.pwm*100/1024).toFixed(0) + " %");
 
@@ -351,11 +356,46 @@
                         </div>
                     </div>
 
-                    
+
 
                     </div>
                     <!-- END ROW -->
                     <div class="row">
+
+                    <div class="col-xl-3 col-md-6 mb-4" id="with_modem">
+                        <div class="card border-left-danger shadow h-100 py-2">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xl font-weight-bold text-info text-uppercase mb-1">State of charge details</div>
+                                        <div class="row no-gutters align-items-center">
+                                            <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
+                                                Initial
+                                            </div>
+                                            <div class="col">
+                                                <div class="h5 mb-0 mr-3 text-gray-800" id="modem_initial_soc" style="text-align: right;"></div>
+                                            </div>
+                                        </div>
+                                        <div class="row no-gutters align-items-center">
+                                            <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
+                                                Estimated
+                                            </div>
+                                            <div class="col">
+                                                <div class="h5 mb-0 mr-3 text-gray-800" id="modem_computed_soc" style="text-align: right;"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-auto">
+                                      <i class="fas fa-clipboard-list fa-2x text-gray-300">
+                                        <svg style="width:48px;height:48px" viewBox="0 0 28.1 49.61" xmlns="http://www.w3.org/2000/svg">
+                                         <path fill="currentColor" d="m28.09 45.183c0.0041 2.4411-1.9714 4.4234-4.4125 4.4275h-19.25c-2.4418-0.008231-4.4193-1.9857-4.4275-4.4275l5e-14 -34.794c-0.0013809-2.4535 1.9865-4.4436 4.44-4.445h19.25c2.447 0.0055 4.4238 1.998 4.41 4.445zm-23.65 2.9275h19.215c1.6244 0.0028 2.9454-1.3081 2.955-2.9325v-34.794c-0.0055-1.6297-1.3253-2.9495-2.955-2.955h-19.215c-1.6346 0.0014-2.9597 1.3254-2.9625 2.96v34.794c0.012382 1.6253 1.3371 2.9344 2.9625 2.9275zm20.682-2.9325c0.0042 0.81657-0.65592 1.4811-1.4725 1.4825h-19.217c-0.816 0-1.4775-0.6615-1.4775-1.4775v-20.361c0.00138-0.81462 0.66288-1.4739 1.4775-1.4725h19.217c0.81267 0.0014 1.4711 0.65983 1.4725 1.4725zm-16.255-40.712c0.074087-2.7158 2.4778-4.7733 5.1725-4.4275 2.6969-0.34712 5.1042 1.7095 5.1825 4.4275z" />
+                                        </svg>
+                                      </i>
+                                  </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
                     <div class="col-xl-3 col-md-6 mb-4">
                       <div class="card border-left-info shadow h-100 py-2">
@@ -772,6 +812,7 @@
                                         <div class="col">
                                             <button onclick="postPWM(0)" style="width: 120px; display:inline-block;">0&#37;</button>
                                             <button onclick="postPWM(50)" style="width: 120px; display:inline-block;">5&#37;</button>
+                                            <button onclick="postPWM(1024)" style="width: 120px; display:inline-block;">100&#37;</button>
                                             <button onclick="postPWM(-1)" style="width: 120px; display:inline-block;">reset</button>
                                         </div>
                                     </div>

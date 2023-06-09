@@ -523,6 +523,12 @@ void GLCD(void) {
         if (ErrorFlags & LESS_6A) {
             GLCD_print_buf2(2, (const char *) "WAITING");
             GLCD_print_buf2(4, (const char *) "FOR POWER");
+        } else if (State == STATE_MODEM_REQUEST || State == STATE_MODEM_WAIT || State == STATE_MODEM_DONE) {                                          // Modem states
+
+            BacklightTimer = BACKLIGHT;
+
+            GLCD_print_buf2(2, (const char *) "MODEM");
+            GLCD_print_buf2(4, (const char *) "COMMUNICATION");
         } else if (State == STATE_C) {                                          // STATE C
             
             BacklightTimer = BACKLIGHT;
@@ -688,6 +694,8 @@ void GLCD(void) {
             if (!LCDToggle) {
                 GLCD_print_buf2(5, (const char *) "WAITING");
             } else GLCD_print_buf2(5, (const char *) "FOR SOLAR");
+        } else if (State == STATE_MODEM_REQUEST || State == STATE_MODEM_WAIT || State == STATE_MODEM_DONE) {                                          // Modem states
+            GLCD_print_buf2(5, (const char *) "MODEM");
         } else if (State != STATE_C) {
                 switch (Switching_To_Single_Phase) {
                     case FALSE:

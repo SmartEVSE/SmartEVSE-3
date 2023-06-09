@@ -80,8 +80,8 @@ static esp_adc_cal_characteristics_t * adc_chars_Temperature;
 
 struct ModBus MB;          // Used by SmartEVSE fuctions
 
-const char StrStateName[11][10] = {"A", "B", "C", "D", "COMM_B", "COMM_B_OK", "COMM_C", "COMM_C_OK", "Activate", "B1", "C1"};
-const char StrStateNameWeb[11][17] = {"Ready to Charge", "Connected to EV", "Charging", "D", "Request State B", "State B OK", "Request State C", "State C OK", "Activate", "Charging Stopped", "Stop Charging" };
+const char StrStateName[14][10] = {"A", "B", "C", "D", "COMM_B", "COMM_B_OK", "COMM_C", "COMM_C_OK", "Activate", "B1", "C1", "MODEM1", "MODEM2", "MODEM_OK"};
+const char StrStateNameWeb[14][17] = {"Ready to Charge", "Connected to EV", "Charging", "D", "Request State B", "State B OK", "Request State C", "State C OK", "Activate", "Charging Stopped", "Stop Charging", "Modem Setup", "Modem Request","Modem Done",};
 
 // Global data
 
@@ -92,7 +92,11 @@ uint16_t MaxCurrent = MAX_CURRENT;                                          // M
 uint16_t MinCurrent = MIN_CURRENT;                                          // Minimal current the EV is happy with (A)
 uint16_t ICal = ICAL;                                                       // CT calibration value
 uint8_t Mode = MODE;                                                        // EVSE mode (0:Normal / 1:Smart / 2:Solar)
-uint32_t CurrentPWM = 0;                                                        // EVSE mode (0:Normal / 1:Smart / 2:Solar)
+uint32_t CurrentPWM = 0;                                                    // Current PWM duty cycle value (0 - 1024)
+int8_t InitialSoC = -1;                                                     // State of charge of car
+int8_t FullSoC = -1;                                                        // SoC car considers itself fully charged
+int8_t BulkSoC = -1;                                                        // SoC car believes it's no longer fast charging
+int8_t ComputedSoC = -1;                                                    // Estimated SoC, based on charged kWh
 bool CPDutyOverride = false;
 uint8_t Lock = LOCK;                                                        // Cable lock (0:Disable / 1:Solenoid / 2:Motor)
 uint16_t MaxCircuit = MAX_CIRCUIT;                                          // Max current of the EVSE circuit (A)
@@ -141,6 +145,7 @@ uint8_t State = STATE_A;
 uint8_t ErrorFlags = NO_ERROR;
 uint8_t NextState;
 uint8_t pilot;
+uint8_t prev_pilot;
 
 uint16_t MaxCapacity;                                                       // Cable limit (A) (limited by the wire in the charge cable, set automatically, or manually if Config=Fixed Cable)
 uint16_t ChargeCurrent;                                                     // Calculated Charge Current (Amps *10)
@@ -185,6 +190,11 @@ uint32_t ScrollTimer = 0;
 uint8_t LCDupdate = 0;                                                      // flag to update the LCD every 1000ms
 uint8_t ChargeDelay = 0;                                                    // Delays charging at least 60 seconds in case of not enough current available.
 uint8_t C1Timer = 0;
+uint8_t ModemStage = 0;                                                     // 0: Modem states will be executed when Modem is enabled 1: Modem stages will be skipped, as SoC is already extracted
+int8_t DisconnectTimeCounter = -1;                                          // Count for how long we're disconnected, so we can more reliably throw disconnect event. -1 means counter is disabled
+uint8_t ToModemWaitStateTimer = 0;                                          // Timer used from STATE_MODEM_REQUEST to STATE_MODEM_WAIT
+uint8_t ToModemDoneStateTimer = 0;                                          // Timer used from STATE_MODEM_WAIT to STATE_MODEM_DONE
+uint8_t LeaveModemDoneStateTimer = 0;                                       // Timer used from STATE_MODEM_DONE to other, usually STATE_B
 uint8_t NoCurrent = 0;                                                      // counts overcurrent situations.
 uint8_t TestState = 0;
 uint8_t ModbusRequest = 0;                                                  // Flag to request Modbus information
@@ -384,7 +394,7 @@ void BlinkLed(void * parameter) {
             if (State == STATE_A) {
                 LedPwm = STATE_A_LED_BRIGHTNESS;                                // STATE A, LED on (dimmed)
             
-            } else if (State == STATE_B || State == STATE_B1) {
+            } else if (State == STATE_B || State == STATE_B1 || State == STATE_MODEM_REQUEST || State == STATE_MODEM_WAIT) {
                 LedPwm = STATE_B_LED_BRIGHTNESS;                                // STATE B, LED on (full brightness)
                 LedCount = 128;                                                 // When switching to STATE C, start at full brightness
 
@@ -523,13 +533,13 @@ uint8_t Pilot() {
  * @return uint8_t[] Name
  */
 const char * getStateName(uint8_t StateCode) {
-    if(StateCode < 11) return StrStateName[StateCode];
+    if(StateCode < 14) return StrStateName[StateCode];
     else return "NOSTATE";
 }
 
 
 const char * getStateNameWeb(uint8_t StateCode) {
-    if(StateCode < 11) return StrStateNameWeb[StateCode];
+    if(StateCode < 14) return StrStateNameWeb[StateCode];
     else return "NOSTATE";    
 }
 
@@ -649,10 +659,32 @@ void setState(uint8_t NewState) {
                 Node[0].Phases = 0;
                 Node[0].MinCurrent = 0;                                         // Clear ChargeDelay when disconnected.
             }
+
+            if (DisconnectTimeCounter == -1){
+                DisconnectTimeCounter = 0;                                      // Start counting disconnect time. If longer than 60 seconds, throw DisconnectEvent
+            }
             break;
-        case STATE_B:
+        case STATE_MODEM_REQUEST: // After overriding PWM, and resetting the safe state is 10% PWM. To make sure communication recovers after going to normal, we do this. Ugly and temporary
+            ToModemWaitStateTimer = 5;
+            DisconnectTimeCounter = -1;                                         // Disable Disconnect timer. Car is connected
+            SetCPDuty(1024);
             CONTACTOR1_OFF;
             CONTACTOR2_OFF;
+            break;
+        case STATE_MODEM_WAIT: 
+            SetCPDuty(50);
+            ToModemDoneStateTimer = 60;
+            break;
+        case STATE_MODEM_DONE:  // This state is reached via STATE_MODEM_WAIT after 60s (timeout condition, nothing received) or after REST request (success, shortcut to immediate charging).
+            CP_OFF;
+            DisconnectTimeCounter = -1;                                         // Disable Disconnect timer. Car is connected
+            LeaveModemDoneStateTimer = 5;                                       // Disconnect CP for 5 seconds, restart charging cycle but this time without the modem steps.
+            break;
+        case STATE_B:
+            CP_ON;
+            CONTACTOR1_OFF;
+            CONTACTOR2_OFF;
+            DisconnectTimeCounter = -1;                                         // Disable Disconnect timer. Car is connected
             timerAlarmWrite(timerA, PWM_95, false);                             // Enable Timer alarm, set to diode test (95%)
             SetCurrent(ChargeCurrent);                                          // Enable PWM
             break;      
@@ -731,8 +763,11 @@ void setState(uint8_t NewState) {
 void setAccess(bool Access) {
     Access_bit = Access;
     if (Access == 0) {
+        CP_OFF;
         if (State == STATE_C) setState(STATE_C1);                               // Determine where to switch to.
-        else if (State == STATE_B) setState(STATE_B1);
+        else if (State == STATE_B || State == STATE_MODEM_REQUEST || State == STATE_MODEM_WAIT || State == STATE_MODEM_DONE) setState(STATE_B1);
+    } else{
+        CP_ON;
     }
 }
 
@@ -1452,6 +1487,24 @@ void printStatus(void)
         _LOG_I("L1: %.1f A L2: %.1f A L3: %.1f A Isum: %.1f A\n", (float)Irms[0]/10, (float)Irms[1]/10, (float)Irms[2]/10, (float)Isum/10);
 }
 
+// Recompute State of Charge, in case we have a known initial state of charge
+// This function is called by kWh logic
+void RecomputeSoC(void){
+    if (InitialSoC > 0)
+        ComputedSoC = InitialSoC + (EnergyCharged / 280);
+}
+
+// EV disconnected from charger. Triggered after 60 seconds of disconnect
+// This is done so we can "re-plug" the car in the Modem process without triggering disconnect events
+void DisconnectEvent(void){
+    _LOG_A("EV disconnected for a while. Resetting SoC states");
+    ModemStage = 0; // Enable Modem states again
+    InitialSoC = -1;
+    FullSoC = -1;
+    BulkSoC = -1;
+    ComputedSoC = -1;
+}
+
 /**
  * Update current data after received current measurement
  */
@@ -1699,7 +1752,7 @@ void EVSEStates(void * parameter) {
                 if (!ResetKwh) ResetKwh = 1;                                    // when set, reset EV kWh meter on state B->C change.
             } else if ( pilot == PILOT_9V && ErrorFlags == NO_ERROR 
                 && ChargeDelay == 0 && Access_bit
-                && State != STATE_COMM_B) {                                     // switch to State B ?
+                && State != STATE_COMM_B && State != STATE_MODEM_REQUEST && State != STATE_MODEM_WAIT && State != STATE_MODEM_DONE) {                                     // switch to State B ?
                                                                                 // Allow to switch to state C directly if STATE_A_TO_C is set to PILOT_6V (see EVSE.h)
                 DiodeCheck = 0;
 
@@ -1717,7 +1770,11 @@ void EVSEStates(void * parameter) {
                 } else if (IsCurrentAvailable()) {                             
                     BalancedMax[0] = MaxCapacity * 10;
                     Balanced[0] = ChargeCurrent;                                // Set pilot duty cycle to ChargeCurrent (v2.15)
-                    setState(STATE_B);                                          // switch to State B
+                    if (Modem == EXPERIMENT && ModemStage == 0){
+                        setState(STATE_MODEM_REQUEST);
+                    }else{
+                        setState(STATE_B);                                          // switch to State B
+                    }
                     ActivationMode = 30;                                        // Activation mode is triggered if state C is not entered in 30 seconds.
                     AccessTimer = 0;
                 } else if (Mode == MODE_SOLAR) {                                // Not enough power:
@@ -2079,6 +2136,42 @@ void Timer1S(void * parameter) {
         // activation Mode is active
         if (ActivationTimer) ActivationTimer--;                             // Decrease ActivationTimer every second.
         
+        if (State == STATE_MODEM_REQUEST){
+            if (ToModemWaitStateTimer) ToModemWaitStateTimer--;
+            else{
+                setState(STATE_MODEM_WAIT);                                         // switch to state Modem 2
+                GLCD();
+            }
+        }
+
+        if (State == STATE_MODEM_WAIT){
+            if (ToModemDoneStateTimer) ToModemDoneStateTimer--;
+            else{
+                setState(STATE_MODEM_DONE); 
+                GLCD();
+            }
+        }
+
+        if (State == STATE_MODEM_DONE){
+            if (LeaveModemDoneStateTimer) LeaveModemDoneStateTimer--;
+            else{
+                // Here's what happens:
+                //  - State STATE_MODEM_DONE set the CP pin off, to reset connection with car. Since some cars don't support AC charging via ISO15118, SoC is extracted via DC. 
+                //  - Negotiation fails between pyPLC and car. Some cars then won't accept charge via AC it seems after, so we just "re-plug" and start charging without the modem communication protocol 
+                //  - State STATE_B will enable CP pin again, if disabled. 
+                // This stage we are now in is just before we enable CP_PIN and resume via STATE_B
+                
+                // So set the correct PWM cycles, as it still might be set to 5% or something.
+                BalancedMax[0] = MaxCapacity * 10;
+                Balanced[0] = ChargeCurrent;                                // Set pilot duty cycle to ChargeCurrent (v2.15)
+
+                setState(STATE_B);                                         // switch to STATE_ACTSTART
+                GLCD();                                                // Re-init LCD (200ms delay)
+            }
+        }
+
+
+
         if (State == STATE_C1) {
             if (C1Timer) C1Timer--;                                         // if the EV does not stop charging in 6 seconds, we will open the contactor.
             else {
@@ -2087,6 +2180,26 @@ void Timer1S(void * parameter) {
                 GLCD_init();                                                // Re-init LCD (200ms delay)
             }
         }
+
+
+        // Normally, the modem is enabled when Modem == Experiment. However, after a succesfull communication has been set up, EVSE will restart communication by replugging car and moving back to state B.
+        // This time, communication is not initiated. When a car is disconnected, we want to enable the modem states again, but using 12V signal is not reliable (we just "replugged" via CP pin, remember).
+        // This counter just enables the state after 60 seconds of success. 
+        if (DisconnectTimeCounter >= 0){
+            DisconnectTimeCounter++;
+        }
+
+        // This state can be triggered manually in mode "OFF" or as physical unplug. 
+        if (DisconnectTimeCounter > 60){
+            pilot = Pilot();
+            if (pilot == PILOT_12V && Access_bit != 0){
+                DisconnectTimeCounter = -1; 
+                DisconnectEvent();
+            } else{ // Run again
+                DisconnectTimeCounter = 0; 
+            }
+        }
+
 
         // once a second, measure temperature
         // range -40 .. +125C
@@ -2375,6 +2488,7 @@ ModbusMessage MBEVMeterResponse(ModbusMessage request) {
             EnergyEV = EV_import_active_energy - EV_export_active_energy;
             if (ResetKwh == 2) EnergyMeterStart = EnergyEV;                 // At powerup, set EnergyEV to kwh meter value
             EnergyCharged = EnergyEV - EnergyMeterStart;                    // Calculate Energy
+            RecomputeSoC();
         } else if (MB.Register == EMConfig[EVMeter].PRegister) {
             // Power measurement
             PowerMeasured = receivePowerMeasurement(MB.Data, EVMeter);
@@ -3069,7 +3183,7 @@ void StartwebServer(void) {
 
         boolean evConnected = pilot != PILOT_12V;                    //when access bit = 1, p.ex. in OFF mode, the STATEs are no longer updated
 
-        DynamicJsonDocument doc(1300); // https://arduinojson.org/v6/assistant/
+        DynamicJsonDocument doc(1400); // https://arduinojson.org/v6/assistant/
         doc["version"] = String(VERSION);
         doc["mode"] = mode;
         doc["mode_id"] = modeId;
@@ -3137,6 +3251,11 @@ void StartwebServer(void) {
         doc["settings"]["stoptime"] = (DelayedStopTime.epoch2 ? DelayedStopTime.epoch2 + EPOCH2_OFFSET : 0);
         doc["settings"]["repeat"] = DelayedRepeat;
         
+        doc["car_modem"]["ev_initial_soc"] = InitialSoC;
+        doc["car_modem"]["ev_full_soc"] = FullSoC;
+        doc["car_modem"]["ev_bulk_soc"] = BulkSoC;
+        doc["car_modem"]["computed_soc"] = ComputedSoC; 
+
         doc["home_battery"]["current"] = homeBatteryCurrent;
         doc["home_battery"]["last_update"] = homeBatteryLastUpdate;
 
@@ -3260,6 +3379,9 @@ void StartwebServer(void) {
 
             switch(mode.toInt()) {
                 case 0: // OFF
+                    ToModemWaitStateTimer = 0;
+                    ToModemDoneStateTimer = 0;
+                    LeaveModemDoneStateTimer = 0;
                     setAccess(0);
                     break;
                 case 1:
@@ -3422,6 +3544,7 @@ void StartwebServer(void) {
                 EnergyEV = EV_import_active_energy - EV_export_active_energy;
                 if (ResetKwh == 2) EnergyMeterStart = EnergyEV;                 // At powerup, set EnergyEV to kwh meter value
                 EnergyCharged = EnergyEV - EnergyMeterStart;                    // Calculate Energy
+                RecomputeSoC();
             }
         }
 
@@ -3451,10 +3574,15 @@ void StartwebServer(void) {
         //special section to post stuff for experimenting with an ISO15118 modem
         if(request->hasParam("pwm")) {
             int pwm = request->getParam("pwm")->value().toInt();
-            if (pwm < 0){
+            if (pwm == 0){
+                CP_OFF;
+                CPDutyOverride = true;
+            } else if (pwm < 0){
+                CP_ON;
                 CPDutyOverride = false;
                 pwm = 100; // 10% until next loop, to be safe, corresponds to 6A
             }else{
+                CP_ON;
                 CPDutyOverride = true;
             }
             SetCPDuty(pwm);
@@ -3465,6 +3593,39 @@ void StartwebServer(void) {
             request->send(200, "application/json", json);
 
         }
+
+        //State of charge posting
+        if(request->hasParam("remaining_soc")) {
+            int remaining_soc = request->getParam("remaining_soc")->value().toInt();
+            int full_soc = request->getParam("full_soc")->value().toInt();
+            int bulk_soc = request->getParam("bulk_soc")->value().toInt();
+
+            InitialSoC = remaining_soc;
+
+            if (full_soc >= FullSoC) // Only update if we received it, since sometimes it's there, sometimes it's not
+                FullSoC = full_soc;
+            if (bulk_soc >= BulkSoC) // Only update if we received it, since sometimes it's there, sometimes it's not
+                BulkSoC = bulk_soc;
+
+            if (remaining_soc >= 0 && remaining_soc <= 100){
+                // Skip waiting, charge since we have what we've got
+                if (State == STATE_MODEM_REQUEST || State == STATE_MODEM_WAIT || State == STATE_MODEM_DONE){
+                    _LOG_A("Received SoC via REST. Shortcut to State Modem Done\n");
+                    ModemStage = 1;
+                    setState(STATE_MODEM_DONE); // Go to State B, which means in this case setting PWM
+                }
+            }
+
+            doc["ev_remaining_soc"] = remaining_soc;
+            doc["ev_full_soc"] = full_soc;
+            doc["ev_bulk_soc"] = bulk_soc;
+
+            String json;
+            serializeJson(doc, json);
+            request->send(200, "application/json", json);
+
+        }
+
     });
 
 #ifdef FAKE_RFID
@@ -3630,10 +3791,10 @@ void setup() {
     digitalWrite(PIN_LEDB, LOW);
     digitalWrite(PIN_ACTA, LOW);
     digitalWrite(PIN_ACTB, LOW);        
-    digitalWrite(PIN_CPOFF, LOW);           // CP signal ACTIVE
     digitalWrite(PIN_SSR, LOW);             // SSR1 OFF
     digitalWrite(PIN_SSR2, LOW);            // SSR2 OFF
     digitalWrite(PIN_LCD_LED, HIGH);        // LCD Backlight ON
+    CP_OFF;           // CP signal OFF
 
  
     // Uart 0 debug/program port
@@ -3811,6 +3972,8 @@ void setup() {
   
     BacklightTimer = BACKLIGHT;
     GLCD_init();
+
+    CP_ON;           // CP signal ACTIVE
           
 }
 
