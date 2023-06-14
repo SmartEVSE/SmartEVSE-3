@@ -199,9 +199,9 @@
             }
 
             if(data.settings.modem == "Not present") {
-              $('[id=with_modem]').hide();
+              $('.with_modem').hide();
             } else {
-              $('[id=with_modem]').show();
+              $('.with_modem').show();
             }
 
             $('#evmeter_description').text(data.ev_meter.description);
@@ -249,7 +249,7 @@
                                               <div class="h5 mb-0 mr-3 text-gray-800" id="mode"></div>
                                             </div>
                                         </div>
-                                        <div class="row no-gutters align-items-center" id="with_modem">
+                                        <div class="row no-gutters align-items-center with_modem">
                                             <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
                                                 Duty cycle:
                                             </div>
@@ -362,7 +362,7 @@
                     <!-- END ROW -->
                     <div class="row">
 
-                    <div class="col-xl-3 col-md-6 mb-4" id="with_modem">
+                    <div class="col-xl-3 col-md-6 mb-4 with_modem">
                         <div class="card border-left-danger shadow h-100 py-2">
                             <div class="card-body">
                                 <div class="row no-gutters align-items-center">
@@ -805,7 +805,7 @@
                                           <button onclick="rawData()" style="width: 120px; display:inline-block;">Raw Data</button>
                                         </div>
                                     </div>
-                                    <div class="row no-gutters align-items-center" id="with_modem">
+                                    <div class="row no-gutters align-items-center with_modem">
                                         <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
                                             Override PWM:
                                         </div>
