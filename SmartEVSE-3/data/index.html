@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html>
 <head>
 	<title>Smart EVSE V3</title>
@@ -35,7 +35,7 @@
             if(!initiated) {
               initiated = true;
               $('#version').append(data.version);
-              
+
               let minCurrent=parseInt(data.settings.current_min.toFixed(1));
               let maxCurrent=parseInt(data.settings.current_max.toFixed(1));
 
@@ -57,7 +57,7 @@
               if(x == data.mode_id) {
                 $('#mode_' + x).css("background-color", "#1CC88A");
               } else {
-                $('#mode_' + x).css("background-color", "#EDEDED");    
+                $('#mode_' + x).css("background-color", "#EDEDED");
               }
             }
             $('#mode_' + data.mode_id).css("background-color", "#1CC88A");
@@ -556,7 +556,7 @@
                           </div>
                       </div>
                   </div>
-                  
+
               </div>
 
 
@@ -823,10 +823,10 @@
                     </div>
                 </div>
 
-                
 
-               
-          
+
+
+
             </div>
         </div>
       </div>
