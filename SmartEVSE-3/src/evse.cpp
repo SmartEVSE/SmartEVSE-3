@@ -3214,6 +3214,7 @@ void StartwebServer(void) {
         doc["evse"]["connected"] = evConnected;
         doc["evse"]["access"] = Access_bit == 1;
         doc["evse"]["mode"] = Mode;
+        doc["evse"]["loadbl"] = LoadBl;
         doc["evse"]["pwm"] = CurrentPWM;
         doc["evse"]["solar_stop_timer"] = SolarStopTimer;
         doc["evse"]["state"] = evstate;
