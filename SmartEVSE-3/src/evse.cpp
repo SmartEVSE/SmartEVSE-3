@@ -3558,14 +3558,16 @@ void StartwebServer(void) {
         doc["settings"]["starttime"] = (DelayedStartTime.epoch2 ? DelayedStartTime.epoch2 + EPOCH2_OFFSET : 0);
         doc["settings"]["stoptime"] = (DelayedStopTime.epoch2 ? DelayedStopTime.epoch2 + EPOCH2_OFFSET : 0);
         doc["settings"]["repeat"] = DelayedRepeat;
-        doc["settings"]["required_evccid"] = RequiredEVCCID;
-        doc["ev_state"]["initial_soc"] = InitialSoC;
-        doc["ev_state"]["remaining_soc"] = RemainingSoC;
-        doc["ev_state"]["full_soc"] = FullSoC;
-        doc["ev_state"]["energy_capacity"] = EnergyCapacity > 0 ? round(EnergyCapacity / 100)/10 : -1; //in kWh, precision 1 decimal;
-        doc["ev_state"]["energy_request"] = EnergyRequest > 0 ? round(EnergyRequest / 100)/10 : -1; //in kWh, precision 1 decimal
-        doc["ev_state"]["computed_soc"] = ComputedSoC;
-        doc["ev_state"]["evccid"] = EVCCID;
+        if (Modem) {
+            doc["settings"]["required_evccid"] = RequiredEVCCID;
+            doc["ev_state"]["initial_soc"] = InitialSoC;
+            doc["ev_state"]["remaining_soc"] = RemainingSoC;
+            doc["ev_state"]["full_soc"] = FullSoC;
+            doc["ev_state"]["energy_capacity"] = EnergyCapacity > 0 ? round(EnergyCapacity / 100)/10 : -1; //in kWh, precision 1 decimal;
+            doc["ev_state"]["energy_request"] = EnergyRequest > 0 ? round(EnergyRequest / 100)/10 : -1; //in kWh, precision 1 decimal
+            doc["ev_state"]["computed_soc"] = ComputedSoC;
+            doc["ev_state"]["evccid"] = EVCCID;
+        }
 
 #ifdef MQTT
         doc["mqtt"]["host"] = MQTTHost;
