@@ -99,8 +99,8 @@ static esp_adc_cal_characteristics_t * adc_chars_Temperature;
 
 struct ModBus MB;          // Used by SmartEVSE fuctions
 
-const char StrStateName[14][10] = {"A", "B", "C", "D", "COMM_B", "COMM_B_OK", "COMM_C", "COMM_C_OK", "Activate", "B1", "C1", "MODEM1", "MODEM2", "MODEM_OK"};
-const char StrStateNameWeb[14][17] = {"Ready to Charge", "Connected to EV", "Charging", "D", "Request State B", "State B OK", "Request State C", "State C OK", "Activate", "Charging Stopped", "Stop Charging", "Modem Setup", "Modem Request","Modem Done",};
+const char StrStateName[15][13] = {"A", "B", "C", "D", "COMM_B", "COMM_B_OK", "COMM_C", "COMM_C_OK", "Activate", "B1", "C1", "MODEM1", "MODEM2", "MODEM_OK", "MODEM_DENIED"};
+const char StrStateNameWeb[15][17] = {"Ready to Charge", "Connected to EV", "Charging", "D", "Request State B", "State B OK", "Request State C", "State C OK", "Activate", "Charging Stopped", "Stop Charging", "Modem Setup", "Modem Request", "Modem Done", "Modem Denied"};
 const char StrErrorNameWeb[9][20] = {"None", "No Power Available", "Communication Error", "Temperature High", "Unused", "RCM Tripped", "Waiting for Solar", "Test IO", "Flash Error"};
 const char StrMode[3][8] = {"Normal", "Smart", "Solar"};
 const char StrAccessBit[2][6] = {"Deny", "Allow"};
@@ -118,8 +118,13 @@ uint8_t Mode = MODE;                                                        // E
 uint32_t CurrentPWM = 0;                                                    // Current PWM duty cycle value (0 - 1024)
 int8_t InitialSoC = -1;                                                     // State of charge of car
 int8_t FullSoC = -1;                                                        // SoC car considers itself fully charged
-int8_t BulkSoC = -1;                                                        // SoC car believes it's no longer fast charging
 int8_t ComputedSoC = -1;                                                    // Estimated SoC, based on charged kWh
+int8_t RemainingSoC = -1;                                                   // Remaining SoC, based on ComputedSoC
+int32_t EnergyCapacity = -1;                                                // Car's total battery capacity
+int32_t EnergyRequest = -1;                                                 // Requested amount of energy by car
+char EVCCID[32];                                                            // Car's EVCCID (EV Communication Controller Identifer)
+char RequiredEVCCID[32];                                                    // Required EVCCID before allowing charging
+
 bool CPDutyOverride = false;
 uint8_t Lock = LOCK;                                                        // Cable lock (0:Disable / 1:Solenoid / 2:Motor)
 uint16_t MaxCircuit = MAX_CIRCUIT;                                          // Max current of the EVSE circuit (A)
@@ -218,6 +223,7 @@ int8_t DisconnectTimeCounter = -1;                                          // C
 uint8_t ToModemWaitStateTimer = 0;                                          // Timer used from STATE_MODEM_REQUEST to STATE_MODEM_WAIT
 uint8_t ToModemDoneStateTimer = 0;                                          // Timer used from STATE_MODEM_WAIT to STATE_MODEM_DONE
 uint8_t LeaveModemDoneStateTimer = 0;                                       // Timer used from STATE_MODEM_DONE to other, usually STATE_B
+uint8_t LeaveModemDeniedStateTimer = 0;                                     // Timer used from STATE_MODEM_DENIED to STATE_B to re-try authentication
 uint8_t NoCurrent = 0;                                                      // counts overcurrent situations.
 uint8_t TestState = 0;
 uint8_t ModbusRequest = 0;                                                  // Flag to request Modbus information
@@ -407,7 +413,7 @@ void BlinkLed(void * parameter) {
                 BluePwm = 0;
             }
 
-        } else if (Access_bit == 0) {                                            // No Access, LEDs off
+        } else if (Access_bit == 0 || State == STATE_MODEM_DENIED) {                                            // No Access, LEDs off
             RedPwm = 0;
             GreenPwm = 0;
             BluePwm = 0;
@@ -556,13 +562,13 @@ uint8_t Pilot() {
  * @return uint8_t[] Name
  */
 const char * getStateName(uint8_t StateCode) {
-    if(StateCode < 14) return StrStateName[StateCode];
+    if(StateCode < 15) return StrStateName[StateCode];
     else return "NOSTATE";
 }
 
 
 const char * getStateNameWeb(uint8_t StateCode) {
-    if(StateCode < 14) return StrStateNameWeb[StateCode];
+    if(StateCode < 15) return StrStateNameWeb[StateCode];
     else return "NOSTATE";    
 }
 
@@ -815,7 +821,7 @@ void setAccess(bool Access) {
     if (Access == 0) {
         CP_OFF;
         if (State == STATE_C) setState(STATE_C1);                               // Determine where to switch to.
-        else if (State == STATE_B || State == STATE_MODEM_REQUEST || State == STATE_MODEM_WAIT || State == STATE_MODEM_DONE) setState(STATE_B1);
+        else if (State == STATE_B || State == STATE_MODEM_REQUEST || State == STATE_MODEM_WAIT || State == STATE_MODEM_DONE || State == STATE_MODEM_DENIED) setState(STATE_B1);
     } else{
         CP_ON;
     }
@@ -1543,10 +1549,32 @@ void printStatus(void)
 }
 
 // Recompute State of Charge, in case we have a known initial state of charge
-// This function is called by kWh logic
-void RecomputeSoC(void){
-    if (InitialSoC > 0)
-        ComputedSoC = InitialSoC + (EnergyCharged / 280);
+// This function is called by kWh logic and after an EV state update through API, Serial or MQTT
+void RecomputeSoC(void) {
+    if (FullSoC > 0 && EnergyCapacity > 0) {
+        if (InitialSoC == FullSoC) {
+            // We're already at full SoC
+            ComputedSoC = FullSoC;
+            RemainingSoC = 0;
+        } else if (EnergyRequest > 0) {
+            // Attempt to use EnergyRequest to determine SoC with greater accuracy
+            // We're adding 50 Wh to EnergyCharged here to be sure we reach 100% ComputedSoC and compensate for losses
+            uint32_t RemainingEnergyWh = (EnergyCharged > 0 ? EnergyRequest - (EnergyCharged) : EnergyRequest);
+            if (RemainingEnergyWh > 0) {
+                ComputedSoC = FullSoC - (((double) RemainingEnergyWh / EnergyCapacity) * FullSoC);
+                RemainingSoC = FullSoC - ComputedSoC;
+                return;
+            } else {
+                ComputedSoC = FullSoC;
+                RemainingSoC = 0;
+            }
+        } else if (InitialSoC > 0) {
+            // Fall back to rough estimate based on InitialSoC if we do not know the requested energy
+            ComputedSoC = InitialSoC + (((double) EnergyCharged / EnergyCapacity) * FullSoC);
+            RemainingSoC = FullSoC - ComputedSoC;
+        }
+    }
+    // There's also the possibility an external API/app is used for SoC info. In such case, we allow setting ComputedSoC directly.
 }
 
 // EV disconnected from charger. Triggered after 60 seconds of disconnect
@@ -1556,8 +1584,10 @@ void DisconnectEvent(void){
     ModemStage = 0; // Enable Modem states again
     InitialSoC = -1;
     FullSoC = -1;
-    BulkSoC = -1;
+    RemainingSoC = -1;
     ComputedSoC = -1;
+    EnergyCapacity = -1;
+    strncpy(EVCCID, "", sizeof(EVCCID));
 }
 
 /**
@@ -2399,16 +2429,39 @@ void Timer1S(void * parameter) {
                 //  - Negotiation fails between pyPLC and car. Some cars then won't accept charge via AC it seems after, so we just "re-plug" and start charging without the modem communication protocol 
                 //  - State STATE_B will enable CP pin again, if disabled. 
                 // This stage we are now in is just before we enable CP_PIN and resume via STATE_B
-                
-                // So set the correct PWM cycles, as it still might be set to 5% or something.
-                BalancedMax[0] = MaxCapacity * 10;
-                Balanced[0] = ChargeCurrent;                                // Set pilot duty cycle to ChargeCurrent (v2.15)
 
-                setState(STATE_B);                                         // switch to STATE_ACTSTART
-                GLCD();                                                // Re-init LCD (200ms delay)
+                // Check whether the EVCCID matches the one required
+                if (strcmp(RequiredEVCCID, "") == 0 || strcmp(RequiredEVCCID, EVCCID) == 0) {
+                    // We satisfied the EVCCID requirements, skip modem stages next time
+                    ModemStage = 1;
+
+                    setState(STATE_B);                                     // switch to STATE_ACTSTART
+                    GLCD();                                                // Re-init LCD (200ms delay)
+                } else {
+                    // We actually do not want to continue charging and re-start at modem request after 60s
+                    ModemStage = 0;
+                    LeaveModemDeniedStateTimer = 60;
+
+                    // Reset CP & turn off
+                    SetCPDuty(1024);
+                    CP_OFF;
+
+                    // Change to MODEM_DENIED state
+                    setState(STATE_MODEM_DENIED);
+                    GLCD();                                                // Re-init LCD (200ms delay)
+                }
             }
         }
 
+        if (State == STATE_MODEM_DENIED){
+            if (LeaveModemDeniedStateTimer) LeaveModemDeniedStateTimer--;
+            else{
+                LeaveModemDeniedStateTimer = -1;           // reset ModemStateDeniedTimer
+                CP_ON;
+                setState(STATE_A);                         // switch to STATE_MODEM_REQUEST
+                GLCD();                                                // Re-init LCD (200ms delay)
+            }
+        }
 
 
         if (State == STATE_C1) {
@@ -2432,7 +2485,7 @@ void Timer1S(void * parameter) {
         if (DisconnectTimeCounter > 60){
             pilot = Pilot();
             if (pilot == PILOT_12V && Access_bit != 0){
-                DisconnectTimeCounter = -1; 
+                DisconnectTimeCounter = -1;
                 DisconnectEvent();
             } else{ // Run again
                 DisconnectTimeCounter = 0; 
@@ -3196,6 +3249,7 @@ void read_settings(bool write) {
 
         EnableC2 = (EnableC2_t) preferences.getUShort("EnableC2", ENABLE_C2);
         Modem = (Modem_t) preferences.getUShort("Modem", MODEM);
+        strncpy(RequiredEVCCID, preferences.getString("RequiredEVCCID", "").c_str(), sizeof(RequiredEVCCID));
         maxTemp = preferences.getUShort("maxTemp", MAX_TEMPERATURE);
 
 #ifdef MQTT
@@ -3261,6 +3315,7 @@ void write_settings(void) {
 
     preferences.putUShort("EnableC2", EnableC2);
     preferences.putUShort("Modem", Modem);
+    preferences.putString("RequiredEVCCID", String(RequiredEVCCID));
     preferences.putUShort("maxTemp", maxTemp);
 
 #ifdef MQTT
@@ -3503,11 +3558,14 @@ void StartwebServer(void) {
         doc["settings"]["starttime"] = (DelayedStartTime.epoch2 ? DelayedStartTime.epoch2 + EPOCH2_OFFSET : 0);
         doc["settings"]["stoptime"] = (DelayedStopTime.epoch2 ? DelayedStopTime.epoch2 + EPOCH2_OFFSET : 0);
         doc["settings"]["repeat"] = DelayedRepeat;
-        
-        doc["car_modem"]["ev_initial_soc"] = InitialSoC;
-        doc["car_modem"]["ev_full_soc"] = FullSoC;
-        doc["car_modem"]["ev_bulk_soc"] = BulkSoC;
-        doc["car_modem"]["computed_soc"] = ComputedSoC; 
+        doc["settings"]["required_evccid"] = RequiredEVCCID;
+        doc["ev_state"]["initial_soc"] = InitialSoC;
+        doc["ev_state"]["remaining_soc"] = RemainingSoC;
+        doc["ev_state"]["full_soc"] = FullSoC;
+        doc["ev_state"]["energy_capacity"] = EnergyCapacity > 0 ? round(EnergyCapacity / 100)/10 : -1; //in kWh, precision 1 decimal;
+        doc["ev_state"]["energy_request"] = EnergyRequest > 0 ? round(EnergyRequest / 100)/10 : -1; //in kWh, precision 1 decimal
+        doc["ev_state"]["computed_soc"] = ComputedSoC;
+        doc["ev_state"]["evccid"] = EVCCID;
 
 #ifdef MQTT
         doc["mqtt"]["host"] = MQTTHost;
@@ -3653,6 +3711,7 @@ void StartwebServer(void) {
                     ToModemWaitStateTimer = 0;
                     ToModemDoneStateTimer = 0;
                     LeaveModemDoneStateTimer = 0;
+                    LeaveModemDeniedStateTimer = 0;
                     setAccess(0);
                     break;
                 case 1:
@@ -3726,6 +3785,37 @@ void StartwebServer(void) {
                 write_settings();
             } else {
                 doc["solar_max_import"] = "Value not allowed!";
+            }
+        }
+
+        //special section to post stuff for experimenting with an ISO15118 modem
+        if(request->hasParam("override_pwm")) {
+            int pwm = request->getParam("override_pwm")->value().toInt();
+            if (pwm == 0){
+                CP_OFF;
+                CPDutyOverride = true;
+            } else if (pwm < 0){
+                CP_ON;
+                CPDutyOverride = false;
+                pwm = 100; // 10% until next loop, to be safe, corresponds to 6A
+            } else{
+                CP_ON;
+                CPDutyOverride = true;
+            }
+
+            SetCPDuty(pwm);
+            doc["override_pwm"] = pwm;
+        }
+
+        //allow basic plug 'n charge based on evccid
+        //if required_evccid is set to a value, SmartEVSE will only allow charging requests from said EVCCID
+        if(request->hasParam("required_evccid")) {
+            if (request->getParam("required_evccid")->value().length() <= 32) {
+                strncpy(RequiredEVCCID, request->getParam("required_evccid")->value().c_str(), sizeof(RequiredEVCCID));
+                doc["required_evccid"] = RequiredEVCCID;
+                write_settings();
+            } else {
+                doc["required_evccid"] = "EVCCID too long (max 32 char)";
             }
         }
 
@@ -3871,64 +3961,61 @@ void StartwebServer(void) {
     },[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
     });
 
-    webServer.on("/modem", HTTP_POST, [](AsyncWebServerRequest *request) {
+    webServer.on("/ev_state", HTTP_POST, [](AsyncWebServerRequest *request) {
         DynamicJsonDocument doc(200);
 
-        //special section to post stuff for experimenting with an ISO15118 modem
-        if(request->hasParam("pwm")) {
-            int pwm = request->getParam("pwm")->value().toInt();
-            if (pwm == 0){
-                CP_OFF;
-                CPDutyOverride = true;
-            } else if (pwm < 0){
-                CP_ON;
-                CPDutyOverride = false;
-                pwm = 100; // 10% until next loop, to be safe, corresponds to 6A
-            }else{
-                CP_ON;
-                CPDutyOverride = true;
-            }
-            SetCPDuty(pwm);
-            doc["pwm"] = pwm;
-
-            String json;
-            serializeJson(doc, json);
-            request->send(200, "application/json", json);
-
-        }
-
         //State of charge posting
-        if(request->hasParam("remaining_soc")) {
-            int remaining_soc = request->getParam("remaining_soc")->value().toInt();
-            int full_soc = request->getParam("full_soc")->value().toInt();
-            int bulk_soc = request->getParam("bulk_soc")->value().toInt();
+        int current_soc = request->getParam("current_soc")->value().toInt();
+        int full_soc = request->getParam("full_soc")->value().toInt();
 
-            InitialSoC = remaining_soc;
+        // Energy requested by car
+        int energy_request = request->getParam("energy_request")->value().toInt();
 
-            if (full_soc >= FullSoC) // Only update if we received it, since sometimes it's there, sometimes it's not
-                FullSoC = full_soc;
-            if (bulk_soc >= BulkSoC) // Only update if we received it, since sometimes it's there, sometimes it's not
-                BulkSoC = bulk_soc;
+        // Total energy capacity of car's battery
+        int energy_capacity = request->getParam("energy_capacity")->value().toInt();
 
-            if (remaining_soc >= 0 && remaining_soc <= 100){
-                // Skip waiting, charge since we have what we've got
-                if (State == STATE_MODEM_REQUEST || State == STATE_MODEM_WAIT || State == STATE_MODEM_DONE){
-                    _LOG_A("Received SoC via REST. Shortcut to State Modem Done\n");
-                    ModemStage = 1;
-                    setState(STATE_MODEM_DONE); // Go to State B, which means in this case setting PWM
-                }
+        // Update EVCCID of car
+        if (request->hasParam("evccid")) {
+            if (request->getParam("evccid")->value().length() <= 32) {
+                strncpy(EVCCID, request->getParam("evccid")->value().c_str(), sizeof(EVCCID));
+                doc["evccid"] = EVCCID;
             }
-
-            doc["ev_remaining_soc"] = remaining_soc;
-            doc["ev_full_soc"] = full_soc;
-            doc["ev_bulk_soc"] = bulk_soc;
-
-            String json;
-            serializeJson(doc, json);
-            request->send(200, "application/json", json);
-
         }
 
+        if (full_soc >= FullSoC) // Only update if we received it, since sometimes it's there, sometimes it's not
+            FullSoC = full_soc;
+
+        if (energy_capacity >= EnergyCapacity) // Only update if we received it, since sometimes it's there, sometimes it's not
+            EnergyCapacity = energy_capacity;
+
+        if (energy_request >= EnergyRequest) // Only update if we received it, since sometimes it's there, sometimes it's not
+            EnergyRequest = energy_request;
+
+        if (current_soc >= 0 && current_soc <= 100) {
+            // We set the InitialSoC for our own calculations
+            InitialSoC = current_soc;
+
+            // We also set the ComputedSoC to allow for app integrations
+            ComputedSoC = current_soc;
+
+            // Skip waiting, charge since we have what we've got
+            if (State == STATE_MODEM_REQUEST || State == STATE_MODEM_WAIT || State == STATE_MODEM_DONE){
+                _LOG_A("Received SoC via REST. Shortcut to State Modem Done\n");
+                setState(STATE_MODEM_DONE); // Go to State B, which means in this case setting PWM
+            }
+        }
+
+        RecomputeSoC();
+
+        doc["current_soc"] = current_soc;
+        doc["full_soc"] = full_soc;
+        doc["energy_capacity"] = energy_capacity;
+        doc["energy_request"] = energy_request;
+
+        String json;
+        serializeJson(doc, json);
+        request->send(200, "application/json", json);
+    },[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
     });
 
 #ifdef FAKE_RFID

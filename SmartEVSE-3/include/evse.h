@@ -198,6 +198,7 @@ extern RemoteDebug Debug;
 #define STATE_MODEM_REQUEST 11                                                          // L Vehicle connected / requesting ISO15118 communication, 0% duty
 #define STATE_MODEM_WAIT 12                                                          // M Vehicle connected / requesting ISO15118 communication, 5% duty
 #define STATE_MODEM_DONE 13                                                // Modem communication succesful, SoCs extracted. Here, re-plug vehicle
+#define STATE_MODEM_DENIED 14                                                // Modem access denied based on EVCCID, re-plug vehicle and try again
 
 #define NOSTATE 255
 
@@ -413,6 +414,7 @@ extern uint8_t CalActive;                                                       
 extern uint16_t Iuncal;
 extern uint16_t SolarStopTimer;
 extern int32_t EnergyCharged;
+extern int32_t EnergyCapacity;
 extern int32_t PowerMeasured;
 extern uint8_t RFIDstatus;
 extern bool LocalTimeSet;

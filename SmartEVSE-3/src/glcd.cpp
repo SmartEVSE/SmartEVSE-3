@@ -528,7 +528,13 @@ void GLCD(void) {
             BacklightTimer = BACKLIGHT;
 
             GLCD_print_buf2(2, (const char *) "MODEM");
-            GLCD_print_buf2(4, (const char *) "COMMUNICATION");
+            GLCD_print_buf2(4, (const char *) "COMM");
+        } else if (State == STATE_MODEM_DENIED) {                               // Modem denied state
+
+            BacklightTimer = BACKLIGHT;
+
+            GLCD_print_buf2(2, (const char *) "MODEM");
+            GLCD_print_buf2(4, (const char *) "DENIED");
         } else if (State == STATE_C) {                                          // STATE C
             
             BacklightTimer = BACKLIGHT;

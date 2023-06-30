@@ -52,6 +52,8 @@
                     text: x + 'A'
                 }));
               }
+
+              $('#required_evccid').val(data.settings.required_evccid || "");
             }
 
             for(let x=0; x<=3; x++) {
@@ -63,14 +65,22 @@
             }
             $('#mode_' + data.mode_id).css("background-color", "#1CC88A");
 
-
-            let initial_soc = data.car_modem.ev_initial_soc;
-            let computed_soc = data.car_modem.computed_soc;
-            $('#modem_initial_soc').html(initial_soc >= 0 ? initial_soc + " &#37;" : "N/A");
-            $('#modem_computed_soc').html(computed_soc >= 0 ? computed_soc + " &#37;" : "N/A");
-
             $('#mode').text(data.mode);
             $('#dutycycle').text((data.evse.pwm*100/1024).toFixed(0) + " %");
+
+            if (data.ev_state) {
+              let full_soc = data.ev_state.full_soc;
+              let initial_soc = data.ev_state.initial_soc;
+              let computed_soc = data.ev_state.computed_soc;
+              let energy_capacity = data.ev_state.energy_capacity;
+              let energy_request = data.ev_state.energy_request;
+              let evccid = data.ev_state.evccid;
+
+              $('#computed_soc').html(computed_soc >= 0 ? computed_soc + " &#37;" : "N/A");
+              $('#full_soc').html(full_soc >= 0 ? full_soc + " &#37;" : "N/A");
+              $('#initial_soc').html(initial_soc >= 0 ? initial_soc + " &#37;" : "N/A");
+              $('#energy_capacity').html(energy_capacity >= 0 ? energy_capacity.toFixed(1) + " kWh" : "N/A");
+              $('#evccid').html(evccid || "N/A");
 
             if (data.mqtt) {
               $('#mqtt').text((data.mqtt.status) || 'N/A').show();
@@ -436,28 +446,52 @@
                     <!-- END ROW -->
                     <div class="row">
 
-                    <div class="col-xl-3 col-md-6 mb-4 with_modem">
+                    <div class="col-xl-4 col-md-6 mb-4 with_modem">
                         <div class="card border-left-danger shadow h-100 py-2">
                             <div class="card-body">
                                 <div class="row no-gutters align-items-center">
                                     <div class="col mr-2">
-                                        <div class="text-xl font-weight-bold text-info text-uppercase mb-1">State of charge details</div>
+                                        <div class="text-xl font-weight-bold text-info text-uppercase mb-1">EV State</div>
                                         <div class="row no-gutters align-items-center">
-                                            <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
-                                                Initial
-                                            </div>
-                                            <div class="col">
-                                                <div class="h5 mb-0 mr-3 text-gray-800" id="modem_initial_soc" style="text-align: right;"></div>
-                                            </div>
+                                          <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 150px;">
+                                            <span title="Estimated / computed">Current SoC</span>
+                                          </div>
+                                          <div class="col">
+                                              <div class="h5 mb-0 mr-3 text-gray-800" id="computed_soc" style="text-align: right;"></div>
+                                          </div>
                                         </div>
                                         <div class="row no-gutters align-items-center">
-                                            <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
-                                                Estimated
-                                            </div>
-                                            <div class="col">
-                                                <div class="h5 mb-0 mr-3 text-gray-800" id="modem_computed_soc" style="text-align: right;"></div>
-                                            </div>
+                                          <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 150px;">
+                                              Initial SoC
+                                          </div>
+                                          <div class="col">
+                                              <div class="h5 mb-0 mr-3 text-gray-800" id="initial_soc" style="text-align: right;"></div>
+                                          </div>
                                         </div>
+                                        <div class="row no-gutters align-items-center">
+                                          <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 150px;">
+                                              Full SoC
+                                          </div>
+                                          <div class="col">
+                                              <div class="h5 mb-0 mr-3 text-gray-800" id="full_soc" style="text-align: right;"></div>
+                                          </div>
+                                        </div>
+                                        <div class="row no-gutters align-items-center">
+                                          <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 150px;">
+                                              Capacity
+                                          </div>
+                                          <div class="col">
+                                              <div class="h5 mb-0 mr-3 text-gray-800" id="energy_capacity" style="text-align: right;"></div>
+                                          </div>
+                                        </div>
+                                        <div class="row no-gutters align-items-center">
+                                          <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 150px;">
+                                              EVCCID
+                                          </div>
+                                          <div class="col">
+                                              <div class="h5 mb-0 mr-3 text-gray-800" id="evccid" style="text-align: right;"></div>
+                                          </div>
+                                      </div>
                                     </div>
                                     <div class="col-auto">
                                       <i class="fas fa-clipboard-list fa-2x text-gray-300">
@@ -471,7 +505,7 @@
                         </div>
                     </div>
 
-                    <div class="col-xl-3 col-md-6 mb-4">
+                    <div class="col-xl-4 col-md-6 mb-4">
                       <div class="card border-left-info shadow h-100 py-2">
                           <div class="card-body">
                               <div class="row no-gutters align-items-center">
@@ -514,7 +548,7 @@
                       </div>
                   </div>
 
-                  <div class="col-xl-3 col-md-6 mb-4" id="with_mainsmeter" style="display: none;">
+                  <div class="col-xl-4 col-md-6 mb-4" id="with_mainsmeter" style="display: none;">
                     <div class="card border-left-success shadow h-100 py-2">
                         <div class="card-body">
                             <div class="row no-gutters align-items-center">
@@ -581,7 +615,7 @@
                     </div>
                 </div>
 
-                <div class="col-xl-3 col-md-6 mb-4" id="with_homebattery">
+                <div class="col-xl-4 col-md-6 mb-4" id="with_homebattery">
                   <div class="card border-left-success shadow h-100 py-2">
                       <div class="card-body">
                           <div class="row no-gutters align-items-center">
@@ -634,7 +668,7 @@
               </div>
 
 
-              <div class="col-xl-3 col-md-6 mb-4" id="with_evmeter" style="display: none;">
+              <div class="col-xl-4 col-md-6 mb-4" id="with_evmeter" style="display: none;">
                 <div class="card border-left-warning shadow h-100 py-2">
                     <div class="card-body">
                         <div class="row no-gutters align-items-center">
@@ -686,7 +720,7 @@
               </div>
 
 
-              <div class="col-xl-3 col-md-6 mb-4" id="with_evmeter" style="display: none;">
+              <div class="col-xl-4 col-md-6 mb-4" id="with_evmeter" style="display: none;">
                 <div class="card border-left-warning shadow h-100 py-2">
                     <div class="card-body">
                         <div class="row no-gutters align-items-center">
@@ -737,7 +771,7 @@
                 </div>
               </div>
 
-              <div class="col-xl-3 col-md-6 mb-4" id="with_homebattery" style="display: none;">
+              <div class="col-xl-4 col-md-6 mb-4" id="with_homebattery" style="display: none;">
                 <div class="card border-left-warning shadow h-100 py-2">
                     <div class="card-body">
                         <div class="row no-gutters align-items-center">
@@ -842,7 +876,12 @@
                       window.location.href = "/settings";
                     }
                     function postPWM(value) {
-                       $.post("/modem?pwm=" + value);
+                       $.post("/settings?override_pwm=" + value);
+                       event.preventDefault();
+                     }
+                     function postRequiredEVCCID() {
+                      var required_evccid=$('#required_evccid').val();
+                       $.post("/settings?required_evccid=" + required_evccid);
                        event.preventDefault();
                      }
                 </script>
@@ -930,6 +969,17 @@
                                             <button onclick="postPWM(-1)" style="width: 120px; display:inline-block;">reset</button>
                                           </form>
                                         </div>
+                                    </div>
+                                    <div class="row no-gutters align-items-center with_modem">
+                                      <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                          AutoCharge:
+                                      </div>
+                                      <div class="col">
+                                        <form class="form-inline" id="form_required_evccid">
+                                          <input placeholder="EVCCID to require" id="required_evccid">
+                                          <button onclick="postRequiredEVCCID()" style="width: 120px; display:inline-block;">Update</button>
+                                        </form>
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
