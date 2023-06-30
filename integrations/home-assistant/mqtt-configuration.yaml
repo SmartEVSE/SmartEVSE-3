@@ -1,0 +1,239 @@
+###### Content below should go in configuration.yaml
+
+# Define an input select for the EVSE Mode 
+input_select:
+  evse_mode:
+    name: EVSE Mode
+    options:
+      - "Off"
+      - "Normal"
+      - "Smart"
+      - "Solar"
+
+# MQTT sensor mappings
+mqtt:
+  sensor:
+  - state_topic: SmartEVSE/ESPTemp
+    name: EVSE ESP Temp
+    unit_of_measurement: °C"
+    icon: mdi:temperature-celsius
+
+  - state_topic: SmartEVSE/Mode
+    name: EVSE Mode
+    icon: mdi:application-cog-outline
+
+  - state_topic: SmartEVSE/Access
+    name: EVSE Access
+    icon: mdi:lock-outline
+
+  - state_topic: SmartEVSE/Error
+    name: EVSE Error
+    icon: mdi:alert-circle-outline
+
+  - state_topic: SmartEVSE/State
+    name: EVSE State
+    icon: mdi:car-electric-outline
+
+  - state_topic: SmartEVSE/RFID
+    name: EVSE RFID
+    icon: mdi:credit-card-outline
+
+  - state_topic: SmartEVSE/EVPlugState
+    name: EVSE EV Plug State
+    icon: mdi:power-plug-outline
+
+  - state_topic: SmartEVSE/ChargeCurrent
+    value_template: "{{ value | int / 10 }}"
+    device_class: current
+    unit_of_measurement: "A"
+    name: EVSE Charge Current
+    icon: mdi:current-ac
+
+  - state_topic: SmartEVSE/ChargeCurrentOverride
+    value_template: "{{ value | int / 10 }}"
+    device_class: current
+    unit_of_measurement: "A"
+    name: EVSE Charge Current Override
+    icon: mdi:current-ac
+
+  - state_topic: SmartEVSE/MaxCurrent
+    value_template: "{{ value | int / 10 }}"
+    device_class: current
+    unit_of_measurement: "A"
+    name: EVSE Max Current
+    icon: mdi:current-ac
+
+  - state_topic: SmartEVSE/MainsCurrentL1
+    value_template: "{{ value | int / 10 }}"
+    device_class: current
+    unit_of_measurement: "A"
+    name: EVSE Mains Current L1
+    icon: mdi:current-ac
+
+  - state_topic: SmartEVSE/MainsCurrentL2
+    value_template: "{{ value | int / 10 }}"
+    device_class: current
+    unit_of_measurement: "A"
+    name: EVSE Mains Current L2
+    icon: mdi:current-ac
+
+  - state_topic: SmartEVSE/MainsCurrentL3
+    value_template: "{{ value | int / 10 }}"
+    device_class: current
+    unit_of_measurement: "A"
+    name: EVSE Mains Current L3
+    icon: mdi:current-ac
+
+  - state_topic: SmartEVSE/EVCurrentL1
+    value_template: "{{ value | int / 10 }}"
+    device_class: current
+    unit_of_measurement: "A"
+    name: EVSE EV Current L1
+    icon: mdi:current-ac
+
+  - state_topic: SmartEVSE/EVCurrentL2
+    value_template: "{{ value | int / 10 }}"
+    device_class: current
+    unit_of_measurement: "A"
+    name: EVSE EV Current L2
+    icon: mdi:current-ac
+
+  - state_topic: SmartEVSE/EVCurrentL3
+    value_template: "{{ value | int / 10 }}"
+    device_class: current
+    unit_of_measurement: "A"
+    name: EVSE EV Current L3
+    icon: mdi:current-ac
+
+  - state_topic: SmartEVSE/PVCurrentL1
+    value_template: "{{ value | int / 10 }}"
+    device_class: current
+    unit_of_measurement: "A"
+    name: EVSE PV Current L1
+    icon: mdi:current-ac
+
+  - state_topic: SmartEVSE/PVCurrentL2
+    value_template: "{{ value | int / 10 }}"
+    device_class: current
+    unit_of_measurement: "A"
+    name: EVSE PV Current L2
+    icon: mdi:current-ac
+
+  - state_topic: SmartEVSE/PVCurrentL3
+    value_template: "{{ value | int / 10 }}"
+    device_class: current
+    unit_of_measurement: "A"
+    name: EVSE PV Current L3
+    icon: mdi:current-ac
+
+  - state_topic: SmartEVSE/EVChargePower
+    device_class: power
+    unit_of_measurement: "W"
+    name: EVSE EV Charge Power
+    icon: mdi:lightning-bolt-outline
+
+  - state_topic: SmartEVSE/EVChargeCurrent
+    value_template: "{{ value | int / 10 }}"
+    device_class: current
+    unit_of_measurement: "A"
+    name: EVSE EV Charge Current
+    icon: mdi:current-ac
+
+  - state_topic: SmartEVSE/HomeBatteryCurrent
+    value_template: "{{ value | int / 10 }}"
+    device_class: current
+    unit_of_measurement: "A"
+    name: EVSE Home Battery Current
+    icon: mdi:current-ac
+
+  - state_topic: SmartEVSE/EVEnergyCharged
+    device_class: energy
+    unit_of_measurement: "Wh"
+    name: EVSE EV Energy Charged
+    icon: mdi:lightning-bolt-outline
+
+  - state_topic: SmartEVSE/EVInitialSoC
+    value_template: "{% if value | int > -1 %} {{ value | int / 10 }} {% endif %}"
+    unit_of_measurement: "%"
+    name: EVSE EV Initial SoC
+    icon: mdi:battery-10
+
+  - state_topic: SmartEVSE/EVFullSoC
+    value_template: "{% if value | int > -1 %} {{ value | int / 10 }} {% endif %}"
+    unit_of_measurement: "%"
+    name: EVSE EV Full SoC
+    icon: mdi:battery
+
+  - state_topic: SmartEVSE/EVComputedSoC
+    value_template: "{% if value | int > -1 %} {{ value | int / 10 }} {% endif %}"
+    unit_of_measurement: "%"
+    name: EVSE EV Computed SoC
+    icon: mdi:battery-charging-40
+
+  - state_topic: SmartEVSE/CPPWM
+    value_template: "{{ (value | int / 1024 * 100) | round(0) }}"
+    unit_of_measurement: "%"
+    name: EVSE CP PWM
+    icon: mdi:numeric
+
+  - state_topic: SmartEVSE/CPPWMOverride
+    name: EVSE CP PWM Override
+    value_template: "{% if value | int > -1 %} {{ (value | int / 1024 * 100) | round(0) }} {% else %} N/A {% endif %}"
+    icon: mdi:numeric
+
+
+
+###### Content below are examples of automations that will bidirectionally update the EVSE Mode selector for you
+###### DO NOT COPY THESE INTO CONFIGURATION.YAML - create the automations in the UI then paste the code below in YAML mode
+
+alias: Set MQTT EVSE Mode from Access Selector
+description: ""
+trigger:
+  - platform: state
+    entity_id:
+      - input_select.evse_mode
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 1
+condition:
+  - condition: not
+    conditions:
+      - condition: state
+        entity_id: sensor.evse_mode
+        state: "{{ trigger.to_state.state }}"
+action:
+  - service: mqtt.publish
+    data:
+      topic: SmartEVSE/Set/Mode
+      payload: "{{ trigger.to_state.state }}"
+      retain: true
+mode: restart
+
+##
+
+alias: Set EVSE Mode Selector from MQTT
+description: ""
+trigger:
+  - platform: mqtt
+    topic: SmartEVSE/Mode
+condition:
+  - condition: not
+    conditions:
+      - condition: not
+        conditions:
+          - condition: state
+            entity_id: input_select.evse_mode
+            state: "{{ trigger.payload }}"
+action:
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 2
+      milliseconds: 0
+  - service: input_select.select_option
+    target:
+      entity_id: input_select.evse_mode
+    data:
+      option: "{{ trigger.payload }}"
+mode: restart

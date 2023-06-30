@@ -49,6 +49,10 @@
 #endif
 #endif
 
+#ifndef MQTT
+#define MQTT 1  // Uncomment or set to 0 to disable MQTT support in code
+#endif
+
 #ifndef VERSION
 //please note that this version will only be displayed with the correct time/date if the program is recompiled
 //so the webserver will show correct version if evse.cpp is recompiled
@@ -73,7 +77,6 @@
 #include "RemoteDebug.h"  //https://github.com/JoaoLopesF/RemoteDebug
 extern RemoteDebug Debug;
 #endif
-
 
 #define PHASE_DETECTION_TIME 22                                                 // especially Tesla seems to need up to 20 seconds to have all its phases activated
 

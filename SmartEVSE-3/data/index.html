@@ -24,6 +24,7 @@
       let endpoint = document.location + 'settings';
       // let endpoint = 'http://10.0.0.36/settings';
       let initiated=false;
+      let mqttEditMode = false;
 
       $(document).ready(loadData());
 
@@ -70,6 +71,15 @@
 
             $('#mode').text(data.mode);
             $('#dutycycle').text((data.evse.pwm*100/1024).toFixed(0) + " %");
+
+            if (data.mqtt) {
+              $('#mqtt').text((data.mqtt.status) || 'N/A').show();
+              $('#mqtt_config').show();
+            } else {
+              $('#mqtt').text('').hide();
+              $('.config').hide();
+              $('#mqtt_config').hide();
+            }
 
             if(data.evse.loadbl > 1) {
               $('[id=loadbl]').show();
@@ -244,6 +254,14 @@
               $('.with_modem').show();
             }
 
+            if (data.mqtt && !mqttEditMode) {
+                $('#mqtt_host').val(data.mqtt.broker_host);
+                $('#mqtt_port').val(data.mqtt.broker_port);
+                $('#mqtt_username').val(data.mqtt.username);
+                $('#mqtt_password').val(data.mqtt.password);
+                $('#mqtt_topic_prefix').val(data.mqtt.topic_prefix);
+            }
+
             $('#evmeter_description').text(data.ev_meter.description);
             $('#evmeter_power').text(data.ev_meter.import_active_power.toFixed(1) + " kW");
             $('#evmeter_total_kwh').text(data.ev_meter.total_kwh.toFixed(1) + " kWh");
@@ -353,6 +371,14 @@
                                               <div class="h5 mb-0 mr-3 text-gray-800" id="temp"></div>
                                             </div>
                                         </div>
+                                        <div class="row no-gutters align-items-center">
+                                          <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                              MQTT:
+                                          </div>
+                                          <div class="col">
+                                              <div class="h5 mb-0 mr-3 text-gray-800" id="mqtt"></div>
+                                          </div>
+                                      </div>
                                         <div class="row no-gutters align-items-center" id="contactor2">
                                           <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
                                               Contactor 2:
@@ -778,6 +804,34 @@
                       }
                       event.preventDefault();
                     }
+                    function toggleMqttEdit() {
+                        mqttEditMode = !mqttEditMode;
+                        $('.mqtt_settings').toggle();
+                        if (mqttEditMode) {
+                            $('#edit_mqtt_button').text("Close Settings")
+                        } else {
+                            $('#edit_mqtt_button').text("Edit Settings")
+                        }
+                    }
+                    function configureMqtt() {
+                        var mqtt_host=$('#mqtt_host').val();
+                        var mqtt_port=$('#mqtt_port').val();
+                        var mqtt_username=$('#mqtt_username').val();
+                        var mqtt_password=$('#mqtt_password').val();
+                        var mqtt_topic_prefix=$('#mqtt_topic_prefix').val();
+
+                        if (mqtt_host && mqtt_port) {
+                            $.post( "/settings?mqtt_update=1&mqtt_host=" + mqtt_host +
+                                "&mqtt_port=" + mqtt_port + "&mqtt_username=" + mqtt_username +
+                                "&mqtt_password=" + mqtt_password + "&mqtt_topic_prefix=" + mqtt_topic_prefix);
+                            alert('Settings applied');
+                            toggleMqttEdit();
+                        } else {
+                            alert('Missing broker IP or port');
+                        }
+
+                        event.preventDefault();
+                    }
                     function reboot() {
                         $.post( "/reboot");
                     }
@@ -882,12 +936,35 @@
                             </div>
                         </div>
                     </div>
+                  </div>
+                  <div style="margin-bottom: 20px;" class="config">
+                      <div class="card border-left-primary shadow h-100 py-2">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text font-weight-bold text-primary text-uppercase mb-1">Config</div>
+                                    <div class="row no-gutters align-items-center" id="mqtt_config">
+                                        <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                            MQTT:
+                                        </div>
+                                        <div class="col">
+                                            <button onclick="toggleMqttEdit()" style="display:inline-block;" id="edit_mqtt_button">Edit Settings</button>
+                                            <div class="mqtt_settings" style="display:none">
+                                                <label>Host: <input id="mqtt_host"></label>
+                                                <label>Port: <input id="mqtt_port"></label>
+                                                <label>Username: <input id="mqtt_username"></label>
+                                                <label>Password: <input id="mqtt_password"></label>
+                                                <label>Topic Prefix: <input id="mqtt_topic_prefix"></label>
+                                                <button onclick="configureMqtt()" style="display:inline-block;">Save</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                  </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-
-
-
-
-
             </div>
         </div>
       </div>
