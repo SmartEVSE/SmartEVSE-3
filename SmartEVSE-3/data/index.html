@@ -81,6 +81,7 @@
               $('#initial_soc').html(initial_soc >= 0 ? initial_soc + " &#37;" : "N/A");
               $('#energy_capacity').html(energy_capacity >= 0 ? energy_capacity.toFixed(1) + " kWh" : "N/A");
               $('#evccid').html(evccid || "N/A");
+            }
 
             if (data.mqtt) {
               $('#mqtt').text((data.mqtt.status) || 'N/A').show();
