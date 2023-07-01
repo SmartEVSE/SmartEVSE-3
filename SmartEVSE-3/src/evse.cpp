@@ -38,8 +38,7 @@
 #ifdef MQTT
 #include <MQTT.h>
 WiFiClient client;
-MQTTClient MQTTclient(512);
-//MQTTClient MQTTclient(256, 512);
+MQTTClient MQTTclient(1024);
 #endif
 
 #ifndef DEBUG_DISABLED
@@ -2352,7 +2351,7 @@ void SetupMQTTClient() {
 #define entity_id MQTTprefix + "-" + entity_suffix
 #define entity_path MQTTprefix + "/" + entity_suffix
 #define entity_name(x) entity_name = x; entity_suffix = entity_name; entity_suffix.replace(" ", "");
-#define announce(x) entity_name(x); MQTTclient.publish("homeassistant/sensor/" + entity_id + "/config",  "{" + jsn("name", entity_name) + jsna("state_topic", entity_path) + jsna("object_id", entity_id) + "," + device_payload + optional_payload + "}", false, 0);
+#define announce(x) entity_name(x); MQTTclient.publish("homeassistant/sensor/" + entity_id + "/config",  "{" + jsn("name", entity_name) + jsna("state_topic", entity_path) + jsna("object_id", entity_id) + jsna("unique_id", entity_id)"," + device_payload + optional_payload + "}", false, 0);
 
     //now set the parameters for the next batch of entities:
     optional_payload = jsna("device_class","current") + jsna("unit_of_measurement","A") + jsna("val_tpl", R"({{ value | int / 10 }})");
@@ -2404,7 +2403,6 @@ void SetupMQTTClient() {
     announce("CP PWM");
     optional_payload = jsna("device_class","current") + jsna("unit_of_measurement","A") + jsna("val_tpl", R"({% if value | int > -1 %} {{ (value | int / 1024 * 100) | round(0) }} {% else %} N/A {% endif %})");
     announce("CP PWM Override");
-
 
 //TODO set retain to true after testing
 }
