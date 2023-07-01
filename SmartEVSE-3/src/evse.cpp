@@ -2361,7 +2361,6 @@ void SetupMQTTClient() {
     /*announce("Mains Current L1");
     announce("Mains Current L2");
     announce("Mains Current L3");*/
-    announce("EV Plug State");
     announce("Charge Current");
     announce("Charge Current Override");
     announce("Max Current");
@@ -2385,6 +2384,7 @@ void SetupMQTTClient() {
 
     //now set the parameters for the next batch of entities:
     optional_payload = "";
+    announce("EV Plug State");
     announce("Mode");
     announce("Access");
     announce("Error");
