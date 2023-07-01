@@ -573,21 +573,6 @@ const char * getStateNameWeb(uint8_t StateCode) {
     else return "NOSTATE";    
 }
 
-const char * getModeName(uint8_t mode) {
-    if (Access_bit == 0) {
-        return "Off";
-    }
-    if(mode < 3) return StrMode[mode];
-    else return "";
-}
-
-const char * getRFIDStatusWeb(uint8_t RFIDStatusCode) {
-    if (RFIDReader) {
-        if (RFIDStatusCode < 8) return StrRFIDStatusWeb[RFIDStatusCode];
-        return "NOSTATUS";
-    } else return "Not Installed";
-}
-
 
 uint8_t getErrorId(uint8_t ErrorCode) {
     uint8_t count = 0;
@@ -2430,12 +2415,12 @@ void mqttPublishData() {
     if (MQTTclient.connected()) {
         MQTTclient.publish(MQTTprefix + "/ESPUptime", String((esp_timer_get_time() / 1000000)), false, 0);
         MQTTclient.publish(MQTTprefix + "/ESPTemp", String(TempEVSE), false, 0);
-        MQTTclient.publish(MQTTprefix + "/Mode", getModeName(Mode), true, 0);
+        MQTTclient.publish(MQTTprefix + "/Mode", Access_bit == 0 ? "OFF" : Mode > 3 ? "N/A" : StrMode[Mode], true, 0);
         MQTTclient.publish(MQTTprefix + "/MaxCurrent", String(MaxCurrent * 10), true, 0);
         MQTTclient.publish(MQTTprefix + "/ChargeCurrent", String(ChargeCurrent), true, 0);
         MQTTclient.publish(MQTTprefix + "/ChargeCurrentOverride", String(OverrideCurrent), true, 0);
         MQTTclient.publish(MQTTprefix + "/Access", String(StrAccessBit[Access_bit]), true, 0);
-        MQTTclient.publish(MQTTprefix + "/RFID", getRFIDStatusWeb(RFIDstatus), true, 0);
+        MQTTclient.publish(MQTTprefix + "/RFID", !RFIDReader ? "Not Installed" : RFIDstatus >= 8 ? "NOSTATUS" : StrRFIDStatusWeb[RFIDstatus], true, 0);
         MQTTclient.publish(MQTTprefix + "/State", getStateNameWeb(State), true, 0);
         MQTTclient.publish(MQTTprefix + "/Error", getErrorNameWeb(ErrorFlags), true, 0);
         MQTTclient.publish(MQTTprefix + "/CPPWM", String(CurrentPWM), false, 0);
@@ -3628,7 +3613,7 @@ void StartwebServer(void) {
         doc["evse"]["state_id"] = State;
         doc["evse"]["error"] = error;
         doc["evse"]["error_id"] = errorId;
-        doc["evse"]["rfid"] = getRFIDStatusWeb(RFIDstatus);
+        doc["evse"]["rfid"] = !RFIDReader ? "Not Installed" : RFIDstatus >= 8 ? "NOSTATUS" : StrRFIDStatusWeb[RFIDstatus];
 
         doc["settings"]["charge_current"] = Balanced[0];
         doc["settings"]["override_current"] = OverrideCurrent;
