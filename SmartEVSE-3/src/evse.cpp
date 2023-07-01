@@ -1282,6 +1282,7 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
         case STATUS_MODE:
             // Do not change Charge Mode when set to Normal or Load Balancing is disabled
             if (Mode == 0 || LoadBl == 0) break;
+            // fall through
         case MENU_MODE:
             Mode = val;
             break;
@@ -2088,6 +2089,7 @@ uint8_t PollEVNode = NR_EVSES;
                         break;
                     }
                     ModbusRequest++;
+                    // fall through
                 case 2:                                                         // Sensorbox or kWh meter that measures -all- currents
                     if (MainsMeter && MainsMeter != EM_API) {                   // we don't want modbus meter currents to conflict with EM_API currents
                         _LOG_D("ModbusRequest %u: Request MainsMeter Measurement\n", ModbusRequest);
@@ -2095,6 +2097,7 @@ uint8_t PollEVNode = NR_EVSES;
                         break;
                     }
                     ModbusRequest++;
+                    // fall through
                 case 3:
                     // Find next online SmartEVSE
                     do {
@@ -2109,6 +2112,7 @@ uint8_t PollEVNode = NR_EVSES;
                         break;
                     }
                     ModbusRequest++;
+                    // fall through
                 case 4:                                                         // EV kWh meter, Energy measurement (total charged kWh)
                     // Request Energy if EV meter is configured
                     if (Node[PollEVNode].EVMeter && Node[PollEVNode].EVMeter != EM_API) {
@@ -2117,6 +2121,7 @@ uint8_t PollEVNode = NR_EVSES;
                         break;
                     }
                     ModbusRequest++;
+                    // fall through
                 case 5:                                                         // EV kWh meter, Power measurement (momentary power in Watt)
                     // Request Power if EV meter is configured
                     if (Node[PollEVNode].EVMeter && Node[PollEVNode].EVMeter != EM_API) {
@@ -2124,6 +2129,7 @@ uint8_t PollEVNode = NR_EVSES;
                         break;
                     }
                     ModbusRequest++;
+                    // fall through
                 case 6:                                                         // Node 1
                 case 7:
                 case 8:
@@ -2136,6 +2142,7 @@ uint8_t PollEVNode = NR_EVSES;
                         break;
                     }
                     ModbusRequest = 12;
+                    // fall through
                 case 13:
                 case 14:
                 case 15:
@@ -2148,6 +2155,7 @@ uint8_t PollEVNode = NR_EVSES;
                         break;
                     }
                     ModbusRequest = 21;
+                    // fall through
                 case 20:                                                         // EV kWh meter, Current measurement
                     // Request Current if EV meter is configured
                     if (EVMeter && EVMeter != EM_API) {
@@ -2156,6 +2164,7 @@ uint8_t PollEVNode = NR_EVSES;
                         break;
                     }
                     ModbusRequest++;
+                    // fall through
                 case 21:
                     // Request active energy if Mainsmeter is configured
                     if (MainsMeter && MainsMeter != EM_API) {                   // EM_API does not support energy postings
@@ -2173,6 +2182,7 @@ uint8_t PollEVNode = NR_EVSES;
                         }
                     }
                     ModbusRequest++;
+                    // fall through
                 default:
                     if (Mode) {                                                 // Smart/Solar mode
                         if ((ErrorFlags & CT_NOCOMM) == 0) UpdateCurrentData();      // No communication error with Sensorbox /Kwh meter?

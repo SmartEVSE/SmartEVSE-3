@@ -729,6 +729,7 @@ void GLCD(void) {
                         GLCD_print_buf2(5, Str);
                         break;
                     } else LCDText++;
+                    // fall through
                 case 1:
                     GLCD_print_buf2(5, (const char *) "CHARGING");
                     break;
@@ -738,12 +739,14 @@ void GLCD(void) {
                         GLCD_print_buf2(5, Str);
                         break;
                     } else LCDText++;
+                    // fall through
                 case 3:
                     if (EVMeter) {
                         sprintfl(Str, "%u.%02u kWh", EnergyCharged, 3, 2);
                         GLCD_print_buf2(5, Str);
                         break;
                     } else LCDText++;
+                    // fall through
                 case 4:
                     sprintf(Str, "%u.%u A", Balanced[0] / 10, Balanced[0] % 10);
                     GLCD_print_buf2(5, Str);
@@ -876,6 +879,7 @@ const char * getMenuItemOption(uint8_t nav) {
                 case MB_DATATYPE_INT32: return "INT32";
                 case MB_DATATYPE_FLOAT32: return "FLOAT32";
             }
+            // fall through
         case MENU_EMCUSTOM_FUNCTION:
             switch (value) {
                 case 3: return "3:Hold. Reg";
