@@ -2351,7 +2351,7 @@ void SetupMQTTClient() {
 #define entity_id MQTTprefix + "-" + entity_suffix
 #define entity_path MQTTprefix + "/" + entity_suffix
 #define entity_name(x) entity_name = x; entity_suffix = entity_name; entity_suffix.replace(" ", "");
-#define announce(x) entity_name(x); MQTTclient.publish("homeassistant/sensor/" + entity_id + "/config",  "{" + jsn("name", entity_name) + jsna("state_topic", entity_path) + jsna("object_id", entity_id) + jsna("unique_id", entity_id)"," + device_payload + optional_payload + "}", true, 0);
+#define announce(x) entity_name(x); MQTTclient.publish("homeassistant/sensor/" + entity_id + "/config",  "{" + jsn("name", entity_name) + jsna("state_topic", entity_path) + jsna("object_id", entity_id) + jsna("unique_id", entity_id) + "," + device_payload + optional_payload + "}", true, 0);
 
     //now set the parameters for the next batch of entities:
     optional_payload = jsna("device_class","current") + jsna("unit_of_measurement","A") + jsna("val_tpl", R"({{ value | int / 10 }})");
