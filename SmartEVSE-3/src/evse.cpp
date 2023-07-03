@@ -38,7 +38,7 @@
 #ifdef MQTT
 #include <MQTT.h>
 WiFiClient client;
-MQTTClient MQTTclient(1024);
+MQTTClient MQTTclient;
 #endif
 
 #ifndef DEBUG_DISABLED
