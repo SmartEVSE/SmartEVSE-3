@@ -2357,9 +2357,6 @@ void SetupMQTTClient() {
     optional_payload = jsna("device_class","current") + jsna("unit_of_measurement","A") + jsna("val_tpl", R"({{ value | int / 10 }})");
 
     //now the sensor/switch/select = entity stuff:
-    /*announce("Mains Current L1");
-    announce("Mains Current L2");
-    announce("Mains Current L3");*/
     announce("Charge Current");
     announce("Charge Current Override");
     announce("Max Current");
