@@ -9,7 +9,20 @@
 #include <WiFi.h>
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
+
+#define USE_ESP_WIFIMANAGER_NTP true
+#define USING_AFRICA        false
+#define USING_AMERICA       false
+#define USING_ANTARCTICA    false
+#define USING_ASIA          false
+#define USING_ATLANTIC      false
+#define USING_AUSTRALIA     false
+#define USING_EUROPE        true
+#define USING_INDIAN        false
+#define USING_PACIFIC       false
+#define USING_ETC_GMT       false
 #include <ESPAsync_WiFiManager.h>
+
 #include <ESPmDNS.h>
 #include <Update.h>
 
@@ -45,19 +58,8 @@ MQTTClient MQTTclient;
 RemoteDebug Debug;
 #endif
 
-const char* NTP_SERVER = "europe.pool.ntp.org";        // only one server is supported
-
-// Specification of the Time Zone string:
-// http://www.gnu.org/software/libc/manual/html_node/TZ-Variable.html
-// list of time zones: https://remotemonitoringsystems.ca/time-zone-abbreviations.php
-// more: https://github.com/nayarsystems/posix_tz_db/blob/master/zones.csv
-//
-const char* TZ_INFO    = "CET-1CEST-2,M3.5.0/2,M10.5.0/3";      // Europe/Amsterdam
-//const char* TZ_INFO    = "GMT+0IST-1,M3.5.0/1,M10.5.0/2";     // Europe/Dublin
-//const char* TZ_INFO    = "EET-2EEST-3,M3.5.0/3,M10.5.0/4";    // Europe/Helsinki
-//const char* TZ_INFO    = "WET-0WEST-1,M3.5.0/1,M10.5.0/2";    // Europe/Lisbon
-//const char* TZ_INFO    = "GMT+0BST-1,M3.5.0/1,M10.5.0/2";     // Europe/London
-//const char* TZ_INFO    = "PST8PDT,M3.2.0,M11.1.0";            // USA, Los Angeles
+#define SNTP_GET_SERVERS_FROM_DHCP 1
+#include <sntp.h>
 
 struct tm timeinfo;
 
@@ -153,6 +155,7 @@ uint8_t Show_RFID = 0;
 #endif
 uint8_t WIFImode = WIFI_MODE;                                               // WiFi Mode (0:Disabled / 1:Enabled / 2:Start Portal)
 String APpassword = "00000000";
+String TZname = "";
 
 EnableC2_t EnableC2 = ENABLE_C2;                                            // Contactor C2
 Modem_t Modem = MODEM;                                                      // Is an ISO15118 modem installed (experimental)
@@ -3310,6 +3313,7 @@ void read_settings(bool write) {
         APpassword = preferences.getString("APpassword",AP_PASSWORD);
         DelayedStartTime.epoch2 = preferences.getULong("DelayedStartTim", DELAYEDSTARTTIME); //epoch2 is 4 bytes long on arduino; NVS key has reached max size
         DelayedStopTime.epoch2 = preferences.getULong("DelayedStopTime", DELAYEDSTOPTIME);    //epoch2 is 4 bytes long on arduino
+        TZname = preferences.getString("Timezone","Europe/Berlin");
 
         EnableC2 = (EnableC2_t) preferences.getUShort("EnableC2", ENABLE_C2);
         Modem = (Modem_t) preferences.getUShort("Modem", MODEM);
@@ -4169,9 +4173,12 @@ void WiFiSetup(void) {
     WiFi.onEvent(onWifiEvent);
 
     // Init and get the time
-    // See https://github.com/nayarsystems/posix_tz_db/blob/master/zones.csv for Timezone codes for your region
-    configTzTime(TZ_INFO, NTP_SERVER);
-    
+    sntp_servermode_dhcp(1);                                                    //try to get the ntp server from dhcp
+    sntp_setservername(1, "europe.pool.ntp.org");                               //fallback server
+    sntp_init();
+    String TZ_INFO = ESPAsync_wifiManager.getTZ(TZname.c_str());
+    setenv("TZ",TZ_INFO.c_str(),1);
+    tzset();
     //if(!getLocalTime(&timeinfo)) _LOG_A("Failed to obtain time\n");
     
     // test code, sets time to 31-OCT, 02:59:50 , 10 seconds before DST will be switched off
@@ -4203,6 +4210,14 @@ void SetupPortalTask(void * parameter) {
     ESPAsync_wifiManager.startConfigPortal(APhostname.c_str(), APpassword.c_str());         // blocking until connected or timeout.
     //_LOG_A("SetupPortalTask free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
     WiFi.disconnect(true);
+
+    // this function only works in portal mode, so we have to save the timezone:
+    TZname = ESPAsync_wifiManager.getTimezoneName();
+    if (preferences.begin("settings", false) ) {
+        preferences.putString("Timezone",TZname);
+        preferences.end();
+    }
+
     WIFImode = 1;
     handleWIFImode();
     write_settings();
