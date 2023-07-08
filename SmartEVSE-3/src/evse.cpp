@@ -4153,10 +4153,8 @@ void onWifiEvent(WiFiEvent_t event) {
 void WiFiSetup(void) {
 
     //ESPAsync_wifiManager.resetSettings();   //reset saved settings
-
-    ESPAsync_wifiManager.setDebugOutput(true);
+    //ESPAsync_wifiManager.setDebugOutput(true);
     ESPAsync_wifiManager.setMinimumSignalQuality(-1);
-    // Set config portal channel, default = 1. Use 0 => random channel from 1-13
 
     // Start the mDNS responder so that the SmartEVSE can be accessed using a local hostame: http://SmartEVSE-xxxxxx.local
     if (!MDNS.begin(APhostname.c_str())) {                
@@ -4196,6 +4194,7 @@ void SetupPortalTask(void * parameter) {
     _LOG_A("Start Portal...\n");
     StopwebServer();
     WiFi.disconnect(true);
+    // Set config portal channel, default = 1. Use 0 => random channel from 1-13
     ESPAsync_wifiManager.setConfigPortalChannel(0);
     ESPAsync_wifiManager.setAPStaticIPConfig(IPAddress(192,168,4,1), IPAddress(192,168,4,1), IPAddress(255,255,255,0));
 
