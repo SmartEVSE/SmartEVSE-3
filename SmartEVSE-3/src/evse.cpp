@@ -158,7 +158,7 @@ String APpassword = "00000000";
 String TZname = "";
 
 EnableC2_t EnableC2 = ENABLE_C2;                                            // Contactor C2
-Modem_t Modem = MODEM;                                                      // Is an ISO15118 modem installed (experimental)
+Modem_t Modem = NOTPRESENT;                                                 // Is an ISO15118 modem installed (experimental)
 uint16_t maxTemp = MAX_TEMPERATURE;
 
 int32_t Irms[3]={0, 0, 0};                                                  // Momentary current per Phase (23 = 2.3A) (resolution 100mA)
@@ -699,6 +699,7 @@ void setState(uint8_t NewState) {
                 Node[0].MinCurrent = 0;                                         // Clear ChargeDelay when disconnected.
             }
 
+#ifdef MODEM
             if (DisconnectTimeCounter == -1){
                 DisconnectTimeCounter = 0;                                      // Start counting disconnect time. If longer than 60 seconds, throw DisconnectEvent
             }
@@ -718,12 +719,15 @@ void setState(uint8_t NewState) {
             CP_OFF;
             DisconnectTimeCounter = -1;                                         // Disable Disconnect timer. Car is connected
             LeaveModemDoneStateTimer = 5;                                       // Disconnect CP for 5 seconds, restart charging cycle but this time without the modem steps.
+#endif
             break;
         case STATE_B:
-            CP_ON;
+            if (Modem)
+                CP_ON;
             CONTACTOR1_OFF;
             CONTACTOR2_OFF;
-            DisconnectTimeCounter = -1;                                         // Disable Disconnect timer. Car is connected
+            if (Modem)
+                DisconnectTimeCounter = -1;                                         // Disable Disconnect timer. Car is connected
             timerAlarmWrite(timerA, PWM_95, false);                             // Enable Timer alarm, set to diode test (95%)
             SetCurrent(ChargeCurrent);                                          // Enable PWM
             break;      
@@ -807,11 +811,13 @@ void setState(uint8_t NewState) {
 void setAccess(bool Access) {
     Access_bit = Access;
     if (Access == 0) {
-        CP_OFF;
+        if (Modem)
+            CP_OFF;
         if (State == STATE_C) setState(STATE_C1);                               // Determine where to switch to.
         else if (State == STATE_B || State == STATE_MODEM_REQUEST || State == STATE_MODEM_WAIT || State == STATE_MODEM_DONE || State == STATE_MODEM_DENIED) setState(STATE_B1);
     } else{
-        CP_ON;
+        if (Modem)
+            CP_ON;
     }
 
 #ifdef MQTT
@@ -1826,7 +1832,12 @@ void EVSEStates(void * parameter) {
                 if (!ResetKwh) ResetKwh = 1;                                    // when set, reset EV kWh meter on state B->C change.
             } else if ( pilot == PILOT_9V && ErrorFlags == NO_ERROR 
                 && ChargeDelay == 0 && Access_bit
+#ifdef MODEM
                 && State != STATE_COMM_B && State != STATE_MODEM_REQUEST && State != STATE_MODEM_WAIT && State != STATE_MODEM_DONE) {                                     // switch to State B ?
+
+#else
+                && State != STATE_COMM_B) {                                     // switch to State B ?
+#endif
                                                                                 // Allow to switch to state C directly if STATE_A_TO_C is set to PILOT_6V (see EVSE.h)
                 DiodeCheck = 0;
 
@@ -2375,11 +2386,13 @@ void SetupMQTTClient() {
     announce("EV Charge Current");
     announce("Home Battery Current");
 
-    //now set the parameters for the next batch of entities:
-    optional_payload = jsna("unit_of_measurement","%") + jsna("val_tpl", R"({% if value | int > -1 %} {{ value | int / 10 }} {% endif %})");
-    announce("EV Initial SoC");
-    announce("EV Full SoC");
-    announce("EV Computed SoC");
+    if (Modem) {
+        //now set the parameters for the next batch of entities:
+        optional_payload = jsna("unit_of_measurement","%") + jsna("val_tpl", R"({% if value | int > -1 %} {{ value | int / 10 }} {% endif %})");
+        announce("EV Initial SoC");
+        announce("EV Full SoC");
+        announce("EV Computed SoC");
+    }
 
     //now set the parameters for the next batch of entities:
     optional_payload = "";
@@ -2471,7 +2484,7 @@ void Timer1S(void * parameter) {
 
         // activation Mode is active
         if (ActivationTimer) ActivationTimer--;                             // Decrease ActivationTimer every second.
-        
+#ifdef MODEM
         if (State == STATE_MODEM_REQUEST){
             if (ToModemWaitStateTimer) ToModemWaitStateTimer--;
             else{
@@ -2530,7 +2543,7 @@ void Timer1S(void * parameter) {
             }
         }
 
-
+#endif
         if (State == STATE_C1) {
             if (C1Timer) C1Timer--;                                         // if the EV does not stop charging in 6 seconds, we will open the contactor.
             else {
@@ -2540,7 +2553,7 @@ void Timer1S(void * parameter) {
             }
         }
 
-
+#ifdef MODEM
         // Normally, the modem is enabled when Modem == Experiment. However, after a succesfull communication has been set up, EVSE will restart communication by replugging car and moving back to state B.
         // This time, communication is not initiated. When a car is disconnected, we want to enable the modem states again, but using 12V signal is not reliable (we just "replugged" via CP pin, remember).
         // This counter just enables the state after 60 seconds of success. 
@@ -2558,7 +2571,7 @@ void Timer1S(void * parameter) {
                 DisconnectTimeCounter = 0; 
             }
         }
-
+#endif
 
         // once a second, measure temperature
         // range -40 .. +125C
@@ -2858,7 +2871,8 @@ ModbusMessage MBEVMeterResponse(ModbusMessage request) {
             EnergyEV = EV_import_active_energy - EV_export_active_energy;
             if (ResetKwh == 2) EnergyMeterStart = EnergyEV;                 // At powerup, set EnergyEV to kwh meter value
             EnergyCharged = EnergyEV - EnergyMeterStart;                    // Calculate Energy
-            RecomputeSoC();
+            if (Modem)
+                RecomputeSoC();
         } else if (MB.Register == EMConfig[EVMeter].PRegister) {
             // Power measurement
             PowerMeasured = receivePowerMeasurement(MB.Data, EVMeter);
@@ -3316,7 +3330,7 @@ void read_settings(bool write) {
         TZname = preferences.getString("Timezone","Europe/Berlin");
 
         EnableC2 = (EnableC2_t) preferences.getUShort("EnableC2", ENABLE_C2);
-        Modem = (Modem_t) preferences.getUShort("Modem", MODEM);
+        Modem = (Modem_t) preferences.getUShort("Modem", NOTPRESENT);
         strncpy(RequiredEVCCID, preferences.getString("RequiredEVCCID", "").c_str(), sizeof(RequiredEVCCID));
         maxTemp = preferences.getUShort("maxTemp", MAX_TEMPERATURE);
 
@@ -4006,7 +4020,8 @@ void StartwebServer(void) {
                 EnergyEV = EV_import_active_energy - EV_export_active_energy;
                 if (ResetKwh == 2) EnergyMeterStart = EnergyEV;                 // At powerup, set EnergyEV to kwh meter value
                 EnergyCharged = EnergyEV - EnergyMeterStart;                    // Calculate Energy
-                RecomputeSoC();
+                if (Modem)
+                    RecomputeSoC();
             }
         }
 

@@ -53,6 +53,11 @@
 #define MQTT 1  // Uncomment or set to 0 to disable MQTT support in code
 #endif
 
+#ifndef MODEM
+//the wifi-debugger is available by telnetting to your SmartEVSE device
+#define MODEM 0  //0 = no modem 1 = modem
+#endif
+
 #ifndef VERSION
 //please note that this version will only be displayed with the correct time/date if the program is recompiled
 //so the webserver will show correct version if evse.cpp is recompiled
@@ -167,7 +172,6 @@ extern RemoteDebug Debug;
 #define WIFI_MODE 0
 #define AP_PASSWORD "00000000"
 #define ENABLE_C2 NOT_PRESENT
-#define MODEM NOTPRESENT
 #define MAX_TEMPERATURE 65
 #define DELAYEDSTARTTIME 0                                                             // The default StartTime for delayed charged, 0 = not delaying
 #define DELAYEDSTOPTIME 0                                                       // The default StopTime for delayed charged, 0 = not stopping
@@ -482,7 +486,7 @@ const struct {
     {"WIFI",    "Connect to WiFi access point",                       0, 2, WIFI_MODE},
     {"CONTACT2","Contactor2 (C2) behaviour",                          0, sizeof(StrEnableC2) / sizeof(StrEnableC2[0])-1, ENABLE_C2},
     {"MAX TEMP","Maximum temperature for the EVSE module",            40, 75, MAX_TEMPERATURE},
-    {"MODEM",   "Is an ISO15118 modem installed (experimental)",      0, 1, MODEM},
+    {"MODEM",   "Is an ISO15118 modem installed (experimental)",      0, 1, NOTPRESENT},
 
     {"EXIT", "EXIT", 0, 0, 0}
 };
