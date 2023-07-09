@@ -137,14 +137,17 @@ Your SmartEVSE can now export the most important data to your MQTT-server. Just 
 
 # Integration with Home Assistant
 There are three options to integrate SmartEVSE with Home Assistant:
-* through the HA-integration - the easy way
-If you want to integrate your SmartEVSE with Home Asisstant, please have a look at [the SmartEVSE `custom_component` for Home Assistant](https://github.com/dingo35/ha-SmartEVSEv3). This `custom_component` uses the API to share data from the SmartEVSE to Home Assistant, and enables you to set SmartEVSE settings from Home Assistant. You will need firmware version 1.5.2 or higher to use this integration.
+* through the HA-integration - the easy way<br />
 
-* by manually configuring your configuration.yaml
-Its a lot of work, but you can have everything exactly your way. See examples in the integrations directory of our github repository.
+    If you want to integrate your SmartEVSE with Home Asisstant, please have a look at [the SmartEVSE `custom_component` for Home Assistant](https://github.com/dingo35/ha-SmartEVSEv3). This `custom_component` uses the API to share data from the SmartEVSE to Home Assistant, and enables you to set SmartEVSE settings from Home Assistant. You will need firmware version 1.5.2 or higher to use this integration.
 
-* by MQTT
-If you don't like the integration, e.g. because it only updates its data every 60 seconds, you might like to interface through MQTT; updates are done as soon as values change.... you can even mix it up by using both the integration AND the MQTT interface at the same time!
+* by manually configuring your configuration.yaml<br />
+
+    Its a lot of work, but you can have everything exactly your way. See examples in the integrations directory of our github repository.
+
+* by MQTT<br />
+
+    If you don't like the integration, e.g. because it only updates its data every 60 seconds, you might like to interface through MQTT; updates are done as soon as values change.... you can even mix it up by using both the integration AND the MQTT interface at the same time!
 
 
 # Modbus TCP bridge
