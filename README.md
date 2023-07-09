@@ -47,7 +47,6 @@ Make sure to have read the original README.md (e.g. on howto connect to wifi).
    Note that for this functionality you will need to be in Smart or Solar mode; it is no longer necessary to enable Load Balancing for this function.
 
 * Added wifi-debugging: if compiled in, you can debug SmartEVSE device by telnetting to it over your wifi connection
-* Small code optimisations, fixed some small bugs
 * Added EXPERIMENTAL use of Contactor 2 (C2);
     - one can add a second contactor (C2) that switches off 2 of the 3 phases of a three-phase Mains installation; this can be usefull if one wants to charge of off
       Solar; EV's have a minimal charge current of 6A, so switching off 2 phases allows you to charge with a current of 6-18A, while 3 phases have a minimum current
