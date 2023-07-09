@@ -156,7 +156,7 @@ Your MainsMeter, EVMeter and PVMeter will present themselves at port 502 of your
 So this makes it possible for you to use whatever modbus function you want on whatever modbus register you want. 
 The addresses on the tcp modbus are the same addresses as they are on the RTU modbus.
 
-E.g. my MainsMeter is at slave address 0x0a, so this command reads register 70decimal and following:
+E.g. my MainsMeter is at slave address 0x0a, so this command reads register 70decimal and following:<br />
 mbpoll -a10 -t 3:hex -r 70 -c 10 10.0.0.76
 
 # Simple Timer
