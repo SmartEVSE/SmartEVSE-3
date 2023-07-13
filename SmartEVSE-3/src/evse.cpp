@@ -634,6 +634,14 @@ void setMode(uint8_t NewMode) {
 
     if (LoadBl == 1) ModbusWriteSingleRequest(BROADCAST_ADR, 0x0003, NewMode);
     Mode = NewMode;
+
+    //make mode and start/stoptimes persistent on reboot
+    if (preferences.begin("settings", false) ) {                        //false = write mode
+        preferences.putUChar("Mode", Mode);
+        preferences.putULong("DelayedStartTim", DelayedStartTime.epoch2); //epoch2 only needs 4 bytes
+        preferences.putULong("DelayedStopTime", DelayedStopTime.epoch2);   //epoch2 only needs 4 bytes
+        preferences.end();
+    }
 }
 /**
  * Set the solar stop timer
@@ -818,6 +826,12 @@ void setAccess(bool Access) {
     } else{
         if (Modem)
             CP_ON;
+    }
+
+    //make mode and start/stoptimes persistent on reboot
+    if (preferences.begin("settings", false) ) {                        //false = write mode
+        preferences.putUChar("Access", Access_bit);
+        preferences.end();
     }
 
 #ifdef MQTT
@@ -3262,10 +3276,6 @@ void validate_settings(void) {
         }
     }
 
-    // RFID reader set to Enable One card, the EVSE is disabled by default
-    if (RFIDReader == 2) Access_bit = 0;
-    // Enable access if no access switch used
-    else if (Switch != 1 && Switch != 2) Access_bit = 1;
     // Sensorbox v2 has always address 0x0A
     if (MainsMeter == EM_SENSORBOX) MainsMeterAddress = 0x0A;
     // Disable PV reception if not configured
@@ -3310,6 +3320,14 @@ void read_settings(bool write) {
         Config = preferences.getUChar("Config", CONFIG); 
         Lock = preferences.getUChar("Lock", LOCK); 
         Mode = preferences.getUChar("Mode", MODE); 
+        //first determine default value for Access_bit:
+        uint8_t Default_Access_bit = 0;
+        // RFID reader set to Enable One card, the EVSE is disabled by default
+        if (RFIDReader == 2) Default_Access_bit = 0;
+        // Enable access if no access switch used
+        else if (Switch != 1 && Switch != 2) Default_Access_bit = 1;
+        // Now we know default value, lets read if from memory:
+        Access_bit = preferences.getUChar("Access", Default_Access_bit);
         LoadBl = preferences.getUChar("LoadBl", LOADBL); 
         MaxMains = preferences.getUShort("MaxMains", MAX_MAINS); 
         MaxCurrent = preferences.getUShort("MaxCurrent", MAX_CURRENT); 
@@ -3377,6 +3395,7 @@ void write_settings(void) {
     preferences.putUChar("Config", Config); 
     preferences.putUChar("Lock", Lock); 
     preferences.putUChar("Mode", Mode); 
+    preferences.putUChar("Access", Access_bit);
     preferences.putUChar("LoadBl", LoadBl); 
     preferences.putUShort("MaxMains", MaxMains); 
     preferences.putUShort("MaxCurrent", MaxCurrent); 
