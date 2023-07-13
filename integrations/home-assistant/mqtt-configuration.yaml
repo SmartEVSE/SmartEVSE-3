@@ -186,45 +186,18 @@ mqtt:
 ###### Content below are examples of automations that will bidirectionally update the EVSE Mode selector for you
 ###### DO NOT COPY THESE INTO CONFIGURATION.YAML - create the automations in the UI then paste the code below in YAML mode
 
-alias: Set MQTT EVSE Mode from Access Selector
+alias: .EVSE - Set MQTT Mode from HA
 description: ""
 trigger:
-  - platform: state
-    entity_id:
-      - input_select.evse_mode
-    for:
-      hours: 0
-      minutes: 0
-      seconds: 1
+  - platform: mqtt
+    topic: SmartEVSE-XXXXX/Mode
 condition:
   - condition: not
     conditions:
       - condition: state
-        entity_id: sensor.evse_mode
-        state: "{{ trigger.to_state.state }}"
-action:
-  - service: mqtt.publish
-    data:
-      topic: SmartEVSE/Set/Mode
-      payload: "{{ trigger.to_state.state }}"
-      retain: true
-mode: restart
-
-##
-
-alias: Set EVSE Mode Selector from MQTT
-description: ""
-trigger:
-  - platform: mqtt
-    topic: SmartEVSE/Mode
-condition:
-  - condition: not
-    conditions:
-      - condition: not
-        conditions:
-          - condition: state
-            entity_id: input_select.evse_mode
-            state: "{{ trigger.payload }}"
+        entity_id: input_select.evse_mode
+        state: "{{ trigger.payload }}"
+    enabled: true
 action:
   - delay:
       hours: 0
@@ -235,5 +208,82 @@ action:
     target:
       entity_id: input_select.evse_mode
     data:
-      option: "{{ trigger.payload }}"
+      option: "{{ trigger.payload | capitalize}}"
+  - service: mqtt.publish
+    data:
+      topic: SmartEVSE-XXXXX/Set/Mode
+      entity_id: input_select.evse_mode
+      payload: "{{ trigger.payload | capitalize}}"
+      retain: true
+    enabled: false
 mode: restart
+
+## --------------------------------------------------------------
+
+alias: .EVSE - Set Mode Selector from MQTT
+description: ""
+trigger:
+  - platform: mqtt
+    topic: SmartEVSE-XXXXX/Mode
+condition:
+  - condition: not
+    conditions:
+      - condition: state
+        entity_id: input_select.evse_mode
+        state: "{{ trigger.payload | capitalize}}"
+action:
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 2
+      milliseconds: 0
+  - service: input_select.select_option
+    target:
+      entity_id: input_select.evse_mode
+    data:
+      option: "{{ trigger.payload | capitalize}}"
+mode: restart
+
+## --------------------------------------------------------------
+
+alias: .EVSE set MQTT MainsMeter from HA
+description: ""
+trigger:
+  - platform: state
+    entity_id:
+      - sensor.meter_active_power_l1
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 1
+action:
+  - service: mqtt.publish
+    data_template:
+      topic: SmartEVSE-XXXXX/Set/MainsMeter
+      payload: |-
+        {{
+          ((states('sensor.meter_active_power_l1')|float / states('sensor.on_grid_l1_voltage')|float ) * (-1) * 10 ) | round(0) 
+        }}:{{
+          ((states('sensor.meter_active_power_l2')|float / states('sensor.on_grid_l2_voltage')|float )  * (-1) * 10 ) | round(0)
+        }}:{{ 
+          ((states('sensor.meter_active_power_l3')|float / states('sensor.on_grid_l3_voltage')|float )  * (-1) * 10 ) | round(0) 
+        }}
+
+## --------------------------------------------------------------
+
+alias: .EVSE set MQTT HomeBatteryCurrent from HA
+trigger:
+  - platform: state
+    entity_id:
+      - sensor.battery_current
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 1
+action:
+  - service: mqtt.publish
+    data_template:
+      topic: SmartEVSE-XXXXX/Set/HomeBatteryCurrent
+      payload: "{{ (states('sensor.battery_current') | float * 10 * (-1)) | int }}"
+
+
