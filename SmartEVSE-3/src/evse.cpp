@@ -2374,17 +2374,25 @@ void SetupMQTTClient() {
     announce("Charge Current");
     announce("Charge Current Override");
     announce("Max Current");
-    announce("Mains Current L1");
-    announce("Mains Current L2");
-    announce("Mains Current L3");
-    announce("EV Current L1");
-    announce("EV Current L2");
-    announce("EV Current L3");
-    announce("PV Current L1");
-    announce("PV Current L2");
-    announce("PV Current L3");
     announce("EV Charge Current");
-    announce("Home Battery Current");
+    if (MainsMeter) {
+        announce("Mains Current L1");
+        announce("Mains Current L2");
+        announce("Mains Current L3");
+    };
+    if (EVMeter) {
+        announce("EV Current L1");
+        announce("EV Current L2");
+        announce("EV Current L3");
+    };
+    if (PVMeter) {
+        announce("PV Current L1");
+        announce("PV Current L2");
+        announce("PV Current L3");
+    };
+    if (homeBatteryLastUpdate) {
+        announce("Home Battery Current");
+    };
 
     if (Modem) {
         //now set the parameters for the next batch of entities:
@@ -2392,7 +2400,7 @@ void SetupMQTTClient() {
         announce("EV Initial SoC");
         announce("EV Full SoC");
         announce("EV Computed SoC");
-    }
+    };
 
     //now set the parameters for the next batch of entities:
     optional_payload = "";
@@ -2412,10 +2420,12 @@ void SetupMQTTClient() {
     announce("EV Charge Power");
     optional_payload = jsna("device_class","energy") + jsna("unit_of_measurement","Wh");
     announce("EV Energy Charged");
-    optional_payload = jsna("unit_of_measurement","%") + jsna("val_tpl", R"({{ (value | int / 1024 * 100) | round(0) }})");
-    announce("CP PWM");
-    optional_payload = jsna("device_class","current") + jsna("unit_of_measurement","A") + jsna("val_tpl", R"({% if value | int > -1 %} {{ (value | int / 1024 * 100) | round(0) }} {% else %} N/A {% endif %})");
-    announce("CP PWM Override");
+    if (Modem) {
+        optional_payload = jsna("unit_of_measurement","%") + jsna("val_tpl", R"({{ (value | int / 1024 * 100) | round(0) }})");
+        announce("CP PWM");
+        optional_payload = jsna("device_class","current") + jsna("unit_of_measurement","A") + jsna("val_tpl", R"({% if value | int > -1 %} {{ (value | int / 1024 * 100) | round(0) }} {% else %} N/A {% endif %})");
+        announce("CP PWM Override");
+    };
 }
 
 void mqttPublishData() {
@@ -2432,25 +2442,34 @@ void mqttPublishData() {
         MQTTclient.publish(MQTTprefix + "/RFID", !RFIDReader ? "Not Installed" : RFIDstatus >= 8 ? "NOSTATUS" : StrRFIDStatusWeb[RFIDstatus], true, 0);
         MQTTclient.publish(MQTTprefix + "/State", getStateNameWeb(State), true, 0);
         MQTTclient.publish(MQTTprefix + "/Error", getErrorNameWeb(ErrorFlags), true, 0);
-        MQTTclient.publish(MQTTprefix + "/CPPWM", String(CurrentPWM), false, 0);
-        MQTTclient.publish(MQTTprefix + "/CPPWMOverride", String(CPDutyOverride ? String(CurrentPWM) : "-1"), true, 0);
         MQTTclient.publish(MQTTprefix + "/EVPlugState", (pilot != PILOT_12V) ? "Connected" : "Disconnected", true, 0);
         MQTTclient.publish(MQTTprefix + "/EVChargePower", String(PowerMeasured), false, 0);
         MQTTclient.publish(MQTTprefix + "/EVChargeCurrent", String(ChargeCurrent), false, 0);
         MQTTclient.publish(MQTTprefix + "/EVEnergyCharged", String(EnergyCharged), true, 0);
-        MQTTclient.publish(MQTTprefix + "/EVInitialSoC", String(InitialSoC), true, 0);
-        MQTTclient.publish(MQTTprefix + "/EVFullSoC", String(FullSoC), true, 0);
-        MQTTclient.publish(MQTTprefix + "/EVComputedSoC", String(ComputedSoC), true, 0);
-        MQTTclient.publish(MQTTprefix + "/EVCurrentL1", String(Irms_EV[0]), false, 0);
-        MQTTclient.publish(MQTTprefix + "/EVCurrentL2", String(Irms_EV[1]), false, 0);
-        MQTTclient.publish(MQTTprefix + "/EVCurrentL3", String(Irms_EV[2]), false, 0);
-        MQTTclient.publish(MQTTprefix + "/PVCurrentL1", String(PV[0] > 100 ? (uint) PV[0] / 100 : 0), false, 0);
-        MQTTclient.publish(MQTTprefix + "/PVCurrentL2", String(PV[1] > 100 ? (uint) PV[1] / 100 : 0), false, 0);
-        MQTTclient.publish(MQTTprefix + "/PVCurrentL3", String(PV[2] > 100 ? (uint) PV[2] / 100 : 0), false, 0);
-        MQTTclient.publish(MQTTprefix + "/MainsCurrentL1", String(Irms[0]), false, 0);
-        MQTTclient.publish(MQTTprefix + "/MainsCurrentL2", String(Irms[1]), false, 0);
-        MQTTclient.publish(MQTTprefix + "/MainsCurrentL3", String(Irms[2]), false, 0);
-        MQTTclient.publish(MQTTprefix + "/HomeBatteryCurrent", String(homeBatteryCurrent), false, 0);
+        if (Modem) {
+            MQTTclient.publish(MQTTprefix + "/CPPWM", String(CurrentPWM), false, 0);
+            MQTTclient.publish(MQTTprefix + "/CPPWMOverride", String(CPDutyOverride ? String(CurrentPWM) : "-1"), true, 0);
+            MQTTclient.publish(MQTTprefix + "/EVInitialSoC", String(InitialSoC), true, 0);
+            MQTTclient.publish(MQTTprefix + "/EVFullSoC", String(FullSoC), true, 0);
+            MQTTclient.publish(MQTTprefix + "/EVComputedSoC", String(ComputedSoC), true, 0);
+        };
+        if (EVMeter) {
+            MQTTclient.publish(MQTTprefix + "/EVCurrentL1", String(Irms_EV[0]), false, 0);
+            MQTTclient.publish(MQTTprefix + "/EVCurrentL2", String(Irms_EV[1]), false, 0);
+            MQTTclient.publish(MQTTprefix + "/EVCurrentL3", String(Irms_EV[2]), false, 0);
+        };
+        if (PVMeter) {
+            MQTTclient.publish(MQTTprefix + "/PVCurrentL1", String(PV[0] > 100 ? (uint) PV[0] / 100 : 0), false, 0);
+            MQTTclient.publish(MQTTprefix + "/PVCurrentL2", String(PV[1] > 100 ? (uint) PV[1] / 100 : 0), false, 0);
+            MQTTclient.publish(MQTTprefix + "/PVCurrentL3", String(PV[2] > 100 ? (uint) PV[2] / 100 : 0), false, 0);
+        };
+        if (MainsMeter) {
+            MQTTclient.publish(MQTTprefix + "/MainsCurrentL1", String(Irms[0]), false, 0);
+            MQTTclient.publish(MQTTprefix + "/MainsCurrentL2", String(Irms[1]), false, 0);
+            MQTTclient.publish(MQTTprefix + "/MainsCurrentL3", String(Irms[2]), false, 0);
+        };
+        if (homeBatteryLastUpdate)
+            MQTTclient.publish(MQTTprefix + "/HomeBatteryCurrent", String(homeBatteryCurrent), false, 0);
     } else {
         if (WiFi.status() == WL_CONNECTED) {
             // Setup MQTT client again so we can reconnect
