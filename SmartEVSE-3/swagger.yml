@@ -168,9 +168,9 @@ paths:
             If car is charging and you want to change from 1F to 3F or vice versa:  <br />
             - Change mode to OFF <br />
             - Enable or disable C2 contactor <br />
-            - Change mode to desired mode "Not present", "Always Off", "Solar Off", "Always On", "Auto" <br />
+            - Change mode to desired mode 0 "Not present", 1 "Always Off", 2 "Solar Off", 3 "Always On", 4 "Auto" <br />
             Examples: <br />
-            If the desired C2 mode is "Solar Off", the string to be sent is <b>Solar Off</b> <br />
+            If the desired C2 mode is "Solar Off", the string to be sent is <b>2</b> <br />
           required: false
           schema:
             type: integer
