@@ -2381,7 +2381,6 @@ void SetupMQTTClient() {
     optional_payload = jsna("device_class","current") + jsna("unit_of_measurement","A") + jsna("value_template", R"({{ value | int / 10 }})");
     announce("Charge Current", "sensor");
     announce("Max Current", "sensor");
-    announce("EV Charge Current", "sensor");
     if (MainsMeter) {
         announce("Mains Current L1", "sensor");
         announce("Mains Current L2", "sensor");
