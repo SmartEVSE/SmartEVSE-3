@@ -819,13 +819,8 @@ void setState(uint8_t NewState) {
 void setAccess(bool Access) {
     Access_bit = Access;
     if (Access == 0) {
-        if (Modem)
-            CP_OFF;
         if (State == STATE_C) setState(STATE_C1);                               // Determine where to switch to.
         else if (State == STATE_B || State == STATE_MODEM_REQUEST || State == STATE_MODEM_WAIT || State == STATE_MODEM_DONE || State == STATE_MODEM_DENIED) setState(STATE_B1);
-    } else{
-        if (Modem)
-            CP_ON;
     }
 
     //make mode and start/stoptimes persistent on reboot
@@ -2557,21 +2552,21 @@ void Timer1S(void * parameter) {
                 //  - State STATE_B will enable CP pin again, if disabled. 
                 // This stage we are now in is just before we enable CP_PIN and resume via STATE_B
 
+                // Reset CP to idle & turn off, it will be turned on again later for another try
+                SetCPDuty(1024);
+                CP_OFF;
+
                 // Check whether the EVCCID matches the one required
                 if (strcmp(RequiredEVCCID, "") == 0 || strcmp(RequiredEVCCID, EVCCID) == 0) {
                     // We satisfied the EVCCID requirements, skip modem stages next time
                     ModemStage = 1;
 
-                    setState(STATE_B);                                     // switch to STATE_ACTSTART
+                    setState(STATE_B);                                     // switch to STATE_B
                     GLCD();                                                // Re-init LCD (200ms delay)
                 } else {
                     // We actually do not want to continue charging and re-start at modem request after 60s
                     ModemStage = 0;
                     LeaveModemDeniedStateTimer = 60;
-
-                    // Reset CP & turn off
-                    SetCPDuty(1024);
-                    CP_OFF;
 
                     // Change to MODEM_DENIED state
                     setState(STATE_MODEM_DENIED);
@@ -2584,9 +2579,9 @@ void Timer1S(void * parameter) {
             if (LeaveModemDeniedStateTimer) LeaveModemDeniedStateTimer--;
             else{
                 LeaveModemDeniedStateTimer = -1;           // reset ModemStateDeniedTimer
+                setState(STATE_A);                         // switch to STATE_B
                 CP_ON;
-                setState(STATE_A);                         // switch to STATE_MODEM_REQUEST
-                GLCD();                                                // Re-init LCD (200ms delay)
+                GLCD();                                    // Re-init LCD (200ms delay)
             }
         }
 
@@ -2603,15 +2598,14 @@ void Timer1S(void * parameter) {
 #ifdef MODEM
         // Normally, the modem is enabled when Modem == Experiment. However, after a succesfull communication has been set up, EVSE will restart communication by replugging car and moving back to state B.
         // This time, communication is not initiated. When a car is disconnected, we want to enable the modem states again, but using 12V signal is not reliable (we just "replugged" via CP pin, remember).
-        // This counter just enables the state after 60 seconds of success. 
+        // This counter just enables the state after 3 seconds of success.
         if (DisconnectTimeCounter >= 0){
             DisconnectTimeCounter++;
         }
 
-        // This state can be triggered manually in mode "OFF" or as physical unplug. 
-        if (DisconnectTimeCounter > 60){
+        if (DisconnectTimeCounter > 3){
             pilot = Pilot();
-            if (pilot == PILOT_12V && Access_bit != 0){
+            if (pilot == PILOT_12V){
                 DisconnectTimeCounter = -1;
                 DisconnectEvent();
             } else{ // Run again
@@ -3638,7 +3632,7 @@ void StartwebServer(void) {
 
         boolean evConnected = pilot != PILOT_12V;                    //when access bit = 1, p.ex. in OFF mode, the STATEs are no longer updated
 
-        DynamicJsonDocument doc(1500); // https://arduinojson.org/v6/assistant/
+        DynamicJsonDocument doc(1600); // https://arduinojson.org/v6/assistant/
         doc["version"] = String(VERSION);
         doc["mode"] = mode;
         doc["mode_id"] = modeId;
