@@ -615,15 +615,13 @@ void setMode(uint8_t NewMode) {
     // it's only the regulation algorithm that is changing...
     // EXCEPT when EnableC2 == Solar Off, because we would expect C2 to be off when in Solar Mode and EnableC2 == Solar Off
     // and also the other way around, multiple phases might be wanted when changing from Solar to Normal or Smart
+    bool switchOnLater = false;
     if (EnableC2 == SOLAR_OFF) {
         if ((Mode != MODE_SOLAR && NewMode == MODE_SOLAR) || (Mode == MODE_SOLAR && NewMode != MODE_SOLAR)) {
             //we are switching from non-solar to solar
             //since we EnableC2 == SOLAR_OFF C2 is turned On now, and should be turned off
             setAccess(0);                                                       //switch to OFF
-            if (LoadBl == 1) ModbusWriteSingleRequest(BROADCAST_ADR, 0x0003, NewMode);
-            Mode = NewMode;
-            setAccess(1);
-            return;
+            switchOnLater = true;
         }
     }
 
@@ -634,6 +632,8 @@ void setMode(uint8_t NewMode) {
 
     if (LoadBl == 1) ModbusWriteSingleRequest(BROADCAST_ADR, 0x0003, NewMode);
     Mode = NewMode;
+    if (switchOnLater)
+        setAccess(1);
 
     //make mode and start/stoptimes persistent on reboot
     if (preferences.begin("settings", false) ) {                        //false = write mode
