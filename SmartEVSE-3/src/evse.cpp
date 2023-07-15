@@ -2419,6 +2419,10 @@ void SetupMQTTClient() {
     //set the parameters for and announce diagnostic sensor entities:
     optional_payload = jsna("entity_category","diagnostic");
     announce("Error", "sensor");
+    announce("WiFi SSID", "sensor");
+    announce("WiFi BSSID", "sensor");
+    optional_payload = jsna("entity_category","diagnostic") + jsna("device_class","signal_strength") + jsna("unit_of_measurement","dBm");
+    announce("WiFi RSSI", "sensor");
     optional_payload = jsna("entity_category","diagnostic") + jsna("device_class","temperature") + jsna("unit_of_measurement","°C");
     announce("ESP Temp", "sensor");
     optional_payload = jsna("entity_category","diagnostic") + jsna("device_class","duration") + jsna("unit_of_measurement","s") + jsna("entity_registry_enabled_default","False");
@@ -2468,6 +2472,9 @@ void mqttPublishData() {
         MQTTclient.publish(MQTTprefix + "/EVPlugState", (pilot != PILOT_12V) ? "Connected" : "Disconnected", true, 0);
         MQTTclient.publish(MQTTprefix + "/EVChargePower", String(PowerMeasured), false, 0);
         MQTTclient.publish(MQTTprefix + "/EVEnergyCharged", String(EnergyCharged), true, 0);
+        MQTTclient.publish(MQTTprefix + "/WiFiSSID", String(WiFi.SSID()), true, 0);
+        MQTTclient.publish(MQTTprefix + "/WiFiBSSID", String(WiFi.BSSIDstr()), true, 0);
+        MQTTclient.publish(MQTTprefix + "/WiFiRSSI", String(WiFi.RSSI()), false, 0);
         if (Modem) {
             MQTTclient.publish(MQTTprefix + "/CPPWM", String(CurrentPWM), false, 0);
             MQTTclient.publish(MQTTprefix + "/CPPWMOverride", String(CPDutyOverride ? String(CurrentPWM) : "-1"), true, 0);
