@@ -1560,23 +1560,26 @@ void RecomputeSoC(void) {
             // We're already at full SoC
             ComputedSoC = FullSoC;
             RemainingSoC = 0;
-        } else if (EnergyRequest > 0) {
+        } else if (EnergyRequest > 0 && EnergyCharged > 0) {
             // Attempt to use EnergyRequest to determine SoC with greater accuracy
-            // We're adding 50 Wh to EnergyCharged here to be sure we reach 100% ComputedSoC and compensate for losses
             uint32_t RemainingEnergyWh = (EnergyCharged > 0 ? EnergyRequest - (EnergyCharged) : EnergyRequest);
             if (RemainingEnergyWh > 0) {
-                ComputedSoC = FullSoC - (((double) RemainingEnergyWh / EnergyCapacity) * FullSoC);
-                RemainingSoC = FullSoC - ComputedSoC;
-                return;
+                ComputedSoC = FullSoC - (round(RemainingEnergyWh / EnergyCapacity) * FullSoC);
             } else {
                 ComputedSoC = FullSoC;
-                RemainingSoC = 0;
             }
         } else if (InitialSoC > 0) {
             // Fall back to rough estimate based on InitialSoC if we do not know the requested energy
-            ComputedSoC = InitialSoC + (((double) EnergyCharged / EnergyCapacity) * FullSoC);
-            RemainingSoC = FullSoC - ComputedSoC;
+            ComputedSoC = InitialSoC + (round(EnergyCharged / EnergyCapacity) * FullSoC);
         }
+
+        // We can't possibly charge to over 100% SoC
+        if (ComputedSoC > FullSoC) {
+            ComputedSoC = FullSoC;
+            RemainingSoC = 0;
+        }
+
+        RemainingSoC = FullSoC - ComputedSoC;
     }
     // There's also the possibility an external API/app is used for SoC info. In such case, we allow setting ComputedSoC directly.
 }
@@ -2318,6 +2321,12 @@ void mqtt_receive_callback(const String &topic, const String &payload) {
     } else if (topic == MQTTprefix + "/Set/HomeBatteryCurrent") {
         homeBatteryCurrent = payload.toInt();
         homeBatteryLastUpdate = time(NULL);
+    } else if (topic == MQTTprefix + "/Set/RequiredEVCCID") {
+        strncpy(RequiredEVCCID, payload.c_str(), sizeof(RequiredEVCCID));
+        if (preferences.begin("settings", false) ) {                        //false = write mode
+            preferences.putString("RequiredEVCCID", String(RequiredEVCCID));
+            preferences.end();
+        }
     }
 
     // Make sure MQTT updates directly to prevent debounces
@@ -2402,10 +2411,19 @@ void SetupMQTTClient() {
 
     if (Modem) {
         //set the parameters for modem/SoC sensor entities:
-        optional_payload = jsna("unit_of_measurement","%") + jsna("value_template", R"({% if value | int > -1 %} {{ value | int / 10 }} {% endif %})");
+        optional_payload = jsna("unit_of_measurement","%") + jsna("value_template", R"({% if value | int > -1 %} {{ value }} {% endif %})");
         announce("EV Initial SoC", "sensor");
         announce("EV Full SoC", "sensor");
         announce("EV Computed SoC", "sensor");
+        announce("EV Remaining SoC", "sensor");
+
+        optional_payload = jsna("device_class","energy") + jsna("unit_of_measurement","Wh");
+        announce("EV Energy Capacity", "sensor");
+        announce("EV Energy Request", "sensor");
+
+        optional_payload = "";
+        announce("EVCCID", "sensor");
+        announce("Required EVCCID", "sensor");
     };
 
     //set the parameters for and announce sensor entities without device_class or unit_of_measurement:
@@ -2481,6 +2499,11 @@ void mqttPublishData() {
             MQTTclient.publish(MQTTprefix + "/EVInitialSoC", String(InitialSoC), true, 0);
             MQTTclient.publish(MQTTprefix + "/EVFullSoC", String(FullSoC), true, 0);
             MQTTclient.publish(MQTTprefix + "/EVComputedSoC", String(ComputedSoC), true, 0);
+            MQTTclient.publish(MQTTprefix + "/EVRemainingSoC", String(RemainingSoC), true, 0);
+            MQTTclient.publish(MQTTprefix + "/EVEnergyCapacity", String(EnergyCapacity), true, 0);
+            MQTTclient.publish(MQTTprefix + "/EVEnergyRequest", String(EnergyRequest), true, 0);
+            MQTTclient.publish(MQTTprefix + "/EVCCID", String(EVCCID), true, 0);
+            MQTTclient.publish(MQTTprefix + "/RequiredEVCCID", String(RequiredEVCCID), true, 0);
         };
         if (EVMeter) {
             MQTTclient.publish(MQTTprefix + "/EVCurrentL1", String(Irms_EV[0]), false, 0);
