@@ -2411,25 +2411,33 @@ void SetupMQTTClient() {
 
     if (Modem) {
         //set the parameters for modem/SoC sensor entities:
-        optional_payload = jsna("unit_of_measurement","%") + jsna("value_template", R"({% if value | int > -1 %} {{ value }} {% endif %})");
+        optional_payload = jsna("unit_of_measurement","%") + jsna("value_template", R"({{ none if (value | int == -1) else (value | int) }})");
         announce("EV Initial SoC", "sensor");
         announce("EV Full SoC", "sensor");
         announce("EV Computed SoC", "sensor");
         announce("EV Remaining SoC", "sensor");
 
-        optional_payload = jsna("device_class","energy") + jsna("unit_of_measurement","Wh");
+        optional_payload = jsna("device_class","energy") + jsna("unit_of_measurement","Wh") + jsna("value_template", R"({{ none if (value | int == -1) else (value | int) }})");
         announce("EV Energy Capacity", "sensor");
         announce("EV Energy Request", "sensor");
 
-        optional_payload = "";
+        optional_payload = jsna("value_template", R"({{ none if (value == '') else value }})");
         announce("EVCCID", "sensor");
-        announce("Required EVCCID", "sensor");
+        optional_payload = jsna("state_topic", String(MQTTprefix + "/RequiredEVCCID")) + jsna("command_topic", String(MQTTprefix + "/Set/RequiredEVCCID"));
+        announce("Required EVCCID", "text");
+    };
+
+    if (EVMeter) {
+        //set the parameters for and announce other sensor entities:
+        optional_payload = jsna("device_class","power") + jsna("unit_of_measurement","W");
+        announce("EV Charge Power", "sensor");
+        optional_payload = jsna("device_class","energy") + jsna("unit_of_measurement","Wh");
+        announce("EV Energy Charged", "sensor");
     };
 
     //set the parameters for and announce sensor entities without device_class or unit_of_measurement:
     optional_payload = "";
     announce("EV Plug State", "sensor");
-    announce("Mode", "sensor");
     announce("Access", "sensor");
     announce("State", "sensor");
     announce("RFID", "sensor");
@@ -2446,30 +2454,24 @@ void SetupMQTTClient() {
     optional_payload = jsna("entity_category","diagnostic") + jsna("device_class","duration") + jsna("unit_of_measurement","s") + jsna("entity_registry_enabled_default","False");
     announce("ESP Uptime", "sensor");
 
-    //set the parameters for and announce other sensor entities:
-    optional_payload = jsna("device_class","power") + jsna("unit_of_measurement","W");
-    announce("EV Charge Power", "sensor");
-    optional_payload = jsna("device_class","energy") + jsna("unit_of_measurement","Wh");
-    announce("EV Energy Charged", "sensor");
-
     if (Modem) {
         optional_payload = jsna("unit_of_measurement","%") + jsna("value_template", R"({{ (value | int / 1024 * 100) | round(0) }})");
         announce("CP PWM", "sensor");
 
-        optional_payload = jsna("value_template", R"({{ value if (value | int == -1) else (value | int / 1024 * 100) | round }})");
+        optional_payload = jsna("value_template", R"({{ none if (value | int == -1) else (value | int / 1024 * 100) | round }})");
         optional_payload += jsna("command_topic", String(MQTTprefix + "/Set/CPPWMOverride")) + jsna("min", "-1") + jsna("max", "100") + jsna("mode","slider");
-        optional_payload += jsna("command_template", R"({{  value if (value | int == -1) else (value | int * 1024 / 100) | round }})");
+        optional_payload += jsna("command_template", R"({{ (value | int * 1024 / 100) | round }})");
         announce("CP PWM Override", "number");
     };
 
     //set the parameters for and announce select entities, overriding automatic state_topic:
     optional_payload = jsna("state_topic", String(MQTTprefix + "/Mode")) + jsna("command_topic", String(MQTTprefix + "/Set/Mode"));
     optional_payload += String(R"(, "options" : ["Off", "Normal", "Smart", "Solar"])");
-    announce("Mode Selector", "select");
+    announce("Mode", "select");
 
     //set the parameters for and announce number entities:
     optional_payload = jsna("command_topic", String(MQTTprefix + "/Set/CurrentOverride")) + jsna("min", "0") + jsna("max", MaxCurrent ) + jsna("mode","slider");
-    optional_payload += jsna("value_template", R"({{ value | int / 10 }})") + jsna("command_template", R"({{ value | int * 10 }})");
+    optional_payload += jsna("value_template", R"({{ none if (value | int == 0) else (value | int / 10) }})") + jsna("command_template", R"({{ value | int * 10 }})");
     announce("Charge Current Override", "number");
 }
 
@@ -2488,8 +2490,6 @@ void mqttPublishData() {
         MQTTclient.publish(MQTTprefix + "/State", getStateNameWeb(State), true, 0);
         MQTTclient.publish(MQTTprefix + "/Error", getErrorNameWeb(ErrorFlags), true, 0);
         MQTTclient.publish(MQTTprefix + "/EVPlugState", (pilot != PILOT_12V) ? "Connected" : "Disconnected", true, 0);
-        MQTTclient.publish(MQTTprefix + "/EVChargePower", String(PowerMeasured), false, 0);
-        MQTTclient.publish(MQTTprefix + "/EVEnergyCharged", String(EnergyCharged), true, 0);
         MQTTclient.publish(MQTTprefix + "/WiFiSSID", String(WiFi.SSID()), true, 0);
         MQTTclient.publish(MQTTprefix + "/WiFiBSSID", String(WiFi.BSSIDstr()), true, 0);
         MQTTclient.publish(MQTTprefix + "/WiFiRSSI", String(WiFi.RSSI()), false, 0);
@@ -2509,6 +2509,8 @@ void mqttPublishData() {
             MQTTclient.publish(MQTTprefix + "/EVCurrentL1", String(Irms_EV[0]), false, 0);
             MQTTclient.publish(MQTTprefix + "/EVCurrentL2", String(Irms_EV[1]), false, 0);
             MQTTclient.publish(MQTTprefix + "/EVCurrentL3", String(Irms_EV[2]), false, 0);
+            MQTTclient.publish(MQTTprefix + "/EVChargePower", String(PowerMeasured), false, 0);
+            MQTTclient.publish(MQTTprefix + "/EVEnergyCharged", String(EnergyCharged), true, 0);
         };
         if (PVMeter) {
             MQTTclient.publish(MQTTprefix + "/PVCurrentL1", String(PV[0] > 100 ? (uint) PV[0] / 100 : 0), false, 0);
