@@ -1623,6 +1623,25 @@ void UpdateCurrentData(void) {
         Imeasured_EV = 0;
     }
 
+#ifdef MQTT
+    if (MQTTclient.connected()) {
+        if (MainsMeter) {
+            MQTTclient.publish(MQTTprefix + "/MainsCurrentL1", String(Irms[0]), false, 0);
+            MQTTclient.publish(MQTTprefix + "/MainsCurrentL2", String(Irms[1]), false, 0);
+            MQTTclient.publish(MQTTprefix + "/MainsCurrentL3", String(Irms[2]), false, 0);
+        }
+        if (EVMeter) {
+            MQTTclient.publish(MQTTprefix + "/EVCurrentL1", String(Irms_EV[0]), false, 0);
+            MQTTclient.publish(MQTTprefix + "/EVCurrentL2", String(Irms_EV[1]), false, 0);
+            MQTTclient.publish(MQTTprefix + "/EVCurrentL3", String(Irms_EV[2]), false, 0);
+        }
+        if (PVMeter) {
+            MQTTclient.publish(MQTTprefix + "/PVCurrentL1", String(PV[0] > 100 ? (uint) PV[0] / 100 : 0), false, 0);
+            MQTTclient.publish(MQTTprefix + "/PVCurrentL2", String(PV[1] > 100 ? (uint) PV[1] / 100 : 0), false, 0);
+            MQTTclient.publish(MQTTprefix + "/PVCurrentL3", String(PV[2] > 100 ? (uint) PV[2] / 100 : 0), false, 0);
+        }
+    }
+#endif
     // Load Balancing mode: Smart/Master or Disabled
     // not needed for subpanel mode
     if (Mode && LoadBl < 2) {
@@ -2506,21 +2525,8 @@ void mqttPublishData() {
             MQTTclient.publish(MQTTprefix + "/RequiredEVCCID", String(RequiredEVCCID), true, 0);
         };
         if (EVMeter) {
-            MQTTclient.publish(MQTTprefix + "/EVCurrentL1", String(Irms_EV[0]), false, 0);
-            MQTTclient.publish(MQTTprefix + "/EVCurrentL2", String(Irms_EV[1]), false, 0);
-            MQTTclient.publish(MQTTprefix + "/EVCurrentL3", String(Irms_EV[2]), false, 0);
             MQTTclient.publish(MQTTprefix + "/EVChargePower", String(PowerMeasured), false, 0);
             MQTTclient.publish(MQTTprefix + "/EVEnergyCharged", String(EnergyCharged), true, 0);
-        };
-        if (PVMeter) {
-            MQTTclient.publish(MQTTprefix + "/PVCurrentL1", String(PV[0] > 100 ? (uint) PV[0] / 100 : 0), false, 0);
-            MQTTclient.publish(MQTTprefix + "/PVCurrentL2", String(PV[1] > 100 ? (uint) PV[1] / 100 : 0), false, 0);
-            MQTTclient.publish(MQTTprefix + "/PVCurrentL3", String(PV[2] > 100 ? (uint) PV[2] / 100 : 0), false, 0);
-        };
-        if (MainsMeter) {
-            MQTTclient.publish(MQTTprefix + "/MainsCurrentL1", String(Irms[0]), false, 0);
-            MQTTclient.publish(MQTTprefix + "/MainsCurrentL2", String(Irms[1]), false, 0);
-            MQTTclient.publish(MQTTprefix + "/MainsCurrentL3", String(Irms[2]), false, 0);
         };
         if (homeBatteryLastUpdate)
             MQTTclient.publish(MQTTprefix + "/HomeBatteryCurrent", String(homeBatteryCurrent), false, 0);
