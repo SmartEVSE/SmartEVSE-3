@@ -2413,20 +2413,20 @@ void SetupMQTTClient() {
         announce("Mains Current L1", "sensor");
         announce("Mains Current L2", "sensor");
         announce("Mains Current L3", "sensor");
-    };
+    }
     if (EVMeter) {
         announce("EV Current L1", "sensor");
         announce("EV Current L2", "sensor");
         announce("EV Current L3", "sensor");
-    };
+    }
     if (PVMeter) {
         announce("PV Current L1", "sensor");
         announce("PV Current L2", "sensor");
         announce("PV Current L3", "sensor");
-    };
+    }
     if (homeBatteryLastUpdate) {
         announce("Home Battery Current", "sensor");
-    };
+    }
 
     if (Modem) {
         //set the parameters for modem/SoC sensor entities:
@@ -2444,7 +2444,7 @@ void SetupMQTTClient() {
         announce("EVCCID", "sensor");
         optional_payload = jsna("state_topic", String(MQTTprefix + "/RequiredEVCCID")) + jsna("command_topic", String(MQTTprefix + "/Set/RequiredEVCCID"));
         announce("Required EVCCID", "text");
-    };
+    }
 
     if (EVMeter) {
         //set the parameters for and announce other sensor entities:
@@ -2452,7 +2452,7 @@ void SetupMQTTClient() {
         announce("EV Charge Power", "sensor");
         optional_payload = jsna("device_class","energy") + jsna("unit_of_measurement","Wh");
         announce("EV Energy Charged", "sensor");
-    };
+    }
 
     //set the parameters for and announce sensor entities without device_class or unit_of_measurement:
     optional_payload = "";
@@ -2481,7 +2481,7 @@ void SetupMQTTClient() {
         optional_payload += jsna("command_topic", String(MQTTprefix + "/Set/CPPWMOverride")) + jsna("min", "-1") + jsna("max", "100") + jsna("mode","slider");
         optional_payload += jsna("command_template", R"({{ (value | int * 1024 / 100) | round }})");
         announce("CP PWM Override", "number");
-    };
+    }
 
     //set the parameters for and announce select entities, overriding automatic state_topic:
     optional_payload = jsna("state_topic", String(MQTTprefix + "/Mode")) + jsna("command_topic", String(MQTTprefix + "/Set/Mode"));
@@ -2523,11 +2523,11 @@ void mqttPublishData() {
             MQTTclient.publish(MQTTprefix + "/EVEnergyRequest", String(EnergyRequest), true, 0);
             MQTTclient.publish(MQTTprefix + "/EVCCID", String(EVCCID), true, 0);
             MQTTclient.publish(MQTTprefix + "/RequiredEVCCID", String(RequiredEVCCID), true, 0);
-        };
+        }
         if (EVMeter) {
             MQTTclient.publish(MQTTprefix + "/EVChargePower", String(PowerMeasured), false, 0);
             MQTTclient.publish(MQTTprefix + "/EVEnergyCharged", String(EnergyCharged), true, 0);
-        };
+        }
         if (homeBatteryLastUpdate)
             MQTTclient.publish(MQTTprefix + "/HomeBatteryCurrent", String(homeBatteryCurrent), false, 0);
     } else {
