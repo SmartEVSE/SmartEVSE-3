@@ -3595,7 +3595,7 @@ void StartwebServer(void) {
     });
 
     webServer.on("/update", HTTP_GET, [](AsyncWebServerRequest *request) {
-        request->send(200, "text/html", "spiffs.bin updates the SPIFFS partition<br>firmware.bin updates the main firmware<br><form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>");
+        request->send(200, "text/html", "First flash firmware.bin to update the main firmware.<br>Then flash spiffs.bin to update the SPIFFS partition, which provides the webserver user interface.<br>You should only flash files with those exact names.<br>If you want to telnet to your SmartEVSE to see the debug messages you should rename firmware.debug.bin to firmware.bin and flash that file.<br><form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>");
     });
 
     webServer.on("/update", HTTP_POST, [](AsyncWebServerRequest *request) {
