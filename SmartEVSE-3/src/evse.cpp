@@ -76,7 +76,6 @@ String MQTTprefix = APhostname;
 String MQTTHost = "";
 uint16_t MQTTPort;
 
-bool MQTTconfigured = false;
 TaskHandle_t MqttTaskHandle = NULL;
 uint8_t lastMqttUpdate = 0;
 #endif
@@ -2381,8 +2380,6 @@ void SetupMQTTClient() {
         MQTTclient.subscribe(String(MQTTprefix + "/Set/#"));
     }
 
-    MQTTconfigured = true;
-
     //publish MQTT discovery topics
     //we need something to make all this JSON stuff readable, without doing all this assign and serialize stuff
 #define jsn(x, y) String(R"(")") + x + R"(" : ")" + y + R"(")"
@@ -2841,7 +2838,7 @@ void Timer1S(void * parameter) {
         // Process MQTT data
         MQTTclient.loop();
 
-        if (MQTTconfigured && lastMqttUpdate++ >= 10) {
+        if (lastMqttUpdate++ >= 10) {
             // Publish latest data, every 10 seconds
             // We will try to publish data faster if something has changed
             mqttPublishData();
@@ -3741,14 +3738,10 @@ void StartwebServer(void) {
         doc["mqtt"]["username"] = MQTTuser;
         doc["mqtt"]["password_set"] = MQTTpassword != "";
 
-        if (MQTTconfigured) {
-            if (MQTTclient.connected()) {
-                doc["mqtt"]["status"] = "Connected";
-            } else {
-                doc["mqtt"]["status"] = "Disconnected";
-            }
+        if (MQTTclient.connected()) {
+            doc["mqtt"]["status"] = "Connected";
         } else {
-            doc["mqtt"]["status"] = "Unconfigured";
+            doc["mqtt"]["status"] = "Disconnected";
         }
 #endif
 
