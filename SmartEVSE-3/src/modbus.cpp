@@ -580,7 +580,7 @@ uint8_t mapModbusRegister2ItemID() {
     uint16_t RegisterStart, ItemStart, Count;
 
     // Register 0x00*: Status
-    if (MB.Register >= MODBUS_EVSE_STATUS_START && MB.Register < (MODBUS_EVSE_STATUS_START + MODBUS_EVSE_STATUS_COUNT)) {
+    if (MB.Register < (MODBUS_EVSE_STATUS_START + MODBUS_EVSE_STATUS_COUNT)) {
         RegisterStart = MODBUS_EVSE_STATUS_START;
         ItemStart = STATUS_STATE;
         Count = MODBUS_EVSE_STATUS_COUNT;
