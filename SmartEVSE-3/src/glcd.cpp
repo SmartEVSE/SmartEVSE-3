@@ -1142,58 +1142,59 @@ void GLCDMenu(uint8_t Buttons) {
     //
     // here we update the LCD
     //
-    if ( ButtonRelease == 1 || LCDNav == 1 || LCDNav == MENU_OFF || LCDNav == MENU_ON ) { //TODO this can be optimized
-    
-        if (LCDNav == 1) {
+    switch (LCDNav) {
+        case 1:
             glcd_clrln(0, 0x00);
             glcd_clrln(1, 0x04);                                                // horizontal line
             GLCD_print_buf2(2, (const char *) "Hold 2 sec");
             GLCD_print_buf2(4, (const char *) "for Menu");
             glcd_clrln(6, 0x10);                                                // horizontal line
             glcd_clrln(7, 0x00);
-
-        } else if (LCDNav == MENU_OFF) {
+            ButtonRelease = 2;                                                      // Set value to 2, so that LCD will be updated only once
+            break;
+        case MENU_OFF:
             glcd_clrln(0, 0x00);
             glcd_clrln(1, 0x04);                                                // horizontal line
             GLCD_print_buf2(2, (const char *) "Hold 2 sec");
             GLCD_print_buf2(4, (const char *) "to Stop");
             glcd_clrln(6, 0x10);                                                // horizontal line
             glcd_clrln(7, 0x00);
-
-        } else if (LCDNav == MENU_ON) {
+            ButtonRelease = 2;                                                      // Set value to 2, so that LCD will be updated only once
+            break;
+        case MENU_ON:
             glcd_clrln(0, 0x00);
             glcd_clrln(1, 0x04);                                                // horizontal line
             GLCD_print_buf2(2, (const char *) "Hold 2 sec");
             GLCD_print_buf2(4, (const char *) "to Start");
             glcd_clrln(6, 0x10);                                                // horizontal line
             glcd_clrln(7, 0x00);
-
-        } else {
-            
-            if (LCDNav != 0)
-                GLCD_print_menu(2, MenuStr[LCDNav].LCD);                            // add navigation arrows on both sides
-            switch (LCDNav) {
-                case MENU_CAL:
-                    if (SubMenu) {
-                        sprintf(Str, "%u.%uA", CT1 / 10, CT1 % 10);
-                    } else {
-                        sprintf(Str, "%u.%uA",((unsigned int) abs(Irms[0]) / 10), ((unsigned int) abs(Irms[0]) % 10) );
-                    }
-                    GLCD_print_menu(4, Str);
-                    break;
-                default:
-                    GLCD_print_menu(4, getMenuItemOption(LCDNav));              // print Menu
-                    break;
+            ButtonRelease = 2;                                                      // Set value to 2, so that LCD will be updated only once
+            break;
+        default:
+            //so we are anything else then 1, MENU_OFF, MENU_ON
+            if (ButtonRelease == 1) {
+                switch (LCDNav) {
+                    case MENU_CAL:
+                        if (SubMenu) {
+                            sprintf(Str, "%u.%uA", CT1 / 10, CT1 % 10);
+                        } else {
+                            sprintf(Str, "%u.%uA",((unsigned int) abs(Irms[0]) / 10), ((unsigned int) abs(Irms[0]) % 10) );
+                        }
+                        GLCD_print_menu(4, Str);
+                        break;
+                    default:
+                        GLCD_print_menu(4, getMenuItemOption(LCDNav));              // print Menu
+                        break;
+                }
+                if (LCDNav != 0) {
+                    GLCD_print_menu(2, MenuStr[LCDNav].LCD);                            // add navigation arrows on both sides
+                    // Bottom row of the GLCD
+                    GLCD_buffer_clr();
+                    GLCD_write_buf_str(0, 0, (const char *) VERSION, GLCD_ALIGN_LEFT);// show software version in bottom right corner.
+                    GLCD_sendbuf(7, 1);
+                }
+                ButtonRelease = 2;                                                      // Set value to 2, so that LCD will be updated only once
             }
-
-            if (LCDNav != 0) {
-                // Bottom row of the GLCD
-                GLCD_buffer_clr();
-                GLCD_write_buf_str(0, 0, (const char *) VERSION, GLCD_ALIGN_LEFT);// show software version in bottom right corner.
-                GLCD_sendbuf(7, 1);
-            }
-        }
-        ButtonRelease = 2;                                                      // Set value to 2, so that LCD will be updated only once
     }
 
 
