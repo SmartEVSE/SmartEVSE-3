@@ -1142,50 +1142,31 @@ void GLCDMenu(uint8_t Buttons) {
     //
     // here we update the LCD
     //
+    String HoldStr = "";
     switch (LCDNav) {
         case 1:
-            glcd_clrln(0, 0x00);
-            glcd_clrln(1, 0x04);                                                // horizontal line
-            GLCD_print_buf2(2, (const char *) "Hold 2 sec");
-            GLCD_print_buf2(4, (const char *) "for Menu");
-            glcd_clrln(6, 0x10);                                                // horizontal line
-            glcd_clrln(7, 0x00);
-            ButtonRelease = 2;                                                      // Set value to 2, so that LCD will be updated only once
+            HoldStr = "for Menu";
             break;
         case MENU_OFF:
-            glcd_clrln(0, 0x00);
-            glcd_clrln(1, 0x04);                                                // horizontal line
-            GLCD_print_buf2(2, (const char *) "Hold 2 sec");
-            GLCD_print_buf2(4, (const char *) "to Stop");
-            glcd_clrln(6, 0x10);                                                // horizontal line
-            glcd_clrln(7, 0x00);
-            ButtonRelease = 2;                                                      // Set value to 2, so that LCD will be updated only once
+            HoldStr = "to Stop";
             break;
         case MENU_ON:
-            glcd_clrln(0, 0x00);
-            glcd_clrln(1, 0x04);                                                // horizontal line
-            GLCD_print_buf2(2, (const char *) "Hold 2 sec");
-            GLCD_print_buf2(4, (const char *) "to Start");
-            glcd_clrln(6, 0x10);                                                // horizontal line
-            glcd_clrln(7, 0x00);
-            ButtonRelease = 2;                                                      // Set value to 2, so that LCD will be updated only once
+            HoldStr = "to Start";
+            break;
+        case MENU_CAL:
+            if (ButtonRelease == 1) {
+                if (SubMenu) {
+                    sprintf(Str, "%u.%uA", CT1 / 10, CT1 % 10);
+                } else {
+                    sprintf(Str, "%u.%uA",((unsigned int) abs(Irms[0]) / 10), ((unsigned int) abs(Irms[0]) % 10) );
+                }
+                GLCD_print_menu(4, Str);
+            }
             break;
         default:
             //so we are anything else then 1, MENU_OFF, MENU_ON
             if (ButtonRelease == 1) {
-                switch (LCDNav) {
-                    case MENU_CAL:
-                        if (SubMenu) {
-                            sprintf(Str, "%u.%uA", CT1 / 10, CT1 % 10);
-                        } else {
-                            sprintf(Str, "%u.%uA",((unsigned int) abs(Irms[0]) / 10), ((unsigned int) abs(Irms[0]) % 10) );
-                        }
-                        GLCD_print_menu(4, Str);
-                        break;
-                    default:
-                        GLCD_print_menu(4, getMenuItemOption(LCDNav));              // print Menu
-                        break;
-                }
+                GLCD_print_menu(4, getMenuItemOption(LCDNav));                  // print Menu
                 if (LCDNav != 0) {
                     GLCD_print_menu(2, MenuStr[LCDNav].LCD);                            // add navigation arrows on both sides
                     // Bottom row of the GLCD
@@ -1197,6 +1178,15 @@ void GLCDMenu(uint8_t Buttons) {
             }
     }
 
+    if (HoldStr != "") {
+            glcd_clrln(0, 0x00);
+            glcd_clrln(1, 0x04);                                                // horizontal line
+            GLCD_print_buf2(2, (const char *) "Hold 2 sec");
+            GLCD_print_buf2(4, HoldStr.c_str());
+            glcd_clrln(6, 0x10);                                                // horizontal line
+            glcd_clrln(7, 0x00);
+            ButtonRelease = 2;                                                  // Set value to 2, so that LCD will be updated only once
+    }
 
     ScrollTimer = millis();                                                     // reset timer for HelpMenu text
     LCDpos = 0;                                                                 // reset position of scrolling text
