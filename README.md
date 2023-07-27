@@ -176,6 +176,11 @@ There is a simple timer implemented on the webserver, for Delayed Charging.
     - if your NTP time is not synchronized yet (e.g. after a reboot), results will be unpredictable. WAIT until time is settled.
     - if your StopTime is AFTER your StartTime+24Hours, untested territories are entered. Please enter values that make sense.
 
+# Improved starting/stopping through the LCD screen
+* When pressing o button longer then 2 seconds you will enter the Menu screen
+* When pressing < button longer then 2 seconds the access will be denied, i.e. the mode will be set to "Off" and charging will stop
+* When pressing > button longer then 2 seconds the access will be granted, i.e. the previously set mode will be activated and charging will start
+
 # Building the firmware
 
 * Install platformio-core https://docs.platformio.org/en/latest/core/installation/methods/index.html
