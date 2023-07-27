@@ -1017,13 +1017,38 @@ void GLCDMenu(uint8_t Buttons) {
         LCDNav = 0;
         ButtonRelease = 0;
         GLCD();
+    // stop charging if < button is pressed longer then 2 seconds
+    } else if ((LCDNav == 0) && (Buttons == 0x6) && (ButtonRelease == 0)) {     // Button 1 pressed ?
+        LCDNav = MENU_OFF;                                                      // about to cancel charging
+        ButtonTimer = millis();
+    } else if (LCDNav == MENU_OFF && ((ButtonTimer + 2000) < millis() )) {
+        LCDNav = 0;                                                             // Charging canceled
+        setAccess(false);
+        ButtonRelease = 1;
+    } else if ((LCDNav == MENU_OFF) && (Buttons == 0x7)) {                      // Button 1 released before entering menu?
+        LCDNav = 0;
+        ButtonRelease = 0;
+        GLCD();
+    // start charging if > button is pressed longer then 2 seconds
+    } else if ((LCDNav == 0) && (Buttons == 0x3) && (ButtonRelease == 0)) {     // Button 3 pressed ?
+        LCDNav = MENU_ON;                                                       // about to start charging
+        ButtonTimer = millis();
+    } else if (LCDNav == MENU_ON && ((ButtonTimer + 2000) < millis() )) {
+        LCDNav = 0;                                                             // Charging canceled
+        setAccess(true);
+        ButtonRelease = 1;
+    } else if ((LCDNav == MENU_ON) && (Buttons == 0x7)) {                      // Button 1 released before entering menu?
+        LCDNav = 0;
+        ButtonRelease = 0;
+        GLCD();
+    ////////////////
     } else if (Buttons == 0x2 && (ButtonRelease == 0)) {                        // Buttons < and > pressed ?
         if ((LCDNav == MENU_CAL) &&  SubMenu ) {                                // While in CT CAL submenu ?
             ICal = ICAL;                                                        // reset Calibration value
             SubMenu = 0;                                                        // Exit Submenu
         } else GLCD_init();                                                     // re-initialize LCD
         ButtonRelease = 1;
-    } else if ((LCDNav > 1) && (Buttons == 0x2 || Buttons == 0x3 || Buttons == 0x6)) { // Buttons < or > or both pressed
+    } else if ((LCDNav > 1) && LCDNav != MENU_OFF && LCDNav != MENU_ON && (Buttons == 0x2 || Buttons == 0x3 || Buttons == 0x6)) { // Buttons < or > or both pressed
         if (ButtonRelease == 0) {                                               // We are navigating between sub menu options
             if (SubMenu) {
                 switch (LCDNav) {
@@ -1080,7 +1105,7 @@ void GLCDMenu(uint8_t Buttons) {
                 ButtonTimer = millis() + ButtonRepeat;
             }
         }
-    } else if (LCDNav > 1 && Buttons == 0x5 && ButtonRelease == 0) {            // Button 2 pressed?
+    } else if (LCDNav > 1 && LCDNav != MENU_OFF && LCDNav != MENU_ON && Buttons == 0x5 && ButtonRelease == 0) {            // Button 2 pressed?
         ButtonRelease = 1;
         if (SubMenu) {                                                          // We are currently in Submenu
             SubMenu = 0;                                                        // Exit Submenu now
@@ -1117,13 +1142,29 @@ void GLCDMenu(uint8_t Buttons) {
     //
     // here we update the LCD
     //
-    if ( ButtonRelease == 1 || LCDNav == 1) {
+    if ( ButtonRelease == 1 || LCDNav == 1 || LCDNav == MENU_OFF || LCDNav == MENU_ON ) { //TODO this can be optimized
     
         if (LCDNav == 1) {
             glcd_clrln(0, 0x00);
             glcd_clrln(1, 0x04);                                                // horizontal line
             GLCD_print_buf2(2, (const char *) "Hold 2 sec");
             GLCD_print_buf2(4, (const char *) "for Menu");
+            glcd_clrln(6, 0x10);                                                // horizontal line
+            glcd_clrln(7, 0x00);
+
+        } else if (LCDNav == MENU_OFF) {
+            glcd_clrln(0, 0x00);
+            glcd_clrln(1, 0x04);                                                // horizontal line
+            GLCD_print_buf2(2, (const char *) "Hold 2 sec");
+            GLCD_print_buf2(4, (const char *) "to Stop");
+            glcd_clrln(6, 0x10);                                                // horizontal line
+            glcd_clrln(7, 0x00);
+
+        } else if (LCDNav == MENU_ON) {
+            glcd_clrln(0, 0x00);
+            glcd_clrln(1, 0x04);                                                // horizontal line
+            GLCD_print_buf2(2, (const char *) "Hold 2 sec");
+            GLCD_print_buf2(4, (const char *) "to Start");
             glcd_clrln(6, 0x10);                                                // horizontal line
             glcd_clrln(7, 0x00);
 

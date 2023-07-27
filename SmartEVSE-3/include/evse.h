@@ -329,7 +329,9 @@ extern RemoteDebug Debug;
 #define MENU_C2 38
 #define MENU_MAX_TEMP 39
 #define MENU_MODEM 40
-#define MENU_EXIT 41
+#define MENU_OFF 41                                                             // so access bit is reset and charging stops when pressing < button 2 seconds
+#define MENU_ON 42                                                              // so access bit is set and charging starts when pressing > button 2 seconds
+#define MENU_EXIT 43
 
 #define MENU_STATE 50
 
@@ -487,6 +489,8 @@ const struct {
     {"CONTACT2","Contactor2 (C2) behaviour",                          0, sizeof(StrEnableC2) / sizeof(StrEnableC2[0])-1, ENABLE_C2},
     {"MAX TEMP","Maximum temperature for the EVSE module",            40, 75, MAX_TEMPERATURE},
     {"MODEM",   "Is an ISO15118 modem installed (experimental)",      0, 1, NOTPRESENT},
+    {"", "Hold 2 sec to stop charging", 0, 0, 0},
+    {"", "Hold 2 sec to start charging", 0, 0, 0},
 
     {"EXIT", "EXIT", 0, 0, 0}
 };
