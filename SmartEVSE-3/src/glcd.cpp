@@ -1186,12 +1186,12 @@ void GLCDMenu(uint8_t Buttons) {
                     break;
             }
 
-            // Bottom row of the GLCD
-            GLCD_buffer_clr();
-            GLCD_write_buf_str(0, 0, (const char *) VERSION, GLCD_ALIGN_LEFT);// show software version in bottom right corner.
-            sprintf(Str, "%u/%u", GetPosInMenu(MenuItemsCount), MenuItemsCount);                              // ° Degree symbol
-            GLCD_write_buf_str(122, 0, Str, GLCD_ALIGN_RIGHT);                     // show the internal temperature
-            GLCD_sendbuf(7, 1);
+            if (LCDNav != 0) {
+                // Bottom row of the GLCD
+                GLCD_buffer_clr();
+                GLCD_write_buf_str(0, 0, (const char *) VERSION, GLCD_ALIGN_LEFT);// show software version in bottom right corner.
+                GLCD_sendbuf(7, 1);
+            }
         }
         ButtonRelease = 2;                                                      // Set value to 2, so that LCD will be updated only once
     }
