@@ -1170,7 +1170,8 @@ void GLCDMenu(uint8_t Buttons) {
 
         } else {
             
-            GLCD_print_menu(2, MenuStr[LCDNav].LCD);                            // add navigation arrows on both sides
+            if (LCDNav != 0)
+                GLCD_print_menu(2, MenuStr[LCDNav].LCD);                            // add navigation arrows on both sides
             switch (LCDNav) {
                 case MENU_CAL:
                     if (SubMenu) {
