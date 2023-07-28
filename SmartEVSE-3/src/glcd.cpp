@@ -437,7 +437,7 @@ void GLCD(void) {
             // When Wifi Setup is selected, show password and SSID of the Access Point
             } else if (WIFImode == 2) {
                 if (SubMenu && WiFi.getMode() != WIFI_AP_STA) {           // Do not show if AP_STA mode is started 
-                    sprintf(Str, "Up button starts portal");
+                    sprintf(Str, "O button starts portal");
                     GLCD_write_buf_str(0,0, Str, GLCD_ALIGN_LEFT);                                        
                 } else {
                     // Show Access Point name
