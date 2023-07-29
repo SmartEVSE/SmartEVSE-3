@@ -68,7 +68,7 @@
 // Default: 10 minutes
 // Comment it if you not want this
 // Can be by project, just define it before include this file
-#define MAX_TIME_INACTIVE 600000
+//#define MAX_TIME_INACTIVE 600000
 
 // Buffered print write to WiFi -> length of buffer
 // Can be by project, just define it before include this file
