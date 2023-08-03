@@ -242,7 +242,7 @@ int32_t EnergyCharged = 0;                                                  // k
 int32_t EnergyMeterStart = 0;                                               // kWh meter value is stored once EV is connected to EVSE (Wh)
 int32_t PowerMeasured = 0;                                                  // Measured Charge power in Watt by kWh meter
 uint8_t RFIDstatus = 0;
-int32_t EnergyEV = 0;   
+int32_t EnergyEV = 0;                                                       // Wh -> EV_import_active_energy - EV_export_active_energy
 int32_t Mains_export_active_energy = 0;                                     // Mainsmeter exported active energy, only for API purposes so you can guard the
                                                                             // enery usage of your house
 int32_t Mains_import_active_energy = 0;                                     // Mainsmeter imported active energy, only for API purposes so you can guard the
@@ -2449,6 +2449,8 @@ void SetupMQTTClient() {
         announce("EV Charge Power", "sensor");
         optional_payload = jsna("device_class","energy") + jsna("unit_of_measurement","Wh");
         announce("EV Energy Charged", "sensor");
+        optional_payload = jsna("device_class","energy") + jsna("unit_of_measurement","Wh") + jsna("state_class","total_increasing");
+        announce("EV Total Energy Charged", "sensor");
     }
 
     //set the parameters for and announce sensor entities without device_class or unit_of_measurement:
@@ -2524,6 +2526,7 @@ void mqttPublishData() {
         if (EVMeter) {
             MQTTclient.publish(MQTTprefix + "/EVChargePower", String(PowerMeasured), false, 0);
             MQTTclient.publish(MQTTprefix + "/EVEnergyCharged", String(EnergyCharged), true, 0);
+            MQTTclient.publish(MQTTprefix + "/EVTotalEnergyCharged", String(EnergyEV), false, 0);
         }
         if (homeBatteryLastUpdate)
             MQTTclient.publish(MQTTprefix + "/HomeBatteryCurrent", String(homeBatteryCurrent), false, 0);
