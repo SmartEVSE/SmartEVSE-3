@@ -78,6 +78,7 @@ uint16_t MQTTPort;
 
 TaskHandle_t MqttTaskHandle = NULL;
 uint8_t lastMqttUpdate = 0;
+std::mutex pub_mtx;
 #endif
 
 ESPAsync_WiFiManager ESPAsync_wifiManager(&webServer, &dnsServer, APhostname.c_str());
@@ -1624,6 +1625,7 @@ void UpdateCurrentData(void) {
 
 #ifdef MQTT
     if (MQTTclient.connected()) {
+        std::lock_guard<std::mutex> lck(pub_mtx);
         if (MainsMeter) {
             MQTTclient.publish(MQTTprefix + "/MainsCurrentL1", String(Irms[0]), false, 0);
             MQTTclient.publish(MQTTprefix + "/MainsCurrentL2", String(Irms[1]), false, 0);
@@ -2511,6 +2513,7 @@ void mqttPublishData() {
     lastMqttUpdate = 0;
 
     if (MQTTclient.connected()) {
+        std::lock_guard<std::mutex> lck(pub_mtx);
         MQTTclient.publish(MQTTprefix + "/ESPUptime", String((esp_timer_get_time() / 1000000)), false, 0);
         MQTTclient.publish(MQTTprefix + "/ESPTemp", String(TempEVSE), false, 0);
         MQTTclient.publish(MQTTprefix + "/Mode", Access_bit == 0 ? "Off" : Mode > 3 ? "N/A" : StrMode[Mode], true, 0);
