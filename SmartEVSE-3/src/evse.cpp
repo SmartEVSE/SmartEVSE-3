@@ -1626,17 +1626,17 @@ void UpdateCurrentData(void) {
 #ifdef MQTT
     if (MQTTclient.connected()) {
         std::lock_guard<std::mutex> lck(pub_mtx);
-        if (MainsMeter && MainsMeter != EM_API) {
+        if (MainsMeter) {
             MQTTclient.publish(MQTTprefix + "/MainsCurrentL1", String(Irms[0]), false, 0);
             MQTTclient.publish(MQTTprefix + "/MainsCurrentL2", String(Irms[1]), false, 0);
             MQTTclient.publish(MQTTprefix + "/MainsCurrentL3", String(Irms[2]), false, 0);
         }
-        if (EVMeter && EVMeter != EM_API) {
+        if (EVMeter) {
             MQTTclient.publish(MQTTprefix + "/EVCurrentL1", String(Irms_EV[0]), false, 0);
             MQTTclient.publish(MQTTprefix + "/EVCurrentL2", String(Irms_EV[1]), false, 0);
             MQTTclient.publish(MQTTprefix + "/EVCurrentL3", String(Irms_EV[2]), false, 0);
         }
-        if (PVMeter && PVMeter != EM_API) {
+        if (PVMeter) {
             MQTTclient.publish(MQTTprefix + "/PVCurrentL1", String(PV[0] > 100 ? (uint) PV[0] / 100 : 0), false, 0);
             MQTTclient.publish(MQTTprefix + "/PVCurrentL2", String(PV[1] > 100 ? (uint) PV[1] / 100 : 0), false, 0);
             MQTTclient.publish(MQTTprefix + "/PVCurrentL3", String(PV[2] > 100 ? (uint) PV[2] / 100 : 0), false, 0);
