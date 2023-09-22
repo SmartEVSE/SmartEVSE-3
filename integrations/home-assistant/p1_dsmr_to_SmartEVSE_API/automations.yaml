@@ -1,0 +1,11 @@
+- id: 'xxxxxxxxxxxxxx'
+  alias: P1toSmartevse
+  description: ''
+  trigger:
+  - platform: time_pattern
+    seconds: /1
+  condition: []
+  action:
+  - service: shell_command.dsmrtosmartevse
+    data: {}
+  mode: single

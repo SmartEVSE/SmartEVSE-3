@@ -1,0 +1,38 @@
+#Data naar SMARTEVSe
+shell_command:
+  dsmrtosmartevse: 'curl -X POST "http://192.168.x.x/currents?L1={{ states("nettocurrent_l1") | float*10 }}&L2={{ states("nettocurrent_l2") | float*10 }}&L3={{ states("nettocurrent_l3") | float*10 }}" -H "accept: application/json" -H "Content-Type: application/json" -d {}'
+
+template:
+  - sensor:
+      - name: "nettocurrent_l1"
+        unit_of_measurement: A
+        device_class: current
+        state: >
+          {% set solarl1 = states('sensor.electricity_meter_power_production_phase_l1') | float(0) %}
+          {% set currentl1 = states('sensor.electricity_meter_current_phase_l1') | float(0) %}
+          {{ currentl1 * -1 if solarl1 > 0 else currentl1 }}
+        availability: >
+          {{ states('sensor.electricity_meter_power_production_phase_l1') | is_number and 
+            states('sensor.electricity_meter_current_phase_l1') | is_number }}
+  - sensor:
+      - name: "nettocurrent_l2"
+        unit_of_measurement: A
+        device_class: current
+        state: >
+          {% set solarl2 = states('sensor.electricity_meter_power_production_phase_l2') | float(0) %}
+          {% set currentl2 = states('sensor.electricity_meter_current_phase_l2') | float(0) %}
+          {{ currentl2 * -1 if solarl2 > 0 else currentl2 }}
+        availability: >
+          {{ states('sensor.electricity_meter_power_production_phase_l2') | is_number and 
+            states('sensor.electricity_meter_current_phase_l2') | is_number }}
+  - sensor:
+      - name: "nettocurrent_l3"
+        unit_of_measurement: A
+        device_class: current
+        state: >
+          {% set solarl3 = states('sensor.electricity_meter_power_production_phase_l3') | float(0) %}
+          {% set currentl3 = states('sensor.electricity_meter_current_phase_l3') | float(0) %}
+          {{ currentl3 * -1 if solarl3 > 0 else currentl3 }}
+        availability: >
+          {{ states('sensor.electricity_meter_power_production_phase_l3') | is_number and 
+            states('sensor.electricity_meter_current_phase_l3') | is_number }}
