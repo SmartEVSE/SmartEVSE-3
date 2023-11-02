@@ -521,7 +521,8 @@ void requestCurrentMeasurement(uint8_t Meter, uint8_t Address) {
         case EM_SENSORBOX:
             ModbusReadInputRequest(Address, 4, 0, 20);
             break;
-        case EM_EASTRON:
+        case EM_EASTRON1P:
+        case EM_EASTRON3P:
             // Phase 1-3 current: Register 0x06 - 0x0B (unsigned)
             // Phase 1-3 power:   Register 0x0C - 0x11 (signed)
             ModbusReadInputRequest(Address, 4, 0x06, 12);
@@ -535,6 +536,11 @@ void requestCurrentMeasurement(uint8_t Meter, uint8_t Address) {
             // Read 3 Current values + scaling factor
             ModbusReadInputRequest(Address, EMConfig[Meter].Function, EMConfig[Meter].IRegister, 4);
             break;
+        case EM_FINDER_7M:
+            // Phase 1-3 current: Register 2516 - 2521 (unsigned)
+            // Phase 1-3 power:   Register 2530 - 2535 (signed)
+            ModbusReadInputRequest(Address, 4, 2516, 20);
+            break;    
         default:
             // Read 3 Current values
             requestMeasurement(Meter, Address, EMConfig[Meter].IRegister, 3);
@@ -560,6 +566,8 @@ uint8_t receiveCurrentMeasurement(uint8_t *buf, uint8_t Meter, signed int *var) 
         case EM_SENSORBOX:
             // return immediately if the data contains no new P1 or CT measurement
             if (buf[3] == 0) return 0;  // error!!
+            // check if we are connected to TestIO interface.
+            if (buf[0] == 'I' && buf[1] == 'O') TestState = 1;
             // determine if there is P1 data present, otherwise use CT data
             if (buf[3] & 0x80) offset = 4;                                      // P1 data present
             else offset = 7;                                                    // Use CTs
@@ -621,7 +629,8 @@ uint8_t receiveCurrentMeasurement(uint8_t *buf, uint8_t Meter, signed int *var) 
 
     // Get sign from power measurement on some electric meters
     switch(Meter) {
-        case EM_EASTRON:
+        case EM_EASTRON1P:
+        case EM_EASTRON3P:
             for (x = 0; x < 3; x++) {
                 if (receiveMeasurement(buf, x + 3u, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, EMConfig[Meter].PDivisor) < 0) var[x] = -var[x];
             }
@@ -631,6 +640,11 @@ uint8_t receiveCurrentMeasurement(uint8_t *buf, uint8_t Meter, signed int *var) 
                 if (receiveMeasurement(buf, x + 5u, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, EMConfig[Meter].PDivisor) < 0) var[x] = -var[x];
             }
             break;
+        case EM_FINDER_7M:
+            for (x = 0; x < 3; x++) {
+                if (receiveMeasurement(buf, x + 7u, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, EMConfig[Meter].PDivisor) < 0) var[x] = -var[x];
+            }
+            break;   
     }
 
     // all OK

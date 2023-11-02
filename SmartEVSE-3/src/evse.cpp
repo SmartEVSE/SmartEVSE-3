@@ -24,15 +24,13 @@
 #include "OneWire.h"
 #include "modbus.h"
 
-#include <nvs_flash.h>              // nvs initialisation code (can be removed?)
-
 #include <soc/sens_reg.h>
 #include <soc/sens_struct.h>
 #include "driver/adc.h"
 #include "esp_adc_cal.h"
 
-#include "driver/uart.h"
 #include "soc/rtc_io_struct.h"
+
 
 const char* NTP_SERVER = "europe.pool.ntp.org";        // only one server is supported
 
@@ -63,8 +61,8 @@ String Router_SSID;
 String Router_Pass;
 
 // Create a ModbusRTU server and client instance on Serial1 
-ModbusServerRTU MBserver(Serial1, 2000, PIN_RS485_DIR);     // TCP timeout set to 2000 ms
-ModbusClientRTU MBclient(Serial1, PIN_RS485_DIR);  
+ModbusServerRTU MBserver(2000, PIN_RS485_DIR);     // TCP timeout set to 2000 ms
+ModbusClientRTU MBclient(PIN_RS485_DIR);  
 
 hw_timer_t * timerA = NULL;
 Preferences preferences;
@@ -110,6 +108,7 @@ uint16_t ICal = ICAL;                                                       // C
 uint8_t Mode = MODE;                                                        // EVSE mode (0:Normal / 1:Smart / 2:Solar)
 uint8_t Lock = LOCK;                                                        // Cable lock (0:Disable / 1:Solenoid / 2:Motor)
 uint16_t MaxCircuit = MAX_CIRCUIT;                                          // Max current of the EVSE circuit (A)
+uint16_t MainsCapacity = MAINS_CAPACITY;                                    // Max sum of currents on MAINS (A)
 uint8_t Config = CONFIG;                                                    // Configuration (0:Socket / 1:Fixed Cable)
 uint8_t LoadBl = LOADBL;                                                    // Load Balance Setting (0:Disable / 1:Master / 2-8:Node)
 uint8_t Switch = SWITCH;                                                    // External Switch (0:Disable / 1:Access B / 2:Access S / 3:Smart-Solar B / 4:Smart-Solar S)
@@ -117,6 +116,7 @@ uint8_t RCmon = RC_MON;                                                     // R
 uint16_t StartCurrent = START_CURRENT;
 uint16_t StopTime = STOP_TIME;
 uint16_t ImportCurrent = IMPORT_CURRENT;
+uint8_t SolarPhases = SOLAR_PHASES;                                         // Nr of phases while solar charging (0: 3 phase / 1: 1 phase / 2: Automatic)
 uint8_t MainsMeter = MAINS_METER;                                           // Type of Mains electric meter (0: Disabled / Constants EM_*)
 uint8_t MainsMeterAddress = MAINS_METER_ADDRESS;
 uint8_t MainsMeterMeasure = MAINS_METER_MEASURE;                            // What does Mains electric meter measure (0: Mains (Home+EVSE+PV) / 1: Home+EVSE / 2: Home)
@@ -128,9 +128,13 @@ uint8_t EVMeterAddress = EV_METER_ADDRESS;
 uint8_t RFIDReader = RFID_READER;                                           // RFID Reader (0:Disabled / 1:Enabled / 2:Enable One / 3:Learn / 4:Delete / 5:Delete All)
 uint8_t WIFImode = WIFI_MODE;                                               // WiFi Mode (0:Disabled / 1:Enabled / 2:Start Portal)
 String APpassword = "00000000";
+uint8_t Access_bit = ACCESS_BIT;                                            // 0:No Access 1:Access to SmartEVSE
+uint8_t CardOffset = CARD_OFFSET;                                           // RFID card used in Enable One mode
+uint8_t Initialized = INITIALIZED;                                          // When first powered on, the settings need to be initialized.
 
 int32_t Irms[3]={0, 0, 0};                                                  // Momentary current per Phase (23 = 2.3A) (resolution 100mA)
-                                                                            // Max 3 phases supported
+int32_t Imem[3];                                                            // Max 3 phases supported
+
 uint8_t State = STATE_A;
 uint8_t ErrorFlags = NO_ERROR;
 uint8_t NextState;
@@ -147,17 +151,17 @@ uint16_t Balanced[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};                     // A
 uint16_t BalancedMax[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};                  // Max Amps value per EVSE
 uint8_t BalancedState[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};                 // State of all EVSE's 0=not active (state A), 1=charge request (State B), 2= Charging (State C)
 uint16_t BalancedError[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};                // Error state of EVSE
-struct NodeStatus Node[NR_EVSES] = {                                            // 0: Master / 1: Node 1 ...
-   /*         Config   EV     EV       Min                    *
-    * Online, Changed, Meter, Address, Current, Phases, Timer */
-    {   true,       0,     0,       0,       0,      0,     0 },
-    {  false,       1,     0,       0,       0,      0,     0 },
-    {  false,       1,     0,       0,       0,      0,     0 },
-    {  false,       1,     0,       0,       0,      0,     0 },
-    {  false,       1,     0,       0,       0,      0,     0 },
-    {  false,       1,     0,       0,       0,      0,     0 },
-    {  false,       1,     0,       0,       0,      0,     0 },
-    {  false,       1,     0,       0,       0,      0,     0 }
+struct NodeStatus Node[NR_EVSES] = {                                        // 0: Master / 1: Node 1 ...
+   /*         Config   EV     EV       Min      Used    Interval*
+    * Online, Changed, Meter, Address, Current, Phases, Time,     */        // Interval Time   : last Charge time, reset when not charging
+    {  1,       0,      0,      0,      0,      0,      0 },                // Min Current     : minimal measured current per phase the EV consumes when starting to charge @ 6A (can be lower then 6A)
+    {  0,       1,      0,      0,      0,      0,      0 },                // Used Phases     : detected nr of phases when starting to charge (works with configured EVmeter meter, and might work with sensorbox)
+    {  0,       1,      0,      0,      0,      0,      0 },
+    {  0,       1,      0,      0,      0,      0,      0 },
+    {  0,       1,      0,      0,      0,      0,      0 },
+    {  0,       1,      0,      0,      0,      0,      0 },
+    {  0,       1,      0,      0,      0,      0,      0 },
+    {  0,       1,      0,      0,      0,      0,      0 }
 };
 
 uint8_t menu = 0;
@@ -182,7 +186,6 @@ uint8_t NoCurrent = 0;                                                      // c
 uint8_t TestState = 0;
 uint8_t ModbusRequest = 0;                                                  // Flag to request Modbus information
 uint8_t MenuItems[MENU_EXIT];
-uint8_t Access_bit = 0;
 uint8_t ConfigChanged = 0;
 uint32_t serialnr = 0;
 uint8_t GridActive = 0;                                                     // When the CT's are used on Sensorbox2, it enables the GRID menu option.
@@ -196,6 +199,16 @@ int32_t EnergyMeterStart = 0;                                               // k
 int32_t PowerMeasured = 0;                                                  // Measured Charge power in Watt by kWh meter
 uint8_t RFIDstatus = 0;
 uint8_t ExternalMaster = 0;
+uint8_t EVMeasureNode = NO_NODE;
+uint8_t CMMeasureNode = 0;
+uint8_t CMMeasureTimer = 0;
+unsigned char CMStats[4];
+bool CMHigh = false;
+bool MeasurementActive = false;
+bool PilotDisconnected = false;
+uint8_t PilotDisconnectTime = 0;                                            // Time the Control Pilot line should be disconnected (Sec)
+uint8_t ChargePhases = 0;                                                   // Select Three Phases (0) or One Phase (1)
+
 int32_t EnergyEV = 0;   
 int32_t CM[3]={0, 0, 0};
 int32_t PV[3]={0, 0, 0};
@@ -205,7 +218,6 @@ uint8_t ActivationMode = 0, ActivationTimer = 0;
 volatile uint16_t adcsample = 0, ppsample = 0;
 volatile uint16_t ADCsamples[25];                                           // declared volatile, as they are used in a ISR
 volatile uint8_t sampleidx = 0;
-volatile int adcchannel = ADC1_CHANNEL_3;
 char str[20];
 int avgsamples = 0;
 bool LocalTimeSet = false;
@@ -215,14 +227,17 @@ struct EMstruct EMConfig[EM_CUSTOM + 1] = {
     {"Disabled",  ENDIANESS_LBF_LWF, 0, MB_DATATYPE_INT32,        0, 0,      0, 0,      0, 0,      0, 0}, // First entry!
     {"Sensorbox", ENDIANESS_HBF_HWF, 4, MB_DATATYPE_FLOAT32, 0xFFFF, 0,      0, 0, 0xFFFF, 0, 0xFFFF, 0}, // Sensorbox (Own routine for request/receive)
     {"Phoenix C", ENDIANESS_HBF_LWF, 4, MB_DATATYPE_INT32,      0x0, 1,    0xC, 3,   0x28, 1,   0x3E, 1}, // PHOENIX CONTACT EEM-350-D-MCB (0,1V / mA / 0,1W / 0,1kWh) max read count 11
-    {"Finder",    ENDIANESS_HBF_HWF, 4, MB_DATATYPE_FLOAT32, 0x1000, 0, 0x100E, 0, 0x1026, 0, 0x1106, 3}, // Finder 7E.78.8.400.0212 (V / A / W / Wh) max read count 127
-    {"Eastron",   ENDIANESS_HBF_HWF, 4, MB_DATATYPE_FLOAT32,    0x0, 0,    0x6, 0,   0x34, 0,  0x156, 0}, // Eastron SDM630 (V / A / W / kWh) max read count 80
+    {"Finder 7E", ENDIANESS_HBF_HWF, 4, MB_DATATYPE_FLOAT32, 0x1000, 0, 0x100E, 0, 0x1026, 0, 0x1106, 3}, // Finder 7E.78.8.400.0212 (V / A / W / Wh) max read count 127
+    {"Eastron3P", ENDIANESS_HBF_HWF, 4, MB_DATATYPE_FLOAT32,    0x0, 0,    0x6, 0,   0x34, 0,  0x156, 0}, // Eastron SDM630 (V / A / W / kWh) max read count 80
     {"ABB",       ENDIANESS_HBF_HWF, 3, MB_DATATYPE_INT32,   0x5B00, 1, 0x5B0C, 2, 0x5B14, 2, 0x5002, 2}, // ABB B23 212-100 (0.1V / 0.01A / 0.01W / 0.01kWh) RS485 wiring reversed / max read count 125
-    {"SolarEdge", ENDIANESS_HBF_HWF, 3, MB_DATATYPE_INT16,    40196, 0,  40191, 0,  40083, 0,  40226, 3}, // SolarEdge SunSpec (0.01V (16bit) / 0.1A (16bit) / 1W  (16bit) / 1 Wh (32bit))
-    {"WAGO",      ENDIANESS_HBF_HWF, 3, MB_DATATYPE_FLOAT32, 0x5002, 0, 0x500C, 0, 0x5012, 3, 0x6000, 0}, // WAGO 879-30x0 (V / A / kW / kWh)
-    {"Custom",    ENDIANESS_LBF_LWF, 4, MB_DATATYPE_INT32,        0, 0,      0, 0,      0, 0,      0, 0}  // Last entry!
+    {"SolarEdge", ENDIANESS_HBF_HWF, 3, MB_DATATYPE_INT16,    40196, 0,  40191, 0,  40083, 0,  40226, 3}, // SolarEdge SunSpec (0.01V (16bit) / 0.1A (16bit) / 1W (16bit) / 1 Wh (32bit))
+    {"WAGO",      ENDIANESS_HBF_HWF, 3, MB_DATATYPE_FLOAT32, 0x5002, 0, 0x500C, 0, 0x5012,-3, 0x6000, 0}, // WAGO 879-30x0 (V / A / kW / kWh)
+    {"Finder 7M", ENDIANESS_HBF_HWF, 4, MB_DATATYPE_FLOAT32,   2500, 0,   2516, 0,   2536, 0,   2638, 3}, // Finder 7M.38.8.400.0212 (V / A / W / Wh) / Backlight 10173
+    {"Eastron1P", ENDIANESS_HBF_HWF, 4, MB_DATATYPE_FLOAT32,    0x0, 0,    0x6, 0,   0x0C, 0,  0x156, 0}, // Eastron SDM230 (V / A / W / kWh) max read count 40
+    {"Custom",    ENDIANESS_LBF_LWF, 4, MB_DATATYPE_INT32,        0, 0,      0, 0,      0, 0,      0, 0}  // Custom Meter, can only be configured on Master. Last entry!
 };
 
+ 
 
 // Some low level stuff here to setup the ADC, and perform the conversion.
 //
@@ -278,13 +293,13 @@ void IRAM_ATTR onCPpulse() {
 
 
 
-// Alarm interrupt handler
+// Timer Alarm interrupt handler
 // in STATE A this is called every 1ms (autoreload)
 // in STATE B/C there is a PWM signal, and the Alarm is set to 5% after the low-> high transition of the PWM signal
 void IRAM_ATTR onTimerA() {
 
   RTC_ENTER_CRITICAL();
-  adcsample = local_adc1_read(adcchannel);
+  adcsample = local_adc1_read(ADC1_CHANNEL_3);
   RTC_EXIT_CRITICAL();
 
   ADCsamples[sampleidx++] = adcsample;
@@ -351,7 +366,7 @@ void BlinkLed(void * parameter) {
                 BluePwm = 0;
             }
 
-        } else if (Access_bit == 0) {                                            // No Access, LEDs off
+        } else if (Access_bit == 0) {                                           // No Access, LEDs off
             RedPwm = 0;
             GreenPwm = 0;
             BluePwm = 0;
@@ -460,9 +475,6 @@ uint8_t Pilot() {
     uint32_t voltage;
     uint8_t n;
 
-    // make sure we wait 100ms after each state change before calculating Average
-    //if ( (StateTimer + 100) > millis() ) return PILOT_WAIT;
-
     // calculate Min/Max of last 25 CP measurements
     for (n=0 ; n<25 ;n++) {
         sample = ADCsamples[n];
@@ -473,9 +485,10 @@ uint8_t Pilot() {
     //Serial.printf("min:%u max:%u\n",Min ,Max);
 
     // test Min/Max against fixed levels
-    if (Min > 3000 ) return PILOT_12V;                                      // Pilot at 12V (min 11.0V)
-    if ((Min > 2700) && (Max < 2930)) return PILOT_9V;                      // Pilot at 9V
-    if ((Min > 2400) && (Max < 2600)) return PILOT_6V;                      // Pilot at 6V
+    if (Min >= 3055 ) return PILOT_12V;                                     // Pilot at 12V (min 11.0V)
+    if ((Min >= 2735) && (Max < 3055)) return PILOT_9V;                     // Pilot at 9V
+    if ((Min >= 2400) && (Max < 2735)) return PILOT_6V;                     // Pilot at 6V
+    if ((Min >= 2000) && (Max < 2400)) return PILOT_3V;                     // Pilot at 3V
     if ((Min > 100) && (Max < 300)) return PILOT_DIODE;                     // Diode Check OK
     return PILOT_NOK;                                                       // Pilot NOT ok
 }
@@ -520,6 +533,13 @@ const char * getErrorNameWeb(uint8_t ErrorCode) {
  */
 void setMode(uint8_t NewMode) {
     if (LoadBl == 1) ModbusWriteSingleRequest(BROADCAST_ADR, 0x0003, NewMode);
+    if (NewMode == MODE_SMART) {
+        ErrorFlags &= ~(NO_SUN | LESS_6A);                                      // Clear All errors
+        setSolarStopTimer(0);                                                   // Also make sure the SolarTimer is disabled.
+    }
+    MeasurementActive = false;
+    ChargeDelay = 0;                                                            // Clear any Chargedelay
+    BacklightTimer = BACKLIGHT;                                                 // Backlight ON
     Mode = NewMode;
 }
 
@@ -553,18 +573,27 @@ void setState(uint8_t NewState) {
     switch (NewState) {
         case STATE_B1:
             if (!ChargeDelay) ChargeDelay = 3;                                  // When entering State B1, wait at least 3 seconds before switching to another state.
+
+            if (State != STATE_B1 && State != STATE_B && !PilotDisconnected) {
+                PILOT_DISCONNECTED;
+                PilotDisconnected = true;
+                PilotDisconnectTime = 5;                                       // Set PilotDisconnectTime to 5 seconds
+
+                Serial.print("Pilot Disconnected\n");
+            }
             // fall through
         case STATE_A:                                                           // State A1
             CONTACTOR1_OFF;  
-            CONTACTOR2_OFF;  
+            CONTACTOR2_OFF;
             ledcWrite(CP_CHANNEL, 1024);                                        // PWM off,  channel 0, duty cycle 100%
-            timerAlarmWrite(timerA, PWM_100, true);                             // Alarm every 1ms, auto reload 
+            timerAlarmWrite(timerA, PWM_100, true);                             // Alarm every 1ms, auto reload
+            timerAlarmEnable(timerA); 
             if (NewState == STATE_A) {
                 ErrorFlags &= ~NO_SUN;
                 ErrorFlags &= ~LESS_6A;
                 ChargeDelay = 0;
                 // Reset Node
-                Node[0].Timer = 0;
+                Node[0].IntTimer = 0;
                 Node[0].Phases = 0;
                 Node[0].MinCurrent = 0;                                         // Clear ChargeDelay when disconnected.
             }
@@ -573,18 +602,25 @@ void setState(uint8_t NewState) {
             CONTACTOR1_OFF;
             CONTACTOR2_OFF;
             timerAlarmWrite(timerA, PWM_95, false);                             // Enable Timer alarm, set to diode test (95%)
+            timerAlarmEnable(timerA);
             SetCurrent(ChargeCurrent);                                          // Enable PWM
+            MeasurementActive = false;                                          // Reset current measurement
             break;      
         case STATE_C:                                                           // State C2
             ActivationMode = 255;                                               // Disable ActivationMode
-            CONTACTOR1_ON;                                                      // Contactor1 ON
-            CONTACTOR2_ON;                                                      // Contactor2 ON
+            if (Mode == MODE_SOLAR && (SolarPhases == SOLAR_1P || 
+                (SolarPhases == SOLAR_AUTOMATIC && Isum > -180) ) ) {           // Mode Solar and 1 Phase Charging or Automatic, and less then 18A available?
+                CONTACTOR1_ON;                                                  // Contactor1 ON
+            } else {
+                CONTACTOR1_ON;                                                  // Contactor1 ON
+                CONTACTOR2_ON;                                                  // Contactor2 ON
+            }
             LCDTimer = 0;
             break;
         case STATE_C1:
             ledcWrite(CP_CHANNEL, 1024);                                        // PWM off,  channel 0, duty cycle 100%
             timerAlarmWrite(timerA, PWM_100, true);                             // Alarm every 1ms, auto reload 
-                                                                                // EV should detect and stop charging within 3 seconds
+            timerAlarmEnable(timerA);                                           // EV should detect and stop charging within 3 seconds
             C1Timer = 6;                                                        // Wait maximum 6 seconds, before forcing the contactor off.
             ChargeDelay = 15;
             break;
@@ -599,11 +635,18 @@ void setState(uint8_t NewState) {
 }
 
 void setAccess(bool Access) {
-    Access_bit = Access;
+ //   if (Access_bit)
+    Access_bit = Access;                                                        // Update Access bit to new
     if (Access == 0) {
         if (State == STATE_C) setState(STATE_C1);                               // Determine where to switch to.
         else if (State == STATE_B) setState(STATE_B1);
     }
+
+    if (preferences.begin("settings", false) ) {                                // Write Access_bit state and cardoffset to flash
+        preferences.putUChar("Access_bit", Access_bit);
+        preferences.putUChar("CardOffset", CardOffset);
+        preferences.end();
+    }    
 }
 
 
@@ -612,7 +655,7 @@ void setAccess(bool Access) {
 // returns 1 if there is 6A available
 // returns 0 if there is no current available
 //
-char IsCurrentAvailable(void) {
+char IsCurrentAvailable(uint8_t NodeNr) {
     uint8_t n, ActiveEVSE = 0;
     int Baseload, TotalCurrent = 0;
 
@@ -646,25 +689,29 @@ char IsCurrentAvailable(void) {
 
     }
 
+    if (LoadBl < 2 && MainsCapacity > 9) {                                      // MainsCapacity limits the sum of mains currents.
+        if (Isum > (signed int)( (MainsCapacity - MinCurrent) * 10) ) return 0;
+    }
+
     // Allow solar Charging if surplus current is above 'StartCurrent' (sum of all phases)
     // Charging will start after the timeout (chargedelay) period has ended
      // Only when StartCurrent configured or Node MinCurrent detected or Node inactive
-    if (Mode == MODE_SOLAR) {                                                   // no active EVSE yet?
-        if (ActiveEVSE == 0 && Isum >= ((signed int)StartCurrent *-10)) return 0;
-        else if ((ActiveEVSE * MinCurrent * 10) > TotalCurrent) return 0;       // check if we can split the available current between all active EVSE's
+    if (Mode == MODE_SOLAR && (StartCurrent || Node[NodeNr].MinCurrent || BalancedState[NodeNr] == STATE_A)) {
+        // no active EVSE yet?
+        if (ActiveEVSE == 0) {
+            if (StartCurrent == 0) {
+                if (Isum >= ((signed int)Node[NodeNr].MinCurrent *-1) + (signed int)(ImportCurrent * 10)) return 0;
+            } else {
+                if (Isum >= ((signed int)StartCurrent *-10)) return 0;
+            }
+        }
+        // check if we can split the available current between all active EVSE's
+        else if ((ActiveEVSE * MinCurrent * 10) > TotalCurrent) return 0;
     }
 
     return 1;
 }
 
-void ResetBalancedStates(void) {
-    uint8_t n;
-
-    for (n = 1; n < NR_EVSES; n++) {
-        BalancedState[n] = STATE_A;                                             // Yes, disable old active Node states
-        Balanced[n] = 0;                                                        // reset ChargeCurrent to 0
-    }
-}
 
 // Calculates Balanced PWM current for each EVSE
 // mod =0 normal
@@ -677,8 +724,6 @@ void CalcBalancedCurrent(char mod) {
     int ActiveMax = 0, TotalCurrent = 0, Baseload;
     char CurrentSet[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};
     uint8_t n;
-
-    if (!LoadBl) ResetBalancedStates();                                         // Load balancing disabled?, Reset States
                                                                                 // Do not modify MaxCurrent as it is a config setting. (fix 2.05)
     if (BalancedState[0] == STATE_C && MaxCurrent > MaxCapacity && !Config) ChargeCurrent = MaxCapacity * 10;
     else ChargeCurrent = MaxCurrent * 10;                                       // Instead use new variable ChargeCurrent.
@@ -696,7 +741,12 @@ void CalcBalancedCurrent(char mod) {
         }
 
     if (!mod && Mode != MODE_SOLAR) {                                           // Normal and Smart mode
-        Idifference = (MaxMains * 10) - Imeasured;                              // Difference between MaxMains and Measured current (can be negative)
+        // Load Balanced set to Disabled or Master. Limit to MainsCapacity
+        if (LoadBl < 2 && MainsCapacity > 9) {
+            Idifference = ((MainsCapacity * 10) - Isum ) / 3;
+        //    Serial.printf ("Idiff %d, Isum %d \n", Idifference, Isum);
+        //    ws.printfAll("#Idiff %d Isum %d \n", Idifference, Isum);
+        } else Idifference = (MaxMains * 10) - Imeasured;                       // Difference between MaxMains and Measured current (can be negative)
 
         if (Idifference > 0) IsetBalanced += (Idifference / 4);                 // increase with 1/4th of difference (slowly increase current)
         else IsetBalanced += (Idifference * 100 / TRANSFORMER_COMP);            // last PWM setting + difference (immediately decrease current)
@@ -713,8 +763,12 @@ void CalcBalancedCurrent(char mod) {
         if (IsumImport < 0)                                                     
         {
             // negative, we have surplus (solar) power available
-            if (IsumImport < -10) IsetBalanced = IsetBalanced + 5;              // more then 1A available, increase Balanced charge current with 0.5A
-            else IsetBalanced = IsetBalanced + 1;                               // less then 1A available, increase with 0.1A
+            if (IsumImport < -10) {
+                if (SolarPhases == 1) {                                         // We are charging on one phase
+                    IsetBalanced = IsetBalanced + 10;                           // more then 1A available, increase Balanced charge current with 1.0A
+                // We are charging on three phases
+                } else IsetBalanced = IsetBalanced + 3;                         // more then 1A available, increase Balanced charge current with 0.3A
+            } else IsetBalanced = IsetBalanced + 1;                             // less then 1A available, increase with 0.1A
         } else {
             // positive, we use more power then is generated
             if (IsumImport > 20) IsetBalanced = IsetBalanced - (IsumImport / 2);// we use atleast 2A more then available, decrease Balanced charge current.
@@ -727,7 +781,7 @@ void CalcBalancedCurrent(char mod) {
         if ( (IsetBalanced < (BalancedLeft * MinCurrent * 10)) || (IsetBalanced < 0) ) {
             IsetBalanced = BalancedLeft * MinCurrent * 10;
                                                                                 // ----------- Check to see if we have to continue charging on solar power alone ----------
-            if (BalancedLeft && StopTime && (IsumImport > 10)) {
+            if (!MeasurementActive && BalancedLeft && StopTime && (IsumImport > 10)) {
                 if (SolarStopTimer == 0) setSolarStopTimer(StopTime * 60);      // Convert minutes into seconds
             } else {
                 setSolarStopTimer(0);
@@ -735,10 +789,9 @@ void CalcBalancedCurrent(char mod) {
         } else {
             setSolarStopTimer(0);
         }
-    }
+    } // Mode == MODE_SOLAR
                                                                                 // When Load balancing = Master,  Limit total current of all EVSEs to MaxCircuit
     if (LoadBl == 1 && (IsetBalanced > (MaxCircuit * 10)) ) IsetBalanced = MaxCircuit * 10;
-
 
     Baseload = Imeasured - TotalCurrent;                                        // Calculate Baseload (load without any active EVSE)
     if (Baseload < 0) Baseload = 0;
@@ -761,29 +814,74 @@ void CalcBalancedCurrent(char mod) {
             NoCurrent++;                                                        // Flag NoCurrent left
 #ifdef LOG_INFO_EVSE
             Serial.printf("No Current!!\n");
+            ws.printfAll("#%02d:%02d:%02d No Current: %u\n",timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec, NoCurrent);
 #endif
         } else NoCurrent = 0;
 
         if (IsetBalanced > ActiveMax) IsetBalanced = ActiveMax;                 // limit to total maximum Amps (of all active EVSE's)
 
+        if (Mode == MODE_SOLAR) {
+    
+            MeasurementActive = false;
+            for (n = 0; n < NR_EVSES; n++) {
+                if (BalancedState[n] == STATE_C) {
+                    // Automatic StartCurrent detection
+                    // when not detected and automatic StartCurrent is enabled or EV electric meter is present
+                    if (!Node[n].MinCurrent) {
+                        MeasurementActive = true;
+                        if (Node[n].EVMeter) {
+                            if (Node[n].IntTimer >= STARTCURRENT_AUTO_TIMER) {
+                                // Request EV current measurement
+                                EVMeasureNode = n;
+                            }
+                        } else if (!CMMeasureTimer) {
+                            CMMeasureNode = n;
+                            CMHigh = false;
+                            CMStats[0] = 0; CMStats[1] = 0; CMStats[2] = 0; CMStats[3] = 0;
+                            CMStoreMeasurement();
+                            // Startup Time + Cycles Mains current measurement
+                            CMMeasureTimer = STARTCURRENT_AUTO_TIMER + STARTCURRENT_MEASURE_TIME;
+                        }
+                    }
+                    // Use MIN current
+                    // when measurement is active or when start solar charging
+                    if (MeasurementActive || (Mode == MODE_SOLAR && Node[n].IntTimer < STARTCURRENT_AUTO_TIMER)) {
+                        if (CMHigh && CMMeasureNode == n) {
+                            // charge with 8 A
+                            Balanced[n] = (MinCurrent + 2) * 10;
+                        } else {
+                            // charge with 6 A
+                            Balanced[n] = MinCurrent * 10;
+                        }
+                        CurrentSet[n] = true;                                   // mark this EVSE as set.
+                        BalancedLeft--;                                         // decrease counter of active EVSE's
+                        MaxBalanced -= Balanced[n];                                 // Update total current to new (lower) value
+                        IsetBalanced = TotalCurrent;
+                    }
+                }
+            } 
+        }
+
         MaxBalanced = IsetBalanced;                                             // convert to Amps
 
         // Calculate average current per EVSE
         n = 0;
-        do {
-            Average = MaxBalanced / BalancedLeft;                               // Average current for all active EVSE's
+        if (BalancedLeft)
+        {
+            do {
+                Average = MaxBalanced / BalancedLeft;                               // Average current for all active EVSE's
 
-        // Check for EVSE's that have a lower MAX current
-            if ((BalancedState[n] == STATE_C) && (!CurrentSet[n]) && (Average >= BalancedMax[n])) // Active EVSE, and current not yet calculated?
-            {
-                Balanced[n] = BalancedMax[n];                                   // Set current to Maximum allowed for this EVSE
-                CurrentSet[n] = 1;                                              // mark this EVSE as set.
-                BalancedLeft--;                                                 // decrease counter of active EVSE's
-                MaxBalanced -= Balanced[n];                                     // Update total current to new (lower) value
-                n = 0;                                                          // check all EVSE's again
-            } else n++;
-        } while (n < NR_EVSES && BalancedLeft);
-
+            // Check for EVSE's that have a lower MAX current
+                if ((BalancedState[n] == STATE_C) && (!CurrentSet[n]) && (Average >= BalancedMax[n])) // Active EVSE, and current not yet calculated?
+                {
+                    Balanced[n] = BalancedMax[n];                                   // Set current to Maximum allowed for this EVSE
+                    CurrentSet[n] = 1;                                              // mark this EVSE as set.
+                    BalancedLeft--;                                                 // decrease counter of active EVSE's
+                    MaxBalanced -= Balanced[n];                                     // Update total current to new (lower) value
+                    n = 0;                                                          // check all EVSE's again
+                } else n++;
+            } while (n < NR_EVSES && BalancedLeft);
+        }
         // All EVSE's which had a Max current lower then the average are set.
         // Now calculate the current for the EVSE's which had a higher Max current
         n = 0;
@@ -853,7 +951,13 @@ void receiveNodeConfig(uint8_t *buf, uint8_t NodeNr) {
  * @param uint8_t NodeNr (1-7)
  */
 void requestNodeStatus(uint8_t NodeNr) {
-    Node[NodeNr].Online = false;
+    if(Node[NodeNr].Online) {
+        if(Node[NodeNr].Online-- == 1) {
+            // Reset Node state when node is offline
+            BalancedState[NodeNr] = STATE_A;
+            Balanced[NodeNr] = 0;
+        }
+    } 
     ModbusReadInputRequest(NodeNr + 1u, 4, 0x0000, 8);
 }
 
@@ -864,11 +968,13 @@ void requestNodeStatus(uint8_t NodeNr) {
  * @param uint8_t NodeAdr (1-7)
  */
 void receiveNodeStatus(uint8_t *buf, uint8_t NodeNr) {
-    if (LoadBl == 1) Node[NodeNr].Online = true;
-    else Node[NodeNr].Online = false;
+    Node[NodeNr].Online = 5;                                                    // 5 = delay in setting node to offline, when no response is received.
 //    memcpy(buf, (uint8_t*)&Node[NodeNr], sizeof(struct NodeState));
     BalancedState[NodeNr] = buf[1];                                             // Node State
     BalancedError[NodeNr] = buf[3];                                             // Node Error status
+    // Update Mode when changed on Node and not Smart/Solar Switch on the Master
+    // Also make sure we are not in the menu.
+    if (buf[7] != Mode && (buf[7] == MODE_SMART || buf[7] == MODE_SOLAR) && Switch != SMART_SOLAR_SWITCH && !LCDNav) setMode(buf[7]);
     Node[NodeNr].ConfigChanged = buf[13] | Node[NodeNr].ConfigChanged;
     BalancedMax[NodeNr] = buf[15] * 10;                                         // Node Max ChargeCurrent (0.1A)
     //Serial.printf("ReceivedNode[%u]Status State:%u Error:%u, BalancedMax:%u\n", NodeNr, BalancedState[NodeNr], BalancedError[NodeNr], BalancedMax[NodeNr] );
@@ -886,7 +992,7 @@ void processAllNodeStates(uint8_t NodeNr) {
 
     values[0] = BalancedState[NodeNr];
 
-    current = IsCurrentAvailable();
+    current = IsCurrentAvailable(NodeNr);
     if (current) {                                                              // Yes enough current
         if (BalancedError[NodeNr] & (LESS_6A|NO_SUN)) {
             BalancedError[NodeNr] &= ~(LESS_6A | NO_SUN);                       // Clear Error flags
@@ -898,7 +1004,7 @@ void processAllNodeStates(uint8_t NodeNr) {
     switch (BalancedState[NodeNr]) {
         case STATE_A:
             // Reset Node
-            Node[NodeNr].Timer = 0;
+            Node[NodeNr].IntTimer = 0;
             Node[NodeNr].Phases = 0;
             Node[NodeNr].MinCurrent = 0;
             break;
@@ -989,12 +1095,14 @@ uint8_t getMenuItems (void) {
         MenuItems[m++] = MENU_START;                                            // - Start Surplus Current (A)
         MenuItems[m++] = MENU_STOP;                                             // - Stop time (min)
         MenuItems[m++] = MENU_IMPORT;                                           // - Import Current from Grid (A)
+        MenuItems[m++] = MENU_SOLARPHASES;                                      // - 1, 3 or automatic phase selection
     }
     MenuItems[m++] = MENU_LOADBL;                                               // Load Balance Setting (0:Disable / 1:Master / 2-8:Node)
     if (Mode && LoadBl < 2) {                                                   // ? Mode Smart/Solar and Load Balancing Disabled/Master?
         MenuItems[m++] = MENU_MAINS;                                            // - Max Mains Amps (hard limit, limited by the MAINS connection) (A) (Mode:Smart/Solar)
+        MenuItems[m++] = MENU_CAPACITY;                                         // - Limit to sum of phases (A)
     }
-    if (Mode && (LoadBl < 2 || LoadBl == 1)) {                                  // ? Mode Smart/Solar or LoadBl Master?
+    if (Mode && LoadBl < 2 || LoadBl == 1) {                                    // ? Mode Smart/Solar or LoadBl Master?
         MenuItems[m++] = MENU_MIN;                                              // - Minimal current the EV is happy with (A) (Mode:Smart/Solar or LoadBl:Master)
     }
     if (LoadBl == 1) {                                                          // ? Load balancing Master?
@@ -1077,6 +1185,9 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
         case MENU_IMPORT:
             ImportCurrent = val;
             break;
+        case MENU_SOLARPHASES:
+            SolarPhases = val;
+            break;    
         case MENU_LOADBL:
             ConfigureModbusMode(val);
             LoadBl = val;
@@ -1084,6 +1195,9 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
         case MENU_MAINS:
             MaxMains = val;
             break;
+        case MENU_CAPACITY:
+            MainsCapacity = val;
+            break;    
         case MENU_MIN:
             MinCurrent = val;
             break;
@@ -1201,6 +1315,11 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
         case STATUS_CONFIG_CHANGED:
             ConfigChanged = val;
             break;
+       case STATUS_PHASE_COUNT:
+            if (val <= 3) {
+                Node[0].Phases = val;
+            }
+            break;            
 
         default:
             return 0;
@@ -1228,10 +1347,14 @@ uint16_t getItemValue(uint8_t nav) {
             return StopTime;
         case MENU_IMPORT:
             return ImportCurrent;
+        case MENU_SOLARPHASES:
+            return SolarPhases;
         case MENU_LOADBL:
             return LoadBl;
         case MENU_MAINS:
             return MaxMains;
+        case MENU_CAPACITY:
+            return MainsCapacity;
         case MENU_MIN:
             return MinCurrent;
         case MENU_MAX:
@@ -1289,7 +1412,7 @@ uint16_t getItemValue(uint8_t nav) {
         case MENU_WIFI:
             return WIFImode;    
 
-        // Status writeable
+        // Status writable
         case STATUS_STATE:
             return State;
         case STATUS_ERROR:
@@ -1303,9 +1426,12 @@ uint16_t getItemValue(uint8_t nav) {
         case STATUS_CONFIG_CHANGED:
             return ConfigChanged;
 
-        // Status readonly
+        // Status readonly    
         case STATUS_MAX:
-            return MaxCapacity;
+            if (MaxCurrent < MaxCapacity) return MaxCurrent;                    // Allows you to change the MAX charge current on a Node
+            else return MaxCapacity;            
+        case STATUS_PHASE_COUNT:
+            return Node[0].Phases;
         case STATUS_TEMP:
             return (signed int)TempEVSE + 273;
         case STATUS_SERIAL:
@@ -1337,16 +1463,26 @@ const char * getMenuItemOption(uint8_t nav) {
             else if (Mode == MODE_SOLAR) return StrSolar;
             else return StrNormal;
         case MENU_START:
-                sprintf(Str, "-%2u A", value);
-                return Str;
+            if (value == 0) return "Automatic";
+            else sprintf(Str, "-%2u A", value);
+            return Str;
         case MENU_STOP:
             if (value) {
                 sprintf(Str, "%2u min", value);
                 return Str;
             } else return StrDisabled;
+        case MENU_SOLARPHASES:
+            switch(value) {
+                case 0: return "3 Phase";
+                case 1: return "1 Phase";
+                case 2: return "Automatic";
+                default: return "";
+            }
         case MENU_LOADBL:
             if (ExternalMaster && value == 1) return "Node 0";
             else return StrLoadBl[LoadBl];
+        case MENU_CAPACITY:
+            if (value == 9) return "Disabled";
         case MENU_MAINS:
         case MENU_MIN:
         case MENU_MAX:
@@ -1446,9 +1582,6 @@ void UpdateCurrentData(void) {
             // STOP charging for all EVSE's
             // Display error message
             ErrorFlags |= LESS_6A; //NOCURRENT;
-            // Set all EVSE's to State A
-            ResetBalancedStates();
-
             // Broadcast Error code over RS485
             ModbusWriteSingleRequest(BROADCAST_ADR, 0x0001, LESS_6A);
             NoCurrent = 0;
@@ -1476,6 +1609,153 @@ void UpdateCurrentData(void) {
 }
 
 
+void receiveEVCurrentMeasurement(uint8_t *buf, uint8_t NodeNr) {
+    uint8_t x;
+    signed int EV[3]={0, 0, 0};
+
+    x = receiveCurrentMeasurement(buf, Node[NodeNr].EVMeter, EV);
+    Node[NodeNr].MinCurrent = 0;
+    Node[NodeNr].Phases = 0;
+    for (x = 0; x < 3; x++) {
+        Node[NodeNr].MinCurrent += (uint8_t)(EV[x] / 100);
+        if (EV[x] > 100) Node[NodeNr].Phases++;
+    }
+#ifdef LOG_INFO_EVSE
+    Serial.printf("Node %u minimum current sum is %u * 0.1 A with %u phases (measured)\n", NodeNr, Node[NodeNr].MinCurrent, Node[NodeNr].Phases);
+    ws.printfAll("#Node %u minimum current sum is %u * 0.1 A with %u phases (measured)\n", NodeNr, Node[NodeNr].MinCurrent, Node[NodeNr].Phases);
+#endif
+    if (Node[NodeNr].MinCurrent <= 1) {
+        Node[NodeNr].MinCurrent = MinCurrent * 10;
+#ifdef LOG_WARN_EVSE
+        Serial.printf("Minimum current to low!\n");
+        ws.printfAll("#Minimum current to low!\n");
+#endif
+    }
+    // Update remote Node, so that the detected nr of phases is displayed on the LCD   
+    if (NodeNr > 0) {
+        ModbusWriteSingleRequest(NodeNr + 1, 0x0008, Node[NodeNr].Phases);
+    }
+    EVMeasureNode = NO_NODE;
+}
+
+
+void CMStoreMeasurement(void) {
+    memcpy (Imem, Irms, 3 * sizeof(int32_t));
+#ifdef LOG_DEBUG_EVSE
+    printf("\nRemember Irms");
+#endif
+}
+
+uint8_t CMCountPhases(int8_t Current) {
+    uint8_t Phases = 0, x;
+    for (x = 0; x < 3; x++) {
+        // Phase change between -3 A and -1 A
+        if (Imem[x] + (Current * 10 - 10) < Irms[x] && Irms[x] < Imem[x] + (Current * 10 + 10)) Phases++;
+    }
+#ifdef LOG_DEBUG_EVSE
+    Serial.printf("\nCount %u phases changed about %i A (+/-1 A)", Phases, Current);
+    ws.printfAll("#Count %u phases changed about %i A (+/-1 A)\n", Phases, Current);
+#endif
+    return Phases;
+}
+
+void CMCheck(uint8_t Phases) {
+    uint8_t i;
+
+    CMStats[Phases]++;
+
+    for (i = 1; i < 4; i++) {
+        if (CMStats[i] >= STARTCURRENT_IDENTICAL_MEASUREMENTS) Node[CMMeasureNode].Phases = i;
+    }
+
+    // Number of measurements done
+    if (Node[CMMeasureNode].Phases) {
+        Node[CMMeasureNode].MinCurrent = Node[CMMeasureNode].Phases * MinCurrent * 10;
+#ifdef LOG_INFO_EVSE
+        Serial.printf("Node %u minimum current sum is %u * 0.1 A with %u phases (guessed\n", CMMeasureNode, Node[CMMeasureNode].MinCurrent, Node[CMMeasureNode].Phases);
+        ws.printfAll("#Node %u minimum current sum is %u * 0.1 A with %u phases (guessed)\n", CMMeasureNode, Node[CMMeasureNode].MinCurrent, Node[CMMeasureNode].Phases);
+#endif
+        // Update remote Node, so that the detected nr of phases is displayed on the LCD 
+        if (CMMeasureNode > 0) {
+            ModbusWriteSingleRequest(CMMeasureNode + 1, 0x0008, Node[CMMeasureNode].Phases);
+        }
+        CMMeasureTimer = 0;
+    }
+}
+
+
+
+// TestIO will be called after a special RS485 command has been received.
+void TestIO(void)                                                               // Test connector should be connected to CON1
+{
+    static uint8_t TestIOerror = 0;
+
+    if (TestState == 1) {
+        Serial.printf("Start TestIO\n");
+
+        Serial.printf("[TestIO] Temperature Sensor ");
+        if (TempEVSE > 10 && TempEVSE < 40) Serial.printf("%dC, OK\n", TempEVSE); 
+        else {
+            Serial.printf("FAIL\n");
+            TestIOerror = 1;
+        }
+
+        Serial.printf("[TestIO] Pilot ");   
+        // sample the Pilot line
+        if (Pilot() == PILOT_6V) Serial.printf("OK\n");
+        else {
+            Serial.printf("FAIL\n");
+            TestIOerror ^= 2;
+        }
+        
+        ProximityPin();
+        Serial.printf("[TestIO] Proximitiy Pilot ");   
+        if (MaxCapacity == 32) Serial.printf("OK\n");
+        else {
+            Serial.printf("FAIL\n");
+            TestIOerror ^= 4;
+        }
+        TestState = 2;
+    }
+
+    if (TestState == 5) {
+        Serial.printf("[TestIO] Solenoid ");
+        Lock = 1;
+        UnlockCable = 0;
+        LockCable = 1;
+        TestState = 6;
+        CONTACTOR1_ON;
+        CONTACTOR2_ON;
+    }
+
+    if (TestState == 10) {
+        if (digitalRead(PIN_LOCK_IN) == lock1 ) Serial.printf("OK\n");        // locked ?
+        else {
+            Serial.printf("FAIL\n");
+            TestIOerror ^= 8;
+        }
+        LockCable = 0;
+        UnlockCable = 1;
+
+        Serial.printf("[TestIO] Contactors ");
+        if (digitalRead(PIN_SW_IN) == LOW ) Serial.printf("OK\n");        // locked ?
+        else {
+            Serial.printf("FAIL\n");
+            TestIOerror ^= 16;
+        }
+
+        CONTACTOR1_OFF;
+        CONTACTOR2_OFF;
+        TestState = 11;
+    }
+
+    if (TestState == 12) {
+        Lock = 0;
+        TestState = 13;
+    }
+}
+
+
 // CheckSwitch (SW input)
 //
 void CheckSwitch(void)
@@ -1486,21 +1766,21 @@ void CheckSwitch(void)
     // External switch changed state?
     if ( (digitalRead(PIN_SW_IN) != RB2last) || RB2low) {
         // make sure that noise on the input does not switch
-        if (RB2count++ > 5 || RB2low) {
+        if (RB2count++ > 20 || RB2low) {
             RB2last = digitalRead(PIN_SW_IN);
             if (RB2last == 0) {
                 // Switch input pulled low
                 switch (Switch) {
-                    case 1: // Access Button
+                    case ACCESS_BUTTON:
                         setAccess(!Access_bit);                             // Toggle Access bit on/off
 #ifdef LOG_DEBUG_EVSE
                         Serial.printf("Access: %d\n", Access_bit);
 #endif
                         break;
-                    case 2: // Access Switch
+                    case ACCESS_SWITCH:
                         setAccess(true);
                         break;
-                    case 3: // Smart-Solar Button or hold button for 1,5 second to STOP charging
+                    case SMART_SOLAR_BUTTON: // Smart-Solar Button or hold button for 1,5 second to STOP charging
                         if (RB2low == 0) {
                             RB2low = 1;
                             RB2Timer = millis();
@@ -1513,10 +1793,9 @@ void CheckSwitch(void)
                             }
                         }
                         break;
-                    case 4: // Smart-Solar Switch
+                    case SMART_SOLAR_SWITCH:
                         if (Mode == MODE_SOLAR) {
                             setMode(MODE_SMART);
-                            setSolarStopTimer(0);                           // Also make sure the SolarTimer is disabled.
                         }
                         break;
                     default:
@@ -1539,24 +1818,20 @@ void CheckSwitch(void)
             } else {
                 // Switch input released
                 switch (Switch) {
-                    case 2: // Access Switch
+                    case ACCESS_SWITCH:
                         setAccess(false);
                         break;
-                    case 3: // Smart-Solar Button
+                    case SMART_SOLAR_BUTTON:
                         if (RB2low != 2) {
                             if (Mode == MODE_SMART) {
                                 setMode(MODE_SOLAR);
                             } else if (Mode == MODE_SOLAR) {
                                 setMode(MODE_SMART);
                             }
-                            ErrorFlags &= ~(NO_SUN | LESS_6A);                   // Clear All errors
-                            ChargeDelay = 0;                                // Clear any Chargedelay
-                            setSolarStopTimer(0);                           // Also make sure the SolarTimer is disabled.
-                            LCDTimer = 0;
                         }
                         RB2low = 0;
                         break;
-                    case 4: // Smart-Solar Switch
+                    case SMART_SOLAR_SWITCH:
                         if (Mode == MODE_SMART) setMode(MODE_SOLAR);
                         break;
                     default:
@@ -1581,18 +1856,29 @@ void CheckSwitch(void)
 
 
     // One RFID card can Lock/Unlock the charging socket (like a public charging station)
-    if (RFIDReader == 2) {
-        if (Access_bit == 0) UnlockCable = 1; 
-        else UnlockCable = 0;
-    // The charging socket is unlocked when charging stops.
-    } else {
-        if (State != STATE_C) UnlockCable = 1;
-        else UnlockCable = 0;
-    } 
-    // If the cable is connected to the EV, the cable will be locked.
-   if (State == STATE_B || State == STATE_C) LockCable = 1;
-   else LockCable = 0;
-    
+    if (TestState == 0) {
+
+        if (RFIDReader == 2) {
+            if (Access_bit == 0) {
+                UnlockCable = 1; 
+                LockCable = 0;
+            } else {
+                UnlockCable = 0;
+                // If the cable is connected to the EV, the cable will be locked.
+                if (State == STATE_B || State == STATE_C) LockCable = 1;
+                else LockCable = 0;
+            }
+        // The charging socket is unlocked when charging stops.
+        } else {
+            if (State != STATE_C && State != STATE_C1) { 
+                UnlockCable = 1;
+                LockCable = 0;
+            } else {
+                UnlockCable = 0;
+                LockCable = 1;
+            }    
+        } 
+    }    
 
 }
 
@@ -1638,13 +1924,9 @@ void EVSEStates(void * parameter) {
         // Update/Show Helpmenu
         if (LCDNav > MENU_ENTER && LCDNav < MENU_EXIT && (ScrollTimer + 5000 < millis() ) && (!SubMenu)) GLCDHelp();
 
-        // Left button pressed, Loadbalancing is Master or Disabled, switch is set to "Sma-Sol B" and Mode is Smart or Solar?
-        if (!LCDNav && ButtonState == 0x6 && Mode && !leftbutton && (LoadBl < 2) && Switch == 3) {
-            setMode(~Mode & 0x3);                                           // Change from Solar to Smart mode and vice versa.
-            ErrorFlags &= ~(NO_SUN | LESS_6A);                              // Clear All errors
-            ChargeDelay = 0;                                                // Clear any Chargedelay
-            setSolarStopTimer(0);                                           // Also make sure the SolarTimer is disabled.
-            LCDTimer = 0;
+        // Left button pressed, switch is set to "Sma-Sol B" and Mode is Smart or Solar?
+        if (!LCDNav && ButtonState == 0x6 && Mode && !leftbutton && Switch == SMART_SOLAR_BUTTON) {
+            setMode(~Mode & 0x3);                                               // Change from Solar to Smart mode and vice versa.
             leftbutton = 5;
         } else if (leftbutton && ButtonState == 0x7) leftbutton--;
 
@@ -1659,7 +1941,14 @@ void EVSEStates(void * parameter) {
         if (State == STATE_A || State == STATE_COMM_B || State == STATE_B1)
         {
 
-            if (pilot == PILOT_12V) {                                           // Check if we are disconnected, or forced to State A, but still connected to the EV
+            // When the pilot line is disconnected, wait for PilotDisconnectTime, then reconnect
+            if (PilotDisconnected) {
+                if (PilotDisconnectTime == 0 && pilot == PILOT_NOK ) {          // Pilot should be ~ 0V when disconnected
+                    PILOT_CONNECTED;
+                    PilotDisconnected = false;
+                    Serial.print("Pilot Connected\n");
+                }    
+            } else if (pilot == PILOT_12V) {                                    // Check if we are disconnected, or forced to State A, but still connected to the EV
 
                 // If the RFID reader is set to EnableOne mode, and the Charging cable is disconnected
                 // We start a timer to re-lock the EVSE (and unlock the cable) after 60 seconds.
@@ -1672,7 +1961,7 @@ void EVSEStates(void * parameter) {
             } else if ( pilot == PILOT_9V && ErrorFlags == NO_ERROR 
                 && ChargeDelay == 0 && Access_bit
                 && State != STATE_COMM_B) {                                     // switch to State B ?
-                                                                                // Allow to switch to state C directly if STATE_A_TO_C is set to PILOT_6V (see EVSE.h)
+                                                                                
                 DiodeCheck = 0;
 
                 ProximityPin();                                                 // Sample Proximity Pin
@@ -1681,14 +1970,14 @@ void EVSEStates(void * parameter) {
                 Serial.printf("Cable limit: %uA  Max: %uA\n", MaxCapacity, MaxCurrent);
 #endif
                 if (MaxCurrent > MaxCapacity) ChargeCurrent = MaxCapacity * 10; // Do not modify Max Cable Capacity or MaxCurrent (fix 2.05)
-                else ChargeCurrent = MaxCurrent * 10;                           // Instead use new variable ChargeCurrent
+                else ChargeCurrent = MinCurrent * 10;                           // Instead use new variable ChargeCurrent
 
                 // Load Balancing : Node
                 if (LoadBl > 1) {                                               // Send command to Master, followed by Max Charge Current
                     setState(STATE_COMM_B);                                     // Node wants to switch to State B
 
                 // Load Balancing: Master or Disabled
-                } else if (IsCurrentAvailable()) {                             
+                } else if (IsCurrentAvailable(0)) {                             
                     BalancedMax[0] = MaxCapacity * 10;
                     Balanced[0] = ChargeCurrent;                                // Set pilot duty cycle to ChargeCurrent (v2.15)
                     setState(STATE_B);                                          // switch to State B
@@ -1728,7 +2017,7 @@ void EVSEStates(void * parameter) {
                     // Load Balancing: Master or Disabled
                     } else { 
                         BalancedMax[0] = ChargeCurrent;
-                        if (IsCurrentAvailable()) {
+                        if (IsCurrentAvailable(0)) {
 
                             Balanced[0] = 0;                                    // For correct baseload calculation set current to zero
                             CalcBalancedCurrent(1);                             // Calculate charge current for all connected EVSE's
@@ -1759,6 +2048,7 @@ void EVSEStates(void * parameter) {
                 DiodeCheck = 1;                                                 // Diode found, OK
                 Serial.printf("Diode OK\n");
                 timerAlarmWrite(timerA, PWM_5, false);                          // Enable Timer alarm, set to start of CP signal (5%)
+                timerAlarmEnable(timerA);
             }    
 
         }
@@ -1824,7 +2114,7 @@ void EVSEStates(void * parameter) {
 }
 
 
-// Task that handles the Cable Lock and modbus
+// Task that handles the Cable Lock and modbusUnlockCable
 // 
 // called every 100ms
 //
@@ -1889,7 +2179,7 @@ uint8_t PollEVNode = NR_EVSES;
                     do {
                         PollEVNode++;
                         if (PollEVNode >= NR_EVSES) PollEVNode = 0;
-                    } while(Node[PollEVNode].Online == false);
+                    } while(!Node[PollEVNode].Online);
 
                     // Request Configuration if changed
                     if (Node[PollEVNode].ConfigChanged) {
@@ -1911,8 +2201,18 @@ uint8_t PollEVNode = NR_EVSES;
                     }
                     ModbusRequest++;
                 case 5:                                                         // EV kWh meter, Power measurement (momentary power in Watt)
+                    // Request currents for automatic StartCurrent detection
+                    if (EVMeasureNode == PollEVNode) {
+#ifdef LOG_INFO_MODBUS
+                        Serial.printf("ModbusRequest %u: Request Current Node %u\n", ModbusRequest, PollEVNode);
+#endif                        
+                        requestCurrentMeasurement(Node[EVMeasureNode].EVMeter, Node[EVMeasureNode].EVAddress);
+                        break;
                     // Request Power if EV meter is configured
-                    if (Node[PollEVNode].EVMeter) {
+                    } else if (Node[PollEVNode].EVMeter) {
+#ifdef LOG_INFO_MODBUS
+                        Serial.printf("ModbusRequest %u: Request Power Node %u\n", ModbusRequest, PollEVNode);
+#endif                        
                         requestPowerMeasurement(Node[PollEVNode].EVMeter, Node[PollEVNode].EVAddress);
                         break;
                     }
@@ -1955,6 +2255,7 @@ uint8_t PollEVNode = NR_EVSES;
             }
         }
 
+        if (TestState) TestIO();                                                // TestMode. Test all I/O of Module
 
         // Pause the task for 100ms
         vTaskDelay(100 / portTICK_PERIOD_MS);
@@ -1970,6 +2271,7 @@ void Timer1S(void * parameter) {
     uint8_t Broadcast = 1;
     uint8_t Timer5sec = 0;
     uint8_t x;
+    uint8_t CMMeasurePhases;
 
 
     while(1) { // infinite loop
@@ -1981,6 +2283,8 @@ void Timer1S(void * parameter) {
             ActivationMode--;                                               // Decrease ActivationMode every second.
         }
 
+        if (TestState > 1) TestState++;
+
         // activation Mode is active
         if (ActivationTimer) ActivationTimer--;                             // Decrease ActivationTimer every second.
         
@@ -1990,7 +2294,7 @@ void Timer1S(void * parameter) {
                 Serial.printf("State C1 timeout!\n");
                 setState(STATE_B1);                                         // switch back to STATE_B1
                 GLCD_init();                                                // Re-init LCD (200ms delay)
-                ChargeTimer = 15;
+                if (!ChargeDelay) ChargeDelay = 15;
             }
         }
 
@@ -2016,12 +2320,12 @@ void Timer1S(void * parameter) {
 
                 if (State == STATE_C) setState(STATE_C1);                   // tell EV to stop charging
                 ErrorFlags |= NO_SUN;                                       // Set error: NO_SUN
-
-                ResetBalancedStates();                                      // reset all states
             }
         }
 
         if (ChargeDelay) ChargeDelay--;                                     // Decrease Charge Delay counter
+
+        if (PilotDisconnectTime) PilotDisconnectTime--;                     // Decrease PilotDisconnectTimer
 
         if (AccessTimer && State == STATE_A) {
             if (--AccessTimer == 0) {
@@ -2034,7 +2338,7 @@ void Timer1S(void * parameter) {
             ErrorFlags &= ~TEMP_HIGH; // clear Error
         }
 
-        if ( (ErrorFlags & (LESS_6A|NO_SUN) ) && (LoadBl < 2) && (IsCurrentAvailable())) {
+        if ( (ErrorFlags & (LESS_6A|NO_SUN) ) && (LoadBl < 2) && (IsCurrentAvailable(0))) {
             ErrorFlags &= ~LESS_6A;                                         // Clear Errors if there is enough current available, and Load Balancing is disabled or we are Master
             ErrorFlags &= ~NO_SUN;
 #ifdef LOG_DEBUG_EVSE
@@ -2049,8 +2353,59 @@ void Timer1S(void * parameter) {
 
         // Charge timer
         for (x = 0; x < NR_EVSES; x++) {
-            if (BalancedState[x] == STATE_C) Node[x].Timer++;
+            if (BalancedState[x] == STATE_C) Node[x].IntTimer++;          // When charging increase interval Timer
+            else Node[x].IntTimer = 0;                                    // Reset IntervalTime when not charging
         }
+
+        if (CMMeasureTimer) {
+            CMMeasureTimer--;
+                if (CMMeasureTimer >= STARTCURRENT_MEASURE_TIME) {
+                    CMMeasurePhases = CMCountPhases(6);
+                    if (CMMeasurePhases || CMMeasureTimer == STARTCURRENT_MEASURE_TIME) {
+#ifdef STARTCURRENT_MEASURE_INCREASE
+                        CMCheck(CMMeasurePhases);
+#endif
+                        CMStoreMeasurement();
+                        CMHigh = true;
+                        CMMeasureTimer = STARTCURRENT_MEASURE_TIME;
+                    }
+                } else {
+                    switch (CMMeasureTimer % (STARTCURRENT_INCREASE_TIME + STARTCURRENT_DECREASE_TIME)) {
+                        case STARTCURRENT_DECREASE_TIME:
+#ifdef STARTCURRENT_MEASURE_INCREASE
+                            // Count used phases
+                            CMMeasurePhases = CMCountPhases(2);
+                            CMCheck(CMMeasurePhases);
+#endif
+                            // Store 8 A measurements (and continue charging with 6 A)
+                            CMStoreMeasurement();
+                            CMHigh = false;
+                            break;
+                        case 0:
+                            // Count used phases
+                            CMMeasurePhases = CMCountPhases(-2);
+                            CMCheck(CMMeasurePhases);
+                            // Store 6 A measurements (and continue charging with 8 A)
+#ifdef STARTCURRENT_MEASURE_INCREASE
+                            CMStoreMeasurement();
+#endif
+                            CMHigh = true;
+                            break;
+                    }
+                }
+                if (CMMeasureTimer == 0) {
+                    // Default to MinCurrent on unsuccessful phase count
+                    if (!Node[CMMeasureNode].MinCurrent) {
+                        Node[CMMeasureNode].MinCurrent = MinCurrent * 10;
+#ifdef LOG_WARN_EVSE
+                        Serial.printf("\nUnsuccessful phase count!");
+                        ws.printfAll("#Unsuccessful phase count!\n");
+#endif
+                    }
+                    CMMeasureNode = NO_NODE;
+                }
+            }
+     
 
         if ((timeout == 0) && !(ErrorFlags & CT_NOCOMM))                    // timeout if CT current measurement takes > 10 secs
         {
@@ -2062,17 +2417,16 @@ void Timer1S(void * parameter) {
 #endif
             // Try to broadcast communication error to Nodes if we are Master
             if (LoadBl < 2) ModbusWriteSingleRequest(BROADCAST_ADR, 0x0001, ErrorFlags);         
-            ResetBalancedStates();
         } else if (timeout) timeout--;
 
-        if (TempEVSE >= 65 && !(ErrorFlags & TEMP_HIGH))                         // Temperature too High?
+        if (TempEVSE >= 70 && !(ErrorFlags & TEMP_HIGH))                    // Temperature too High?
         {
             ErrorFlags |= TEMP_HIGH;
-            setState(STATE_A);                                              // ERROR, switch back to STATE_A
+            if (State == STATE_C) setState(STATE_C1);                       // tell EV to stop charging
+            else setState(STATE_B1);                                        // when we are not charging switch to State B1
 #ifdef LOG_WARN_EVSE
             Serial.printf("Error, temperature %i C !\n", TempEVSE);
 #endif
-            ResetBalancedStates();
         }
 
         if (ErrorFlags & (NO_SUN | LESS_6A)) {
@@ -2138,22 +2492,35 @@ void Timer1S(void * parameter) {
 // Monitor EV Meter responses, and update Enery and Power measurements
 // Does not send any data back.
 //
+// Master: Called from 'MBhandleData' function
+// Nodes: Called by modbus 'registerworker' function
+//
 ModbusMessage MBEVMeterResponse(ModbusMessage request) {
     
     ModbusDecode( (uint8_t*)request.data(), request.size());
 
     if (MB.Type == MODBUS_RESPONSE) {
-       // Serial.print("EVMeter Response\n");
-        // Packet from EV electric meter
-        if (MB.Register == EMConfig[EVMeter].ERegister) {
-            // Energy measurement
-            EnergyEV = receiveEnergyMeasurement(MB.Data, EVMeter);
-            if (ResetKwh == 2) EnergyMeterStart = EnergyEV;                 // At powerup, set EnergyEV to kwh meter value
-            EnergyCharged = EnergyEV - EnergyMeterStart;                    // Calculate Energy
+        if (EVMeasureNode <= NR_EVSES) {
+            //Serial.print("EV StartCurrent Meter Response\n");
+            // Automatic StartCurrent detection for Node on Master (With configured modbus EVmeter)
+            if (MB.Address == Node[EVMeasureNode].EVAddress && MB.Register == EMConfig[Node[EVMeasureNode].EVMeter].IRegister) {
+                receiveEVCurrentMeasurement(MB.Data, EVMeasureNode);
+            }
+        } else {
 
-        } else if (MB.Register == EMConfig[EVMeter].PRegister) {
-            // Power measurement
-            PowerMeasured = receivePowerMeasurement(MB.Data, EVMeter);
+            // Packet from EV electric meter
+            if (MB.Register == EMConfig[EVMeter].ERegister) {
+                // Energy measurement
+                EnergyEV = receiveEnergyMeasurement(MB.Data, EVMeter);
+//Serial.printf("Energy = %u kWh\n", EnergyEV/1000 );                
+                if (ResetKwh == 2) EnergyMeterStart = EnergyEV;                 // At powerup, set EnergyEV to kwh meter value
+                EnergyCharged = EnergyEV - EnergyMeterStart;                    // Calculate Energy
+
+            } else if (MB.Register == EMConfig[EVMeter].PRegister) {
+                // Power measurement
+                PowerMeasured = receivePowerMeasurement(MB.Data, EVMeter);
+//Serial.printf("Power = %u W\n", PowerMeasured);                                
+            }
         }
     }
     // As this is a response to an earlier request, do not send response.
@@ -2353,11 +2720,17 @@ ModbusMessage MBbroadcast(ModbusMessage request) {
 void MBhandleData(ModbusMessage msg, uint32_t token) 
 {
    uint8_t Address = msg.getServerID();
+   uint8_t CurrentNode = 0;
+
+    if (EVMeasureNode <= NR_EVSES) CurrentNode = EVMeasureNode;
+
+    //Serial.printf("Address:%u EVMeterAdr:%u Node[%u]:%u  ",Address, EVMeterAddress, CurrentNode, Node[CurrentNode].EVAddress);
 
     if (Address == MainsMeterAddress) {
         //Serial.print("MainsMeter data\n");
         MBMainsMeterResponse(msg);
-    } else if (Address == EVMeterAddress) {
+    // EVMeter for Master, and Node when measuring StartCurrent    
+    } else if (Address == EVMeterAddress || Address == Node[CurrentNode].EVAddress) { 
         //Serial.print("EV Meter data\n");
         MBEVMeterResponse(msg);
     } else if (Address == PVMeterAddress) {
@@ -2420,14 +2793,14 @@ void ConfigureModbusMode(uint8_t newmode) {
             if (PVMeter) MBserver.registerWorker(PVMeterAddress, ANY_FUNCTION_CODE, &MBPVMeterResponse);
 
             // Start ModbusRTU Node background task
-            MBserver.start();
+            MBserver.begin(Serial1);
 
         } else if (LoadBl < 2 ) {
             // Setup Modbus workers as Master 
             // Stop Node background task (if active)
             Serial.print("Setup Modbus as Master/Client, stop Server/Node handler\n");
 
-            if (newmode != 255) MBserver.stop();
+            if (newmode != 255) MBserver.end();
             Serial.printf("task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
 
             MBclient.setTimeout(100);       // timeout 100ms
@@ -2435,7 +2808,7 @@ void ConfigureModbusMode(uint8_t newmode) {
             MBclient.onErrorHandler(&MBhandleError);
 
             // Start ModbusRTU Master backgroud task
-            MBclient.begin();
+            MBclient.begin(Serial1);
         } 
     } else if (newmode > 1) {
         // Register worker. at serverID 'LoadBl', all function codes
@@ -2447,19 +2820,15 @@ void ConfigureModbusMode(uint8_t newmode) {
 }
 
 
-// Generate random password for AP if not initialized
-void CheckAPpassword(void) {
+// Generate random password for AP
+void SetRandomAPpassword(void) {
     uint8_t i, c;
-    // Set random password if not yet initialized.
-    if (strcmp(APpassword.c_str(), "00000000") == 0) {
-        for (i=0; i<8 ;i++) {
+    // Set random password
+    for (i=0; i<8 ;i++) {
             c = random(16) + '0';
             if (c > '9') c += 'a'-'9'-1;
             APpassword[i] = c;
-        }
     }
-    Serial.print("APpassword: ");
-    Serial.println(APpassword);
 }
 
 /**
@@ -2480,19 +2849,17 @@ void validate_settings(void) {
         }
     }
 
-    // RFID reader set to Enable One card, the EVSE is disabled by default
-    if (RFIDReader == 2) Access_bit = 0;
-    // Enable access if no access switch used
-    else if (Switch != 1 && Switch != 2) Access_bit = 1;
+    // Enable access if no access switch + RFID is used
+    if (RFIDReader == 0 && Switch != 1 && Switch != 2) Access_bit = 1;
     // Sensorbox v2 has always address 0x0A
     if (MainsMeter == EM_SENSORBOX) MainsMeterAddress = 0x0A;
     // Disable modbus reception on normal mode
-    if (Mode == MODE_NORMAL) { MainsMeter = 0; PVMeter = 0; }
+    if (Mode == MODE_NORMAL) PVMeter = 0;
     // Disable PV reception if not configured
     if (MainsMeterMeasure == 0) PVMeter = 0;
     // set Lock variables for Solenoid or Motor
-    if (Lock == 1) { lock1 = LOW; lock2 = HIGH; }
-    else if (Lock == 2) { lock1 = HIGH; lock2 = LOW; }
+    if (Lock == 1) { lock1 = LOW; lock2 = HIGH; }                               // Solenoid
+    else if (Lock == 2) { lock1 = HIGH; lock2 = LOW; }                          // Motor
     // Erase all RFID cards from ram + eeprom if set to EraseAll
     if (RFIDReader == 5) {
        DeleteAllRFID();
@@ -2504,8 +2871,10 @@ void validate_settings(void) {
 
     // Check if AP password is unitialized. 
     // Create random AP password.
-    CheckAPpassword(); 
-
+    if (!Initialized) {
+        SetRandomAPpassword(); 
+        Initialized = 1;
+    }
           
     // Default to modbus input registers
     if (EMConfig[EM_CUSTOM].Function != 3) EMConfig[EM_CUSTOM].Function = 4;
@@ -2520,15 +2889,17 @@ void validate_settings(void) {
     }
 }
 
-void read_settings(bool write) {
+void read_settings() {
     
     if (preferences.begin("settings", false) == true) {
 
+        Initialized = preferences.getUChar("Initialized", INITIALIZED); 
         Config = preferences.getUChar("Config", CONFIG); 
         Lock = preferences.getUChar("Lock", LOCK); 
         Mode = preferences.getUChar("Mode", MODE); 
         LoadBl = preferences.getUChar("LoadBl", LOADBL); 
         MaxMains = preferences.getUShort("MaxMains", MAX_MAINS); 
+        MainsCapacity = preferences.getUShort("MainsCapacity", MAINS_CAPACITY); 
         MaxCurrent = preferences.getUShort("MaxCurrent", MAX_CURRENT); 
         MinCurrent = preferences.getUShort("MinCurrent", MIN_CURRENT); 
         MaxCircuit = preferences.getUShort("MaxCircuit", MAX_CIRCUIT); 
@@ -2538,33 +2909,37 @@ void read_settings(bool write) {
         StartCurrent = preferences.getUShort("StartCurrent", START_CURRENT); 
         StopTime = preferences.getUShort("StopTime", STOP_TIME); 
         ImportCurrent = preferences.getUShort("ImportCurrent",IMPORT_CURRENT);
+        SolarPhases = preferences.getUChar("SolarPhases", SOLAR_PHASES);
         Grid = preferences.getUChar("Grid",GRID);
         RFIDReader = preferences.getUChar("RFIDReader",RFID_READER);
 
         MainsMeter = preferences.getUChar("MainsMeter", MAINS_METER);
-        MainsMeterAddress = preferences.getUChar("MainsMAddress",MAINS_METER_ADDRESS);
-        MainsMeterMeasure = preferences.getUChar("MainsMMeasure",MAINS_METER_MEASURE);
-        PVMeter = preferences.getUChar("PVMeter",PV_METER);
-        PVMeterAddress = preferences.getUChar("PVMAddress",PV_METER_ADDRESS);
-        EVMeter = preferences.getUChar("EVMeter",EV_METER);
-        EVMeterAddress = preferences.getUChar("EVMeterAddress",EV_METER_ADDRESS);
-        EMConfig[EM_CUSTOM].Endianness = preferences.getUChar("EMEndianness",EMCUSTOM_ENDIANESS);
-        EMConfig[EM_CUSTOM].IRegister = preferences.getUShort("EMIRegister",EMCUSTOM_IREGISTER);
-        EMConfig[EM_CUSTOM].IDivisor = preferences.getUChar("EMIDivisor",EMCUSTOM_IDIVISOR);
-        EMConfig[EM_CUSTOM].URegister = preferences.getUShort("EMURegister",EMCUSTOM_UREGISTER);
-        EMConfig[EM_CUSTOM].UDivisor = preferences.getUChar("EMUDivisor",EMCUSTOM_UDIVISOR);
-        EMConfig[EM_CUSTOM].PRegister = preferences.getUShort("EMPRegister",EMCUSTOM_PREGISTER);
-        EMConfig[EM_CUSTOM].PDivisor = preferences.getUChar("EMPDivisor",EMCUSTOM_PDIVISOR);
-        EMConfig[EM_CUSTOM].ERegister = preferences.getUShort("EMERegister",EMCUSTOM_EREGISTER);
-        EMConfig[EM_CUSTOM].EDivisor = preferences.getUChar("EMEDivisor",EMCUSTOM_EDIVISOR);
-        EMConfig[EM_CUSTOM].DataType = (mb_datatype)preferences.getUChar("EMDataType",EMCUSTOM_DATATYPE);
-        EMConfig[EM_CUSTOM].Function = preferences.getUChar("EMFunction",EMCUSTOM_FUNCTION);
-        WIFImode = preferences.getUChar("WIFImode",WIFI_MODE);
-        APpassword = preferences.getString("APpassword",AP_PASSWORD);
+        MainsMeterAddress = preferences.getUChar("MainsMAddress", MAINS_METER_ADDRESS);
+        MainsMeterMeasure = preferences.getUChar("MainsMMeasure", MAINS_METER_MEASURE);
+        PVMeter = preferences.getUChar("PVMeter", PV_METER);
+        PVMeterAddress = preferences.getUChar("PVMAddress", PV_METER_ADDRESS);
+        EVMeter = preferences.getUChar("EVMeter", EV_METER);
+        EVMeterAddress = preferences.getUChar("EVMeterAddress", EV_METER_ADDRESS);
+        EMConfig[EM_CUSTOM].Endianness = preferences.getUChar("EMEndianness", EMCUSTOM_ENDIANESS);
+        EMConfig[EM_CUSTOM].IRegister = preferences.getUShort("EMIRegister", EMCUSTOM_IREGISTER);
+        EMConfig[EM_CUSTOM].IDivisor = preferences.getUChar("EMIDivisor", EMCUSTOM_IDIVISOR);
+        EMConfig[EM_CUSTOM].URegister = preferences.getUShort("EMURegister", EMCUSTOM_UREGISTER);
+        EMConfig[EM_CUSTOM].UDivisor = preferences.getUChar("EMUDivisor", EMCUSTOM_UDIVISOR);
+        EMConfig[EM_CUSTOM].PRegister = preferences.getUShort("EMPRegister", EMCUSTOM_PREGISTER);
+        EMConfig[EM_CUSTOM].PDivisor = preferences.getUChar("EMPDivisor", EMCUSTOM_PDIVISOR);
+        EMConfig[EM_CUSTOM].ERegister = preferences.getUShort("EMERegister", EMCUSTOM_EREGISTER);
+        EMConfig[EM_CUSTOM].EDivisor = preferences.getUChar("EMEDivisor", EMCUSTOM_EDIVISOR);
+        EMConfig[EM_CUSTOM].DataType = (mb_datatype)preferences.getUChar("EMDataType", EMCUSTOM_DATATYPE);
+        EMConfig[EM_CUSTOM].Function = preferences.getUChar("EMFunction", EMCUSTOM_FUNCTION);
+        WIFImode = preferences.getUChar("WIFImode", WIFI_MODE);
+        APpassword = preferences.getString("APpassword", AP_PASSWORD);
+        Access_bit = preferences.getUChar("Access_bit", ACCESS_BIT);
+        CardOffset = preferences.getUChar("CardOffset", CARD_OFFSET);
         
         preferences.end();                                  
 
-        if (write) write_settings();
+        // Store settings when not initialized
+        if (!Initialized) write_settings();
 
     } else Serial.print("Can not open preferences!\n");
 }
@@ -2580,6 +2955,7 @@ void write_settings(void) {
     preferences.putUChar("Mode", Mode); 
     preferences.putUChar("LoadBl", LoadBl); 
     preferences.putUShort("MaxMains", MaxMains); 
+    preferences.putUShort("MainsCapacity", MainsCapacity); 
     preferences.putUShort("MaxCurrent", MaxCurrent); 
     preferences.putUShort("MinCurrent", MinCurrent); 
     preferences.putUShort("MaxCircuit", MaxCircuit); 
@@ -2589,6 +2965,7 @@ void write_settings(void) {
     preferences.putUShort("StartCurrent", StartCurrent); 
     preferences.putUShort("StopTime", StopTime); 
     preferences.putUShort("ImportCurrent", ImportCurrent);
+    preferences.putUChar("SolarPhases", SolarPhases);
     preferences.putUChar("Grid", Grid);
     preferences.putUChar("RFIDReader", RFIDReader);
 
@@ -2612,6 +2989,9 @@ void write_settings(void) {
     preferences.putUChar("EMFunction", EMConfig[EM_CUSTOM].Function);
     preferences.putUChar("WIFImode", WIFImode);
     preferences.putString("APpassword", APpassword);
+    preferences.putUChar("Access_bit", Access_bit);
+    preferences.putUChar("CardOffset", CardOffset);
+    preferences.putUChar("Initialized", Initialized); 
 
     preferences.end();
 
@@ -2823,6 +3203,7 @@ void WiFiSetup(void) {
         Serial.print("mDNS responder started. http://");
         Serial.print(APhostname);
         Serial.print(".local\n");
+        WiFi.setHostname(APhostname.c_str());
     }
         
     // On disconnect Event, call function
@@ -2995,6 +3376,7 @@ void setup() {
     attachInterrupt(PIN_CP_OUT, onCPpulse, RISING);   
    
     // Uart 1 is used for Modbus @ 9600 8N1
+    RTUutils::prepareHardwareSerial(Serial1);
     Serial1.begin(MODBUS_BAUDRATE, SERIAL_8N1, PIN_RS485_RX, PIN_RS485_TX);
 
    
@@ -3019,8 +3401,12 @@ void setup() {
 
 
    // Read all settings from non volatile memory
-    read_settings(true);                                                        // initialize with default data when starting for the first time
+    read_settings();                                                            // initialize with default data when starting for the first time
+    validate_settings();
     ReadRFIDlist();                                                             // Read all stored RFID's from storage
+
+    Serial.print("APpassword: ");
+    Serial.println(APpassword);
 
     // We might need some sort of authentication in the future.
     // SmartEVSE v3 have programmed ECDSA-256 keys stored in nvs
@@ -3046,7 +3432,7 @@ void setup() {
         "EVSEStates",   // Name of the task (for debugging)
         4096,           // Stack size (bytes)                              // printf needs atleast 1kb
         NULL,           // Parameter to pass
-        1,              // Task priority
+        5,              // Task priority - high
         NULL            // Task handle
     );
 
@@ -3066,7 +3452,7 @@ void setup() {
         "Timer100ms",   // Name of the task (for debugging)
         3072,           // Stack size (bytes)                              
         NULL,           // Parameter to pass
-        1,              // Task priority
+        3,              // Task priority - medium
         NULL            // Task handle
     );
 
@@ -3076,7 +3462,7 @@ void setup() {
         "Timer1S",      // Name of the task (for debugging)
         4096,           // Stack size (bytes)                              
         NULL,           // Parameter to pass
-        1,              // Task priority
+        3,              // Task priority - medium
         NULL            // Task handle
     );
 
@@ -3097,6 +3483,9 @@ void setup() {
     // Set eModbus LogLevel to 1, to suppress possible E5 errors
     MBUlogLvl = LOG_LEVEL_CRITICAL;
     ConfigureModbusMode(255);
+
+    // request -one- response from TestIO-Sensorbox to see if we are connected to test hardware.
+    //requestCurrentMeasurement(EM_SENSORBOX, 0x0A);
   
     BacklightTimer = BACKLIGHT;
     GLCD_init();

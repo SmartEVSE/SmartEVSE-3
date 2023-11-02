@@ -448,7 +448,7 @@ void GLCD(void) {
 
         if (LCDTimer > 120) {
             LCDNav = 0;                                                         // Exit Setup menu after 120 seconds.
-            read_settings(false);                                               // don't save, but restore settings
+            read_settings();                                                    // don't save, but restore settings
         } else return;                                                          // disable LCD status messages when navigating LCD Menu
     }
    
@@ -568,6 +568,9 @@ void GLCD(void) {
             for (x = 0; x < 8; x++) GLCDbuf[x + 92u] = 0;                       // remove the clock from the LCD buffer
         }
 
+        if (MeasurementActive) {
+            GLCD_write_buf_str(128, 0, (const char*) "DETECT", GLCD_ALIGN_RIGHT);
+        }
 
         if (Isum < 0) {
             energy_mains -= 3;                                                  // animate the flow of Mains energy on LCD.
@@ -589,12 +592,12 @@ void GLCD(void) {
         }
 
         // Write number of used phases into the car
-   /*     if (Node[0].Phases) {
+        if (Node[0].Phases) {
             GLCDx = 110;
             GLCDy = 2;
             GLCD_write_buf(Node[0].Phases, 2 | GLCD_MERGE);
         }
-*/
+
         if (State == STATE_C) {
             BacklightTimer = BACKLIGHT;
 
@@ -749,7 +752,7 @@ void GLCDMenu(uint8_t Buttons) {
             if (SubMenu) {
                 switch (LCDNav) {
                     case MENU_CAL:
-                        CT1 = MenuNavInt(Buttons, CT1, 100, 999);
+                        CT1 = MenuNavInt(Buttons, CT1, 60, 999);                // range 6.0 - 99.9A
                         break;
                     case MENU_EVMETER:                                          // do not display the Sensorbox here
                         value = getItemValue(LCDNav);
@@ -764,6 +767,7 @@ void GLCDMenu(uint8_t Buttons) {
                         setItemValue(LCDNav, value);
                         break;
                 }
+                MenuItemsCount = getMenuItems();
             } else {
                 LCDNav = MenuNavCharArray(Buttons, LCDNav, MenuItems, MenuItemsCount);
             }

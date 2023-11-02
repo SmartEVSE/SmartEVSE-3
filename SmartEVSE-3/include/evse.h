@@ -31,9 +31,12 @@
 #define LOG_OFF 0
 
 #define LOG_EVSE LOG_INFO                                                       // Default: LOG_INFO
-#define LOG_MODBUS LOG_WARN                                                     // Default: LOG_WARN
+#define LOG_MODBUS LOG_WARN                                                    // Default: LOG_WARN
 
-#define VERSION "3.0.1"         	                                            // SmartEVSE software version
+#define VERSION "3.0.1k"         	                                            // SmartEVSE software version f=MAINS_CAPACITY added
+                                                                                // h=working on Solar_phases
+                                                                                // i=test mode added
+                                                                                // k=fix stuck DETECT on master when Solar charging on slave with EM Meter
 #define TRANSFORMER_COMP 100   
 
 
@@ -89,6 +92,7 @@
 #define MODE 0                                                                  // Normal EVSE mode
 #define LOCK 0                                                                  // No Cable lock
 #define MAX_CIRCUIT 16                                                          // Max current of the EVSE circuit breaker
+#define MAINS_CAPACITY 9                                                        // Max sum of currents on Mains (Sum of Amps). 9 = disable
 #define CONFIG 0                                                                // Configuration: 0= TYPE 2 socket, 1= Fixed Cable
 #define LOADBL 0                                                                // Load Balancing disabled
 #define SWITCH 0                                                                // 0= Charge on plugin, 1= (Push)Button on IO2 is used to Start/Stop charging.
@@ -101,6 +105,7 @@
 #define IMPORT_CURRENT 0                                                        // Allow the use of grid power when solar charging (Amps)
 #define MAINS_METER 1                                                           // Mains Meter, 1= Sensorbox, 2=Phoenix, 3= Finder, 4= Eastron, 5=Custom
 #define GRID 0                                                                  // Grid, 0= 4-Wire CW, 1= 4-Wire CCW, 2= 3-Wire CW, 3= 3-Wire CCW
+#define SOLAR_PHASES 0                                                          // Solar charge with 0= three phases , 1= one phase, 2= automatic
 #define MAINS_METER_ADDRESS 10
 #define MAINS_METER_MEASURE 0
 #define PV_METER 0
@@ -123,6 +128,9 @@
 #define RFID_READER 0
 #define WIFI_MODE 0
 #define AP_PASSWORD "00000000"
+#define ACCESS_BIT 1
+#define CARD_OFFSET 0
+#define INITIALIZED 0
 
 
 // Mode settings
@@ -130,11 +138,31 @@
 #define MODE_SMART 1
 #define MODE_SOLAR 2
 
+// Solar Phases
+#define SOLAR_3P 0
+#define SOLAR_1P 2
+#define SOLAR_AUTOMATIC 2
+
+#define ACCESS_BUTTON 1
+#define ACCESS_SWITCH 2
+#define SMART_SOLAR_BUTTON 3
+#define SMART_SOLAR_SWITCH 4
+
 #define MODBUS_BAUDRATE 9600
 #define MODBUS_TIMEOUT 4
 #define ACK_TIMEOUT 1000                                                        // 1000ms timeout
 #define NR_EVSES 8
+#define NO_NODE 255
 #define BROADCAST_ADR 0x09
+#define STARTCURRENT_AUTO_TIMER 40                                              // Seconds to wait before start measuring StartCurrent
+#define STARTCURRENT_INCREASE_TIME 10                                           // When measure with Mains EM, increase current and wait this time
+#define STARTCURRENT_DECREASE_TIME 6                                            // When measure with Mains EM, decrease current and wait this time
+#define STARTCURRENT_MEASUREMENT_CYCLES 3
+#define STARTCURRENT_MEASURE_TIME ((STARTCURRENT_INCREASE_TIME + STARTCURRENT_DECREASE_TIME) * STARTCURRENT_MEASUREMENT_CYCLES)
+#define STARTCURRENT_MEASURE_INCREASE                                           // Count phases on decreasing and increasing current
+#define STARTCURRENT_IDENTICAL_MEASUREMENTS 3                                   // Number of identical measurements
+#define IMPORTCURRENT_ALWAYS                                                    // Import always configured current (not only on start or stop)
+
 
 #define STATE_A 0                                                               // A Vehicle not connected
 #define STATE_B 1                                                               // B Vehicle connected / not ready to accept energy
@@ -153,7 +181,8 @@
 #define PILOT_12V 1
 #define PILOT_9V 2
 #define PILOT_6V 3
-#define PILOT_DIODE 4
+#define PILOT_3V 4
+#define PILOT_DIODE 5
 #define PILOT_NOK 0
 
 
@@ -173,6 +202,9 @@
 #define WAITING_LED_BRIGHTNESS 255
 #define LCD_BRIGHTNESS 255
 
+
+#define PILOT_CONNECTED digitalWrite(PIN_CPOFF, LOW);
+#define PILOT_DISCONNECTED digitalWrite(PIN_CPOFF, HIGH);
 
 #define CONTACTOR1_ON digitalWrite(PIN_SSR, HIGH);
 #define CONTACTOR1_OFF digitalWrite(PIN_SSR, LOW);
@@ -208,7 +240,7 @@
 #define MODBUS_EVSE_CONFIG_START 0x0100
 #define MODBUS_EVSE_CONFIG_COUNT 10
 #define MODBUS_SYS_CONFIG_START  0x0200
-#define MODBUS_SYS_CONFIG_COUNT  26
+#define MODBUS_SYS_CONFIG_COUNT  26 //28
 
 #define MODBUS_MAX_REGISTER_READ MODBUS_SYS_CONFIG_COUNT
 #define MODBUS_BUFFER_SIZE MODBUS_MAX_REGISTER_READ * 2 + 10
@@ -222,7 +254,7 @@
 #define STATUS_ACCESS 69                                                        // 0x0005: Access bit
 #define STATUS_CONFIG_CHANGED 70                                                // 0x0006: Configuration changed
 #define STATUS_MAX 71                                                           // 0x0007: Maximum charging current (RO)
-#define STATUS_PHASE_COUNT 72                                                   // 0x0008: Number of used phases (RO) (ToDo)
+#define STATUS_PHASE_COUNT 72                                                   // 0x0008: Number of used phases
 #define STATUS_REAL_CURRENT 73                                                  // 0x0009: Real charging current (RO) (ToDo)
 #define STATUS_TEMP 74                                                          // 0x000A: Temperature (RO)
 #define STATUS_SERIAL 75                                                        // 0x000B: Serial number (RO)
@@ -267,7 +299,9 @@
 #define MENU_EMCUSTOM_EDIVISOR 35                                               // 0x0217: Divisor for Energy (kWh) of custom electric meter (10^x)
 #define MENU_EMCUSTOM_READMAX 36                                                // 0x0218: Maximum register read (ToDo)
 #define MENU_WIFI 37                                                            // 0x0219: WiFi mode
-#define MENU_EXIT 38
+#define MENU_CAPACITY 38                                                        // 0x021A: Mains Capacity
+#define MENU_SOLARPHASES 39                                                     // 0x021B: Solar Phases
+#define MENU_EXIT 40
 
 #define MENU_STATE 50
 
@@ -297,12 +331,14 @@
 
 #define EM_SENSORBOX 1                                                          // Mains meter types
 #define EM_PHOENIX_CONTACT 2
-#define EM_FINDER 3
-#define EM_EASTRON 4
+#define EM_FINDER_7E 3
+#define EM_EASTRON3P 4
 #define EM_ABB 5
 #define EM_SOLAREDGE 6
 #define EM_WAGO 7
-#define EM_CUSTOM 8
+#define EM_FINDER_7M 8
+#define EM_EASTRON1P 9
+#define EM_CUSTOM 10
 
 #define ENDIANESS_LBF_LWF 0
 #define ENDIANESS_LBF_HWF 1
@@ -346,6 +382,7 @@ extern uint8_t Grid;
 extern uint16_t StartCurrent;
 extern uint16_t StopTime;
 extern uint16_t ImportCurrent;
+extern uint16_t MainsCapacity;
 extern uint8_t MainsMeter;                                                      // Type of Mains electric meter (0: Disabled / Constants EM_*)
 extern uint8_t MainsMeterAddress;
 extern uint8_t MainsMeterMeasure;                                               // What does Mains electric meter measure (0: Mains (Home+EVSE+PV) / 1: Home+EVSE / 2: Home)
@@ -355,6 +392,8 @@ extern uint8_t EVMeter;                                                         
 extern uint8_t EVMeterAddress;
 extern uint8_t RFIDReader;
 extern uint8_t WIFImode;
+extern uint8_t Access_bit;
+extern uint8_t CardOffset;
 
 extern int32_t Irms[3];                                                         // Momentary current per Phase (Amps *10) (23 = 2.3A)
 
@@ -381,7 +420,6 @@ extern uint32_t ScrollTimer;
 extern uint8_t LCDpos;
 extern uint8_t ChargeDelay;                                                     // Delays charging in seconds.
 extern uint8_t TestState;
-extern uint8_t Access_bit;
 extern uint8_t GridActive;                                                      // When the CT's are used on Sensorbox2, it enables the GRID menu option.
 extern uint8_t CalActive;                                                       // When the CT's are used on Sensorbox(1.5 or 2), it enables the CAL menu option.
 extern uint16_t Iuncal;
@@ -389,6 +427,7 @@ extern uint16_t SolarStopTimer;
 extern int32_t EnergyCharged;
 extern int32_t PowerMeasured;
 extern uint8_t RFIDstatus;
+extern bool MeasurementActive;
 extern bool LocalTimeSet;
 
 extern uint8_t MenuItems[MENU_EXIT];
@@ -445,19 +484,21 @@ const struct {
     {"EMEDIV", "ENE DIVI","Divisor for Energy (kWh) of custom electric meter",  0, 7, EMCUSTOM_EDIVISOR},
     {"EMREAD", "READ MAX","Max register read at once of custom electric meter", 3, 255, 3},
     {"WIFI",   "WIFI",    "Connect to WiFi access point",                       0, 2, WIFI_MODE},
+    {"CAPAC",  "CAPACITY","Limit max current draw on MAINS (sum of phases)",    9, 200, MAINS_CAPACITY},
+    {"PHASES", "PHASES",  "Solar charge with 1, 3 or automatic phase switching",0, 2, SOLAR_PHASES},
 
     {"EXIT", "EXIT", "EXIT", 0, 0, 0}
 };
 
 
 struct NodeStatus {
-    bool Online;
+    uint8_t Online;
     uint8_t ConfigChanged;
     uint8_t EVMeter;
     uint8_t EVAddress;
     uint8_t MinCurrent;     // 0.1A
     uint8_t Phases;
-    uint16_t Timer;         // 1s
+    uint32_t IntTimer;      // 1s
 };
 
 struct EMstruct {
@@ -466,19 +507,20 @@ struct EMstruct {
     uint8_t Function;       // 3: holding registers, 4: input registers
     MBDataType DataType;    // How data is represented on this Modbus meter
     uint16_t URegister;     // Single phase voltage (V)
-    uint8_t UDivisor;       // 10^x
+    int8_t UDivisor;        // 10^x
     uint16_t IRegister;     // Single phase current (A)
-    uint8_t IDivisor;       // 10^x
+    int8_t IDivisor;        // 10^x
     uint16_t PRegister;     // Total power (W) -- only used for EV/PV meter momentary power
-    uint8_t PDivisor;       // 10^x
+    int8_t PDivisor;        // 10^x
     uint16_t ERegister;     // Total energy (kWh)
-    uint8_t EDivisor;       // 10^x
+    int8_t EDivisor;        // 10^x
 };
 
+extern struct NodeStatus Node[NR_EVSES];
 extern struct EMstruct EMConfig[EM_CUSTOM + 1];
 
 void CheckAPpassword(void);
-void read_settings(bool write);
+void read_settings(void);
 void write_settings(void);
 void setSolarStopTimer(uint16_t Timer);
 void setState(uint8_t NewState);
@@ -487,6 +529,7 @@ uint8_t getMenuItems(void);
 uint8_t setItemValue(uint8_t nav, uint16_t val);
 uint16_t getItemValue(uint8_t nav);
 const char * getMenuItemOption(uint8_t nav);
+void CMStoreMeasurement(void);
 void ConfigureModbusMode(uint8_t newmode);
 
 
