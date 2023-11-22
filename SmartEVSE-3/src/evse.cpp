@@ -59,7 +59,7 @@ RemoteDebug Debug;
 #endif
 
 #define SNTP_GET_SERVERS_FROM_DHCP 1
-#include <sntp.h>
+#include <esp_sntp.h>
 
 struct tm timeinfo;
 
@@ -2739,9 +2739,9 @@ void Timer1S(void * parameter) {
 
         if (ErrorFlags & (NO_SUN | LESS_6A)) {
             if (Mode == MODE_SOLAR) {
-                if (ChargeDelay == 0) _LOG_I("Waiting for Solar power...\n");
+                if (ChargeDelay == 0) { _LOG_I("Waiting for Solar power...\n"); }
             } else {
-                if (ChargeDelay == 0) _LOG_I("Not enough current available!\n");
+                if (ChargeDelay == 0) { _LOG_I("Not enough current available!\n"); }
             }
             if (State == STATE_C) setState(STATE_C1);                       // If we are charging, tell EV to stop charging
             else if (State != STATE_C1) setState(STATE_B1);                 // If we are not in State C1, switch to State B1
@@ -2842,8 +2842,9 @@ void Timer1S(void * parameter) {
                         Charging_Phase[2] = false;                                     // so L3 phase will NOT be taken into account
                         _LOG_A("Setting Nr_Of_Phases_Charging to 1.\n");
                     }
-                    if (!Force_Single_Phase_Charging() && Nr_Of_Phases_Charging != 3) //TODO 2phase charging very rare?
+                    if (!Force_Single_Phase_Charging() && Nr_Of_Phases_Charging != 3) {//TODO 2phase charging very rare?
                         _LOG_A("Possible error in detecting phases: EnableC2=%s and Nr_Of_Phases_Charging=%i.\n", StrEnableC2[EnableC2], Nr_Of_Phases_Charging);
+                    }
                 }
 
                 _LOG_A("Charging at %i phases, L1=%i, L2=%i, L3=%i.\n", Nr_Of_Phases_Charging, Charging_Phase[0], Charging_Phase[1], Charging_Phase[2]);
@@ -3234,8 +3235,9 @@ void MBhandleError(Error error, uint32_t token)
                                                                                 //a timeout will be generated. This is legit!
     _LOG_V("Error response: %02X - %s, address: %02x, function: %02x, reg: %04x.\n", error, (const char *)me,  address, function, reg);
   }
-  else
+  else {
     _LOG_A("Error response: %02X - %s, address: %02x, function: %02x, reg: %04x.\n", error, (const char *)me,  address, function, reg);
+  }
 }
 
 
@@ -3445,7 +3447,9 @@ void read_settings(bool write) {
 
         if (write) write_settings();
 
-    } else _LOG_A("Can not open preferences!\n");
+    } else {
+        _LOG_A("Can not open preferences!\n");
+    }
 }
 
 void write_settings(void) {
@@ -3644,7 +3648,9 @@ void StartwebServer(void) {
         if(!Update.hasError()) {
             if(Update.write(data, len) != len) {
                 Update.printError(Serial);
-            } else _LOG_A("bytes written %u\r", index+len);
+            } else {
+                _LOG_A("bytes written %u\r", index+len);
+            }
         }
         if(final) {
             if(Update.end(true)) {
@@ -4520,7 +4526,9 @@ void setup() {
         _LOG_A("hwversion %04x serialnr:%u \n",hwversion, serialnr);
         //_LOG_A(ec_public);
 
-    } else _LOG_A("No KeyStorage found in nvs!\n");
+    } else {
+        _LOG_A("No KeyStorage found in nvs!\n");
+    }
 
 
     // Create Task EVSEStates, that handles changes in the CP signal

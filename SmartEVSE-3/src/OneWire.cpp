@@ -167,7 +167,9 @@ void ReadRFIDlist(void) {
 
         if (initialized == 0 ) DeleteAllRFID();           // when unitialized, delete all cardIDs 
 
-    } else _LOG_A("Error opening preferences!\n");
+    } else {
+        _LOG_A("Error opening preferences!\n") ;
+    }
 }
 
 // Write a list of 20 RFID's to the eeprom
@@ -178,7 +180,9 @@ void WriteRFIDlist(void) {
         preferences.putBytes("RFID", RFIDlist, 120);                                // write 120 bytes to storage
         preferences.putUChar("RFIDinit", 1);                                      // data initialized
         preferences.end();
-    } else _LOG_A("Error opening preferences!\n");
+    } else {
+        _LOG_A("Error opening preferences!\n");
+    }
     
 
     _LOG_I("\nRFID list saved\n");
