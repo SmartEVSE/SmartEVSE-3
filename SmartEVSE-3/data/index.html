@@ -72,6 +72,7 @@
               let full_soc = data.ev_state.full_soc;
               let initial_soc = data.ev_state.initial_soc;
               let computed_soc = data.ev_state.computed_soc;
+              let time_until_full = data.ev_state.time_until_full;
               let energy_capacity = data.ev_state.energy_capacity;
               let energy_request = data.ev_state.energy_request;
               let evccid = data.ev_state.evccid;
@@ -81,6 +82,9 @@
               $('#initial_soc').html(initial_soc >= 0 ? initial_soc + " &#37;" : "N/A");
               $('#energy_capacity').html(energy_capacity >= 0 ? energy_capacity.toFixed(1) + " kWh" : "N/A");
               $('#evccid').html(evccid || "N/A");
+              $('#full_at')
+                .text(time_until_full > 0 ? new Date(+Date.now()+(time_until_full * 1000)).toLocaleString(undefined, { timeStyle: 'short', dateStyle: "short" }) : 'N/A')
+                .attr('title', (time_until_full > 0 ? Math.round(time_until_full / 60) + ' min to go' : 'N/A'));
             }
 
             if (data.mqtt) {
@@ -455,6 +459,14 @@
                                         <div class="text-xl font-weight-bold text-info text-uppercase mb-1">EV State</div>
                                         <div class="row no-gutters align-items-center">
                                           <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 150px;">
+                                              EVCCID
+                                          </div>
+                                          <div class="col">
+                                              <div class="h5 mb-0 mr-3 text-gray-800" id="evccid" style="text-align: right;"></div>
+                                          </div>
+                                        </div>
+                                        <div class="row no-gutters align-items-center">
+                                          <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 150px;">
                                             <span title="Estimated / computed">Current SoC</span>
                                           </div>
                                           <div class="col">
@@ -479,20 +491,20 @@
                                         </div>
                                         <div class="row no-gutters align-items-center">
                                           <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 150px;">
+                                            <span title="Estimated / computed">Est. full at</span>
+                                          </div>
+                                          <div class="col">
+                                              <div class="h5 mb-0 mr-3 text-gray-800" id="full_at" style="text-align: right;"></div>
+                                          </div>
+                                        </div>
+                                        <div class="row no-gutters align-items-center">
+                                          <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 150px;">
                                               Capacity
                                           </div>
                                           <div class="col">
                                               <div class="h5 mb-0 mr-3 text-gray-800" id="energy_capacity" style="text-align: right;"></div>
                                           </div>
                                         </div>
-                                        <div class="row no-gutters align-items-center">
-                                          <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 150px;">
-                                              EVCCID
-                                          </div>
-                                          <div class="col">
-                                              <div class="h5 mb-0 mr-3 text-gray-800" id="evccid" style="text-align: right;"></div>
-                                          </div>
-                                      </div>
                                     </div>
                                     <div class="col-auto">
                                       <i class="fas fa-clipboard-list fa-2x text-gray-300">
