@@ -3746,8 +3746,6 @@ void StartwebServer(void) {
             doc["wifi"]["ssid"] = WiFi.SSID();    
             doc["wifi"]["rssi"] = WiFi.RSSI();    
             doc["wifi"]["bssid"] = WiFi.BSSIDstr();  
-            doc["wifi"]["auto_connect"] = WiFi.getAutoConnect();  
-            doc["wifi"]["auto_reconnect"] = WiFi.getAutoReconnect();   
         }
         
         doc["evse"]["temp"] = TempEVSE;
