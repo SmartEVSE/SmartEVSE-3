@@ -1407,7 +1407,7 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
             break;
         case STATUS_CURRENT:
             OverrideCurrent = val;
-            timeout = 10;                                                       // reset timeout when register is written
+            timeout = COMM_TIMEOUT;                                             // reset timeout when register is written
             break;
         case STATUS_SOLAR_TIMER:
             setSolarStopTimer(val);
@@ -2045,7 +2045,7 @@ void EVSEStates(void * parameter) {
             LCDupdate = 0;
         }    
 
-        if ((ErrorFlags & CT_NOCOMM) && timeout == 10) ErrorFlags &= ~CT_NOCOMM;          // Clear communication error, if present
+        if ((ErrorFlags & CT_NOCOMM) && timeout >= COMM_TIMEOUT) ErrorFlags &= ~CT_NOCOMM; // Clear communication error, if present
         
         // Pause the task for 10ms
         vTaskDelay(10 / portTICK_PERIOD_MS);
@@ -2316,7 +2316,7 @@ void mqtt_receive_callback(const String &topic, const String &payload) {
             phasesLastUpdate = time(NULL);
 
             if (LoadBl < 2)
-                timeout = 20;
+                timeout = COMM_TIMEOUT;
             if ((ErrorFlags & CT_NOCOMM))
                 ErrorFlags &= ~CT_NOCOMM; // Clear communication error, if present
 
@@ -2787,7 +2787,7 @@ void Timer1S(void * parameter) {
         // and send broadcast to Node controllers.
         if (LoadBl < 2 && !Broadcast--) {                // Load Balancing mode: Master or Disabled
             ModbusRequest = 1;                                          // Start with state 1, also in Normal mode we want MainsMeter and EVmeter updated 
-            //timeout = 10; not sure if necessary, statement was missing in original code    // reset timeout counter (not checked for Master)
+            //timeout = COMM_TIMEOUT; not sure if necessary, statement was missing in original code    // reset timeout counter (not checked for Master)
             Broadcast = 1;                                                  // repeat every two seconds
         }
 
@@ -3007,7 +3007,7 @@ ModbusMessage MBEVMeterResponse(ModbusMessage request) {
         } else if (MB.Register == EMConfig[EVMeter].IRegister) {
             // Current measurement
             x = receiveCurrentMeasurement(MB.Data, EVMeter, EV );
-            if (x && LoadBl <2) timeout = 10;                   // only reset timeout when data is ok, and Master/Disabled
+            if (x && LoadBl <2) timeout = COMM_TIMEOUT;                     // only reset timeout when data is ok, and Master/Disabled
             for (x = 0; x < 3; x++) {
                 // CurrentMeter and PV values are MILLI AMPERE
                 Irms_EV[x] = (signed int)(EV[x] / 100);            // Convert to AMPERE * 10
@@ -3052,7 +3052,7 @@ ModbusMessage MBMainsMeterResponse(ModbusMessage request) {
 
         //_LOG_A("Mains Meter Response\n");
             x = receiveCurrentMeasurement(MB.Data, MainsMeter, CM);
-            if (x && LoadBl <2) timeout = 10;                   // only reset timeout when data is ok, and Master/Disabled
+            if (x && LoadBl <2) timeout = COMM_TIMEOUT;         // only reset timeout when data is ok, and Master/Disabled
 
             // Calculate Isum (for nodes and master)
 
@@ -3194,7 +3194,7 @@ ModbusMessage MBbroadcast(ModbusMessage request) {
                     if (Balanced[0] == 0 && State == STATE_C) setState(STATE_C1);               // tell EV to stop charging if charge current is zero
                     else if ((State == STATE_B) || (State == STATE_C)) SetCurrent(Balanced[0]); // Set charge current, and PWM output
                     _LOG_V("Broadcast received, Node %u.%1u A\n", Balanced[0]/10, Balanced[0]%10);
-                    timeout = 10;                                   // reset 10 second timeout
+                    timeout = COMM_TIMEOUT;                     // reset 10 second timeout
                 } else {
                     //WriteMultipleItemValueResponse();
                     if (ItemID) {
@@ -4115,7 +4115,7 @@ void StartwebServer(void) {
                 }
                 doc["TOTAL"] = Isum;
 
-                timeout = 10;
+                timeout = COMM_TIMEOUT;
 
                 UpdateCurrentData();
             }
@@ -4138,7 +4138,7 @@ void StartwebServer(void) {
                 Irms_EV[1] = request->getParam("L2")->value().toInt();
                 Irms_EV[2] = request->getParam("L3")->value().toInt();
 
-                if (LoadBl < 2) timeout = 10;    
+                if (LoadBl < 2) timeout = COMM_TIMEOUT;
 
                 UpdateCurrentData();
             }
