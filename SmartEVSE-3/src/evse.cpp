@@ -4301,6 +4301,15 @@ void onWifiEvent(WiFiEvent_t event) {
   }
 }
 
+// turns out getLocalTime only checks if the current year > 2016, and if so, decides NTP must have synced;
+// this callback function actually checks if we are synced!
+void timeSyncCallback(struct timeval *tv)
+{
+    LocalTimeSet = true;
+    _LOG_A("Synced clock to NTP server!");    // somehow adding a \n here hangs the device after printing this message ?!?
+}
+
+
 // Setup Wifi 
 void WiFiSetup(void) {
 
@@ -4323,15 +4332,11 @@ void WiFiSetup(void) {
     // Init and get the time
     sntp_servermode_dhcp(1);                                                    //try to get the ntp server from dhcp
     sntp_setservername(1, "europe.pool.ntp.org");                               //fallback server
+    sntp_set_time_sync_notification_cb(timeSyncCallback);
     sntp_init();
     String TZ_INFO = ESPAsync_wifiManager.getTZ(TZname.c_str());
     setenv("TZ",TZ_INFO.c_str(),1);
     tzset();
-    //if(!getLocalTime(&timeinfo)) _LOG_A("Failed to obtain time\n");
-    
-    // test code, sets time to 31-OCT, 02:59:50 , 10 seconds before DST will be switched off
-    //timeval epoch = {1635641990, 0};                    
-    //settimeofday((const timeval*)&epoch, 0);            
 
 #if DBG != 0
     // Initialize the server (telnet or web socket) of RemoteDebug
@@ -4627,14 +4632,11 @@ void setup() {
 void loop() {
 
     delay(1000);
-    // retrieve time from NTP server
-    LocalTimeSet = getLocalTime(&timeinfo, 1000U);
 
 #ifndef DEBUG_DISABLED
     // Remote debug over WiFi
     Debug.handle();
 #endif
-
 
     // TODO move this to a once a minute loop?
     if (DelayedStartTime.epoch2 && LocalTimeSet) {
