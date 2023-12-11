@@ -831,6 +831,7 @@ const char * getMenuItemOption(uint8_t nav) {
         case MENU_LOADBL:
             return StrLoadBl[LoadBl];
         case MENU_MAINS:
+        case MENU_SUMMAINS:
         case MENU_MIN:
         case MENU_MAX:
         case MENU_CIRCUIT:
@@ -978,6 +979,7 @@ uint8_t getMenuItems (void) {
     MenuItems[m++] = MENU_WIFI;                                                 // Wifi Disabled / Enabled / Portal
     MenuItems[m++] = MENU_MAX_TEMP;
     MenuItems[m++] = MENU_MODEM;
+    MenuItems[m++] = MENU_SUMMAINS;
     MenuItems[m++] = MENU_EXIT;
 
     return m;
