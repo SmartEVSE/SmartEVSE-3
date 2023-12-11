@@ -4632,6 +4632,8 @@ void setup() {
 void loop() {
 
     delay(1000);
+    if (!LocalTimeSet)
+        _LOG_A("Time not synced with NTP yet.\n");
 
 #ifndef DEBUG_DISABLED
     // Remote debug over WiFi
