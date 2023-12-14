@@ -910,7 +910,7 @@ char IsCurrentAvailable(void) {
         if ((ActiveEVSE * (MinCurrent * 10) + Baseload) > (MaxMains * 10)) {
             return 0;                                                           // Not enough current available!, return with error
         }
-        if ((ActiveEVSE * (MinCurrent * 10) + Baseload) > (MaxCircuit * 10) - Baseload_EV) {
+        if ((ActiveEVSE * (MinCurrent * 10) + Baseload_EV) > (MaxCircuit * 10)) {
             return 0;                                                           // Not enough current available!, return with error
         }
         //assume the current should be available on all 3 phases
