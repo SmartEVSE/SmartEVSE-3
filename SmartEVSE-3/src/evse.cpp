@@ -4632,6 +4632,7 @@ void setup() {
 void loop() {
 
     delay(1000);
+    getLocalTime(&timeinfo, 1000U);
     if (!LocalTimeSet)
         _LOG_A("Time not synced with NTP yet.\n");
 
