@@ -184,7 +184,7 @@ There is a simple timer implemented on the webserver, for Delayed Charging.
 # EU Capacity Rate Limiting
 A EU directive gives electricity providers the possibility to charge end consumers by a "capacity rate", so consumers will be stimulated to flatten their usage curve.
 Currently the only known country that has this active is Belgium.
-For more details see https://github.com/serkri/SmartEVSE-3/issues/215#issuecomment-1856588735
+For more details see https://github.com/serkri/SmartEVSE-3/issues/215
 
 * In the Menu screen an item "SumMains" is now available, default set at 600A
 * This setting will only be of use in Smart or Solar mode
