@@ -4380,7 +4380,7 @@ void WiFiSetup(void) {
 
 #if DBG != 0
     // Initialize the server (telnet or web socket) of RemoteDebug
-    Debug.begin(APhostname, 23, 3);
+    Debug.begin(APhostname, 23, 2);
     Debug.showColors(true); // Colors
 #if DBG == 2
     Debug.setSerialEnabled(true); // if you wants serial echo - only recommended if ESP is plugged in USB
