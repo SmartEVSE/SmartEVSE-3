@@ -136,7 +136,7 @@ uint16_t MaxCircuit = MAX_CIRCUIT;                                          // M
 uint8_t Config = CONFIG;                                                    // Configuration (0:Socket / 1:Fixed Cable)
 uint8_t LoadBl = LOADBL;                                                    // Load Balance Setting (0:Disable / 1:Master / 2-8:Node)
 uint8_t Switch = SWITCH;                                                    // External Switch (0:Disable / 1:Access B / 2:Access S / 3:Smart-Solar B / 4:Smart-Solar S)
-                                                                            // B=momentary push button, S=toggle switch
+                                                                            // B=momentary push <B>utton, S=toggle <S>witch
 uint8_t RCmon = RC_MON;                                                     // Residual Current Monitor (0:Disable / 1:Enable)
 uint16_t StartCurrent = START_CURRENT;
 uint16_t StopTime = STOP_TIME;
@@ -1279,9 +1279,15 @@ void receiveNodeStatus(uint8_t *buf, uint8_t NodeNr) {
 //    memcpy(buf, (uint8_t*)&Node[NodeNr], sizeof(struct NodeState));
     BalancedState[NodeNr] = buf[1];                                             // Node State
     BalancedError[NodeNr] = buf[3];                                             // Node Error status
+    // Update Mode when changed on Node and not Smart/Solar Switch on the Master
+    // Also make sure we are not in the menu.
+    if (buf[7] != Mode && (buf[7] == MODE_SMART || buf[7] == MODE_SOLAR) && Switch != 4 && !LCDNav) setMode(buf[7]); //TODO get rid of Switch != 4 to prevent master and slave in different modes?
+                                                                                                                     //TODO also switch to normal mode?
     Node[NodeNr].ConfigChanged = buf[13] | Node[NodeNr].ConfigChanged;
     BalancedMax[NodeNr] = buf[15] * 10;                                         // Node Max ChargeCurrent (0.1A)
-    //_LOG_A("ReceivedNode[%u]Status State:%u Error:%u, BalancedMax:%u\n", NodeNr, BalancedState[NodeNr], BalancedError[NodeNr], BalancedMax[NodeNr] );
+    if (LoadBl) {
+        _LOG_V("ReceivedNode[%u]Status State:%u Error:%u, BalancedMax:%u, Mode:%u.\n", NodeNr, BalancedState[NodeNr], BalancedError[NodeNr], BalancedMax[NodeNr], buf[7]);
+    }
 }
 
 /**
