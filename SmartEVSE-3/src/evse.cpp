@@ -1119,6 +1119,19 @@ void CalcBalancedCurrent(char mod) {
     _LOG_D("Balance: %s\n", Str);
     }
 }
+/**
+ * In order to keep each node happy, and not timeout with a comm-error you will have to send the chargecurrent for each node in a broadcast message to all nodes
+ * (address 09):
+
+    09 10 00 20 00 08 10 00 A0 00 00 00 3C 00 00 00 00 00 00 00 00 00 00 99 24
+    Node 0 00 A0 = 160 = 16.0A
+    Node 1 00 00 = 0 = 0.0A
+    Node 2 00 3C = 60 = 6.0A
+    etc.
+
+ *  Each time this message is received on each node, the timeout timer is reset to 10 seconds.
+ *  The master will usually send this message every two seconds.
+**/
 
 /**
  * Broadcast momentary currents to all Node EVSE's
@@ -1126,6 +1139,39 @@ void CalcBalancedCurrent(char mod) {
 void BroadcastCurrent(void) {
     ModbusWriteMultipleRequest(BROADCAST_ADR, 0x0020, Balanced, NR_EVSES);
 }
+
+/**
+ * EVSE Register 0x02*: System configuration (same on all SmartEVSE in a LoadBalancing setup)
+ * TODO not sure if this is used anywhere in the code?
+Regis 	Access 	Description 	                                        Unit 	Values
+0x0200 	R/W 	EVSE mode 		                                        0:Normal / 1:Smart / 2:Solar
+0x0201 	R/W 	EVSE Circuit max Current 	                        A 	10 - 160
+0x0202 	R/W 	Grid type to which the Sensorbox is connected 		        0:4Wire / 1:3Wire
+0x0203 	R/W 	CT calibration value 	                                0.01 	Multiplier
+0x0204 	R/W 	Max Mains Current 	                                A 	10 - 200
+0x0205 	R/W 	Surplus energy start Current 	                        A 	1 - 16
+0x0206 	R/W 	Stop solar charging at 6A after this time 	        min 	0:Disable / 1 - 60
+0x0207 	R/W 	Allow grid power when solar charging 	                A 	0 - 6
+0x0208 	R/W 	Type of Mains electric meter 		                *
+0x0209 	R/W 	Address of Mains electric meter 		                10 - 247
+0x020A 	R/W 	What does Mains electric meter measure 		                0:Mains (Home+EVSE+PV) / 1:Home+EVSE
+0x020B 	R/W 	Type of PV electric meter 		                *
+0x020C 	R/W 	Address of PV electric meter 		                        10 - 247
+0x020D 	R/W 	Byte order of custom electric meter 		                0:LBF & LWF / 1:LBF & HWF / 2:HBF & LWF / 3:HBF & HWF
+0x020E 	R/W 	Data type of custom electric meter 		                0:Integer / 1:Double
+0x020F 	R/W 	Modbus Function (3/4) of custom electric meter
+0x0210 	R/W 	Register for Voltage (V) of custom electric meter 		0 - 65530
+0x0211 	R/W 	Divisor for Voltage (V) of custom electric meter 	10x 	0 - 7
+0x0212 	R/W 	Register for Current (A) of custom electric meter 		0 - 65530
+0x0213 	R/W 	Divisor for Current (A) of custom electric meter 	10x 	0 - 7
+0x0214 	R/W 	Register for Power (W) of custom electric meter 		0 - 65534
+0x0215 	R/W 	Divisor for Power (W) of custom electric meter 	        10x 	0 - 7 /
+0x0216 	R/W 	Register for Energy (kWh) of custom electric meter 		0 - 65534
+0x0217 	R/W 	Divisor for Energy (kWh) of custom electric meter 	10x 	0 - 7
+0x0218 	R/W 	Maximum register read (Not implemented)
+0x0219 	R/W 	WiFi mode
+0x021A 	R/W 	Limit max current draw on MAINS (sum of phases) 	A 	9:Disable / 10 - 200
+**/
 
 /**
  * Master requests Node configuration over modbus
@@ -1136,6 +1182,22 @@ void BroadcastCurrent(void) {
 void requestNodeConfig(uint8_t NodeNr) {
     ModbusReadInputRequest(NodeNr + 1u, 4, 0x0108, 2);
 }
+
+/**
+ * EVSE Node Config layout
+ *
+Reg 	Access 	Description 	                        Unit 	Values
+0x0100 	R/W 	Configuration 		                        0:Socket / 1:Fixed Cable
+0x0101 	R/W 	Cable lock 		                        0:Disable / 1:Solenoid / 2:Motor
+0x0102 	R/W 	MIN Charge Current the EV will accept 	A 	6 - 16
+0x0103 	R/W 	MAX Charge Current for this EVSE 	A 	6 - 80
+0x0104 	R/W 	Load Balance 		                        0:Disabled / 1:Master / 2-8:Node
+0x0105 	R/W 	External Switch on pin SW 		        0:Disabled / 1:Access Push-Button / 2:Access Switch / 3:Smart-Solar Push-Button / 4:Smart-Solar Switch
+0x0106 	R/W 	Residual Current Monitor on pin RCM 		0:Disabled / 1:Enabled
+0x0107 	R/W 	Use RFID reader 		                0:Disabled / 1:Enabled
+0x0108 	R/W 	Type of EV electric meter 		        *
+0x0109 	R/W 	Address of EV electric meter 		        10 - 247
+**/
 
 /**
  * Master receives Node configuration over modbus
@@ -1161,6 +1223,49 @@ void requestNodeStatus(uint8_t NodeNr) {
     Node[NodeNr].Online = false;
     ModbusReadInputRequest(NodeNr + 1u, 4, 0x0000, 8);
 }
+
+/** To have full control over the nodes, you will have to read each node's status registers, and see if it requests to charge.
+ * for example for node 2:
+
+    Received packet (21 bytes) 03 04 10 00 01 00 00 00 3c 00 01 00 00 00 01 00 01 00 20 4d 8c
+    00 01 = state B
+    00 00 = no errors
+    00 3c = charge current 6.0 A
+    00 01 = Smart mode
+    etc.
+
+    Here the state changes to STATE_COMM_C (00 06)
+    Received packet (21 bytes) 03 04 10 00 06 00 00 00 3c 00 01 00 00 00 01 00 01 00 20 0a 8e
+    So the ESVE request to charge.
+
+    You can respond to this request by changing the state of the node to State_C
+    03 10 00 00 00 02 04 00 07 00 00 49 D6
+    Here it will write 00 07 (STATE_COMM_C_OK) to register 0x0000, and reset the error register 0x0001
+
+    The node will respond to this by switching to STATE_C (Charging).
+**/
+
+/**
+ * EVSE Node status layout
+ *
+Regist 	Access  Description 	        Unit 	Values
+0x0000 	R/W 	State 		                0:A / 1:B / 2:C / 3:D / 4:Node request B / 5:Master confirm B / 6:Node request C /
+                                                7:Master confirm C / 8:Activation mode / 9:B1 / 10:C1
+0x0001 	R/W 	Error 	                Bit 	1:LESS_6A / 2:NO_COMM / 4:TEMP_HIGH / 8:Unused / 16:RCD / 32:NO_SUN
+0x0002 	R/W 	Charging current        0.1 A 	0:no current available / 6-80
+0x0003 	R/W 	EVSE mode (without saving)      0:Normal / 1:Smart / 2:Solar
+0x0004 	R/W 	Solar Timer 	        s
+0x0005 	R/W 	Access bit 		        0:No Access / 1:Access
+0x0006 	R/W 	Configuration changed (Not implemented)
+0x0007 	R 	Maximum charging current A
+0x0008 	R/W 	Number of used phases (Not implemented) 0:Undetected / 1 - 3
+0x0009 	R 	Real charging current (Not implemented) 0.1 A
+0x000A 	R 	Temperature 	        K
+0x000B 	R 	Serial number
+0x0020 - 0x0027
+        W 	Broadcast charge current. SmartEVSE uses only one value depending on the "Load Balancing" configuration
+                                        0.1 A 	0:no current available
+**/
 
 /**
  * Master receives Node status over modbus
