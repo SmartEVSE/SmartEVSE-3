@@ -2300,7 +2300,7 @@ void mqtt_receive_callback(const String &topic, const String &payload) {
                 OverrideCurrent = RequestedCurrent;
             }
         }
-    } else if (topic == MQTTprefix + "/Set/CurrentMaxSumMains") {
+    } else if (topic == MQTTprefix + "/Set/CurrentMaxSumMains" && LoadBl < 2) {
         uint16_t RequestedCurrent = payload.toInt();
         if (RequestedCurrent == 0) {
             MaxSumMains = 0;
@@ -2323,7 +2323,7 @@ void mqtt_receive_callback(const String &topic, const String &payload) {
             CPDutyOverride = true;
         }
     } else if (topic == MQTTprefix + "/Set/MainsMeter") {
-        if (MainsMeter != EM_API)
+        if (MainsMeter != EM_API || LoadBl >= 2)
             return;
 
         int32_t L1, L2, L3;
@@ -2384,6 +2384,8 @@ void mqtt_receive_callback(const String &topic, const String &payload) {
             }
         }
     } else if (topic == MQTTprefix + "/Set/HomeBatteryCurrent") {
+        if (LoadBl >= 2)
+            return;
         homeBatteryCurrent = payload.toInt();
         homeBatteryLastUpdate = time(NULL);
     } else if (topic == MQTTprefix + "/Set/RequiredEVCCID") {
@@ -3289,7 +3291,7 @@ void MBhandleError(Error error, uint32_t token)
   
 void ConfigureModbusMode(uint8_t newmode) {
 
-    _LOG_A("changing LoadBL from %u to %u\n",LoadBl, newmode);
+    _LOG_A("changing LoadBl from %u to %u\n",LoadBl, newmode);
     
     if ((LoadBl < 2 && newmode > 1) || (LoadBl > 1 && newmode < 2) || (newmode == 255) ) {
         
@@ -3782,6 +3784,7 @@ void StartwebServer(void) {
         doc["settings"]["current_min"] = MinCurrent;
         doc["settings"]["current_max"] = MaxCurrent;
         doc["settings"]["current_main"] = MaxMains;
+        doc["settings"]["current_max_circuit"] = MaxCircuit;
         doc["settings"]["current_max_sum_mains"] = MaxSumMains;
         doc["settings"]["solar_max_import"] = ImportCurrent;
         doc["settings"]["solar_start_current"] = StartCurrent;
@@ -3872,7 +3875,7 @@ void StartwebServer(void) {
 
         if(request->hasParam("current_min")) {
             int current = request->getParam("current_min")->value().toInt();
-            if(current >= 6 && current <= 16) {
+            if(current >= 6 && current <= 16 && LoadBl < 2) {
                 MinCurrent = current;
                 doc["current_min"] = MinCurrent;
                 write_settings();
@@ -3883,7 +3886,7 @@ void StartwebServer(void) {
 
         if(request->hasParam("current_max_sum_mains")) {
             int current = request->getParam("current_max_sum_mains")->value().toInt();
-            if(current >= 10 && current <= 600) {
+            if(current >= 10 && current <= 600 && LoadBl < 2) {
                 MaxSumMains = current;
                 doc["current_max_sum_mains"] = MaxSumMains;
                 write_settings();
@@ -4118,33 +4121,39 @@ void StartwebServer(void) {
         DynamicJsonDocument doc(200);
 
         if(request->hasParam("battery_current")) {
-            homeBatteryCurrent = request->getParam("battery_current")->value().toInt();
-            homeBatteryLastUpdate = time(NULL);
-            doc["battery_current"] = homeBatteryCurrent;
+            if (LoadBl < 2) {
+                homeBatteryCurrent = request->getParam("battery_current")->value().toInt();
+                homeBatteryLastUpdate = time(NULL);
+                doc["battery_current"] = homeBatteryCurrent;
+            } else
+                doc["battery_current"] = "not allowed on slave";
         }
 
         if(MainsMeter == EM_API) {
             if(request->hasParam("L1") && request->hasParam("L2") && request->hasParam("L3")) {
-                phasesLastUpdate = time(NULL);
+                if (LoadBl < 2) {
+                    phasesLastUpdate = time(NULL);
 
-                Irms[0] = request->getParam("L1")->value().toInt();
-                Irms[1] = request->getParam("L2")->value().toInt();
-                Irms[2] = request->getParam("L3")->value().toInt();
+                    Irms[0] = request->getParam("L1")->value().toInt();
+                    Irms[1] = request->getParam("L2")->value().toInt();
+                    Irms[2] = request->getParam("L3")->value().toInt();
 
-                int batteryPerPhase = getBatteryCurrent() / 3;
-                Isum = 0; 
-                for (int x = 0; x < 3; x++) {  
-                    IrmsOriginal[x] = Irms[x];
-                    doc["original"]["L" + x] = Irms[x];
-                    Irms[x] -= batteryPerPhase;           
-                    doc["L" + x] = Irms[x];
-                    Isum = Isum + Irms[x];
-                }
-                doc["TOTAL"] = Isum;
+                    int batteryPerPhase = getBatteryCurrent() / 3;
+                    Isum = 0;
+                    for (int x = 0; x < 3; x++) {
+                        IrmsOriginal[x] = Irms[x];
+                        doc["original"]["L" + x] = Irms[x];
+                        Irms[x] -= batteryPerPhase;
+                        doc["L" + x] = Irms[x];
+                        Isum = Isum + Irms[x];
+                    }
+                    doc["TOTAL"] = Isum;
 
-                timeout = COMM_TIMEOUT;
+                    timeout = COMM_TIMEOUT;
 
-                UpdateCurrentData();
+                    UpdateCurrentData();
+                } else
+                    doc["TOTAL"] = "not allowed on slave";
             }
         }
 
