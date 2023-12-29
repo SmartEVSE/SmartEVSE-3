@@ -29,7 +29,6 @@
 #include <Logging.h>
 #include <ModbusServerRTU.h>        // Slave/node
 #include <ModbusClientRTU.h>        // Master
-#include "ModbusBridgeWiFi.h"       // Modbus TCP bridge
 #include <time.h>
 
 #include <nvs_flash.h>              // nvs initialisation code (can be removed?)
@@ -89,7 +88,6 @@ String Router_Pass;
 // Create a ModbusRTU server, client and bridge instance on Serial1
 ModbusServerRTU MBserver(2000, PIN_RS485_DIR);     // TCP timeout set to 2000 ms
 ModbusClientRTU MBclient(PIN_RS485_DIR);
-ModbusBridgeWiFi MBbridge;
 
 hw_timer_t * timerA = NULL;
 Preferences preferences;
@@ -3436,18 +3434,6 @@ void ConfigureModbusMode(uint8_t newmode) {
 
             // Start ModbusRTU Master background task
             MBclient.begin(Serial1);
-            // Modbus TCP bridge
-            // Second address is the RTU slave address that is mapped to the first TCP slave address
-            // TODO not sure if I should create a separate RTUclient for the bridge
-            if (MainsMeter)
-                MBbridge.attachServer(MainsMeterAddress, MainsMeterAddress, ANY_FUNCTION_CODE, &MBclient);
-            if (EVMeter)
-                MBbridge.attachServer(EVMeterAddress, EVMeterAddress, ANY_FUNCTION_CODE, &MBclient);
-            if (PVMeter)
-                MBbridge.attachServer(PVMeterAddress, PVMeterAddress, ANY_FUNCTION_CODE, &MBclient);
-            // Port number 502, maximum of 5 clients in parallel, 10 seconds timeout
-            MBbridge.start(502, 5, 10000);
-
         } 
     } else if (newmode > 1) {
         // Register worker. at serverID 'LoadBl', all function codes
@@ -4377,24 +4363,6 @@ void StartwebServer(void) {
 
     webServer.on("/modbus", HTTP_POST, [](AsyncWebServerRequest *request) {
         DynamicJsonDocument doc(200);
-
-        //to bridge meter address (decimal)
-        //activate tcp Modbus bridge, example:
-        //curl -X POST http://smartevse-xxxxx.lan/modbus?bridge_meter_address=101
-        //max 5 meters allowed, of which mainsmeter, evmeter and pvmeter might already be taken
-        //TODO not sure what happens if you exceed this maximum, since attachServer always returns true....
-        //has to be activated after every reboot
-        if(request->hasParam("bridge_meter_address")) {
-            int address = request->getParam("bridge_meter_address")->value().toInt();
-            doc["bridge_meter_address"] = "Value not allowed";                  //will be overwritten when success bridging
-            if ( address >= 10 && address <= 249) {
-                MBbridge.attachServer(MainsMeterAddress, MainsMeterAddress, ANY_FUNCTION_CODE, &MBclient);
-                doc["bridge_meter_address"] = address;
-            }
-            String json;
-            serializeJson(doc, json);
-            request->send(200, "application/json", json);
-        }
     });
 
 #ifdef FAKE_RFID
@@ -4813,15 +4781,5 @@ void loop() {
                 DelayedStopTime.epoch2 = DELAYEDSTOPTIME;
             setAccess(0);                         //switch to OFF
         }
-    }
-
-    // Modbus TCP stuff
-    static uint32_t statusTime = millis();
-    const uint32_t statusInterval(10000);
-
-    // We will be idling around here - all is done in subtasks :D
-    if (millis() - statusTime > statusInterval) {
-      _LOG_A("%d clients running.\n", MBbridge.activeClients());
-      statusTime = millis();
     }
 }

@@ -148,15 +148,6 @@ There are three options to integrate SmartEVSE with Home Assistant:
     If you don't like the integration, e.g. because it only updates its data every 60 seconds, you might like to interface through MQTT; updates are done as soon as values change.... you can even mix it up by using both the integration AND the MQTT interface at the same time!
 
 
-# Modbus TCP bridge
-
-Your MainsMeter, EVMeter and PVMeter will present themselves at port 502 of your SmartEVSE, via the modbus-tcp protocol. 
-So this makes it possible for you to use whatever modbus function you want on whatever modbus register you want. 
-The addresses on the tcp modbus are the same addresses as they are on the RTU modbus.
-
-E.g. my MainsMeter is at slave address 0x0a, so this command reads register 70decimal and following:<br />
-mbpoll -a10 -t 3:hex -r 70 -c 10 10.0.0.76
-
 # Simple Timer
 
 There is a simple timer implemented on the webserver, for Delayed Charging.
