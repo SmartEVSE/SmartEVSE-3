@@ -1117,6 +1117,20 @@ void CalcBalancedCurrent(char mod) {
     }
 }
 /**
+ * Load Balancing 	Modbus Address  LoadBl
+    Disabled     	0x01            0x00
+    Master       	0x01            0x01
+    Node 1 	        0x02            0x02
+    Node 2 	        0x03            0x03
+    Node 3 	        0x04            0x04
+    Node 4 	        0x05            0x05
+    Node 5 	        0x06            0x06
+    Node 6 	        0x07            0x07
+    Node 7 	        0x08            0x08
+    Broadcast to all SmartEVSE with address 0x09.
+**/
+
+/**
  * In order to keep each node happy, and not timeout with a comm-error you will have to send the chargecurrent for each node in a broadcast message to all nodes
  * (address 09):
 
