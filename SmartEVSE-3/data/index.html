@@ -261,6 +261,10 @@
               $('[id=with_evmeter]').hide();
             } else {
               $('[id=with_evmeter]').show();
+              $('#evmeter_description').text(data.ev_meter.description);
+              $('#evmeter_power').text(data.ev_meter.import_active_power.toFixed(1) + " kW");
+              $('#evmeter_total_kwh').text(data.ev_meter.total_kwh.toFixed(1) + " kWh");
+              $('#evmeter_charged_kwh').text(data.ev_meter.charged_kwh.toFixed(1) + " kWh");
             }
 
             if(data.settings.modem == "Not present") {
@@ -277,10 +281,6 @@
                 $('#mqtt_topic_prefix').val(data.mqtt.topic_prefix);
             }
 
-            $('#evmeter_description').text(data.ev_meter.description);
-            $('#evmeter_power').text(data.ev_meter.import_active_power.toFixed(1) + " kW");
-            $('#evmeter_total_kwh').text(data.ev_meter.total_kwh.toFixed(1) + " kWh");
-            $('#evmeter_charged_kwh').text(data.ev_meter.charged_kwh.toFixed(1) + " kWh");
 
             setTimeout("loadData()", 5000);
           });
