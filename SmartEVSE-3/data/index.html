@@ -102,11 +102,11 @@
               $('[id=loadbl_node]').text("Slave Node "+(data.evse.loadbl-1));
               //$('[id=loadbl_text_slave]').show();
               //$('[id=loadbl_text_master]').hide();
-              $('[id=loadbl_mode_3_off]').hide();
+              $('[id=loadbl_mode_3_off]').show();
               $('[id=contactor2]').hide();
               //$('[id=form_mode] :input').prop('disabled',true);
-              $('[id=mode_2]').hide();
-              $('[id=mode_3]').hide();
+              $('[id=mode_2]').show();
+              $('[id=mode_3]').show();
               //$('[id=mode_override_current]').prop('disabled',true);
               $('[id=form_pwm] :input').prop('disabled',true);
             } else if (data.evse.loadbl == 1) {
