@@ -47,7 +47,7 @@
 #include "OneWire.h"
 #include "modbus.h"
 
-#ifdef MQTT
+#if MQTT
 #include <MQTT.h>
 WiFiClient client;
 MQTTClient MQTTclient;
@@ -67,7 +67,7 @@ AsyncWebServer webServer(80);
 AsyncDNSServer dnsServer;
 String APhostname = "SmartEVSE-" + String( MacId() & 0xffff, 10);           // SmartEVSE access point Name = SmartEVSE-xxxxx
 
-#ifdef MQTT
+#if MQTT
 // MQTT connection info
 String MQTTuser;
 String MQTTpassword;
@@ -150,7 +150,7 @@ uint8_t Grid = GRID;                                                        // T
 uint8_t EVMeter = EV_METER;                                                 // Type of EV electric meter (0: Disabled / Constants EM_*)
 uint8_t EVMeterAddress = EV_METER_ADDRESS;
 uint8_t RFIDReader = RFID_READER;                                           // RFID Reader (0:Disabled / 1:Enabled / 2:Enable One / 3:Learn / 4:Delete / 5:Delete All)
-#ifdef FAKE_RFID
+#if FAKE_RFID
 uint8_t Show_RFID = 0;
 #endif
 uint8_t WIFImode = WIFI_MODE;                                               // WiFi Mode (0:Disabled / 1:Enabled / 2:Start Portal)
@@ -625,7 +625,7 @@ void setMode(uint8_t NewMode) {
         }
     }
 
-#ifdef MQTT
+#if MQTT
     // Update MQTT faster
     lastMqttUpdate = 10;
 #endif
@@ -707,7 +707,7 @@ void setState(uint8_t NewState) {
                 Node[0].MinCurrent = 0;                                         // Clear ChargeDelay when disconnected.
             }
 
-#ifdef MODEM
+#if MODEM
             if (DisconnectTimeCounter == -1){
                 DisconnectTimeCounter = 0;                                      // Start counting disconnect time. If longer than 60 seconds, throw DisconnectEvent
             }
@@ -799,7 +799,7 @@ void setState(uint8_t NewState) {
     BalancedState[0] = NewState;
     State = NewState;
 
-#ifdef MQTT
+#if MQTT
     // Update MQTT faster
     lastMqttUpdate = 10;
 #endif
@@ -820,7 +820,7 @@ void setAccess(bool Access) {
         preferences.end();
     }
 
-#ifdef MQTT
+#if MQTT
     // Update MQTT faster
     lastMqttUpdate = 10;
 #endif
@@ -2004,7 +2004,7 @@ void EVSEStates(void * parameter) {
                 if (!ResetKwh) ResetKwh = 1;                                    // when set, reset EV kWh meter on state B->C change.
             } else if ( pilot == PILOT_9V && ErrorFlags == NO_ERROR 
                 && ChargeDelay == 0 && Access_bit
-#ifdef MODEM
+#if MODEM
                 && State != STATE_COMM_B && State != STATE_MODEM_REQUEST && State != STATE_MODEM_WAIT && State != STATE_MODEM_DONE) {                                     // switch to State B ?
 
 #else
@@ -2376,7 +2376,7 @@ uint8_t PollEVNode = NR_EVSES;
 
 }
 
-#ifdef MQTT
+#if MQTT
 void mqtt_receive_callback(const String &topic, const String &payload) {
     if (topic == MQTTprefix + "/Set/Mode") {
         if (payload == "Off") {
@@ -2747,7 +2747,7 @@ void Timer1S(void * parameter) {
 
         // activation Mode is active
         if (ActivationTimer) ActivationTimer--;                             // Decrease ActivationTimer every second.
-#ifdef MODEM
+#if MODEM
         if (State == STATE_MODEM_REQUEST){
             if (ToModemWaitStateTimer) ToModemWaitStateTimer--;
             else{
@@ -2816,7 +2816,7 @@ void Timer1S(void * parameter) {
             }
         }
 
-#ifdef MODEM
+#if MODEM
         // Normally, the modem is enabled when Modem == Experiment. However, after a succesfull communication has been set up, EVSE will restart communication by replugging car and moving back to state B.
         // This time, communication is not initiated. When a car is disconnected, we want to enable the modem states again, but using 12V signal is not reliable (we just "replugged" via CP pin, remember).
         // This counter just enables the state after 3 seconds of success.
@@ -3018,7 +3018,7 @@ void Timer1S(void * parameter) {
             } //if Det... = 0
         } //if Detecting_Charging_Phases_Timer
 
-#ifdef MQTT
+#if MQTT
         // Process MQTT data
         MQTTclient.loop();
 
@@ -3190,7 +3190,7 @@ ModbusMessage MBMainsMeterResponse(ModbusMessage request) {
             phasesLastUpdate=time(NULL);
             Isum = 0;
             int batteryPerPhase = getBatteryCurrent() / 3; // Divide the battery current per phase to spread evenly
-#ifdef FAKE_SUNNY_DAY
+#if FAKE_SUNNY_DAY
             int32_t temp[3]={0, 0, 0};
             temp[0] = INJECT_CURRENT_L1 * 10;                   //Irms is in units of 100mA
             temp[1] = INJECT_CURRENT_L2 * 10;
@@ -3200,7 +3200,7 @@ ModbusMessage MBMainsMeterResponse(ModbusMessage request) {
                 // Calculate difference of Mains and PV electric meter
                 if (PVMeter) CM[x] = CM[x] - PV[x];             // CurrentMeter and PV values are MILLI AMPERE
                 Irms[x] = (signed int)(CM[x] / 100);            // Convert to AMPERE * 10
-#ifdef FAKE_SUNNY_DAY
+#if FAKE_SUNNY_DAY
                 Irms[x] = Irms[x] - temp[x];
 #endif
                 IrmsOriginal[x] = Irms[x];
@@ -3587,7 +3587,7 @@ void read_settings(bool write) {
         strncpy(RequiredEVCCID, preferences.getString("RequiredEVCCID", "").c_str(), sizeof(RequiredEVCCID));
         maxTemp = preferences.getUShort("maxTemp", MAX_TEMPERATURE);
 
-#ifdef MQTT
+#if MQTT
         MQTTpassword = preferences.getString("MQTTpassword");
         MQTTuser = preferences.getString("MQTTuser");
         MQTTprefix = preferences.getString("MQTTprefix", APhostname);
@@ -3657,7 +3657,7 @@ void write_settings(void) {
     preferences.putString("RequiredEVCCID", String(RequiredEVCCID));
     preferences.putUShort("maxTemp", maxTemp);
 
-#ifdef MQTT
+#if MQTT
     preferences.putString("MQTTpassword", MQTTpassword);
     preferences.putString("MQTTuser", MQTTuser);
     preferences.putString("MQTTprefix", MQTTprefix);
@@ -3911,7 +3911,7 @@ void StartwebServer(void) {
             doc["ev_state"]["time_until_full"] = TimeUntilFull;
         }
 
-#ifdef MQTT
+#if MQTT
         doc["mqtt"]["host"] = MQTTHost;
         doc["mqtt"]["port"] = MQTTPort;
         doc["mqtt"]["topic_prefix"] = MQTTprefix;
@@ -4169,7 +4169,7 @@ void StartwebServer(void) {
             }
         }
 
-#ifdef MQTT
+#if MQTT
         if(request->hasParam("mqtt_update")) {
             if (request->getParam("mqtt_update")->value().toInt() == 1) {
 
@@ -4379,7 +4379,7 @@ void StartwebServer(void) {
         DynamicJsonDocument doc(200);
     });
 
-#ifdef FAKE_RFID
+#if FAKE_RFID
     //this can be activated by: http://smartevse-xxx.lan/debug?showrfid=1
     webServer.on("/debug", HTTP_GET, [](AsyncWebServerRequest *request) {
         if(request->hasParam("showrfid")) {
@@ -4743,7 +4743,7 @@ void setup() {
 
     CP_ON;           // CP signal ACTIVE
 
-#ifdef MQTT
+#if MQTT
     // Setup MQTT client
     MQTTclient.begin(client);
     SetupMQTTClient();

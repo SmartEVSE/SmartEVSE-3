@@ -31,18 +31,18 @@
 #endif
 
 #ifndef FAKE_RFID
-//uncomment this to emulate an rfid reader with rfid of card = 123456
+//set FAKE_RFID to 1 to emulate an rfid reader with rfid of card = 123456
 //showing the rfid card is simulated by executing http://smartevse-xxx.lan/debug?showrfid=1
 //don't forget to first store the card before it can activate charging
-//#define FAKE_RFID 1
+#define FAKE_RFID 0
 #endif
 
 #ifndef FAKE_SUNNY_DAY
-//uncomment this to emulate a sunny day where your solar charger is injecting current in the grid:
-//#define FAKE_SUNNY_DAY 1
+//set this to 1 to emulate a sunny day where your solar charger is injecting current in the grid:
+#define FAKE_SUNNY_DAY 0
 //disclaimer: might not work for CT1 calibration/uncalibration stuff, since I can't test that
 //the number of Amperes you want to have fake injected into Lx
-#ifdef FAKE_SUNNY_DAY
+#if FAKE_SUNNY_DAY
 #define INJECT_CURRENT_L1 10
 #define INJECT_CURRENT_L2 0
 #define INJECT_CURRENT_L3 0
@@ -395,7 +395,7 @@ extern uint8_t PVMeter;                                                         
 extern uint8_t PVMeterAddress;
 extern uint8_t EVMeter;                                                         // Type of EV electric meter (0: Disabled / Constants EM_*)
 extern uint8_t EVMeterAddress;
-#ifdef FAKE_RFID
+#if FAKE_RFID
 extern uint8_t Show_RFID;
 #endif
 

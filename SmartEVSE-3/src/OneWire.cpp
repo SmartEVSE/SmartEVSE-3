@@ -112,7 +112,7 @@ unsigned char OneWireRead(void) {
     return r;
 }
 
-#ifdef FAKE_RFID
+#if FAKE_RFID
 unsigned char OneWireReadCardId(void) {
     if (!RFIDstatus && Show_RFID) { //if ready to accept new card and it is shown
         RFID[0] = 0x01; //Family Code
