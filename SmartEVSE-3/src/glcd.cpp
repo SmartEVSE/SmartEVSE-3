@@ -914,7 +914,9 @@ const char * getMenuItemOption(uint8_t nav) {
 uint8_t getMenuItems (void) {
     uint8_t m = 0;
 
-    MenuItems[m++] = MENU_MODE;                                                 // EVSE mode (0:Normal / 1:Smart)
+    uint8_t MainsMeter = getItemValue(MENU_MAINSMETER);
+    if (MainsMeter)                                                             // only show Mode menu if we have a mainsmeter, otherwise we are in normal mode
+        MenuItems[m++] = MENU_MODE;                                             // EVSE mode (0:Normal / 1:Smart / 2: Solar)
     MenuItems[m++] = MENU_CONFIG;                                               // Configuration (0:Socket / 1:Fixed Cable)
     if (!getItemValue(MENU_CONFIG)) {                                                              // ? Fixed Cable?
         MenuItems[m++] = MENU_LOCK;                                             // - Cable lock (0:Disable / 1:Solenoid / 2:Motor)
@@ -942,7 +944,6 @@ uint8_t getMenuItems (void) {
     MenuItems[m++] = MENU_SWITCH;                                               // External Switch on SW (0:Disable / 1:Access / 2:Smart-Solar)
     MenuItems[m++] = MENU_RCMON;                                                // Residual Current Monitor on RCM (0:Disable / 1:Enable)
     MenuItems[m++] = MENU_RFIDREADER;                                           // RFID Reader connected to SW (0:Disable / 1:Enable / 2:Learn / 3:Delete / 4:Delate All)
-    uint8_t MainsMeter = getItemValue(MENU_MAINSMETER);
     if (LoadBl < 2) {                                                       // - ? Load Balancing Disabled/Master?
         MenuItems[m++] = MENU_MAINSMETER;                                   // - - Type of Mains electric meter (0: Disabled / Constants EM_*)
         if (MainsMeter == EM_SENSORBOX || MainsMeter == EM_API) {                                   // - - ? Sensorbox?
@@ -1017,7 +1018,7 @@ void GLCDMenu(uint8_t Buttons) {
         LCDNav = MENU_ENTER;                                                    // about to enter menu
         ButtonTimer = millis();
     } else if (LCDNav == MENU_ENTER && ((ButtonTimer + 2000) < millis() )) {    // <CONFIG>
-        LCDNav = MENU_MODE;                                                     // Main Menu entered
+        LCDNav = MenuItems[0];                                                  // Main Menu entered
         ButtonRelease = 1;
     } else if ((LCDNav == MENU_ENTER) && (Buttons == 0x7)) {                    // Button 2 released before entering menu?
         LCDNav = 0;
