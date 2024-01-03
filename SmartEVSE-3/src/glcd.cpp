@@ -924,8 +924,6 @@ uint8_t getMenuItems (void) {
     MenuItems[m++] = MENU_LOADBL;                                               // Load Balance Setting (0:Disable / 1:Master / 2-8:Node)
     if (MainsMeter && LoadBl < 2) {                                                   // ? Mode Smart/Solar and Load Balancing Disabled/Master?
         MenuItems[m++] = MENU_MAINS;                                            // - Max Mains Amps (hard limit, limited by the MAINS connection) (A) (Mode:Smart/Solar)
-    }
-    if ((Mode && (LoadBl < 2)) || LoadBl == 1) {                                // ? Mode Smart/Solar or LoadBl Master?
         MenuItems[m++] = MENU_MIN;                                              // - Minimal current the EV is happy with (A) (Mode:Smart/Solar or LoadBl:Master)
     }
     if (Mode == MODE_SOLAR && LoadBl < 2) {                                     // ? Solar mode and Load Balancing Disabled/Master?
