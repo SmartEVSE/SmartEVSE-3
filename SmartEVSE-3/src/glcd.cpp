@@ -798,8 +798,6 @@ const char * getMenuItemOption(uint8_t nav) {
     const static char StrGrid[2][10] = {"4Wire", "3Wire"};
     const static char StrEnabled[] = "Enabled";
     const static char StrExitMenu[] = "MENU";
-    const static char StrMainsAll[] = "All";
-    const static char StrMainsHomeEVSE[] = "Home+EVSE";
     const static char StrRFIDReader[6][10] = {"Disabled", "EnableAll", "EnableOne", "Learn", "Delete", "DeleteAll"};
     const static char StrWiFi[3][10] = {"Disabled", "Enabled", "SetupWifi"};
 
@@ -848,13 +846,11 @@ const char * getMenuItemOption(uint8_t nav) {
             if (value) return StrEnabled;
             else return StrDisabled;
         case MENU_MAINSMETER:
-        case MENU_PVMETER:
         case MENU_EVMETER:
             return (const char*)EMConfig[value].Desc;
         case MENU_GRID:
             return StrGrid[value];
         case MENU_MAINSMETERADDRESS:
-        case MENU_PVMETERADDRESS:
         case MENU_EVMETERADDRESS:
         case MENU_EMCUSTOM_UREGISTER:
         case MENU_EMCUSTOM_IREGISTER:
@@ -863,9 +859,6 @@ const char * getMenuItemOption(uint8_t nav) {
             if(value < 0x1000) sprintf(Str, "%u (%02X)", value, value);     // This just fits on the LCD.
             else sprintf(Str, "%u %X", value, value);
             return Str;
-        case MENU_MAINSMETERMEASURE:
-            if (value) return StrMainsHomeEVSE;
-            else return StrMainsAll;
         case MENU_EMCUSTOM_ENDIANESS:
             switch(value) {
                 case 0: return "LBF & LWF";
@@ -948,11 +941,6 @@ uint8_t getMenuItems (void) {
             if (CalActive == 1) MenuItems[m++] = MENU_CAL;                  // - - - Sensorbox CT measurement calibration
         } else if(MainsMeter) {                                             // - - ? Other?
             MenuItems[m++] = MENU_MAINSMETERADDRESS;                        // - - - Address of Mains electric meter (5 - 254)
-            MenuItems[m++] = MENU_MAINSMETERMEASURE;                        // - - - What does Mains electric meter measure (0: Mains (Home+EVSE+PV) / 1: Home+EVSE / 2: Home)
-            if (getItemValue(MENU_MAINSMETERMEASURE)) {                     // - - - ? PV not measured by Mains electric meter?
-                MenuItems[m++] = MENU_PVMETER;                              // - - - - Type of PV electric meter (0: Disabled / Constants EM_*)
-                if (PVMeter) MenuItems[m++] = MENU_PVMETERADDRESS;          // - - - - - Address of PV electric meter (5 - 254)
-            }
         }
     }
     MenuItems[m++] = MENU_EVMETER;                                          // - Type of EV electric meter (0: Disabled / Constants EM_*)
@@ -960,7 +948,7 @@ uint8_t getMenuItems (void) {
         MenuItems[m++] = MENU_EVMETERADDRESS;                               // - - Address of EV electric meter (5 - 254)
     }
     if (LoadBl < 2) {                                                       // - ? Load Balancing Disabled/Master?
-        if (MainsMeter == EM_CUSTOM || PVMeter == EM_CUSTOM || EVMeter == EM_CUSTOM) { // ? Custom electric meter used?
+        if (MainsMeter == EM_CUSTOM || EVMeter == EM_CUSTOM) { // ? Custom electric meter used?
             MenuItems[m++] = MENU_EMCUSTOM_ENDIANESS;                       // - - Byte order of custom electric meter
             MenuItems[m++] = MENU_EMCUSTOM_DATATYPE;                        // - - Data type of custom electric meter
             MenuItems[m++] = MENU_EMCUSTOM_FUNCTION;                        // - - Modbus Function of custom electric meter
@@ -1060,13 +1048,6 @@ void GLCDMenu(uint8_t Buttons) {
                         CT1 = MenuNavInt(Buttons, CT1, 100, 999);
                         break;
                     case MENU_MAINSMETER:
-                    case MENU_PVMETER:
-                        value = getItemValue(LCDNav);
-                        do {
-                            value = MenuNavInt(Buttons, value, MenuStr[LCDNav].Min, MenuStr[LCDNav].Max);
-                        } while (value >= EM_UNUSED_SLOT1 && value <= EM_UNUSED_SLOT5);
-                        setItemValue(LCDNav, value);
-                        break;
                     case MENU_EVMETER:                                          // do not display the Sensorbox or unused slots here
                         value = getItemValue(LCDNav);
                         do {

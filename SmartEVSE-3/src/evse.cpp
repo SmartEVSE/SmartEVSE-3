@@ -143,9 +143,6 @@ struct DelayedTimeStruct DelayedStopTime;
 uint8_t DelayedRepeat;                                                      // 0 = no repeat, 1 = daily repeat
 uint8_t MainsMeter = MAINS_METER;                                           // Type of Mains electric meter (0: Disabled / Constants EM_*)
 uint8_t MainsMeterAddress = MAINS_METER_ADDRESS;
-uint8_t MainsMeterMeasure = MAINS_METER_MEASURE;                            // What does Mains electric meter measure (0: Mains (Home+EVSE+PV) / 1: Home+EVSE / 2: Home)
-uint8_t PVMeter = PV_METER;                                                 // Type of PV electric meter (0: Disabled / Constants EM_*)
-uint8_t PVMeterAddress = PV_METER_ADDRESS;
 uint8_t Grid = GRID;                                                        // Type of Grid connected to Sensorbox (0:4Wire / 1:3Wire )
 uint8_t EVMeter = EV_METER;                                                 // Type of EV electric meter (0: Disabled / Constants EM_*)
 uint8_t EVMeterAddress = EV_METER_ADDRESS;
@@ -1164,7 +1161,7 @@ Regis 	Access 	Description 	                                        Unit 	Values
 0x0207 	R/W 	Allow grid power when solar charging 	                A 	0 - 6
 0x0208 	R/W 	Type of Mains electric meter 		                *
 0x0209 	R/W 	Address of Mains electric meter 		                10 - 247
-0x020A 	R/W 	What does Mains electric meter measure 		                0:Mains (Home+EVSE+PV) / 1:Home+EVSE
+//0x020A 	R/W 	What does Mains electric meter measure 		                0:Mains (Home+EVSE+PV) / 1:Home+EVSE
 0x020B 	R/W 	Type of PV electric meter 		                *
 0x020C 	R/W 	Address of PV electric meter 		                        10 - 247
 0x020D 	R/W 	Byte order of custom electric meter 		                0:LBF & LWF / 1:LBF & HWF / 2:HBF & LWF / 3:HBF & HWF
@@ -1464,15 +1461,6 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
         case MENU_MAINSMETERADDRESS:
             MainsMeterAddress = val;
             break;
-        case MENU_MAINSMETERMEASURE:
-            MainsMeterMeasure = val;
-            break;
-        case MENU_PVMETER:
-            PVMeter = val;
-            break;
-        case MENU_PVMETERADDRESS:
-            PVMeterAddress = val;
-            break;
         case MENU_EVMETER:
             EVMeter = val;
             break;
@@ -1608,12 +1596,6 @@ uint16_t getItemValue(uint8_t nav) {
             return MainsMeter;
         case MENU_MAINSMETERADDRESS:
             return MainsMeterAddress;
-        case MENU_MAINSMETERMEASURE:
-            return MainsMeterMeasure;
-        case MENU_PVMETER:
-            return PVMeter;
-        case MENU_PVMETERADDRESS:
-            return PVMeterAddress;
         case MENU_EVMETER:
             return EVMeter;
         case MENU_EVMETERADDRESS:
@@ -2252,11 +2234,6 @@ uint8_t PollEVNode = NR_EVSES;
         if (ModbusRequest) {
             switch (ModbusRequest++) {                                          // State
                 case 1:                                                         // PV kwh meter
-                    if (PVMeter) {
-                        _LOG_D("ModbusRequest %u: Request PVMeter Measurement\n", ModbusRequest);
-                        requestCurrentMeasurement(PVMeter, PVMeterAddress);
-                        break;
-                    }
                     ModbusRequest++;
                     // fall through
                 case 2:                                                         // Sensorbox or kWh meter that measures -all- currents
@@ -2580,11 +2557,6 @@ void SetupMQTTClient() {
         announce("EV Current L2", "sensor");
         announce("EV Current L3", "sensor");
     }
-    if (PVMeter) {
-        announce("PV Current L1", "sensor");
-        announce("PV Current L2", "sensor");
-        announce("PV Current L3", "sensor");
-    }
     if (homeBatteryLastUpdate) {
         announce("Home Battery Current", "sensor");
     }
@@ -2673,11 +2645,6 @@ void mqttPublishData() {
             MQTTclient.publish(MQTTprefix + "/EVCurrentL1", String(Irms_EV[0]), false, 0);
             MQTTclient.publish(MQTTprefix + "/EVCurrentL2", String(Irms_EV[1]), false, 0);
             MQTTclient.publish(MQTTprefix + "/EVCurrentL3", String(Irms_EV[2]), false, 0);
-        }
-        if (PVMeter) {
-            MQTTclient.publish(MQTTprefix + "/PVCurrentL1", String(PV[0] > 100 ? (uint) PV[0] / 100 : 0), false, 0);
-            MQTTclient.publish(MQTTprefix + "/PVCurrentL2", String(PV[1] > 100 ? (uint) PV[1] / 100 : 0), false, 0);
-            MQTTclient.publish(MQTTprefix + "/PVCurrentL3", String(PV[2] > 100 ? (uint) PV[2] / 100 : 0), false, 0);
         }
         MQTTclient.publish(MQTTprefix + "/ESPUptime", String((esp_timer_get_time() / 1000000)), false, 0);
         MQTTclient.publish(MQTTprefix + "/ESPTemp", String(TempEVSE), false, 0);
@@ -3149,24 +3116,6 @@ ModbusMessage MBEVMeterResponse(ModbusMessage request) {
     return NIL_RESPONSE;              
 }
 
-// Monitor PV Meter responses, and update PV current measurements
-// Does not send any data back.
-//
-ModbusMessage MBPVMeterResponse(ModbusMessage request) {
-
-    ModbusDecode( (uint8_t*)request.data(), request.size());
-
-    if (MB.Type == MODBUS_RESPONSE) {
-//        _LOG_A("PVMeter Response\n");
-        if (PVMeter && MB.Address == PVMeterAddress && MB.Register == EMConfig[PVMeter].IRegister) {
-            // packet from PV electric meter
-            receiveCurrentMeasurement(MB.Data, PVMeter, PV );
-        }    
-    }
-    // As this is a response to an earlier request, do not send response.
-    return NIL_RESPONSE;  
-}
-
 //
 // Monitor Mains Meter responses, and update Irms values
 // Does not send any data back.
@@ -3197,7 +3146,6 @@ ModbusMessage MBMainsMeterResponse(ModbusMessage request) {
 #endif
             for (x = 0; x < 3; x++) {
                 // Calculate difference of Mains and PV electric meter
-                if (PVMeter) CM[x] = CM[x] - PV[x];             // CurrentMeter and PV values are MILLI AMPERE
                 Irms[x] = (signed int)(CM[x] / 100);            // Convert to AMPERE * 10
 #if FAKE_SUNNY_DAY
                 Irms[x] = Irms[x] - temp[x];
@@ -3359,9 +3307,6 @@ void MBhandleData(ModbusMessage msg, uint32_t token)
     } else if (Address == EVMeterAddress) {
         //_LOG_A("EV Meter data\n");
         MBEVMeterResponse(msg);
-    } else if (Address == PVMeterAddress) {
-        //_LOG_A("PV Meter data\n");
-        MBPVMeterResponse(msg);
     // Only responses to FC 03/04 are handled here. FC 06/10 response is only a acknowledge.
     } else {
         ModbusDecode( (uint8_t*)msg.data(), msg.size());
@@ -3428,7 +3373,6 @@ void ConfigureModbusMode(uint8_t newmode) {
 
             if (MainsMeter && MainsMeter != EM_API) MBserver.registerWorker(MainsMeterAddress, ANY_FUNCTION_CODE, &MBMainsMeterResponse);
             if (EVMeter && EVMeter != EM_API) MBserver.registerWorker(EVMeterAddress, ANY_FUNCTION_CODE, &MBEVMeterResponse);
-            if (PVMeter) MBserver.registerWorker(PVMeterAddress, ANY_FUNCTION_CODE, &MBPVMeterResponse);
 
             // Start ModbusRTU Node background task
             MBserver.begin(Serial1);
@@ -3492,8 +3436,6 @@ void validate_settings(void) {
 
     // Sensorbox v2 has always address 0x0A
     if (MainsMeter == EM_SENSORBOX) MainsMeterAddress = 0x0A;
-    // Disable PV reception if not configured
-    if (MainsMeterMeasure == 0) PVMeter = 0;
     // set Lock variables for Solenoid or Motor
     if (Lock == 1) { lock1 = LOW; lock2 = HIGH; }
     else if (Lock == 2) { lock1 = HIGH; lock2 = LOW; }
@@ -3559,9 +3501,6 @@ void read_settings(bool write) {
 
         MainsMeter = preferences.getUChar("MainsMeter", MAINS_METER);
         MainsMeterAddress = preferences.getUChar("MainsMAddress",MAINS_METER_ADDRESS);
-        MainsMeterMeasure = preferences.getUChar("MainsMMeasure",MAINS_METER_MEASURE);
-        PVMeter = preferences.getUChar("PVMeter",PV_METER);
-        PVMeterAddress = preferences.getUChar("PVMAddress",PV_METER_ADDRESS);
         EVMeter = preferences.getUChar("EVMeter",EV_METER);
         EVMeterAddress = preferences.getUChar("EVMeterAddress",EV_METER_ADDRESS);
         EMConfig[EM_CUSTOM].Endianness = preferences.getUChar("EMEndianness",EMCUSTOM_ENDIANESS);
@@ -3630,9 +3569,6 @@ void write_settings(void) {
 
     preferences.putUChar("MainsMeter", MainsMeter);
     preferences.putUChar("MainsMAddress", MainsMeterAddress);
-    preferences.putUChar("MainsMMeasure", MainsMeterMeasure);
-    preferences.putUChar("PVMeter", PVMeter);
-    preferences.putUChar("PVMAddress", PVMeterAddress);
     preferences.putUChar("EVMeter", EVMeter);
     preferences.putUChar("EVMeterAddress", EVMeterAddress);
     preferences.putUChar("EMEndianness", EMConfig[EM_CUSTOM].Endianness);

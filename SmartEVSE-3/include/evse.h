@@ -153,7 +153,6 @@ extern RemoteDebug Debug;
 #define MAINS_METER 0                                                           // Mains Meter, 0=Disabled, 1= Sensorbox, 2=Phoenix, 3= Finder, 4= Eastron, 5=Custom
 #define GRID 0                                                                  // Grid, 0= 4-Wire CW, 1= 4-Wire CCW, 2= 3-Wire CW, 3= 3-Wire CCW
 #define MAINS_METER_ADDRESS 10
-#define MAINS_METER_MEASURE 0
 #define PV_METER 0
 #define PV_METER_ADDRESS 11
 #define EV_METER 0
@@ -314,29 +313,26 @@ extern RemoteDebug Debug;
 #define MENU_IMPORT 19                                                          // 0x0207: Allow grid power when solar charging
 #define MENU_MAINSMETER 20                                                      // 0x0208: Type of Mains electric meter
 #define MENU_MAINSMETERADDRESS 21                                               // 0x0209: Address of Mains electric meter
-#define MENU_MAINSMETERMEASURE 22                                               // 0x020A: What does Mains electric meter measure
-#define MENU_PVMETER 23                                                         // 0x020B: Type of PV electric meter
-#define MENU_PVMETERADDRESS 24                                                  // 0x020C: Address of PV electric meter
-#define MENU_EMCUSTOM_ENDIANESS 25                                              // 0x020D: Byte order of custom electric meter
-#define MENU_EMCUSTOM_DATATYPE 26                                               // 0x020E: Data type of custom electric meter
-#define MENU_EMCUSTOM_FUNCTION 27                                               // 0x020F: Modbus Function (3/4) of custom electric meter
-#define MENU_EMCUSTOM_UREGISTER 28                                              // 0x0210: Register for Voltage (V) of custom electric meter
-#define MENU_EMCUSTOM_UDIVISOR 29                                               // 0x0211: Divisor for Voltage (V) of custom electric meter (10^x)
-#define MENU_EMCUSTOM_IREGISTER 30                                              // 0x0212: Register for Current (A) of custom electric meter
-#define MENU_EMCUSTOM_IDIVISOR 31                                               // 0x0213: Divisor for Current (A) of custom electric meter (10^x)
-#define MENU_EMCUSTOM_PREGISTER 32                                              // 0x0214: Register for Power (W) of custom electric meter
-#define MENU_EMCUSTOM_PDIVISOR 33                                               // 0x0215: Divisor for Power (W) of custom electric meter (10^x)
-#define MENU_EMCUSTOM_EREGISTER 34                                              // 0x0216: Register for Energy (kWh) of custom electric meter
-#define MENU_EMCUSTOM_EDIVISOR 35                                               // 0x0217: Divisor for Energy (kWh) of custom electric meter (10^x)
-#define MENU_EMCUSTOM_READMAX 36                                                // 0x0218: Maximum register read (ToDo)
-#define MENU_WIFI 37                                                            // 0x0219: WiFi mode
-#define MENU_C2 38
-#define MENU_MAX_TEMP 39
-#define MENU_MODEM 40
-#define MENU_SUMMAINS 41
-#define MENU_OFF 42                                                             // so access bit is reset and charging stops when pressing < button 2 seconds
-#define MENU_ON 43                                                              // so access bit is set and charging starts when pressing > button 2 seconds
-#define MENU_EXIT 44
+#define MENU_EMCUSTOM_ENDIANESS 22                                              // 0x020D: Byte order of custom electric meter
+#define MENU_EMCUSTOM_DATATYPE 23                                               // 0x020E: Data type of custom electric meter
+#define MENU_EMCUSTOM_FUNCTION 24                                               // 0x020F: Modbus Function (3/4) of custom electric meter
+#define MENU_EMCUSTOM_UREGISTER 25                                              // 0x0210: Register for Voltage (V) of custom electric meter
+#define MENU_EMCUSTOM_UDIVISOR 26                                               // 0x0211: Divisor for Voltage (V) of custom electric meter (10^x)
+#define MENU_EMCUSTOM_IREGISTER 27                                              // 0x0212: Register for Current (A) of custom electric meter
+#define MENU_EMCUSTOM_IDIVISOR 28                                               // 0x0213: Divisor for Current (A) of custom electric meter (10^x)
+#define MENU_EMCUSTOM_PREGISTER 29                                              // 0x0214: Register for Power (W) of custom electric meter
+#define MENU_EMCUSTOM_PDIVISOR 30                                               // 0x0215: Divisor for Power (W) of custom electric meter (10^x)
+#define MENU_EMCUSTOM_EREGISTER 31                                              // 0x0216: Register for Energy (kWh) of custom electric meter
+#define MENU_EMCUSTOM_EDIVISOR 32                                               // 0x0217: Divisor for Energy (kWh) of custom electric meter (10^x)
+#define MENU_EMCUSTOM_READMAX 33                                                // 0x0218: Maximum register read (ToDo)
+#define MENU_WIFI 34                                                            // 0x0219: WiFi mode
+#define MENU_C2 35
+#define MENU_MAX_TEMP 36
+#define MENU_MODEM 37
+#define MENU_SUMMAINS 38
+#define MENU_OFF 39                                                             // so access bit is reset and charging stops when pressing < button 2 seconds
+#define MENU_ON 40                                                              // so access bit is set and charging starts when pressing > button 2 seconds
+#define MENU_EXIT 41
 
 #define MENU_STATE 50
 
@@ -391,8 +387,6 @@ extern uint8_t Mode;                                                            
 extern uint8_t LoadBl;                                                          // Load Balance Setting (Disable, Master or Node)
 extern uint8_t Grid;
 extern uint8_t MainsMeterAddress;
-extern uint8_t PVMeter;                                                         // Type of PV electric meter (0: Disabled / Constants EM_*)
-extern uint8_t PVMeterAddress;
 extern uint8_t EVMeter;                                                         // Type of EV electric meter (0: Disabled / Constants EM_*)
 extern uint8_t EVMeterAddress;
 #if FAKE_RFID
@@ -475,9 +469,6 @@ const struct {
     {"IMPORT",  "Allow grid power when solar charging (sum of phase)",0, 48, IMPORT_CURRENT},
     {"MAINSMET","Type of mains electric meter",                       0, EM_CUSTOM, MAINS_METER},
     {"MAINSADR","Address of mains electric meter",                    MIN_METER_ADDRESS, MAX_METER_ADDRESS, MAINS_METER_ADDRESS},
-    {"MAINSMES","Mains electric meter scope (What does it measure?)", 0, 1, MAINS_METER_MEASURE},
-    {"PV METER","Type of PV electric meter",                          0, EM_CUSTOM, PV_METER},
-    {"PV ADDR", "Address of PV electric meter",                       MIN_METER_ADDRESS, MAX_METER_ADDRESS, PV_METER_ADDRESS},
     {"BYTE ORD","Byte order of custom electric meter",                0, 3, EMCUSTOM_ENDIANESS},
     {"DATATYPE","Data type of custom electric meter",                 0, MB_DATATYPE_MAX - 1, EMCUSTOM_DATATYPE},
     {"FUNCTION","Modbus Function of custom electric meter",           3, 4, EMCUSTOM_FUNCTION},
