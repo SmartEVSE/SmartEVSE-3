@@ -770,20 +770,10 @@ void setState(uint8_t NewState) {
                     Charging_Phase[i] = true;                                   // reset charging phases
                     Nr_Of_Phases_Charging = 0;                                  // undetected
                 }
-                if (LoadBl == 0) {                                               // when loadbalancing with other node smartevse's, don't detect phases...
-                    if (EVMeter) {                                                  // we prefer EVMeter if present
-                        OverrideCurrent_save = OverrideCurrent;
-                        OverrideCurrent = MinCurrent * 10;                          // for detection of phases we are going to lock the charging current to MinCurrent
-                        for (i=0; i<3; i++) {
-                            Old_Irms[i] = Irms_EV[i];
-                            _LOG_D("Trying to detect Charging Phases START Irms_EV[%i]=%.1f A.\n", i, (float)Irms_EV[i]/10);
-                        }
-                        Detecting_Charging_Phases_Timer = PHASE_DETECTION_TIME;     // we need time for the EV to decide to start charging
-                    }
-                }
-                else //we are loadbalancing:
+                if (LoadBl != 0) {                                              // when loadbalancing with other node smartevse's, don't detect phases...
                     for (i=0; i<3; i++)
-                        Charging_Phase[i] = true;                                  // so Imeasure will be taking into account all phases
+                        Charging_Phase[i] = true;                               // so Imeasure will be taking into account all phases TODO thake that code out!
+                }
 
             }
             CONTACTOR1_ON;
