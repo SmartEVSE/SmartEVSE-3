@@ -502,16 +502,6 @@ const struct {
 };
 
 
-struct NodeStatus {
-    bool Online;
-    uint8_t ConfigChanged;
-    uint8_t EVMeter;
-    uint8_t EVAddress;
-    uint8_t MinCurrent;     // 0.1A
-    uint8_t Phases;
-    uint16_t Timer;         // 1s
-};
-
 struct EMstruct {
     uint8_t Desc[10];
     uint8_t Endianness;     // 0: low byte first, low word first, 1: low byte first, high word first, 2: high byte first, low word first, 3: high byte first, high word first

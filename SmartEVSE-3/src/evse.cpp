@@ -192,7 +192,16 @@ uint16_t Balanced[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};                     // A
 uint16_t BalancedMax[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};                  // Max Amps value per EVSE
 uint8_t BalancedState[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};                 // State of all EVSE's 0=not active (state A), 1=charge request (State B), 2= Charging (State C)
 uint16_t BalancedError[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};                // Error state of EVSE
-struct NodeStatus Node[NR_EVSES] = {                                            // 0: Master / 1: Node 1 ...
+
+struct {
+    bool Online;
+    uint8_t ConfigChanged;
+    uint8_t EVMeter;
+    uint8_t EVAddress;
+    uint8_t MinCurrent;     // 0.1A
+    uint8_t Phases;
+    uint16_t Timer;         // 1s
+} Node[NR_EVSES] = {                                            // 0: Master / 1: Node 1 ...
    /*         Config   EV     EV       Min                    *
     * Online, Changed, Meter, Address, Current, Phases, Timer */
     {   true,       0,     0,       0,       0,      0,     0 },
