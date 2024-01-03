@@ -926,6 +926,7 @@ uint8_t getMenuItems (void) {
         MenuItems[m++] = MENU_MAINS;                                            // - Max Mains Amps (hard limit, limited by the MAINS connection) (A) (Mode:Smart/Solar)
         MenuItems[m++] = MENU_MIN;                                              // - Minimal current the EV is happy with (A) (Mode:Smart/Solar or LoadBl:Master)
     }
+    MenuItems[m++] = MENU_MAX;                                                  // Max Charge current (A)
     if (Mode == MODE_SOLAR && LoadBl < 2) {                                     // ? Solar mode and Load Balancing Disabled/Master?
         MenuItems[m++] = MENU_START;                                            // - Start Surplus Current (A)
         MenuItems[m++] = MENU_STOP;                                             // - Stop time (min)
@@ -936,7 +937,6 @@ uint8_t getMenuItems (void) {
                                                                                 // the total current (subpanel configuration)
         MenuItems[m++] = MENU_CIRCUIT;                                          // - Max current of the EVSE circuit (A)
     }
-    MenuItems[m++] = MENU_MAX;                                                  // Max Charge current (A)
     if (LoadBl == 0)
         MenuItems[m++] = MENU_C2;
     MenuItems[m++] = MENU_SWITCH;                                               // External Switch on SW (0:Disable / 1:Access / 2:Smart-Solar)
