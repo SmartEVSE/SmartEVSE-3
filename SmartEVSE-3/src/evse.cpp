@@ -924,6 +924,83 @@ void ResetBalancedStates(void) {
     }
 }
 
+// Set global var Nr_Of_Phases_Charging
+// 0 = undetected, 1 - 3 nr of phases we are charging
+void Set_Nr_of_Phases_Charging(void) {
+    uint32_t Max_Charging_Prob = 0;
+    for (int i=0; i<3; i++) {
+        if (EVMeter) {
+            //Charging_Prob[i] = 100 * (abs(Irms_EV[i] - Old_Irms[i])) / ChargeCurrent;    //100% means this phase is charging, 0% mwans not charging
+            Charging_Prob[i] = 10 * (abs(Irms_EV[i] - Old_Irms[i])) / MinCurrent;    //100% means this phase is charging, 0% mwans not charging
+            _LOG_D("Trying to detect Charging Phases END Irms_EV[%i]=%.1f A.\n", i, (float)Irms_EV[i]/10);
+        }     //TODO only working in Smart Mode                                                                         //TODO we start charging with ChargeCurrent but in Smart mode this changes to Balanced[0]; how about Solar? generates error 32?
+        else
+            Charging_Prob[i] = 0;
+        Max_Charging_Prob = max(Charging_Prob[i], Max_Charging_Prob);
+
+        //normalize percentages so they are in the range [0-100]
+        if (Charging_Prob[i] >= 200)
+            Charging_Prob[i] = 0;
+        if (Charging_Prob[i] > 100)
+            Charging_Prob[i] = 200 - Charging_Prob[i];
+        _LOG_I("Detected Charging Phases: Charging_Prob[%i]=%i.\n", i, Charging_Prob[i]);
+        //_LOG_D("Detected Charging Phases: Old_Irms[%i]=%u.\n", i, Old_Irms[i]);
+    }
+    _LOG_D("Detected Charging Phases: ChargeCurrent=%u, Balanced[0]=%u, IsetBalanced=%u.\n", ChargeCurrent, Balanced[0],IsetBalanced);
+    Nr_Of_Phases_Charging = 0;
+#define THRESHOLD 40
+#define BOTTOM_THRESHOLD 25
+    for (int i=0; i<3; i++) {
+        Charging_Phase[i] = true;  //lets stay conservative
+        if (Charging_Prob[i] == Max_Charging_Prob) {
+            _LOG_D("Suspect I am charging at phase: L%i.\n", i+1);
+            Nr_Of_Phases_Charging++;
+            Charging_Phase[i] = true;
+        }
+        else {
+            if ( Charging_Prob[i] <= BOTTOM_THRESHOLD ) {
+                _LOG_D("Suspect I am NOT charging at phase: L%i.\n", i+1);
+                Charging_Phase[i] = false;
+            }
+            else {
+                if ( Max_Charging_Prob - Charging_Prob[i] <= THRESHOLD ) {
+                    _LOG_D("Serious candidate for charging at phase: L%i.\n", i+1);
+                    Nr_Of_Phases_Charging++;
+                    Charging_Phase[i] = true;
+                }
+                else {
+                    Charging_Phase[i] = false;                                  //if we really want to stay conservative we set this to true
+                                                                                //but then it would be out of line with Nr_Of_Phases_Charging
+                }
+            }
+        }
+    }
+
+    // sanity checks
+    if (LoadBl != 0) {
+        _LOG_A("ERROR: detecting phases while LoadBl=%i, this should never happen!\n", LoadBl);
+        Nr_Of_Phases_Charging = 0; //undetected
+        for (int i=0; i<3; i++)
+            Charging_Phase[i] = true;                                           // so all phases will be taken into account when loadbalancing
+    }
+
+    if (EnableC2 != AUTO && EnableC2 != NOT_PRESENT) {                         // no further sanity checks possible when AUTO or NOT_PRESENT
+        if (Nr_Of_Phases_Charging != 1 && (EnableC2 == ALWAYS_OFF || (EnableC2 == SOLAR_OFF && Mode == MODE_SOLAR))) {
+            _LOG_A("Error in detecting phases: EnableC2=%s and Nr_Of_Phases_Charging=%i.\n", StrEnableC2[EnableC2], Nr_Of_Phases_Charging);
+            Nr_Of_Phases_Charging = 1;
+            Charging_Phase[0] = true;                                      // so L1 phase will be taken into accouny
+            Charging_Phase[1] = false;                                     // so L2 phase will NOT be taken into account
+            Charging_Phase[2] = false;                                     // so L3 phase will NOT be taken into account
+            _LOG_A("Setting Nr_Of_Phases_Charging to 1.\n");
+        }
+        if (!Force_Single_Phase_Charging() && Nr_Of_Phases_Charging != 3) {//TODO 2phase charging very rare?
+            _LOG_A("Possible error in detecting phases: EnableC2=%s and Nr_Of_Phases_Charging=%i.\n", StrEnableC2[EnableC2], Nr_Of_Phases_Charging);
+        }
+    }
+
+    _LOG_A("Charging at %i phases, L1=%i, L2=%i, L3=%i.\n", Nr_Of_Phases_Charging, Charging_Phase[0], Charging_Phase[1], Charging_Phase[2]);
+}
+
 // Calculates Balanced PWM current for each EVSE
 // mod =0 normal
 // mod =1 we have a new EVSE requesting to start charging.
@@ -2904,80 +2981,7 @@ void Timer1S(void * parameter) {
             Detecting_Charging_Phases_Timer--;
             _LOG_D("Detecting_Charging_Phases=%i.\n",Detecting_Charging_Phases_Timer);
             if (Detecting_Charging_Phases_Timer == 0) {                     // After 3 seconds we should be charging, LCDTimer doesnt get higher than 4?
-
-                uint32_t Max_Charging_Prob = 0;
-                for (int i=0; i<3; i++) {
-                    if (EVMeter) {
-                        //Charging_Prob[i] = 100 * (abs(Irms_EV[i] - Old_Irms[i])) / ChargeCurrent;    //100% means this phase is charging, 0% mwans not charging
-                        Charging_Prob[i] = 10 * (abs(Irms_EV[i] - Old_Irms[i])) / MinCurrent;    //100% means this phase is charging, 0% mwans not charging
-                        _LOG_D("Trying to detect Charging Phases END Irms_EV[%i]=%.1f A.\n", i, (float)Irms_EV[i]/10);
-                    }     //TODO only working in Smart Mode                                                                         //TODO we start charging with ChargeCurrent but in Smart mode this changes to Balanced[0]; how about Solar? generates error 32?
-                    else
-                        Charging_Prob[i] = 0;
-                    Max_Charging_Prob = max(Charging_Prob[i], Max_Charging_Prob);
-
-                    //normalize percentages so they are in the range [0-100]
-                    if (Charging_Prob[i] >= 200)
-                        Charging_Prob[i] = 0;
-                    if (Charging_Prob[i] > 100)
-                        Charging_Prob[i] = 200 - Charging_Prob[i];
-                    _LOG_I("Detected Charging Phases: Charging_Prob[%i]=%i.\n", i, Charging_Prob[i]);
-                    //_LOG_D("Detected Charging Phases: Old_Irms[%i]=%u.\n", i, Old_Irms[i]);
-                }
-                _LOG_D("Detected Charging Phases: ChargeCurrent=%u, Balanced[0]=%u, IsetBalanced=%u.\n", ChargeCurrent, Balanced[0],IsetBalanced);
-                Nr_Of_Phases_Charging = 0;
-#define THRESHOLD 40
-#define BOTTOM_THRESHOLD 25
-                for (int i=0; i<3; i++) {
-                    Charging_Phase[i] = true;  //lets stay conservative
-                    if (Charging_Prob[i] == Max_Charging_Prob) {
-                        _LOG_D("Suspect I am charging at phase: L%i.\n", i+1);
-                        Nr_Of_Phases_Charging++;
-                        Charging_Phase[i] = true;
-                    }
-                    else {
-                        if ( Charging_Prob[i] <= BOTTOM_THRESHOLD ) {
-                            _LOG_D("Suspect I am NOT charging at phase: L%i.\n", i+1);
-                            Charging_Phase[i] = false;
-                        }
-                        else {
-                            if ( Max_Charging_Prob - Charging_Prob[i] <= THRESHOLD ) {
-                                _LOG_D("Serious candidate for charging at phase: L%i.\n", i+1);
-                                Nr_Of_Phases_Charging++;
-                                Charging_Phase[i] = true;
-                            }
-                            else {
-                                Charging_Phase[i] = false;                                  //if we really want to stay conservative we set this to true
-                                                                                            //but then it would be out of line with Nr_Of_Phases_Charging
-                            }
-                        }
-                    }
-                }
-
-                // sanity checks
-                if (LoadBl != 0) {
-                    _LOG_A("ERROR: detecting phases while LoadBl=%i, this should never happen!\n", LoadBl);
-                    Nr_Of_Phases_Charging = 0; //undetected
-                    for (int i=0; i<3; i++)
-                        Charging_Phase[i] = true;                                           // so all phases will be taken into account when loadbalancing
-                }
-
-                if (EnableC2 != AUTO && EnableC2 != NOT_PRESENT) {                         // no further sanity checks possible when AUTO or NOT_PRESENT
-                    if (Nr_Of_Phases_Charging != 1 && (EnableC2 == ALWAYS_OFF || (EnableC2 == SOLAR_OFF && Mode == MODE_SOLAR))) {
-                        _LOG_A("Error in detecting phases: EnableC2=%s and Nr_Of_Phases_Charging=%i.\n", StrEnableC2[EnableC2], Nr_Of_Phases_Charging);
-                        Nr_Of_Phases_Charging = 1;
-                        Charging_Phase[0] = true;                                      // so L1 phase will be taken into accouny
-                        Charging_Phase[1] = false;                                     // so L2 phase will NOT be taken into account
-                        Charging_Phase[2] = false;                                     // so L3 phase will NOT be taken into account
-                        _LOG_A("Setting Nr_Of_Phases_Charging to 1.\n");
-                    }
-                    if (!Force_Single_Phase_Charging() && Nr_Of_Phases_Charging != 3) {//TODO 2phase charging very rare?
-                        _LOG_A("Possible error in detecting phases: EnableC2=%s and Nr_Of_Phases_Charging=%i.\n", StrEnableC2[EnableC2], Nr_Of_Phases_Charging);
-                    }
-                }
-
-                _LOG_A("Charging at %i phases, L1=%i, L2=%i, L3=%i.\n", Nr_Of_Phases_Charging, Charging_Phase[0], Charging_Phase[1], Charging_Phase[2]);
-
+                Set_Nr_of_Phases_Charging();
                 OverrideCurrent = OverrideCurrent_save;                         //restore the old OverrideCurrent value
                 if (Switching_To_Single_Phase == AFTER_SWITCH)
                    Switching_To_Single_Phase = FALSE;                           // we finished the switching process
