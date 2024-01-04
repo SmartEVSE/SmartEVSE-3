@@ -167,6 +167,8 @@ mosquitto_pub  -h ip-of-mosquitto-server -u username -P password -t 'SmartEVSE-x
 ```
 ...where L1 - L3 are the currents in deci-Ampères. So 100 means 10.0A.
 
+You can find test scripts in the test directory that feed EV and MainsMeter data to your MQTT server.
+
 # Multiple SmartEVSE controllers on one mains supply
 Up to eight SmartEVSE modules can share one mains supply.
   - Hardware connections
