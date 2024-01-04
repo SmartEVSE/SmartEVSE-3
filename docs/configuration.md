@@ -1,3 +1,14 @@
+
+# How to configure
+* First configure all settings that are shown to you (see below); don't configure your MAINSMET
+* Now you are ready to test/operate your SmartEVSE in its simplest mode, called Normal Mode.
+* If your EV charges at MAX current, and everything works as expected, and you don't have a MAINSMET, you are done!
+* If you have a MAINSMET, configure it now; browse through the settings again, since now other options have opened up
+* If you are feeding your SmartEVSE with MAINS or EV data through the REST API or the MQTT API, make sure you have set up these feeds; as soon as you select "API" for the Meters, the data is expected within 11 seconds!
+* If you configured MULTIple SmartEVSE's, follow instructions below
+* Put your SmartEVSE in Solar Mode, and some specific settings for Solar Mode will open up
+* Now your SmartEVSE is ready for use!
+
 # All menu options on the LCD screen:
 ```
 MODE    (only appears when a MAINSMET is configured):
@@ -92,7 +103,8 @@ WIFI          Enable wifi connection to your LAN
 MAX TEMP      Maximum allowed temperature for your SmartEVSE; 40-75C, default 65.
               You can increase this if your SmartEVSE is in direct sunlight.
 
-SUMMAINS      Maximum allowed current summed over all phases: 10-600A
+SUMMAINS      (only appears when a MAINSMET is configured):
+              Maximum allowed current summed over all phases: 10-600A
               This is used for the EU Capacity rate limiting, currently only in Belgium
 
 MODEM         If a modem that can communicate with your EV is connected
@@ -126,7 +138,34 @@ CONTACT2      One can add a second contactor (C2) that switches off 2 of the 3 p
 
 # MQTT API
 Your SmartEVSE can now export the most important data to your MQTT-server. Just fill in the configuration data on the webserver and the data will automatically be announced to your MQTT server.
-//TODO
+
+You can easily show all the MQTT topics published:
+```
+mosquitto_sub -v -h ip-of-mosquitto-server -u username -P password  -t '#'
+```
+
+You can feed the SmartEVSE data by publishing to a topic:
+```
+mosquitto_pub  -h ip-of-mosquitto-server -u username -P password -t 'SmartEVSE-xxxxx/Set/CurrentOverride' -m 150
+```
+...where xxxxx is a derivative of your SmartEVSE's MAC address, will set your Override Current to 15.0A.
+
+Valid topics you can publish to are:
+```
+/Set/Mode
+/Set/CurrentOverride
+/Set/CurrentMaxSumMains
+/Set/CPPWMOverride
+/Set/MainsMeter
+/Set/EVMeter
+/Set/HomeBatteryCurrent
+/Set/RequiredEVCCID
+```
+Your MainsMeter can be fed with:
+```
+mosquitto_pub  -h ip-of-mosquitto-server -u username -P password -t 'SmartEVSE-xxxxx/Set/MainsMeter' -m L1:L2:L3
+```
+...where L1 - L3 are the currents in deci-Ampères. So 100 means 10.0A.
 
 # Multiple SmartEVSE controllers on one mains supply
 Up to eight SmartEVSE modules can share one mains supply.
