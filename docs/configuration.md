@@ -4,7 +4,7 @@
 * Now you are ready to test/operate your SmartEVSE in its simplest mode, called Normal Mode.
 * If your EV charges at MAX current, and everything works as expected, and you don't have a MAINSMET, you are done!
 * If you have a MAINSMET, configure it now; browse through the settings again, since now other options have opened up
-* If you are feeding your SmartEVSE with MAINS or EV data through the REST API or the MQTT API, make sure you have set up these feeds; as soon as you select "API" for the Meters, the data is expected within 11 seconds!
+* If you are feeding your SmartEVSE with MAINS or EV data through the REST API or the MQTT API, make sure you have set up these feeds; as soon as you select "API" for the Meters, the data is expected within 11 seconds! You can use the test scripts in the test directory to feed your MQTT server with test data.
 * If you configured MULTIple SmartEVSE's, follow instructions below
 * Put your SmartEVSE in Solar Mode, and some specific settings for Solar Mode will open up
 * Now your SmartEVSE is ready for use!
