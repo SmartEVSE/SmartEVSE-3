@@ -928,6 +928,10 @@ void ResetBalancedStates(void) {
 // 0 = undetected, 1 - 3 nr of phases we are charging
 void Set_Nr_of_Phases_Charging(void) {
     uint32_t Max_Charging_Prob = 0;
+    Nr_Of_Phases_Charging = 0;
+#define THRESHOLD 40
+#define BOTTOM_THRESHOLD 25
+    _LOG_D("Detected Charging Phases: ChargeCurrent=%u, Balanced[0]=%u, IsetBalanced=%u.\n", ChargeCurrent, Balanced[0],IsetBalanced);
     for (int i=0; i<3; i++) {
         if (EVMeter) {
             //Charging_Prob[i] = 100 * (abs(Irms_EV[i] - Old_Irms[i])) / ChargeCurrent;    //100% means this phase is charging, 0% mwans not charging
@@ -945,12 +949,7 @@ void Set_Nr_of_Phases_Charging(void) {
             Charging_Prob[i] = 200 - Charging_Prob[i];
         _LOG_I("Detected Charging Phases: Charging_Prob[%i]=%i.\n", i, Charging_Prob[i]);
         //_LOG_D("Detected Charging Phases: Old_Irms[%i]=%u.\n", i, Old_Irms[i]);
-    }
-    _LOG_D("Detected Charging Phases: ChargeCurrent=%u, Balanced[0]=%u, IsetBalanced=%u.\n", ChargeCurrent, Balanced[0],IsetBalanced);
-    Nr_Of_Phases_Charging = 0;
-#define THRESHOLD 40
-#define BOTTOM_THRESHOLD 25
-    for (int i=0; i<3; i++) {
+
         Charging_Phase[i] = true;  //lets stay conservative
         if (Charging_Prob[i] == Max_Charging_Prob) {
             _LOG_D("Suspect I am charging at phase: L%i.\n", i+1);
