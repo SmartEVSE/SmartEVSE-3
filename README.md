@@ -1,7 +1,7 @@
 # Note
 <span style="color:red">
 This fork is the next generation of the SmartEVSE-v3 firmware.<br/>
-Feel free to use this repository to build it yourself or to use the latest on from the *releases* folder <b>but this is on your own risk</b>.
+Feel free to use this repository to build it yourself or to use the latest release <b>but this is on your own risk</b>.
 </span>
 <br />
 <br />

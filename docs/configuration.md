@@ -119,17 +119,29 @@ START         set the current on which the EV should start Solar charging:
 STOP          Stop charging when there is not enough solar power available:
               Disabled - 60 minutes (Disabled = never stop charging)
 IMPORT        Allow additional grid power when solar charging: 0-20A (summed over all phases)
+              NOTE: A setting of IMPORT lower thant START + MINCURRENT makes NO SENSE and will
+              result in a non-charging SmartEVSE when in Solar mode.
+              You even need to set IMPORT at least a few Amps higher then START + MINCURRENT to get
+              a desired charging behaviour.
 CONTACT2      One can add a second contactor (C2) that switches off 2 of the 3 phases of a
               3 phase Mains installation; this can be useful if one wants to charge of off
               Solar; EV's have a minimal charge current of 6A, so switching off 2 phases
               allows you to charge with a current of 6-18A, while 3 phases have a
               minimum current of 3x6A=18A.
               This way you can still charge solar-only on smaller solar installations.
+<br>
+              IMPORTANT NOTE: You WILL have to wire your C2 contactor according to the schematics
+              in [Hardware installation](docs/installation.md). If you invent your own wiring
+              your installation will be UNSAFE!
+
   <Not present> No second contactor C2 is present (default)
   <Always Off>  C2 is always off, so you are single phase charging
-  <Always On>   C2 is always on, so you are three phase charging (if your Mains are three phase and your EV supports it)
+  <Always On>   C2 is always on, so you are three phase charging (if your Mains are three phase and your EV
+                supports it)
   <Solar Off>   C2 is always on except in Solar Mode where it is always off
-  <Auto>        (not implemented yet, current behaviour is Always On)
+  <Auto>        SmartEVSE starts charging at 3phase, but when in Solar mode and not enough
+                current available for 3 phases, switches off C2 so it will continue on 1 phase
+                Note: CONTACT2 will be set to ALWAYS_ON when MULTI is enabled.
 
 
 ```
