@@ -936,16 +936,16 @@ uint8_t getMenuItems (void) {
     MenuItems[m++] = MENU_RFIDREADER;                                           // RFID Reader connected to SW (0:Disable / 1:Enable / 2:Learn / 3:Delete / 4:Delate All)
     if (LoadBl < 2) {                                                       // - ? Load Balancing Disabled/Master?
         MenuItems[m++] = MENU_MAINSMETER;                                   // - - Type of Mains electric meter (0: Disabled / Constants EM_*)
-        if (MainsMeter == EM_SENSORBOX || MainsMeter == EM_API) {                                   // - - ? Sensorbox?
+        if (MainsMeter == EM_SENSORBOX) {                                   // - - ? Sensorbox?
             if (GridActive == 1) MenuItems[m++] = MENU_GRID;
             if (CalActive == 1) MenuItems[m++] = MENU_CAL;                  // - - - Sensorbox CT measurement calibration
-        } else if(MainsMeter) {                                             // - - ? Other?
-            MenuItems[m++] = MENU_MAINSMETERADDRESS;                        // - - - Address of Mains electric meter (5 - 254)
+        } else if (MainsMeter && MainsMeter != EM_API) {                    // - - ? Other?
+            MenuItems[m++] = MENU_MAINSMETERADDRESS;                        // - - - Address of Mains electric meter (9 - 247)
         }
     }
     MenuItems[m++] = MENU_EVMETER;                                          // - Type of EV electric meter (0: Disabled / Constants EM_*)
     if (EVMeter && EVMeter != EM_API) {                                                          // - ? EV meter configured?
-        MenuItems[m++] = MENU_EVMETERADDRESS;                               // - - Address of EV electric meter (5 - 254)
+        MenuItems[m++] = MENU_EVMETERADDRESS;                               // - - Address of EV electric meter (9 - 247)
     }
     if (LoadBl < 2) {                                                       // - ? Load Balancing Disabled/Master?
         if (MainsMeter == EM_CUSTOM || EVMeter == EM_CUSTOM) { // ? Custom electric meter used?
