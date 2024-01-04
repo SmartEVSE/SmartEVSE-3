@@ -18,6 +18,9 @@ After configuration of your Wifi parameters, your SmartEVSE will present itself 
     - after OK, wait 10-30 seconds and your new firmware including the webserver should be online!
 * Added wifi-debugging: if you flashed the debug version, telnet http://your-smartevse/ will bring you to a debugger that shows you whats going on!
 
+# Mode switching when MULTI SmartEVSE is configured
+* If you switch mode on the Master, the Slaves will follow that mode switch
+* If you switch to Normal mode on one Slave, the Master and other Slaves will remain in their current modes. If you switch to Smart or Solar mode on one Slave, the Master and the other Slaves will follow that switch.
 
 # REST API
 //TODO    
