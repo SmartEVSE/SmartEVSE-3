@@ -758,23 +758,7 @@ void setState(uint8_t NewState) {
                                                                                 // BUT we don't know which is the single phase
             }
 
-            //if we are going to do forced single phase charging, record the old Irms's so we can detect which phase we are going to be single charging
-            if (Mode != MODE_NORMAL && Switching_To_Single_Phase != GOING_TO_SWITCH) {            // in Normal mode no phase detection necessary,
-                                                                                // also not when already in switching procedure
-                for (i=0; i<3; i++) {                                           // every start of STATE_C we have to detect the phases, since we cannot be sure
-                                                                                // which phases the car will use
-                    Charging_Prob[i] = 0;                                       // reset charging phase probabilities
-                    Charging_Phase[i] = true;                                   // reset charging phases
-                    Nr_Of_Phases_Charging = 0;                                  // undetected
-                }
-                if (LoadBl != 0) {                                              // when loadbalancing with other node smartevse's, don't detect phases...
-                    for (i=0; i<3; i++)
-                        Charging_Phase[i] = true;                               // so Imeasure will be taking into account all phases TODO thake that code out!
-                }
-
-            }
             CONTACTOR1_ON;
-
             if (!Force_Single_Phase_Charging() && Switching_To_Single_Phase != AFTER_SWITCH) {                               // in AUTO mode we start with 3phases
                 _LOG_I("Switching CONTACTOR C2 ON.\n");
                 CONTACTOR2_ON;                                                  // Contactor2 ON
@@ -933,13 +917,13 @@ void Set_Nr_of_Phases_Charging(void) {
 #define BOTTOM_THRESHOLD 25
     _LOG_D("Detected Charging Phases: ChargeCurrent=%u, Balanced[0]=%u, IsetBalanced=%u.\n", ChargeCurrent, Balanced[0],IsetBalanced);
     for (int i=0; i<3; i++) {
+        Charging_Prob[i] = 0;                                       // reset charging phase probabilities
+        Charging_Phase[i] = true;                                   // reset charging phases
         if (EVMeter) {
-            //Charging_Prob[i] = 100 * (abs(Irms_EV[i] - Old_Irms[i])) / ChargeCurrent;    //100% means this phase is charging, 0% mwans not charging
-            Charging_Prob[i] = 10 * (abs(Irms_EV[i] - Old_Irms[i])) / MinCurrent;    //100% means this phase is charging, 0% mwans not charging
+            Charging_Prob[i] = 10 * (abs(Irms_EV[i] - IsetBalanced)) / IsetBalanced;    //100% means this phase is charging, 0% mwans not charging
+                                                                                        //TODO does this work for the slaves too?
             _LOG_D("Trying to detect Charging Phases END Irms_EV[%i]=%.1f A.\n", i, (float)Irms_EV[i]/10);
-        }     //TODO only working in Smart Mode                                                                         //TODO we start charging with ChargeCurrent but in Smart mode this changes to Balanced[0]; how about Solar? generates error 32?
-        else
-            Charging_Prob[i] = 0;
+        }
         Max_Charging_Prob = max(Charging_Prob[i], Max_Charging_Prob);
 
         //normalize percentages so they are in the range [0-100]
@@ -950,7 +934,6 @@ void Set_Nr_of_Phases_Charging(void) {
         _LOG_I("Detected Charging Phases: Charging_Prob[%i]=%i.\n", i, Charging_Prob[i]);
         //_LOG_D("Detected Charging Phases: Old_Irms[%i]=%u.\n", i, Old_Irms[i]);
 
-        Charging_Phase[i] = true;  //lets stay conservative
         if (Charging_Prob[i] == Max_Charging_Prob) {
             _LOG_D("Suspect I am charging at phase: L%i.\n", i+1);
             Nr_Of_Phases_Charging++;
@@ -976,6 +959,7 @@ void Set_Nr_of_Phases_Charging(void) {
     }
 
     // sanity checks
+    // TODO test, this might work with slaves too!
     if (LoadBl != 0) {
         _LOG_A("ERROR: detecting phases while LoadBl=%i, this should never happen!\n", LoadBl);
         Nr_Of_Phases_Charging = 0; //undetected
@@ -1106,6 +1090,9 @@ void CalcBalancedCurrent(char mod) {
                 IsetBalanced = BalancedLeft * MinCurrent * 10;
                 // ----------- Check to see if we have to continue charging on solar power alone ----------
                 if (BalancedLeft && StopTime && (IsumImport > 10)) {
+                    //TODO maybe enable solar switching for loadbl = 1 or even loadbl = 2
+                    if (EnableC2 == AUTO && LoadBl == 0)
+                        Set_Nr_of_Phases_Charging();
                     if (Nr_Of_Phases_Charging > 1 && EnableC2 == AUTO && LoadBl == 0) { // when loadbalancing is enabled we don't do forced single phase charging
                         _LOG_A("Switching to single phase.\n");                 // because we wouldnt know which currents to make available to the nodes...
                                                                                 // since we don't know how many phases the nodes are using...
@@ -2974,18 +2961,6 @@ void Timer1S(void * parameter) {
 
         //_LOG_A("Timer1S task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
 
-
-        // Autodetect on which phases we are charging
-        if (Detecting_Charging_Phases_Timer) {
-            Detecting_Charging_Phases_Timer--;
-            _LOG_D("Detecting_Charging_Phases=%i.\n",Detecting_Charging_Phases_Timer);
-            if (Detecting_Charging_Phases_Timer == 0) {                     // After 3 seconds we should be charging, LCDTimer doesnt get higher than 4?
-                Set_Nr_of_Phases_Charging();
-                OverrideCurrent = OverrideCurrent_save;                         //restore the old OverrideCurrent value
-                if (Switching_To_Single_Phase == AFTER_SWITCH)
-                   Switching_To_Single_Phase = FALSE;                           // we finished the switching process
-            } //if Det... = 0
-        } //if Detecting_Charging_Phases_Timer
 
 #if MQTT
         // Process MQTT data
