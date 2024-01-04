@@ -915,25 +915,6 @@ uint8_t getMenuItems (void) {
         MenuItems[m++] = MENU_LOCK;                                             // - Cable lock (0:Disable / 1:Solenoid / 2:Motor)
     }
     MenuItems[m++] = MENU_LOADBL;                                               // Load Balance Setting (0:Disable / 1:Master / 2-8:Node)
-    if (MainsMeter && LoadBl < 2) {                                             // Mainsmeter is configured and Load Balancing Disabled/Master?
-        MenuItems[m++] = MENU_MAINS;                                            // - Max Mains Amps (hard limit, limited by the MAINS connection) (A) (Mode:Smart/Solar)
-        MenuItems[m++] = MENU_MIN;                                              // - Minimal current the EV is happy with (A) (Mode:Smart/Solar or LoadBl:Master)
-    }
-    MenuItems[m++] = MENU_MAX;                                                  // Max Charge current (A)
-    if (LoadBl == 1 || (LoadBl == 0 && Mode != MODE_NORMAL)) {                  // ? Load balancing Master?
-                                                                                // Also, when not in Normal Mode, MaxCircuit will limit
-                                                                                // the total current (subpanel configuration)
-        MenuItems[m++] = MENU_CIRCUIT;                                          // - Max current of the EVSE circuit (A)
-    }
-    if (Mode == MODE_SOLAR && LoadBl < 2) {                                     // ? Solar mode and Load Balancing Disabled/Master?
-        MenuItems[m++] = MENU_START;                                            // - Start Surplus Current (A)
-        MenuItems[m++] = MENU_STOP;                                             // - Stop time (min)
-        MenuItems[m++] = MENU_IMPORT;                                           // - Import Current from Grid (A)
-        MenuItems[m++] = MENU_C2;
-    }
-    MenuItems[m++] = MENU_SWITCH;                                               // External Switch on SW (0:Disable / 1:Access / 2:Smart-Solar)
-    MenuItems[m++] = MENU_RCMON;                                                // Residual Current Monitor on RCM (0:Disable / 1:Enable)
-    MenuItems[m++] = MENU_RFIDREADER;                                           // RFID Reader connected to SW (0:Disable / 1:Enable / 2:Learn / 3:Delete / 4:Delate All)
     if (LoadBl < 2) {                                                       // - ? Load Balancing Disabled/Master?
         MenuItems[m++] = MENU_MAINSMETER;                                   // - - Type of Mains electric meter (0: Disabled / Constants EM_*)
         if (MainsMeter == EM_SENSORBOX) {                                   // - - ? Sensorbox?
@@ -962,6 +943,25 @@ uint8_t getMenuItems (void) {
             MenuItems[m++] = MENU_EMCUSTOM_EDIVISOR;                        // - - Divisor for energy of custom electric meter
         }
     }
+    if (MainsMeter && LoadBl < 2) {                                             // Mainsmeter is configured and Load Balancing Disabled/Master?
+        MenuItems[m++] = MENU_MAINS;                                            // - Max Mains Amps (hard limit, limited by the MAINS connection) (A) (Mode:Smart/Solar)
+        MenuItems[m++] = MENU_MIN;                                              // - Minimal current the EV is happy with (A) (Mode:Smart/Solar or LoadBl:Master)
+    }
+    MenuItems[m++] = MENU_MAX;                                                  // Max Charge current (A)
+    if (LoadBl == 1 || (LoadBl == 0 && Mode != MODE_NORMAL)) {                  // ? Load balancing Master?
+                                                                                // Also, when not in Normal Mode, MaxCircuit will limit
+                                                                                // the total current (subpanel configuration)
+        MenuItems[m++] = MENU_CIRCUIT;                                          // - Max current of the EVSE circuit (A)
+    }
+    if (Mode == MODE_SOLAR && LoadBl < 2) {                                     // ? Solar mode and Load Balancing Disabled/Master?
+        MenuItems[m++] = MENU_START;                                            // - Start Surplus Current (A)
+        MenuItems[m++] = MENU_STOP;                                             // - Stop time (min)
+        MenuItems[m++] = MENU_IMPORT;                                           // - Import Current from Grid (A)
+        MenuItems[m++] = MENU_C2;
+    }
+    MenuItems[m++] = MENU_SWITCH;                                               // External Switch on SW (0:Disable / 1:Access / 2:Smart-Solar)
+    MenuItems[m++] = MENU_RCMON;                                                // Residual Current Monitor on RCM (0:Disable / 1:Enable)
+    MenuItems[m++] = MENU_RFIDREADER;                                           // RFID Reader connected to SW (0:Disable / 1:Enable / 2:Learn / 3:Delete / 4:Delate All)
     MenuItems[m++] = MENU_WIFI;                                                 // Wifi Disabled / Enabled / Portal
     MenuItems[m++] = MENU_MAX_TEMP;
     if (MainsMeter && LoadBl < 2)
