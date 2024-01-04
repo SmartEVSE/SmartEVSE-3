@@ -162,8 +162,6 @@ int32_t Irms[3]={0, 0, 0};                                                  // M
 int32_t Irms_EV[3]={0, 0, 0};                                               // Momentary current per Phase (23 = 2.3A) (resolution 100mA)
 int32_t Old_Irms[3]={0, 0, 0};                                              // Saved momentary current per Phase (23 = 2.3A) (resolution 100mA)
                                                                             // Max 3 phases supported
-bool Charging_Phase[3] = {true, true, true};                                // phases that are used at the start of this charging session; default is all true,
-                                                                            // then conservatively we switch off phases of which we think are not charging
 uint8_t Nr_Of_Phases_Charging = 0;                                          // 0 = Undetected, 1,2,3 = nr of phases that was detected at the start of this charging session
 Single_Phase_t Switching_To_Single_Phase = FALSE;
 
@@ -915,7 +913,6 @@ void Set_Nr_of_Phases_Charging(void) {
 #define BOTTOM_THRESHOLD 25
     _LOG_D("Detected Charging Phases: ChargeCurrent=%u, Balanced[0]=%u, IsetBalanced=%u.\n", ChargeCurrent, Balanced[0],IsetBalanced);
     for (int i=0; i<3; i++) {
-        Charging_Phase[i] = true;                                   // reset charging phases
         if (EVMeter) {
             Charging_Prob = 10 * (abs(Irms_EV[i] - IsetBalanced)) / IsetBalanced;    //100% means this phase is charging, 0% mwans not charging
                                                                                         //TODO does this work for the slaves too?
@@ -933,22 +930,15 @@ void Set_Nr_of_Phases_Charging(void) {
         if (Charging_Prob == Max_Charging_Prob) {
             _LOG_D("Suspect I am charging at phase: L%i.\n", i+1);
             Nr_Of_Phases_Charging++;
-            Charging_Phase[i] = true;
         }
         else {
             if ( Charging_Prob <= BOTTOM_THRESHOLD ) {
                 _LOG_D("Suspect I am NOT charging at phase: L%i.\n", i+1);
-                Charging_Phase[i] = false;
             }
             else {
                 if ( Max_Charging_Prob - Charging_Prob <= THRESHOLD ) {
                     _LOG_D("Serious candidate for charging at phase: L%i.\n", i+1);
                     Nr_Of_Phases_Charging++;
-                    Charging_Phase[i] = true;
-                }
-                else {
-                    Charging_Phase[i] = false;                                  //if we really want to stay conservative we set this to true
-                                                                                //but then it would be out of line with Nr_Of_Phases_Charging
                 }
             }
         }
@@ -959,17 +949,12 @@ void Set_Nr_of_Phases_Charging(void) {
     if (LoadBl != 0) {
         _LOG_A("ERROR: detecting phases while LoadBl=%i, this should never happen!\n", LoadBl);
         Nr_Of_Phases_Charging = 0; //undetected
-        for (int i=0; i<3; i++)
-            Charging_Phase[i] = true;                                           // so all phases will be taken into account when loadbalancing
     }
 
     if (EnableC2 != AUTO && EnableC2 != NOT_PRESENT) {                         // no further sanity checks possible when AUTO or NOT_PRESENT
         if (Nr_Of_Phases_Charging != 1 && (EnableC2 == ALWAYS_OFF || (EnableC2 == SOLAR_OFF && Mode == MODE_SOLAR))) {
             _LOG_A("Error in detecting phases: EnableC2=%s and Nr_Of_Phases_Charging=%i.\n", StrEnableC2[EnableC2], Nr_Of_Phases_Charging);
             Nr_Of_Phases_Charging = 1;
-            Charging_Phase[0] = true;                                      // so L1 phase will be taken into accouny
-            Charging_Phase[1] = false;                                     // so L2 phase will NOT be taken into account
-            Charging_Phase[2] = false;                                     // so L3 phase will NOT be taken into account
             _LOG_A("Setting Nr_Of_Phases_Charging to 1.\n");
         }
         if (!Force_Single_Phase_Charging() && Nr_Of_Phases_Charging != 3) {//TODO 2phase charging very rare?
@@ -977,7 +962,7 @@ void Set_Nr_of_Phases_Charging(void) {
         }
     }
 
-    _LOG_A("Charging at %i phases, L1=%i, L2=%i, L3=%i.\n", Nr_Of_Phases_Charging, Charging_Phase[0], Charging_Phase[1], Charging_Phase[2]);
+    _LOG_A("Charging at %i phases.\n", Nr_Of_Phases_Charging);
 }
 
 // Calculates Balanced PWM current for each EVSE
@@ -1808,10 +1793,8 @@ void UpdateCurrentData(void) {
     Imeasured_EV = (MaxCircuit) * -20;
     for (x=0; x<3; x++) {
     // Imeasured holds highest Irms of all channels
-        if (Charging_Phase[x]) {
-            if (Irms[x] > Imeasured) Imeasured = Irms[x];
-            if (Irms_EV[x] > Imeasured_EV) Imeasured_EV = Irms_EV[x];
-        }
+        if (Irms[x] > Imeasured) Imeasured = Irms[x];
+        if (Irms_EV[x] > Imeasured_EV) Imeasured_EV = Irms_EV[x];
     }
     //sanity check
     if (Imeasured == (MaxMains) * -20) {                                        // if it equals the initialized value, something went wrong!
@@ -3857,9 +3840,6 @@ void StartwebServer(void) {
         doc["phase_currents"]["L2"] = Irms[1];
         doc["phase_currents"]["L3"] = Irms[2];
         doc["phase_currents"]["last_data_update"] = phasesLastUpdate;
-        doc["phase_currents"]["charging_L1"] = (evstate == "Charging" ? Charging_Phase[0] : false);
-        doc["phase_currents"]["charging_L2"] = (evstate == "Charging" ? Charging_Phase[1] : false);
-        doc["phase_currents"]["charging_L3"] = (evstate == "Charging" ? Charging_Phase[2] : false);
         doc["phase_currents"]["original_data"]["TOTAL"] = IrmsOriginal[0] + IrmsOriginal[1] + IrmsOriginal[2];
         doc["phase_currents"]["original_data"]["L1"] = IrmsOriginal[0];
         doc["phase_currents"]["original_data"]["L2"] = IrmsOriginal[1];

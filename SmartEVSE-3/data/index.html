@@ -195,34 +195,7 @@
             $('#evmeter_currents_1').text((data.ev_meter.currents.L1/10).toFixed(1) + " A");
             $('#evmeter_currents_2').text((data.ev_meter.currents.L2/10).toFixed(1) + " A");
             $('#evmeter_currents_3').text((data.ev_meter.currents.L3/10).toFixed(1) + " A");
-            nr_of_phases_charging = 0;
-            if(data.phase_currents.charging_L1) {
-              $('#phase_1').append("*");
-              $('#evmeter_currents_1').append("*");
-              nr_of_phases_charging++;
-            } else {
-              $('#phase_1').append(" ");
-            }
-            if(data.phase_currents.charging_L2) {
-              $('#phase_2').append("*");
-              $('#evmeter_currents_2').append("*");
-              nr_of_phases_charging++;
-            } else {
-              $('#phase_2').append(" ");
-            }
-            if(data.phase_currents.charging_L3) {
-              $('#phase_3').append("*");
-              $('#evmeter_currents_3').append("*");
-              nr_of_phases_charging++;
-            } else {
-              $('#phase_3').append(" ");
-            }
-            if (nr_of_phases_charging != 0) {
-                $('#charge_current').text(nr_of_phases_charging + " x " + (data.settings.charge_current/10).toFixed(1) + " A");
-            }
-            else {
-                $('#charge_current').text((data.settings.charge_current/10).toFixed(1) + " A");
-            }
+            $('#charge_current').text((data.settings.charge_current/10).toFixed(1) + " A");
 
             $('#phase_original_total').text((data.phase_currents.original_data.TOTAL/10).toFixed(1) + " A");
             $('#phase_original_1').text((data.phase_currents.original_data.L1/10).toFixed(1) + " A");
