@@ -22,13 +22,6 @@ After configuration of your Wifi parameters, your SmartEVSE will present itself 
 * If you switch mode on the Master, the Slaves will follow that mode switch
 * If you switch to Normal mode on one Slave, the Master and other Slaves will remain in their current modes. If you switch to Smart or Solar mode on one Slave, the Master and the other Slaves will follow that switch.
 
-# REST API
-//TODO    
-
-# MQTT API
-Your SmartEVSE can now export the most important data to your MQTT-server. Just fill in the configuration data on the webserver and the data will automatically be announced to your MQTT server.
-//TODO
-
 # Error Messages
 If an error occurs, the SmartEVSE will stop charging, and display one of the following messages:
 * ERROR NO SERIAL COM	  CHECK WIRING<br>No signal from the Sensorbox or other SmartEVSE (when load balancing is used) has been received for 11 seconds. Please check the wiring to the Sensorbox or other SmartEVSE.
