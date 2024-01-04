@@ -83,10 +83,6 @@
 extern RemoteDebug Debug;
 #endif
 
-#define PHASE_DETECTION_TIME 60                                                 // Tesla seems to need up to 20 seconds to have all its phases activated
-                                                                                // Polestar 2 seems to need up to 44 seconds
-                                                                                // Volvo C40 needs 60 seconds
-
 // Pin definitions left side ESP32
 #define PIN_TEMP 36
 #define PIN_CP_IN 39

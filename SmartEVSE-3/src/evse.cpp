@@ -162,8 +162,6 @@ int32_t Irms[3]={0, 0, 0};                                                  // M
 int32_t Irms_EV[3]={0, 0, 0};                                               // Momentary current per Phase (23 = 2.3A) (resolution 100mA)
 int32_t Old_Irms[3]={0, 0, 0};                                              // Saved momentary current per Phase (23 = 2.3A) (resolution 100mA)
                                                                             // Max 3 phases supported
-uint8_t Detecting_Charging_Phases_Timer = 0;
-uint32_t Charging_Prob[3]={0, 0, 0};                                        // Per phase, the probability that Charging is done at this phase
 bool Charging_Phase[3] = {true, true, true};                                // phases that are used at the start of this charging session; default is all true,
                                                                             // then conservatively we switch off phases of which we think are not charging
 uint8_t Nr_Of_Phases_Charging = 0;                                          // 0 = Undetected, 1,2,3 = nr of phases that was detected at the start of this charging session
@@ -746,7 +744,6 @@ void setState(uint8_t NewState) {
             SetCurrent(ChargeCurrent);                                          // Enable PWM
             break;      
         case STATE_C:                                                           // State C2
-            uint8_t i;
             ActivationMode = 255;                                               // Disable ActivationMode
 
             if (Switching_To_Single_Phase == GOING_TO_SWITCH) {
@@ -912,40 +909,39 @@ void ResetBalancedStates(void) {
 // 0 = undetected, 1 - 3 nr of phases we are charging
 void Set_Nr_of_Phases_Charging(void) {
     uint32_t Max_Charging_Prob = 0;
+    uint32_t Charging_Prob=0;                                        // Per phase, the probability that Charging is done at this phase
     Nr_Of_Phases_Charging = 0;
 #define THRESHOLD 40
 #define BOTTOM_THRESHOLD 25
     _LOG_D("Detected Charging Phases: ChargeCurrent=%u, Balanced[0]=%u, IsetBalanced=%u.\n", ChargeCurrent, Balanced[0],IsetBalanced);
     for (int i=0; i<3; i++) {
-        Charging_Prob[i] = 0;                                       // reset charging phase probabilities
         Charging_Phase[i] = true;                                   // reset charging phases
         if (EVMeter) {
-            Charging_Prob[i] = 10 * (abs(Irms_EV[i] - IsetBalanced)) / IsetBalanced;    //100% means this phase is charging, 0% mwans not charging
+            Charging_Prob = 10 * (abs(Irms_EV[i] - IsetBalanced)) / IsetBalanced;    //100% means this phase is charging, 0% mwans not charging
                                                                                         //TODO does this work for the slaves too?
             _LOG_D("Trying to detect Charging Phases END Irms_EV[%i]=%.1f A.\n", i, (float)Irms_EV[i]/10);
         }
-        Max_Charging_Prob = max(Charging_Prob[i], Max_Charging_Prob);
+        Max_Charging_Prob = max(Charging_Prob, Max_Charging_Prob);
 
         //normalize percentages so they are in the range [0-100]
-        if (Charging_Prob[i] >= 200)
-            Charging_Prob[i] = 0;
-        if (Charging_Prob[i] > 100)
-            Charging_Prob[i] = 200 - Charging_Prob[i];
-        _LOG_I("Detected Charging Phases: Charging_Prob[%i]=%i.\n", i, Charging_Prob[i]);
-        //_LOG_D("Detected Charging Phases: Old_Irms[%i]=%u.\n", i, Old_Irms[i]);
+        if (Charging_Prob >= 200)
+            Charging_Prob = 0;
+        if (Charging_Prob > 100)
+            Charging_Prob = 200 - Charging_Prob;
+        _LOG_I("Detected Charging Phases: Charging_Prob[%i]=%i.\n", i, Charging_Prob);
 
-        if (Charging_Prob[i] == Max_Charging_Prob) {
+        if (Charging_Prob == Max_Charging_Prob) {
             _LOG_D("Suspect I am charging at phase: L%i.\n", i+1);
             Nr_Of_Phases_Charging++;
             Charging_Phase[i] = true;
         }
         else {
-            if ( Charging_Prob[i] <= BOTTOM_THRESHOLD ) {
+            if ( Charging_Prob <= BOTTOM_THRESHOLD ) {
                 _LOG_D("Suspect I am NOT charging at phase: L%i.\n", i+1);
                 Charging_Phase[i] = false;
             }
             else {
-                if ( Max_Charging_Prob - Charging_Prob[i] <= THRESHOLD ) {
+                if ( Max_Charging_Prob - Charging_Prob <= THRESHOLD ) {
                     _LOG_D("Serious candidate for charging at phase: L%i.\n", i+1);
                     Nr_Of_Phases_Charging++;
                     Charging_Phase[i] = true;
