@@ -169,6 +169,7 @@ extern RemoteDebug Debug;
 #define RFID_READER 0
 #define WIFI_MODE 0
 #define AP_PASSWORD "00000000"
+#define CARD_OFFSET 0
 #define INITIALIZED 0
 #define ENABLE_C2 NOT_PRESENT
 #define MAX_TEMPERATURE 65
@@ -411,6 +412,8 @@ extern uint32_t ScrollTimer;
 extern uint8_t ChargeDelay;                                                     // Delays charging in seconds.
 extern uint8_t TestState;
 extern uint8_t Access_bit;
+extern uint8_t CardOffset;
+
 extern uint8_t GridActive;                                                      // When the CT's are used on Sensorbox2, it enables the GRID menu option.
 extern uint8_t CalActive;                                                       // When the CT's are used on Sensorbox(1.5 or 2), it enables the CAL menu option.
 extern uint16_t Iuncal;

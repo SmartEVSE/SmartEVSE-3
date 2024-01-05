@@ -259,7 +259,6 @@ void DeleteAllRFID(void) {
 
 void CheckRFID(void) {
     unsigned char x;
-    static unsigned char cardoffset = 0;
     // When RFID is enabled, a OneWire RFID reader is expected on the SW input
     uint8_t RFIDReader = getItemValue(MENU_RFIDREADER);
     if (RFIDReader) {                                        // RFID Reader set to Enabled, Learn or Delete
@@ -271,7 +270,7 @@ void CheckRFID(void) {
                         _LOG_A("RFID card found!\n");
                         if (Access_bit) {
                             setAccess(false);                                   // Access Off, Switch back to state B1/C1
-                        } else Access_bit = 1;
+                        } else setAccess(true);
 
                         RFIDstatus = 1;
                     }  else if (!x) RFIDstatus = 7;                             // invalid card
@@ -282,9 +281,9 @@ void CheckRFID(void) {
                     if (x && !RFIDstatus) {
                         _LOG_A("RFID card found!\n");
                         if (!Access_bit) {
-                            cardoffset = x;                                     // store cardoffset from current card
-                            Access_bit = 1;                                     // Access On
-                        } else if (cardoffset == x) {
+                            CardOffset = x;                                     // store cardoffset from current card
+                            setAccess(true);                                    // Access On
+                        } else if (CardOffset == x) {
                             setAccess(false);                                   // Access Off, Switch back to state B1/C1
                         }
                         RFIDstatus = 1;                            
