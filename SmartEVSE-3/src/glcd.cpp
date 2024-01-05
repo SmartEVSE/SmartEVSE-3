@@ -454,7 +454,7 @@ void GLCD(void) {
 
         if (LCDTimer > 120) {
             LCDNav = 0;                                                         // Exit Setup menu after 120 seconds.
-            read_settings(false);                                               // don't save, but restore settings
+            read_settings();                                                    // don't save, but restore settings
         } else return;                                                          // disable LCD status messages when navigating LCD Menu
     }
    
