@@ -261,7 +261,6 @@ uint8_t ActivationMode = 0, ActivationTimer = 0;
 volatile uint16_t adcsample = 0;
 volatile uint16_t ADCsamples[25];                                           // declared volatile, as they are used in a ISR
 volatile uint8_t sampleidx = 0;
-volatile int adcchannel = ADC1_CHANNEL_3;
 char str[20];
 bool LocalTimeSet = false;
 
@@ -347,13 +346,14 @@ void IRAM_ATTR onCPpulse() {
 
 
 
-// Alarm interrupt handler
+// Timer interrupt handler
 // in STATE A this is called every 1ms (autoreload)
 // in STATE B/C there is a PWM signal, and the Alarm is set to 5% after the low-> high transition of the PWM signal
 void IRAM_ATTR onTimerA() {
 
   RTC_ENTER_CRITICAL();
-  adcsample = local_adc1_read(adcchannel);
+  adcsample = local_adc1_read(ADC1_CHANNEL_3);
+
   RTC_EXIT_CRITICAL();
 
   ADCsamples[sampleidx++] = adcsample;
