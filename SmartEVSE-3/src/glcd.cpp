@@ -1053,7 +1053,7 @@ void GLCDMenu(uint8_t Buttons) {
                         value = getItemValue(LCDNav);
                         do {
                             value = MenuNavInt(Buttons, value, MenuStr[LCDNav].Min, MenuStr[LCDNav].Max);
-                        } while (value == EM_SENSORBOX || (value >= EM_UNUSED_SLOT1 && value <= EM_UNUSED_SLOT5));
+                        } while (value == EM_SENSORBOX || (value >= EM_UNUSED_SLOT1 && value <= EM_UNUSED_SLOT4));
                         setItemValue(LCDNav, value);
                         break;
                     case MENU_MODE:                                          // do not display Smart or Solar mode if no mainsmeter configured
