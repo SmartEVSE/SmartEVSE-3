@@ -210,7 +210,8 @@ extern RemoteDebug Debug;
 #define PILOT_12V 1                                                             // State A - vehicle disconnected
 #define PILOT_9V 2                                                              // State B - vehicle connected
 #define PILOT_6V 3                                                              // State C - EV charge
-#define PILOT_DIODE 4
+#define PILOT_3V 4
+#define PILOT_DIODE 5
 #define PILOT_NOK 0
 
 

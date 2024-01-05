@@ -541,9 +541,6 @@ uint8_t Pilot() {
     uint32_t voltage;
     uint8_t n;
 
-    // make sure we wait 100ms after each state change before calculating Average
-    //if ( (StateTimer + 100) > millis() ) return PILOT_WAIT;
-
     // calculate Min/Max of last 25 CP measurements
     for (n=0 ; n<25 ;n++) {
         sample = ADCsamples[n];
@@ -554,9 +551,10 @@ uint8_t Pilot() {
     //_LOG_A("min:%u max:%u\n",Min ,Max);
 
     // test Min/Max against fixed levels
-    if (Min > 3000 ) return PILOT_12V;                                      // Pilot at 12V (min 11.0V)
-    if ((Min > 2700) && (Max < 2930)) return PILOT_9V;                      // Pilot at 9V
-    if ((Min > 2400) && (Max < 2600)) return PILOT_6V;                      // Pilot at 6V
+    if (Min >= 3055 ) return PILOT_12V;                                     // Pilot at 12V (min 11.0V)
+    if ((Min >= 2735) && (Max < 3055)) return PILOT_9V;                     // Pilot at 9V
+    if ((Min >= 2400) && (Max < 2735)) return PILOT_6V;                     // Pilot at 6V
+    if ((Min >= 2000) && (Max < 2400)) return PILOT_3V;                     // Pilot at 3V
     if ((Min > 100) && (Max < 300)) return PILOT_DIODE;                     // Diode Check OK
     return PILOT_NOK;                                                       // Pilot NOT ok
 }
