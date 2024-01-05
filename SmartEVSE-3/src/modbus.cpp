@@ -459,6 +459,11 @@ void requestCurrentMeasurement(uint8_t Meter, uint8_t Address) {
             // Read 3 Current values + scaling factor
             ModbusReadInputRequest(Address, EMConfig[Meter].Function, EMConfig[Meter].IRegister, 4);
             break;
+        case EM_FINDER_7M:
+            // Phase 1-3 current: Register 2516 - 2521 (unsigned)
+            // Phase 1-3 power:   Register 2530 - 2535 (signed)
+            ModbusReadInputRequest(Address, 4, 2516, 20);
+            break;
         default:
             // Read 3 Current values
             requestMeasurement(Meter, Address, EMConfig[Meter].IRegister, 3);
@@ -563,6 +568,11 @@ uint8_t receiveCurrentMeasurement(uint8_t *buf, uint8_t Meter, signed int *var) 
         case EM_ABB:
             for (x = 0; x < 3; x++) {
                 if (receiveMeasurement(buf, x + 5u, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, EMConfig[Meter].PDivisor) < 0) var[x] = -var[x];
+            }
+            break;
+        case EM_FINDER_7M:
+            for (x = 0; x < 3; x++) {
+                if (receiveMeasurement(buf, x + 7u, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, EMConfig[Meter].PDivisor) < 0) var[x] = -var[x];
             }
             break;
     }
