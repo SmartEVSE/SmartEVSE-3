@@ -149,6 +149,7 @@ uint8_t Show_RFID = 0;
 #endif
 uint8_t WIFImode = WIFI_MODE;                                               // WiFi Mode (0:Disabled / 1:Enabled / 2:Start Portal)
 String APpassword = "00000000";
+uint8_t Initialized = INITIALIZED;                                          // When first powered on, the settings need to be initialized.
 String TZname = "";
 
 EnableC2_t EnableC2 = ENABLE_C2;                                            // Contactor C2
@@ -3370,18 +3371,15 @@ void ConfigureModbusMode(uint8_t newmode) {
 }
 
 
-// Generate random password for AP if not initialized
-void CheckAPpassword(void) {
+// Generate random password for AP
+void SetRandomAPpassword(void) {
     uint8_t i, c;
-    // Set random password if not yet initialized.
-    if (strcmp(APpassword.c_str(), "00000000") == 0) {
-        for (i=0; i<8 ;i++) {
+    // Set random password
+    for (i=0; i<8 ;i++) {
             c = random(16) + '0';
             if (c > '9') c += 'a'-'9'-1;
             APpassword[i] = c;
-        }
     }
-    _LOG_A("APpassword: %s\n",APpassword.c_str());
 }
 
 /**
@@ -3421,8 +3419,10 @@ void validate_settings(void) {
 
     // Check if AP password is unitialized. 
     // Create random AP password.
-    CheckAPpassword(); 
-
+    if (!Initialized) {
+        SetRandomAPpassword();
+        Initialized = 1;
+    }
           
     // Default to modbus input registers
     if (EMConfig[EM_CUSTOM].Function != 3) EMConfig[EM_CUSTOM].Function = 4;
@@ -3437,10 +3437,10 @@ void validate_settings(void) {
     }
 }
 
-void read_settings(bool write) {
+void read_settings() {
     
     if (preferences.begin("settings", false) == true) {
-
+        Initialized = preferences.getUChar("Initialized", INITIALIZED);
         Config = preferences.getUChar("Config", CONFIG); 
         Lock = preferences.getUChar("Lock", LOCK); 
         Mode = preferences.getUChar("Mode", MODE); 
@@ -3503,7 +3503,8 @@ void read_settings(bool write) {
 
         preferences.end();                                  
 
-        if (write) write_settings();
+        // Store settings when not initialized
+        if (!Initialized) write_settings();
 
     } else {
         _LOG_A("Can not open preferences!\n");
@@ -3552,6 +3553,7 @@ void write_settings(void) {
     preferences.putUChar("EMFunction", EMConfig[EM_CUSTOM].Function);
     preferences.putUChar("WIFImode", WIFImode);
     preferences.putString("APpassword", APpassword);
+    preferences.putUChar("Initialized", Initialized);
     preferences.putULong("DelayedStartTim", DelayedStartTime.epoch2); //epoch2 only needs 4 bytes; NVS key has reached max size
     preferences.putULong("DelayedStopTime", DelayedStopTime.epoch2);   //epoch2 only needs 4 bytes
 
@@ -4563,8 +4565,10 @@ void setup() {
 
 
    // Read all settings from non volatile memory
-    read_settings(true);                                                        // initialize with default data when starting for the first time
+    read_settings();                                                            // initialize with default data when starting for the first time
+    validate_settings();
     ReadRFIDlist();                                                             // Read all stored RFID's from storage
+    _LOG_A("APpassword: %s\n",APpassword.c_str());
 
     // We might need some sort of authentication in the future.
     // SmartEVSE v3 have programmed ECDSA-256 keys stored in nvs

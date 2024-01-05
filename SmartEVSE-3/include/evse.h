@@ -169,6 +169,7 @@ extern RemoteDebug Debug;
 #define RFID_READER 0
 #define WIFI_MODE 0
 #define AP_PASSWORD "00000000"
+#define INITIALIZED 0
 #define ENABLE_C2 NOT_PRESENT
 #define MAX_TEMPERATURE 65
 #define DELAYEDSTARTTIME 0                                                             // The default StartTime for delayed charged, 0 = not delaying
@@ -521,7 +522,7 @@ struct DelayedTimeStruct {
 extern struct DelayedTimeStruct DelayedStartTime;
 
 void CheckAPpassword(void);
-void read_settings(bool write);
+void read_settings();
 void write_settings(void);
 void setSolarStopTimer(uint16_t Timer);
 void setState(uint8_t NewState);
