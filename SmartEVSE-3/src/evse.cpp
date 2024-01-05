@@ -183,24 +183,26 @@ uint8_t BalancedState[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};                 // S
 uint16_t BalancedError[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};                // Error state of EVSE
 
 struct {
-    bool Online;
+    uint8_t Online;
     uint8_t ConfigChanged;
     uint8_t EVMeter;
     uint8_t EVAddress;
     uint8_t MinCurrent;     // 0.1A
     uint8_t Phases;
-    uint16_t Timer;         // 1s
-} Node[NR_EVSES] = {                                            // 0: Master / 1: Node 1 ...
-   /*         Config   EV     EV       Min                    *
-    * Online, Changed, Meter, Address, Current, Phases, Timer */
-    {   true,       0,     0,       0,       0,      0,     0 },
-    {  false,       1,     0,       0,       0,      0,     0 },
-    {  false,       1,     0,       0,       0,      0,     0 },
-    {  false,       1,     0,       0,       0,      0,     0 },
-    {  false,       1,     0,       0,       0,      0,     0 },
-    {  false,       1,     0,       0,       0,      0,     0 },
-    {  false,       1,     0,       0,       0,      0,     0 },
-    {  false,       1,     0,       0,       0,      0,     0 }
+    uint32_t Timer;         // 1s
+} Node[NR_EVSES] = {                                                        // 0: Master / 1: Node 1 ...
+   /*         Config   EV     EV       Min      Used    Interval*           // Interval Time   : last Charge time, reset when not charging
+    * Online, Changed, Meter, Address, Current, Phases, Timer */            // Min Current     : minimal measured current per phase the EV consumes when starting to charge @ 6A (can be lower then 6A)
+
+    {      1,       0,     0,       0,       0,      0,     0 },            // Used Phases     : detected nr of phases when starting to charge (works with configured EVmeter meter, and might work with sensorbox)
+
+    {      0,       1,     0,       0,       0,      0,     0 },
+    {      0,       1,     0,       0,       0,      0,     0 },
+    {      0,       1,     0,       0,       0,      0,     0 },
+    {      0,       1,     0,       0,       0,      0,     0 },
+    {      0,       1,     0,       0,       0,      0,     0 },
+    {      0,       1,     0,       0,       0,      0,     0 },
+    {      0,       1,     0,       0,       0,      0,     0 }
 };
 
 uint8_t lock1 = 0, lock2 = 1;
@@ -1274,7 +1276,14 @@ void receiveNodeConfig(uint8_t *buf, uint8_t NodeNr) {
  * @param uint8_t NodeNr (1-7)
  */
 void requestNodeStatus(uint8_t NodeNr) {
-    Node[NodeNr].Online = false;
+    if(Node[NodeNr].Online) {
+        if(Node[NodeNr].Online-- == 1) {
+            // Reset Node state when node is offline
+            BalancedState[NodeNr] = STATE_A;
+            Balanced[NodeNr] = 0;
+        }
+    }
+
     ModbusReadInputRequest(NodeNr + 1u, 4, 0x0000, 8);
 }
 
@@ -1328,8 +1337,7 @@ Regist 	Access  Description 	        Unit 	Values
  * @param uint8_t NodeAdr (1-7)
  */
 void receiveNodeStatus(uint8_t *buf, uint8_t NodeNr) {
-    if (LoadBl == 1) Node[NodeNr].Online = true;
-    else Node[NodeNr].Online = false;
+    Node[NodeNr].Online = 5;
 //    memcpy(buf, (uint8_t*)&Node[NodeNr], sizeof(struct NodeState));
     BalancedState[NodeNr] = buf[1];                                             // Node State
     BalancedError[NodeNr] = buf[3];                                             // Node Error status
@@ -2294,7 +2302,7 @@ uint8_t PollEVNode = NR_EVSES;
                     do {
                         PollEVNode++;
                         if (PollEVNode >= NR_EVSES) PollEVNode = 0;
-                    } while(Node[PollEVNode].Online == false);
+                    } while(!Node[PollEVNode].Online);
 
                     // Request Configuration if changed
                     if (Node[PollEVNode].ConfigChanged) {
