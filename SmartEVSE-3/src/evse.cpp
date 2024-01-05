@@ -31,14 +31,11 @@
 #include <ModbusClientRTU.h>        // Master
 #include <time.h>
 
-#include <nvs_flash.h>              // nvs initialisation code (can be removed?)
-
 #include <soc/sens_reg.h>
 #include <soc/sens_struct.h>
 #include <driver/adc.h>
 #include <esp_adc_cal.h>
 
-#include <driver/uart.h>
 #include <soc/rtc_io_struct.h>
 
 #include "evse.h"
