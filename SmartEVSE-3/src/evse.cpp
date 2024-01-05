@@ -232,7 +232,9 @@ uint8_t NoCurrent = 0;                                                      // c
 uint8_t TestState = 0;
 uint8_t ModbusRequest = 0;                                                  // Flag to request Modbus information
 uint8_t MenuItems[MENU_EXIT];
-uint8_t Access_bit = 0;
+uint8_t Access_bit = 0;                                                     // 0:No Access 1:Access to SmartEVSE
+uint8_t CardOffset = CARD_OFFSET;                                           // RFID card used in Enable One mode
+
 uint8_t ConfigChanged = 0;
 uint32_t serialnr = 0;
 uint8_t GridActive = 0;                                                     // When the CT's are used on Sensorbox2, it enables the GRID menu option.
@@ -792,6 +794,7 @@ void setAccess(bool Access) {
     //make mode and start/stoptimes persistent on reboot
     if (preferences.begin("settings", false) ) {                        //false = write mode
         preferences.putUChar("Access", Access_bit);
+        preferences.putUChar("CardOffset", CardOffset);
         preferences.end();
     }
 
@@ -3452,6 +3455,7 @@ void read_settings() {
         else if (Switch != 1 && Switch != 2) Default_Access_bit = 1;
         // Now we know default value, lets read if from memory:
         Access_bit = preferences.getUChar("Access", Default_Access_bit);
+        CardOffset = preferences.getUChar("CardOffset", CARD_OFFSET);
         LoadBl = preferences.getUChar("LoadBl", LOADBL); 
         MaxMains = preferences.getUShort("MaxMains", MAX_MAINS); 
         MaxSumMains = preferences.getUShort("MaxSumMains", MAX_SUMMAINS);
@@ -3521,6 +3525,7 @@ void write_settings(void) {
     preferences.putUChar("Lock", Lock); 
     preferences.putUChar("Mode", Mode); 
     preferences.putUChar("Access", Access_bit);
+    preferences.putUChar("CardOffset", CardOffset);
     preferences.putUChar("LoadBl", LoadBl); 
     preferences.putUShort("MaxMains", MaxMains); 
     preferences.putUShort("MaxSumMains", MaxSumMains);
