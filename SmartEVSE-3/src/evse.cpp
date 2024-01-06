@@ -1857,7 +1857,7 @@ void CheckSwitch(void)
     // External switch changed state?
     if ( (digitalRead(PIN_SW_IN) != RB2last) || RB2low) {
         // make sure that noise on the input does not switch
-        if (RB2count++ > 5 || RB2low) {
+        if (RB2count++ > 20 || RB2low) {
             RB2last = digitalRead(PIN_SW_IN);
             if (RB2last == 0) {
                 // Switch input pulled low
