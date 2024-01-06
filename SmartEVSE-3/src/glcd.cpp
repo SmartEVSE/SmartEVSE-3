@@ -1046,7 +1046,7 @@ void GLCDMenu(uint8_t Buttons) {
             if (SubMenu) {
                 switch (LCDNav) {
                     case MENU_CAL:
-                        CT1 = MenuNavInt(Buttons, CT1, 100, 999);
+                        CT1 = MenuNavInt(Buttons, CT1, 60, 999);                // range 6.0 - 99.9A
                         break;
                     case MENU_MAINSMETER:
                     case MENU_EVMETER:                                          // do not display the Sensorbox or unused slots here
