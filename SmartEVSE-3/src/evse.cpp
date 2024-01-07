@@ -2920,7 +2920,8 @@ void Timer1S(void * parameter) {
         if (TempEVSE > maxTemp && !(ErrorFlags & TEMP_HIGH))                         // Temperature too High?
         {
             ErrorFlags |= TEMP_HIGH;
-            setState(STATE_A);                                              // ERROR, switch back to STATE_A
+            if (State == STATE_C) setState(STATE_C1);                       // tell EV to stop charging
+            else setState(STATE_B1);                                        // when we are not charging switch to State B1
             _LOG_W("Error, temperature %i C !\n", TempEVSE);
             ResetBalancedStates();
         }
