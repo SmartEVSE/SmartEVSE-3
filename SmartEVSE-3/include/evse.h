@@ -235,6 +235,9 @@ extern RemoteDebug Debug;
 #define CP_ON digitalWrite(PIN_CPOFF, LOW);
 #define CP_OFF digitalWrite(PIN_CPOFF, HIGH);
 
+#define PILOT_CONNECTED digitalWrite(PIN_CPOFF, LOW);
+#define PILOT_DISCONNECTED digitalWrite(PIN_CPOFF, HIGH);
+
 #define CONTACTOR1_ON digitalWrite(PIN_SSR, HIGH);
 #define CONTACTOR1_OFF digitalWrite(PIN_SSR, LOW);
 

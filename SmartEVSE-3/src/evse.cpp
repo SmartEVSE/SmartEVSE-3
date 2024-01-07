@@ -246,6 +246,9 @@ int32_t EnergyCharged = 0;                                                  // k
 int32_t EnergyMeterStart = 0;                                               // kWh meter value is stored once EV is connected to EVSE (Wh)
 int32_t PowerMeasured = 0;                                                  // Measured Charge power in Watt by kWh meter
 uint8_t RFIDstatus = 0;
+bool PilotDisconnected = false;
+uint8_t PilotDisconnectTime = 0;                                            // Time the Control Pilot line should be disconnected (Sec)
+
 int32_t EnergyEV = 0;                                                       // Wh -> EV_import_active_energy - EV_export_active_energy
 int32_t Mains_export_active_energy = 0;                                     // Mainsmeter exported active energy, only for API purposes so you can guard the
                                                                             // enery usage of your house
@@ -699,6 +702,13 @@ void setState(uint8_t NewState) {
     switch (NewState) {
         case STATE_B1:
             if (!ChargeDelay) ChargeDelay = 3;                                  // When entering State B1, wait at least 3 seconds before switching to another state.
+            if (State != STATE_B1 && State != STATE_B && !PilotDisconnected) {
+                PILOT_DISCONNECTED;
+                PilotDisconnected = true;
+                PilotDisconnectTime = 5;                                       // Set PilotDisconnectTime to 5 seconds
+
+                Serial.print("Pilot Disconnected\n");
+            }
             // fall through
         case STATE_A:                                                           // State A1
             CONTACTOR1_OFF;  
@@ -1996,8 +2006,14 @@ void EVSEStates(void * parameter) {
         if (State == STATE_A || State == STATE_COMM_B || State == STATE_B1)
         {
 
-            if (pilot == PILOT_12V) {                                           // Check if we are disconnected, or forced to State A, but still connected to the EV
-
+            // When the pilot line is disconnected, wait for PilotDisconnectTime, then reconnect
+            if (PilotDisconnected) {
+                if (PilotDisconnectTime == 0 && pilot == PILOT_NOK ) {          // Pilot should be ~ 0V when disconnected
+                    PILOT_CONNECTED;
+                    PilotDisconnected = false;
+                    Serial.print("Pilot Connected\n");
+                }
+            } else if (pilot == PILOT_12V) {                                    // Check if we are disconnected, or forced to State A, but still connected to the EV
                 // If the RFID reader is set to EnableOne or EnableAll mode, and the Charging cable is disconnected
                 // We start a timer to re-lock the EVSE (and unlock the cable) after 60 seconds.
                 if ((RFIDReader == 2 || RFIDReader == 1) && AccessTimer == 0 && Access_bit == 1) AccessTimer = RFIDLOCKTIME;
@@ -2847,6 +2863,7 @@ void Timer1S(void * parameter) {
         }
 
         if (ChargeDelay) ChargeDelay--;                                     // Decrease Charge Delay counter
+        if (PilotDisconnectTime) PilotDisconnectTime--;                     // Decrease PilotDisconnectTimer
 
         if (AccessTimer && State == STATE_A) {
             if (--AccessTimer == 0) {
