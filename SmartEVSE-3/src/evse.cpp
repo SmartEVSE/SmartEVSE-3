@@ -2035,7 +2035,7 @@ void EVSEStates(void * parameter) {
 
                 _LOG_I("Cable limit: %uA  Max: %uA\n", MaxCapacity, MaxCurrent);
                 if (MaxCurrent > MaxCapacity) ChargeCurrent = MaxCapacity * 10; // Do not modify Max Cable Capacity or MaxCurrent (fix 2.05)
-                else ChargeCurrent = MaxCurrent * 10;                           // Instead use new variable ChargeCurrent
+                else ChargeCurrent = MinCurrent * 10;                           // Instead use new variable ChargeCurrent
 
                 // Load Balancing : Node
                 if (LoadBl > 1) {                                               // Send command to Master, followed by Max Charge Current
