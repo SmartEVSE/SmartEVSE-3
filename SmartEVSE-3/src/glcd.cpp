@@ -1044,34 +1044,31 @@ void GLCDMenu(uint8_t Buttons) {
     } else if ((LCDNav > 1) && LCDNav != MENU_OFF && LCDNav != MENU_ON && (Buttons == 0x2 || Buttons == 0x3 || Buttons == 0x6)) { // Buttons < or > or both pressed
         if (ButtonRelease == 0) {                                               // We are navigating between sub menu options
             if (SubMenu) {
+                value = getItemValue(LCDNav);
                 switch (LCDNav) {
                     case MENU_CAL:
                         CT1 = MenuNavInt(Buttons, CT1, 60, 999);                // range 6.0 - 99.9A
                         break;
                     case MENU_MAINSMETER:
                     case MENU_EVMETER:                                          // do not display the Sensorbox or unused slots here
-                        value = getItemValue(LCDNav);
                         do {
                             value = MenuNavInt(Buttons, value, MenuStr[LCDNav].Min, MenuStr[LCDNav].Max);
                         } while (value == EM_SENSORBOX || (value >= EM_UNUSED_SLOT1 && value <= EM_UNUSED_SLOT4));
                         setItemValue(LCDNav, value);
                         break;
                     case MENU_MODE:                                          // do not display Smart or Solar mode if no mainsmeter configured
-                        value = getItemValue(LCDNav);
                         do {
                             value = MenuNavInt(Buttons, value, MenuStr[LCDNav].Min, MenuStr[LCDNav].Max);
                         } while (!getItemValue(MENU_MAINSMETER) && value != MODE_NORMAL);
                         setItemValue(LCDNav, value);
                         break;
                     case MENU_WIFI:
-                        value = getItemValue(LCDNav);
                         value = MenuNavInt(Buttons, value, MenuStr[LCDNav].Min, MenuStr[LCDNav].Max);
                         setItemValue(LCDNav, value);
                         if (value !=2 )
                             handleWIFImode();                                   //postpone handling WIFImode == 2 to moving to upper line
                         break;
                     default:
-                        value = getItemValue(LCDNav);
                         value = MenuNavInt(Buttons, value, MenuStr[LCDNav].Min, MenuStr[LCDNav].Max);
                         setItemValue(LCDNav, value);
                         break;
