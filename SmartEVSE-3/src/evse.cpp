@@ -849,44 +849,26 @@ char IsCurrentAvailable(void) {
         ActiveEVSE++;                                                           // Count nr of active (charging) EVSE's
         TotalCurrent += Balanced[n];                                            // Calculate total of all set charge currents
     }
-    if (ActiveEVSE == 0) {                                                      // No active (charging) EVSE's
-        if (Imeasured > ((MaxMains - MinCurrent) * 10)) {                       // There should be at least 6A available
-            return 0;                                                           // Not enough current available!, return with error
-        }
-        if (Imeasured_EV > ((MaxCircuit - MinCurrent) * 10)) {                  // There should be at least 6A available
-            return 0;                                                           // Not enough current available!, return with error
-        }
-        //assume the current should be available on all 3 phases
-        if (Isum > (MaxSumMains - (MinCurrent * 3)) * 10) {                     // To guard capacity rate
-            return 0;                                                           // Not enough current available!, return with error
-        }
-    } else {                                                                    // at least one active EVSE
-        ActiveEVSE++;                                                           // Do calculations with one more EVSE
-        Baseload = Imeasured - TotalCurrent;                                    // Calculate Baseload (load without any active EVSE)
-        Baseload_EV = Imeasured_EV - TotalCurrent;                              // Load on the EV subpanel excluding any active EVSE
-        if (Baseload < 0) Baseload = 0;                                         // only relevant for Smart/Solar mode
 
-        if (ActiveEVSE > NR_EVSES) ActiveEVSE = NR_EVSES;
-        // When load balancing is active, and we are the Master, the Circuit option limits the max total current
-        // Also, when not in Normal Mode, if MaxCircuit is set, it will limit the total current (subpanel configuration)
-        if (LoadBl == 1 || (LoadBl == 0 && Mode != MODE_NORMAL && MaxCircuit )) {
-            if ((ActiveEVSE * (MinCurrent * 10)) > (MaxCircuit * 10) - Baseload_EV) {
-                return 0;                                                       // Not enough current available!, return with error
-            }
-        }
+    ActiveEVSE++;                                                           // Do calculations with one more EVSE
+    if (ActiveEVSE > NR_EVSES) ActiveEVSE = NR_EVSES;
+    Baseload = Imeasured - TotalCurrent;                                    // Calculate Baseload (load without any active EVSE)
+    Baseload_EV = Imeasured_EV - TotalCurrent;                              // Load on the EV subpanel excluding any active EVSE
+    if (Baseload < 0) Baseload = 0;                                         // only relevant for Smart/Solar mode
 
-        // Check if the lowest charge current(6A) x ActiveEV's + baseload would be higher then the MaxMains.
-        if ((ActiveEVSE * (MinCurrent * 10) + Baseload) > (MaxMains * 10)) {
-            return 0;                                                           // Not enough current available!, return with error
-        }
-        if ((ActiveEVSE * (MinCurrent * 10) + Baseload_EV) > (MaxCircuit * 10)) {
-            return 0;                                                           // Not enough current available!, return with error
-        }
-        //assume the current should be available on all 3 phases
-        if ((3 * ActiveEVSE * (MinCurrent * 10) + Isum) > (MaxSumMains * 10)) {
-            return 0;                                                           // Not enough current available!, return with error
-        }
-
+    // Check if the lowest charge current(6A) x ActiveEV's + baseload would be higher then the MaxMains.
+    if ((ActiveEVSE * (MinCurrent * 10) + Baseload) > (MaxMains * 10)) {
+        return 0;                                                           // Not enough current available!, return with error
+    }
+    if ((ActiveEVSE * (MinCurrent * 10) + Baseload_EV) > (MaxCircuit * 10)) {
+        return 0;                                                           // Not enough current available!, return with error
+    }
+    //assume the current should be available on all 3 phases
+    bool must_be_single_phase_charging = (EnableC2 == ALWAYS_OFF || (Mode == MODE_SOLAR && EnableC2 == SOLAR_OFF) ||
+            (Mode == MODE_SOLAR && EnableC2 == AUTO && Switching_To_Single_Phase == AFTER_SWITCH));
+    int Phases = must_be_single_phase_charging ? 1 : 3;
+    if ((Phases * ActiveEVSE * (MinCurrent * 10) + Isum) > (MaxSumMains * 10)) {
+        return 0;                                                           // Not enough current available!, return with error
     }
 
     // Allow solar Charging if surplus current is above 'StartCurrent' (sum of all phases)
