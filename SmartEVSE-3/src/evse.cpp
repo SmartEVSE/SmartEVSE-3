@@ -3421,6 +3421,10 @@ void validate_settings(void) {
     if (!MainsMeter)
         Mode = MODE_NORMAL;
 
+    // It doesnt make sense to have ImportCurrent lower than StartCurrent + MinCurrent,
+    // because you will never start charging in Solar Mode
+    if (ImportCurrent < StartCurrent + MinCurrent)
+        ImportCurrent = StartCurrent + MinCurrent;
     // Update master node config
     if (LoadBl < 2) {
         Node[0].EVMeter = EVMeter;

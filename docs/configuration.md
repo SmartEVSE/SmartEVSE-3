@@ -119,10 +119,13 @@ START         set the current on which the EV should start Solar charging:
 STOP          Stop charging when there is not enough solar power available:
               Disabled - 60 minutes (Disabled = never stop charging)
 IMPORT        Allow additional grid power when solar charging: 0-20A (summed over all phases)
-              NOTE: A setting of IMPORT lower thant START + MINCURRENT makes NO SENSE and will
+              NOTE: A setting of IMPORT lower thant START + MIN makes NO SENSE and will
               result in a non-charging SmartEVSE when in Solar mode.
-              You even need to set IMPORT at least a few Amps higher then START + MINCURRENT to get
-              a desired charging behaviour.
+              You even need to set IMPORT at least a few Amps higher then START + MIN to get
+              a desired charging behaviour if you are charging at 1 phase.
+              You even need to set IMPORT at least a few Amps higher then START + 3 * MIN to get
+              a desired charging behaviour if you are charging at 3 phases.
+              NOTE2: Note that START and IMPORT are summed over all phases, and MIN is per phase!
 CONTACT2      One can add a second contactor (C2) that switches off 2 of the 3 phases of a
               3 phase Mains installation; this can be useful if one wants to charge of off
               Solar; EV's have a minimal charge current of 6A, so switching off 2 phases
