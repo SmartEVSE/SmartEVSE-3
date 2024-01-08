@@ -839,11 +839,10 @@ int getBatteryCurrent(void) {
 // Look whether there would be place for one more EVSE if we could lower them all down to MinCurrent
 // returns 1 if there is 6A available
 // returns 0 if there is no current available
-//
+// only runs on the Master or when loadbalancing Disabled
 char IsCurrentAvailable(void) {
     uint8_t n, ActiveEVSE = 0;
     int Baseload, Baseload_EV, TotalCurrent = 0;
-
 
     for (n = 0; n < NR_EVSES; n++) if (BalancedState[n] == STATE_C)             // must be in STATE_C
     {
@@ -975,7 +974,7 @@ void Set_Nr_of_Phases_Charging(void) {
 // Calculates Balanced PWM current for each EVSE
 // mod =0 normal
 // mod =1 we have a new EVSE requesting to start charging.
-//
+// only runs on the Master or when loadbalancing Disabled
 void CalcBalancedCurrent(char mod) {
     int Average, MaxBalanced, Idifference, Baseload_EV;
     int BalancedLeft = 0;
@@ -991,7 +990,7 @@ void CalcBalancedCurrent(char mod) {
     else
         ChargeCurrent = MaxCurrent * 10;                                        // Instead use new variable ChargeCurrent.
 
-    // Override current temporary if set (from Modbus)
+    // Override current temporary if set
     if (OverrideCurrent)
         ChargeCurrent = OverrideCurrent;
 
@@ -2289,7 +2288,7 @@ uint8_t PollEVNode = NR_EVSES;
        
 
         // Every 2 seconds, request measurements from modbus meters
-        if (ModbusRequest) {
+        if (ModbusRequest) {                                                    // Slaves all have ModbusRequest at 0 so they never enter here
             switch (ModbusRequest++) {                                          // State
                 case 1:                                                         // PV kwh meter
                     ModbusRequest++;
@@ -3408,8 +3407,8 @@ void validate_settings(void) {
     // Sensorbox v2 has always address 0x0A
     if (MainsMeter == EM_SENSORBOX) MainsMeterAddress = 0x0A;
     // set Lock variables for Solenoid or Motor
-    if (Lock == 1) { lock1 = LOW; lock2 = HIGH; }
-    else if (Lock == 2) { lock1 = HIGH; lock2 = LOW; }
+    if (Lock == 1) { lock1 = LOW; lock2 = HIGH; }                               // Solenoid
+    else if (Lock == 2) { lock1 = HIGH; lock2 = LOW; }                          // Motor
     // Erase all RFID cards from ram + eeprom if set to EraseAll
     if (RFIDReader == 5) {
        DeleteAllRFID();
