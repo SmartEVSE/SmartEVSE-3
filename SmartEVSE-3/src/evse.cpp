@@ -608,7 +608,7 @@ void setMode(uint8_t NewMode) {
 
     // Take care of extra conditionals/checks for custom features
     setAccess(!DelayedStartTime.epoch2); //if DelayedStartTime not zero then we are Delayed Charging
-    if (NewMode == 2) {
+    if (NewMode == MODE_SOLAR) {
         // Reset OverrideCurrent if mode is SOLAR
         OverrideCurrent = 0;
     }
