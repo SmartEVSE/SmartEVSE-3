@@ -994,8 +994,7 @@ void CalcBalancedCurrent(char mod) {
     if (OverrideCurrent)
         ChargeCurrent = OverrideCurrent;
 
-    if (LoadBl < 2)
-        BalancedMax[0] = ChargeCurrent;                                         // Load Balancing Disabled or Master:
+    BalancedMax[0] = ChargeCurrent;
                                                                                 // update BalancedMax[0] if the MAX current was adjusted using buttons or CLI
     for (n = 0; n < NR_EVSES; n++) if (BalancedState[n] == STATE_C) {
             BalancedLeft++;                                                     // Count nr of Active (Charging) EVSE's
@@ -1083,7 +1082,7 @@ void CalcBalancedCurrent(char mod) {
                 IsetBalanced = BalancedLeft * MinCurrent * 10;
                 // ----------- Check to see if we have to continue charging on solar power alone ----------
                 if (BalancedLeft && StopTime && (IsumImport > 10)) {
-                    //TODO maybe enable solar switching for loadbl = 1 or even loadbl = 2
+                    //TODO maybe enable solar switching for loadbl = 1
                     if (EnableC2 == AUTO && LoadBl == 0)
                         Set_Nr_of_Phases_Charging();
                     if (Nr_Of_Phases_Charging > 1 && EnableC2 == AUTO && LoadBl == 0) { // when loadbalancing is enabled we don't do forced single phase charging
@@ -1167,7 +1166,8 @@ void CalcBalancedCurrent(char mod) {
         }
     _LOG_D("Balance: %s\n", Str);
     }
-}
+} //CalcBalancedCurrent
+
 /**
  * Load Balancing 	Modbus Address  LoadBl
     Disabled     	0x01            0x00
