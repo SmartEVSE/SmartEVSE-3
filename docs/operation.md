@@ -20,7 +20,8 @@ After configuration of your Wifi parameters, your SmartEVSE will present itself 
 
 # Mode switching when MULTI SmartEVSE is configured
 * If you switch mode on the Master, the Slaves will follow that mode switch
-* If you switch to Normal mode on one Slave, the Master and other Slaves will remain in their current modes. If you switch to Smart or Solar mode on one Slave, the Master and the other Slaves will follow that switch.
+* If you switch mode on one Slave, and your Master does not have a Smart/Solar toggle switch configured, the Master and all the other slaves will follow
+* If you have a Smart/Solar toggle switch you have to guard yourself that Master and Slaves are all in the same mode. We recommend replacing that toggle switch by a pushbutton switch.
 
 # Error Messages
 If an error occurs, the SmartEVSE will stop charging, and display one of the following messages:

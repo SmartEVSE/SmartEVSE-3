@@ -1351,8 +1351,7 @@ void receiveNodeStatus(uint8_t *buf, uint8_t NodeNr) {
     BalancedError[NodeNr] = buf[3];                                             // Node Error status
     // Update Mode when changed on Node and not Smart/Solar Switch on the Master
     // Also make sure we are not in the menu.
-    if (buf[7] != Mode && (buf[7] == MODE_SMART || buf[7] == MODE_SOLAR) && Switch != 4 && !LCDNav) setMode(buf[7]); //TODO get rid of Switch != 4 to prevent master and slave in different modes?
-                                                                                                                     //TODO also switch to normal mode?
+    if (buf[7] != Mode && Switch != 4 && !LCDNav) setMode(buf[7]); //TODO get rid of Switch != 4 to prevent master and slave in different modes?
     Node[NodeNr].ConfigChanged = buf[13] | Node[NodeNr].ConfigChanged;
     BalancedMax[NodeNr] = buf[15] * 10;                                         // Node Max ChargeCurrent (0.1A)
     if (LoadBl) {
@@ -1469,8 +1468,6 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
             Config = val;
             break;
         case STATUS_MODE:
-            // Do not change Charge Mode when set to Normal or Load Balancing is disabled
-            if (Mode == 0 || LoadBl == 0) break;
             // fall through
         case MENU_MODE:
             Mode = val;
