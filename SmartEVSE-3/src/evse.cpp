@@ -3416,8 +3416,10 @@ void validate_settings(void) {
         Mode = MODE_NORMAL;
 
     // Update master node config
-    Node[0].EVMeter = EVMeter;
-    Node[0].EVAddress = EVMeterAddress;
+    if (LoadBl < 2) {
+        Node[0].EVMeter = EVMeter;
+        Node[0].EVAddress = EVMeterAddress;
+    }
 
     // Check if AP password is unitialized. 
     // Create random AP password.
