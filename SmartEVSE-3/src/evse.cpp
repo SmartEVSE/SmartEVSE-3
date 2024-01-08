@@ -633,6 +633,12 @@ void setMode(uint8_t NewMode) {
 #endif
 
     if (LoadBl == 1) ModbusWriteSingleRequest(BROADCAST_ADR, 0x0003, NewMode);
+    if (NewMode == MODE_SMART) {
+        ErrorFlags &= ~(NO_SUN | LESS_6A);                                      // Clear All errors
+        setSolarStopTimer(0);                                                   // Also make sure the SolarTimer is disabled.
+    }
+    ChargeDelay = 0;                                                            // Clear any Chargedelay
+    BacklightTimer = BACKLIGHT;                                                 // Backlight ON
     Mode = NewMode;
     if (switchOnLater)
         setAccess(1);
