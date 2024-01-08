@@ -1068,6 +1068,11 @@ void GLCDMenu(uint8_t Buttons) {
                         if (value !=2 )
                             handleWIFImode();                                   //postpone handling WIFImode == 2 to moving to upper line
                         break;
+                    case MENU_IMPORT:
+                        // note that startcurrent shown as -4A on the display is stored as 4A !
+                        value = MenuNavInt(Buttons, value, max(int(MenuStr[LCDNav].Min), getItemValue(MENU_MIN) - getItemValue(MENU_START)), MenuStr[LCDNav].Max);
+                        setItemValue(LCDNav, value);
+                        break;
                     default:
                         value = MenuNavInt(Buttons, value, MenuStr[LCDNav].Min, MenuStr[LCDNav].Max);
                         setItemValue(LCDNav, value);
