@@ -1335,9 +1335,7 @@ void receiveNodeStatus(uint8_t *buf, uint8_t NodeNr) {
     if (buf[7] != Mode && Switch != 4 && !LCDNav) setMode(buf[7]); //TODO get rid of Switch != 4 to prevent master and slave in different modes?
     Node[NodeNr].ConfigChanged = buf[13] | Node[NodeNr].ConfigChanged;
     BalancedMax[NodeNr] = buf[15] * 10;                                         // Node Max ChargeCurrent (0.1A)
-    if (LoadBl) {
-        _LOG_V("ReceivedNode[%u]Status State:%u Error:%u, BalancedMax:%u, Mode:%u.\n", NodeNr, BalancedState[NodeNr], BalancedError[NodeNr], BalancedMax[NodeNr], buf[7]);
-    }
+    _LOG_D("ReceivedNode[%u]Status State:%u Error:%u, BalancedMax:%u, Mode:%u, ConfigChanged:%u.\n", NodeNr, BalancedState[NodeNr], BalancedError[NodeNr], BalancedMax[NodeNr], buf[7], Node[NodeNr].ConfigChanged);
 }
 
 /**
