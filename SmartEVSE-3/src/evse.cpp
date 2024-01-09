@@ -2412,7 +2412,7 @@ void mqtt_receive_callback(const String &topic, const String &payload) {
         uint16_t RequestedCurrent = payload.toInt();
         if (RequestedCurrent == 0) {
             OverrideCurrent = 0;
-        } else if (Mode == MODE_NORMAL || Mode == MODE_SMART) {
+        } else if (LoadBl < 2 && (Mode == MODE_NORMAL || Mode == MODE_SMART)) { // OverrideCurrent not possible on Slave
             if (RequestedCurrent >= (MinCurrent * 10) && RequestedCurrent <= (MaxCurrent * 10)) {
                 OverrideCurrent = RequestedCurrent;
             }
@@ -4003,7 +4003,7 @@ void StartwebServer(void) {
         if(Mode == MODE_NORMAL || Mode == MODE_SMART) {
             if(request->hasParam("override_current")) {
                 int current = request->getParam("override_current")->value().toInt();
-                if(current == 0 || (current >= ( MinCurrent * 10 ) && current <= ( MaxCurrent * 10 ))) {
+                if (LoadBl < 2 && (current == 0 || (current >= ( MinCurrent * 10 ) && current <= ( MaxCurrent * 10 )))) { //OverrideCurrent not possible on Slave
                     OverrideCurrent = current;
                     doc["override_current"] = OverrideCurrent;
                 } else {

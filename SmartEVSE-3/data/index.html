@@ -42,20 +42,20 @@
 
               // Initialize at page load
               // value 0 = no override
-              $('#mode_override_current').append($('<option>', {
-                  value: 0,
-                  text: 'no override'
-              }));
-              for(let x = minCurrent ; x <= maxCurrent ; x++) {
+              if(data.evse.loadbl < 2) {
                 $('#mode_override_current').append($('<option>', {
-                    value: x,
-                    text: x + 'A'
+                    value: 0,
+                    text: 'no override'
                 }));
+                for(let x = minCurrent ; x <= maxCurrent ; x++) {
+                  $('#mode_override_current').append($('<option>', {
+                      value: x,
+                      text: x + 'A'
+                  }));
+                }
               }
-
               $('#required_evccid').val(data.settings.required_evccid || "");
             }
-
             for(let x=0; x<=3; x++) {
               if(x == data.mode_id) {
                 $('#mode_' + x).css("background-color", "#1CC88A");
@@ -108,6 +108,8 @@
               $('[id=mode_2]').show();
               $('[id=mode_3]').show();
               //$('[id=mode_override_current]').prop('disabled',true);
+              $('[id=override_current_box]').hide();
+              $('[id=override_current_box2]').hide();
               $('[id=form_pwm] :input').prop('disabled',true);
             } else if (data.evse.loadbl == 1) {
               $('[id=loadbl]').show();
@@ -816,7 +818,7 @@
                       var starttime = document.querySelector('input[name="starttime"]').value;
                       var stoptime = document.querySelector('input[name="stoptime"]').value;
                       var repeat2 = +document.getElementById('daily_repeat').checked;
-                      if(mode == 1 || mode == 2 || mode == 3) {
+                      if (mode == 1 || mode == 2 || mode == 3) {
                         override_current=$('#mode_override_current').val();
                         $.post( "/settings?mode=" + mode +  "&override_current=" + (override_current * 10) + "&starttime=" + starttime + "&stoptime=" + stoptime + "&repeat=" + repeat2);
                       } else {
@@ -924,10 +926,10 @@
                                         </div>
                                     </div>
                                     <div class="row no-gutters align-items-center">
-                                      <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                      <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;" id="override_current_box">
                                           Current:
                                         </div>
-                                        <div class="col">
+                                        <div class="col" id="override_current_box2">
                                           <select id="mode_override_current">
                                               <option id="mode_overide_current_text" value="0">Ampere (press NORMAL/SMART to set)</option>
                                           </select>
