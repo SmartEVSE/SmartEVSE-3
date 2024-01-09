@@ -2933,7 +2933,8 @@ void Timer1S(void * parameter) {
         }
 
         // in Normal mode UpdateCurrentData is never called, so we have to show debug info here...
-        if (Mode == 0)
+        // same for Slave
+        if (Mode == 0 || LoadBl > 1)
             printStatus();  //for debug purposes
 
         //_LOG_A("Timer1S task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
