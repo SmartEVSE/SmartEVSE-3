@@ -42,11 +42,12 @@
 #define FAKE_SUNNY_DAY 0
 //disclaimer: might not work for CT1 calibration/uncalibration stuff, since I can't test that
 //the number of Amperes you want to have fake injected into Lx
+#endif
+
 #if FAKE_SUNNY_DAY
 #define INJECT_CURRENT_L1 10
 #define INJECT_CURRENT_L2 0
 #define INJECT_CURRENT_L3 0
-#endif
 #endif
 
 #ifndef MQTT
