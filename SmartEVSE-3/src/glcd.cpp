@@ -635,8 +635,8 @@ void GLCD(void) {
                                                                                 // If current flow is < 0.3A don't show the blob
 
         if (EVMeter) {                                                          // If we have a EV kWh meter configured, Show total charged energy in kWh on LCD.
-            //sprintfl(Str, "%2u.%1ukWh", EnergyCharged, 3, 1);                   // Will reset to 0.0kWh when charging cable reconnected, and state change from STATE B->C
-            //GLCD_write_buf_str(89, 1, Str,GLCD_ALIGN_LEFT);                     // print to buffer
+            sprintfl(Str, "%2u.%1ukWh", EnergyCharged, 3, 1);                   // Will reset to 0.0kWh when charging cable reconnected, and state change from STATE B->C
+            GLCD_write_buf_str(89, 0, Str,GLCD_ALIGN_LEFT);                     // print to buffer
         }
 
         // Write number of used phases into the car
