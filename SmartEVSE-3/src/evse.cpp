@@ -1021,7 +1021,7 @@ void CalcBalancedCurrent(char mod) {
                                                                                 // But for Solar mode we _also_ have to guard MaxCircuit and Maxmains!
             if (Idifference > 0) {
                 if (Mode == MODE_SMART) {
-                    _LOG_V("UpdateCurrentData: phaseLastUpdate=%i,processed=%i.\n", phasesLastUpdate ,phasesLastUpdate_processed);
+                    _LOG_V("phaseLastUpdate=%i,processed=%i.\n", phasesLastUpdate ,phasesLastUpdate_processed);
                     if (phasesLastUpdate > phasesLastUpdate_processed) {        // only increase current if phases are updated; even in subpanel mode, if EVMeter says
                                                                                 // there is current available, still wait until last phases update to increase
                         IsetBalanced += (Idifference / 4);                      // increase with 1/4th of difference (slowly increase current)
