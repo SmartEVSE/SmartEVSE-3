@@ -1050,6 +1050,11 @@ void GLCDMenu(uint8_t Buttons) {
                         CT1 = MenuNavInt(Buttons, CT1, 60, 999);                // range 6.0 - 99.9A
                         break;
                     case MENU_MAINSMETER:
+                        do {
+                            value = MenuNavInt(Buttons, value, MenuStr[LCDNav].Min, MenuStr[LCDNav].Max);
+                        } while (value >= EM_UNUSED_SLOT1 && value <= EM_UNUSED_SLOT4);
+                        setItemValue(LCDNav, value);
+                        break;
                     case MENU_EVMETER:                                          // do not display the Sensorbox or unused slots here
                         do {
                             value = MenuNavInt(Buttons, value, MenuStr[LCDNav].Min, MenuStr[LCDNav].Max);
