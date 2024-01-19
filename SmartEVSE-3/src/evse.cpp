@@ -4344,13 +4344,13 @@ void WiFiSetup(void) {
     setenv("TZ",TZ_INFO.c_str(),1);
     tzset();
 
-#if DBG != 0
+#if DBG == 1
     // Initialize the server (telnet or web socket) of RemoteDebug
     Debug.begin(APhostname, 23, 1);
     Debug.showColors(true); // Colors
+#endif
 #if DBG == 2
     Debug.setSerialEnabled(true); // if you wants serial echo - only recommended if ESP is plugged in USB
-#endif
 #endif
     handleWIFImode();                                                           //go into the mode that was saved in nonvolatile memory
     StartwebServer();
