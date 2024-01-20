@@ -989,9 +989,6 @@ void CalcBalancedCurrent(char mod) {
     Baseload_EV = Imeasured_EV - TotalCurrent;                                  // Calculate Baseload (load without any active EVSE)
     if (Baseload_EV < 0)
         Baseload_EV = 0;
-    if ((LoadBl == 1 || (LoadBl == 0 && Mode != MODE_NORMAL && MaxCircuit)) && (IsetBalanced > (MaxCircuit * 10) - Baseload_EV) )
-        IsetBalanced = MaxCircuit * 10 - Baseload_EV; //limiting is per phase so no Nr_Of_Phases_Charging here!
-
     Baseload = Imeasured - TotalCurrent;                                        // Calculate Baseload (load without any active EVSE)
     if (Baseload < 0)
         Baseload = 0;
@@ -1090,6 +1087,11 @@ void CalcBalancedCurrent(char mod) {
             }
         } //end MODE_SMART
     } // end MODE_SOLAR || MODE_SMART
+
+    // guard MaxCircuit in all modes; slave doesnt run CalcBalancedCurrent
+    if (IsetBalanced > (MaxCircuit * 10) - Baseload_EV)
+        IsetBalanced = MaxCircuit * 10 - Baseload_EV; //limiting is per phase so no Nr_Of_Phases_Charging here!
+
     _LOG_V("Checkpoint 4 Isetbalanced=%.1f A.\n", (float)IsetBalanced/10);
 
     if (BalancedLeft) {                                                         // Only if we have active EVSE's
