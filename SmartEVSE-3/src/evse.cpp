@@ -4276,6 +4276,40 @@ void StartwebServer(void) {
     });
 #endif
 
+#if AUTOMATED_TESTING
+    //this can be activated by: http://smartevse-xxx.lan/automated_testing?current_max=100
+    //WARNING: because of automated testing, no limitations here!
+    //THAT IS DANGEROUS WHEN USED IN PRODUCTION ENVIRONMENT
+    //FOR SMARTEVSE's IN A TESTING BENCH ONLY!!!!
+    webServer.on("/automated_testing", HTTP_POST, [](AsyncWebServerRequest *request) {
+        if(request->hasParam("current_max")) {
+            MaxCurrent = strtol(request->getParam("current_max")->value().c_str(),NULL,0);
+        }
+        if(request->hasParam("current_main")) {
+            MaxMains = strtol(request->getParam("current_main")->value().c_str(),NULL,0);
+        }
+        if(request->hasParam("current_max_circuit")) {
+            MaxCircuit = strtol(request->getParam("current_max_circuit")->value().c_str(),NULL,0);
+        }
+        if(request->hasParam("mainsmeter")) {
+            MainsMeter = strtol(request->getParam("mainsmeter")->value().c_str(),NULL,0);
+        }
+        if(request->hasParam("evmeter")) {
+            EVMeter = strtol(request->getParam("evmeter")->value().c_str(),NULL,0);
+        }
+        if(request->hasParam("config")) {
+            Config = strtol(request->getParam("config")->value().c_str(),NULL,0);
+        }
+        if(request->hasParam("loadbl")) {
+            int LBL = strtol(request->getParam("loadbl")->value().c_str(),NULL,0);
+            ConfigureModbusMode(LBL);
+            LoadBl = LBL;
+        }
+        request->send(200, "text/html", "Finished request");
+    },[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
+    });
+#endif
+
     // attach filesystem root at URL /
     webServer.serveStatic("/", SPIFFS, "/");
 

@@ -37,6 +37,12 @@
 #define FAKE_RFID 0
 #endif
 
+#ifndef AUTOMATED_TESTING
+//set AUTOMATED_TESTING to 1 to make hardware-related paramaters like MaxCurrent and MaxCircuit updatable via REST API
+//e.g. by executing curl -X POST http://smartevse-xxx.lan/automated_testing?maxcurrent=100
+#define AUTOMATED_TESTING 0
+#endif
+
 #ifndef FAKE_SUNNY_DAY
 //set this to 1 to emulate a sunny day where your solar charger is injecting current in the grid:
 #define FAKE_SUNNY_DAY 0
