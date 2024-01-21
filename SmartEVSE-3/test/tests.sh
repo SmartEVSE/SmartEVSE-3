@@ -159,18 +159,19 @@ if [ $((SEL & 2**1)) -ne 0 ]; then
             set_mode
             #settle switching modes AND stabilizing charging speeds
             sleep 10
-            CHARGECUR_M=$(curl -s -X GET $MASTER/settings | jq ".settings.charge_current")
-            if [ $CHARGECUR_M -eq $MASTER_SOCKET_HARDWIRED ]; then
-                printf "$Green Passed $NC LBL=$loadbl_master, Mode=$MODE: Master chargecurrent is limited to $TESTSTRING.\n"
-            else
-                printf "$Red Failed $NC LBL=$loadbl_master, Mode=$MODE: Master chargecurrent is $CHARGECUR_M dA and should be limited to $MASTER_SOCKET_HARDWIRED dA because of $TESTSTRING.\n"
-            fi
-            CHARGECUR_S=$(curl -s -X GET $SLAVE/settings | jq ".settings.charge_current")
-            if [ $CHARGECUR_S -eq $SLAVE_SOCKET_HARDWIRED ]; then
-                printf "$Green Passed $NC LBL=$loadbl_slave, Mode=$MODE: Slave chargecurrent is limited to $TESTSTRING.\n"
-            else
-                printf "$Red Failed $NC LBL=$loadbl_slave, Mode=$MODE: Slave chargecurrent is $CHARGECUR_S dA and should be limited to $SLAVE_SOCKET_HARDWIRED dA because of $TESTSTRING.\n"
-            fi
+            for device in $SLAVE $MASTER; do
+                CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
+                if [ $device == $MASTER ]; then
+                    TESTVALUE10=$MASTER_SOCKET_HARDWIRED
+                else
+                    TESTVALUE10=$SLAVE_SOCKET_HARDWIRED
+                fi
+                if [ $CHARGECUR -eq $TESTVALUE10 ]; then
+                    printf "$Green Passed $NC LBL=$loadbl_master, Mode=$MODE: $device chargecurrent is limited to $TESTSTRING.\n"
+                else
+                    printf "$Red Failed $NC LBL=$loadbl_master, Mode=$MODE: $device chargecurrent is $CHARGECUR dA and should be limited to $TESTVALUE10 dA because of $TESTSTRING.\n"
+                fi
+            done
         done
     done
 
