@@ -89,7 +89,12 @@ fi
 #                        needs setting [MASTER|SLAVE]_SOCKET_HARDWIRED to the correct values of your test bench
 if [ $((SEL & 2**1)) -ne 0 ]; then
     #first load all settings before the test
-    for device in $MASTER $SLAVE; do
+    for device in $SLAVE $MASTER; do
+        #go to Normal Mode for init
+        $CURLPOST $device/automated_testing?loadbl=0
+        $CURLPOST $device/settings?mode=1
+        $CURLPOST $device/reboot
+        sleep 5
         $CURLPOST $device/automated_testing?config=0
         $CURLPOST $device/automated_testing?config=0
         #save MaxCurrent setting and set it very high
@@ -103,6 +108,8 @@ if [ $((SEL & 2**1)) -ne 0 ]; then
         $CURLPOST $device/automated_testing?current_main=80
     done
 
+    read -p "Make sure all EVSE's are set to NOT CHARGING, then press <ENTER>" dummy
+    sleep 1
     read -p "Make sure all EVSE's are set to CHARGING, then press <ENTER>" dummy
 
     for loadbl_master in 0 1; do
@@ -151,7 +158,12 @@ fi
 #TEST3: MAXCURRENT TEST: test if MaxCurrent is obeyed
 if [ $((SEL & 2**2)) -ne 0 ]; then
     #first load all settings before the test
-    for device in $MASTER $SLAVE; do
+    for device in $SLAVE $MASTER; do
+        #go to Normal Mode for init
+        $CURLPOST $device/automated_testing?loadbl=0
+        $CURLPOST $device/settings?mode=1
+        $CURLPOST $device/reboot
+        sleep 5
         $CURLPOST $device/automated_testing?config=1
         $CURLPOST $device/automated_testing?config=1
         #save MaxCurrent setting and set it very high
@@ -164,7 +176,8 @@ if [ $((SEL & 2**2)) -ne 0 ]; then
         MAXMAINS=$(curl -s -X GET $device/settings | jq ".settings.current_main")
         $CURLPOST $device/automated_testing?current_main=80
     done
-
+    read -p "Make sure all EVSE's are set to NOT CHARGING, then press <ENTER>" dummy
+    sleep 1
     read -p "Make sure all EVSE's are set to CHARGING, then press <ENTER>" dummy
 
     for loadbl_master in 0 1; do
