@@ -189,7 +189,8 @@ if [ $((SEL & 2**2)) -ne 0 ]; then
         fi
         $CURLPOST $SLAVE/automated_testing?loadbl=$loadbl_slave
         #if we are in loadbl 0 we test the slave device in loadbl 0 also
-        for mode_master in 1 2 3; do
+        TESTVALUE=12
+        for mode_master in 1 3 2; do
             $CURLPOST $MASTER/settings?mode=$mode_master
             if [ $loadbl_slave -eq 0 ]; then
                 $CURLPOST $SLAVE/settings?mode=$mode_master
@@ -199,7 +200,6 @@ if [ $((SEL & 2**2)) -ne 0 ]; then
             MODE=$(curl -s -X GET $MASTER/settings | jq ".mode")
             #echo LOADBL=$LBL, MODE=$MODE
             printf "Testing  LBL=$loadbl_master, mode=$MODE.\r"
-            TESTVALUE=12
             TESTVALUE10=$((TESTVALUE * 10))
             TESTSTRING="MaxCurrent"
             for device in $MASTER $SLAVE; do
@@ -218,6 +218,8 @@ if [ $((SEL & 2**2)) -ne 0 ]; then
             else
                 printf "$Red Failed $NC LBL=$loadbl_slave, Mode=$MODE: Slave chargecurrent is $CHARGECUR_S dA and should be limited to $TESTVALUE10 dA because of $TESTSTRING.\n"
             fi
+            #increase testvalue to test if the device responds to that
+            TESTVALUE=$(( TESTVALUE + 1 ))
         done
     done
 fi
