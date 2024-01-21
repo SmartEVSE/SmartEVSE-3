@@ -57,6 +57,17 @@ read -p "Make sure all EVSE's are set to NOT CHARGING, then press <ENTER>" dummy
 sleep 5
 }
 
+init_currents () {
+#first load all settings before the test
+for device in $SLAVE $MASTER; do
+    $CURLPOST $device/automated_testing?config=1
+    $CURLPOST $device/automated_testing?config=1
+    $CURLPOST $device/automated_testing?current_max=60
+    $CURLPOST $device/automated_testing?current_max_circuit=70
+    $CURLPOST $device/automated_testing?current_main=80
+done
+}
+
 check_charge_current () {
 for device in $MASTER $SLAVE; do
     CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
@@ -111,19 +122,11 @@ fi
 #                        needs setting [MASTER|SLAVE]_SOCKET_HARDWIRED to the correct values of your test bench
 if [ $((SEL & 2**1)) -ne 0 ]; then
     init_devices
+    init_currents
     #first load all settings before the test
     for device in $SLAVE $MASTER; do
         $CURLPOST $device/automated_testing?config=0
         $CURLPOST $device/automated_testing?config=0
-        #save MaxCurrent setting and set it very high
-        MAXCUR=$(curl -s -X GET $device/settings | jq ".settings.current_max")
-        $CURLPOST $device/automated_testing?current_max=60
-        #save MaxCircuit setting and set it very high
-        MAXCIRCUIT=$(curl -s -X GET $device/settings | jq ".settings.current_max_circuit")
-        $CURLPOST $device/automated_testing?current_max_circuit=70
-        #save MaxMains setting and set it very high
-        MAXMAINS=$(curl -s -X GET $device/settings | jq ".settings.current_main")
-        $CURLPOST $device/automated_testing?current_main=80
     done
 
     read -p "Make sure all EVSE's are set to CHARGING, then press <ENTER>" dummy
@@ -174,20 +177,7 @@ fi
 #TEST3: MAXCURRENT TEST: test if MaxCurrent is obeyed
 if [ $((SEL & 2**2)) -ne 0 ]; then
     init_devices
-    #first load all settings before the test
-    for device in $SLAVE $MASTER; do
-        $CURLPOST $device/automated_testing?config=1
-        $CURLPOST $device/automated_testing?config=1
-        #save MaxCurrent setting and set it very high
-        MAXCUR=$(curl -s -X GET $device/settings | jq ".settings.current_max")
-        $CURLPOST $device/automated_testing?current_max=60
-        #save MaxCircuit setting and set it very high
-        MAXCIRCUIT=$(curl -s -X GET $device/settings | jq ".settings.current_max_circuit")
-        $CURLPOST $device/automated_testing?current_max_circuit=70
-        #save MaxMains setting and set it very high
-        MAXMAINS=$(curl -s -X GET $device/settings | jq ".settings.current_main")
-        $CURLPOST $device/automated_testing?current_main=80
-    done
+    init_currents
 
     read -p "Make sure all EVSE's are set to CHARGING, then press <ENTER>" dummy
 
