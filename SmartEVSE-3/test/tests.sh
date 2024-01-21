@@ -170,7 +170,6 @@ if [ $((SEL & 2**1)) -ne 0 ]; then
     for device in $MASTER $SLAVE; do
         $CURLPOST $device/automated_testing?config=1
         $CURLPOST $device/automated_testing?config=1
-        #TODO do we want to restore all MaxCurrent/MaxCircuit/MaxMains values?
     done
 fi
 
@@ -208,6 +207,60 @@ if [ $((SEL & 2**2)) -ne 0 ]; then
             #settle switching modes AND stabilizing charging speeds
             sleep 10
             check_charge_current
+            #increase testvalue to test if the device responds to that
+            TESTVALUE=$(( TESTVALUE + 1 ))
+        done
+    done
+fi
+
+#TEST4: MAXCIRCUIT TEST: test if MaxCircuit is obeyed
+if [ $((SEL & 2**3)) -ne 0 ]; then
+    init_devices
+    init_currents
+    read -p "Make sure all EVSE's are set to CHARGING, then press <ENTER>" dummy
+
+    for loadbl_master in 0 1; do
+        $CURLPOST $MASTER/automated_testing?loadbl=$loadbl_master
+        if [ $loadbl_master -eq 1 ]; then
+            loadbl_slave=2
+        else
+            loadbl_slave=0
+        fi
+        $CURLPOST $SLAVE/automated_testing?loadbl=$loadbl_slave
+        #if we are in loadbl 0 we test the slave device in loadbl 0 also
+        TESTVALUE=20
+        TESTSTRING="MaxCirCuit"
+        for mode_master in 1 3 2; do
+        #for mode_master in 1 3 2; do TODO 
+            $CURLPOST $MASTER/settings?mode=$mode_master
+            if [ $loadbl_slave -eq 0 ]; then
+                $CURLPOST $SLAVE/settings?mode=$mode_master
+            fi
+            #LBL=$(curl -s -X GET $MASTER/settings | jq ".evse.loadbl")
+            MODE=$(curl -s -X GET $MASTER/settings | jq ".mode")
+            #echo LOADBL=$LBL, MODE=$MODE
+            printf "Testing  LBL=$loadbl_master, mode=$MODE.\r"
+            TESTVALUE10=$((TESTVALUE * 10))
+            for device in $MASTER $SLAVE; do
+                $CURLPOST $device/automated_testing?current_max_circuit=$TESTVALUE
+            done
+            #settle switching modes AND stabilizing charging speeds
+            sleep 10
+
+            if [ $loadbl_master -eq 0 ]; then
+                check_charge_current
+            else
+                TOTCUR=0
+                for device in $SLAVE $MASTER; do
+                    CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
+                    TOTCUR=$((TOTCUR + CHARGECUR))
+                done
+                if [ $TOTCUR -eq $TESTVALUE10 ]; then
+                    printf "$Green Passed $NC LBL=$loadbl_master, Mode=$MODE: $device chargecurrent is limited to $TESTSTRING.\n"
+                else
+                    printf "$Red Failed $NC LBL=$loadbl_master, Mode=$MODE: $device chargecurrent is $CHARGECUR dA and should be limited to $TESTVALUE10 dA because of $TESTSTRING.\n"
+                fi
+            fi
             #increase testvalue to test if the device responds to that
             TESTVALUE=$(( TESTVALUE + 1 ))
         done
