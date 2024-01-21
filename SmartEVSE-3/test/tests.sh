@@ -223,7 +223,6 @@ if [ $((SEL & 2**3)) -ne 0 ]; then
         TESTVALUE=20
         TESTSTRING="MaxCirCuit"
         for mode_master in 1 3 2; do
-        #for mode_master in 1 3 2; do TODO 
             $CURLPOST $MASTER/settings?mode=$mode_master
             if [ $loadbl_slave -eq 0 ]; then
                 $CURLPOST $SLAVE/settings?mode=$mode_master
