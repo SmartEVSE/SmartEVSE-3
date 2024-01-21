@@ -142,11 +142,11 @@ if [ $((SEL & 2**1)) -ne 0 ]; then
             if [ $loadbl_slave -eq 0 ]; then
                 $CURLPOST $SLAVE/settings?mode=$mode_master
             fi
-            #settle switching modes AND stabilizing charging speeds
             #LBL=$(curl -s -X GET $MASTER/settings | jq ".evse.loadbl")
             MODE=$(curl -s -X GET $MASTER/settings | jq ".mode")
             #echo LOADBL=$LBL, MODE=$MODE
             printf "Testing  LBL=$loadbl_master, mode=$MODE.\r"
+            #settle switching modes AND stabilizing charging speeds
             sleep 10
             CHARGECUR_M=$(curl -s -X GET $MASTER/settings | jq ".settings.charge_current")
             if [ $CHARGECUR_M -eq $MASTER_SOCKET_HARDWIRED ]; then
@@ -207,7 +207,6 @@ if [ $((SEL & 2**2)) -ne 0 ]; then
             if [ $loadbl_slave -eq 0 ]; then
                 $CURLPOST $SLAVE/settings?mode=$mode_master
             fi
-            #settle switching modes AND stabilizing charging speeds
             #LBL=$(curl -s -X GET $MASTER/settings | jq ".evse.loadbl")
             MODE=$(curl -s -X GET $MASTER/settings | jq ".mode")
             #echo LOADBL=$LBL, MODE=$MODE
@@ -216,6 +215,7 @@ if [ $((SEL & 2**2)) -ne 0 ]; then
             for device in $MASTER $SLAVE; do
                 $CURLPOST $device/automated_testing?current_max=$TESTVALUE
             done
+            #settle switching modes AND stabilizing charging speeds
             sleep 10
             check_charge_current
             #increase testvalue to test if the device responds to that
