@@ -57,6 +57,17 @@ read -p "Make sure all EVSE's are set to NOT CHARGING, then press <ENTER>" dummy
 sleep 5
 }
 
+check_charge_current () {
+for device in $MASTER $SLAVE; do
+    CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
+    if [ $CHARGECUR -eq $TESTVALUE10 ]; then
+        printf "$Green Passed $NC LBL=$loadbl_master, Mode=$MODE: $device chargecurrent is limited to $TESTSTRING.\n"
+    else
+        printf "$Red Failed $NC LBL=$loadbl_master, Mode=$MODE: $device chargecurrent is $CHARGECUR dA and should be limited to $TESTVALUE10 dA because of $TESTSTRING.\n"
+    fi
+done
+}
+
 #TEST1: MODESWITCH TEST: test if mode changes on master reflects on slave and vice versa
 if [ $((SEL & 2**0)) -ne 0 ]; then
     $CURLPOST $MASTER/automated_testing?loadbl=1
@@ -206,14 +217,7 @@ if [ $((SEL & 2**2)) -ne 0 ]; then
                 $CURLPOST $device/automated_testing?current_max=$TESTVALUE
             done
             sleep 10
-            for device in $MASTER $SLAVE; do
-                CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
-                if [ $CHARGECUR -eq $TESTVALUE10 ]; then
-                    printf "$Green Passed $NC LBL=$loadbl_master, Mode=$MODE: $device chargecurrent is limited to $TESTSTRING.\n"
-                else
-                    printf "$Red Failed $NC LBL=$loadbl_master, Mode=$MODE: $device chargecurrent is $CHARGECUR dA and should be limited to $TESTVALUE10 dA because of $TESTSTRING.\n"
-                fi
-            done
+            check_charge_current
             #increase testvalue to test if the device responds to that
             TESTVALUE=$(( TESTVALUE + 1 ))
         done
