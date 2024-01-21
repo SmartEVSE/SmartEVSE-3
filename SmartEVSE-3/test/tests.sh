@@ -95,7 +95,7 @@ set_mode () {
         $CURLPOST $SLAVE/settings?mode=$mode_master
     fi
     MODE=$(curl -s -X GET $MASTER/settings | jq ".mode")
-    printf "Testing  LBL=$loadbl_master, mode=$MODE.\r"
+    printf "Testing  LBL=$loadbl_master, mode=$MODE on $TESTSTRING.\r"
     TESTVALUE10=$((TESTVALUE * 10))
 }
 
@@ -154,21 +154,22 @@ if [ $((SEL & 2**1)) -ne 0 ]; then
     for loadbl_master in 0 1; do
         set_loadbalancing
         #if we are in loadbl 0 we test the slave device in loadbl 0 also
+        TESTSTRING="Socket Hardwiring"
         for mode_master in 1 2 3; do
             set_mode
             #settle switching modes AND stabilizing charging speeds
             sleep 10
             CHARGECUR_M=$(curl -s -X GET $MASTER/settings | jq ".settings.charge_current")
             if [ $CHARGECUR_M -eq $MASTER_SOCKET_HARDWIRED ]; then
-                printf "$Green Passed $NC LBL=$loadbl_master, Mode=$MODE: Master chargecurrent is limited to socket hardwiring.\n"
+                printf "$Green Passed $NC LBL=$loadbl_master, Mode=$MODE: Master chargecurrent is limited to $TESTSTRING.\n"
             else
-                printf "$Red Failed $NC LBL=$loadbl_master, Mode=$MODE: Master chargecurrent is $CHARGECUR_M dA and should be limited to $MASTER_SOCKET_HARDWIRED dA.\n"
+                printf "$Red Failed $NC LBL=$loadbl_master, Mode=$MODE: Master chargecurrent is $CHARGECUR_M dA and should be limited to $MASTER_SOCKET_HARDWIRED dA because of $TESTSTRING.\n"
             fi
             CHARGECUR_S=$(curl -s -X GET $SLAVE/settings | jq ".settings.charge_current")
             if [ $CHARGECUR_S -eq $SLAVE_SOCKET_HARDWIRED ]; then
-                printf "$Green Passed $NC LBL=$loadbl_slave, Mode=$MODE: Slave chargecurrent is limited to socket hardwiring.\n"
+                printf "$Green Passed $NC LBL=$loadbl_slave, Mode=$MODE: Slave chargecurrent is limited to $TESTSTRING.\n"
             else
-                printf "$Red Failed $NC LBL=$loadbl_slave, Mode=$MODE: Slave chargecurrent is $CHARGECUR_S dA and should be limited to $SLAVE_SOCKET_HARDWIRED dA.\n"
+                printf "$Red Failed $NC LBL=$loadbl_slave, Mode=$MODE: Slave chargecurrent is $CHARGECUR_S dA and should be limited to $SLAVE_SOCKET_HARDWIRED dA because of $TESTSTRING.\n"
             fi
         done
     done
