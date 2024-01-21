@@ -148,5 +148,65 @@ if [ $((SEL & 2**1)) -ne 0 ]; then
     done
 fi
 
-exit 0
+#TEST3: MAXCURRENT TEST: test if MaxCurrent is obeyed
+if [ $((SEL & 2**2)) -ne 0 ]; then
+    #first load all settings before the test
+    for device in $MASTER $SLAVE; do
+        $CURLPOST $device/automated_testing?config=1
+        $CURLPOST $device/automated_testing?config=1
+        #save MaxCurrent setting and set it very high
+        MAXCUR=$(curl -s -X GET $device/settings | jq ".settings.current_max")
+        $CURLPOST $device/automated_testing?current_max=60
+        #save MaxCircuit setting and set it very high
+        MAXCIRCUIT=$(curl -s -X GET $device/settings | jq ".settings.current_max_circuit")
+        $CURLPOST $device/automated_testing?current_max_circuit=70
+        #save MaxMains setting and set it very high
+        MAXMAINS=$(curl -s -X GET $device/settings | jq ".settings.current_main")
+        $CURLPOST $device/automated_testing?current_main=80
+    done
 
+    read -p "Make sure all EVSE's are set to CHARGING, then press <ENTER>" dummy
+
+    for loadbl_master in 0 1; do
+        $CURLPOST $MASTER/automated_testing?loadbl=$loadbl_master
+        if [ $loadbl_master -eq 1 ]; then
+            loadbl_slave=2
+        else
+            loadbl_slave=0
+        fi
+        $CURLPOST $SLAVE/automated_testing?loadbl=$loadbl_slave
+        #if we are in loadbl 0 we test the slave device in loadbl 0 also
+        for mode_master in 1 2 3; do
+            $CURLPOST $MASTER/settings?mode=$mode_master
+            if [ $loadbl_slave -eq 0 ]; then
+                $CURLPOST $SLAVE/settings?mode=$mode_master
+            fi
+            #settle switching modes AND stabilizing charging speeds
+            #LBL=$(curl -s -X GET $MASTER/settings | jq ".evse.loadbl")
+            MODE=$(curl -s -X GET $MASTER/settings | jq ".mode")
+            #echo LOADBL=$LBL, MODE=$MODE
+            printf "Testing  LBL=$loadbl_master, mode=$MODE.\r"
+            TESTVALUE=12
+            TESTVALUE10=$((TESTVALUE * 10))
+            TESTSTRING="MaxCurrent"
+            for device in $MASTER $SLAVE; do
+                $CURLPOST $device/automated_testing?current_max=$TESTVALUE
+            done
+            sleep 10
+            CHARGECUR_M=$(curl -s -X GET $MASTER/settings | jq ".settings.charge_current")
+            if [ $CHARGECUR_M -eq $TESTVALUE10 ]; then
+                printf "$Green Passed $NC LBL=$loadbl_master, Mode=$MODE: Master chargecurrent is limited to $TESTSTRING.\n"
+            else
+                printf "$Red Failed $NC LBL=$loadbl_master, Mode=$MODE: Master chargecurrent is $CHARGECUR_M dA and should be limited to $TESTVALUE10 dA because of $TESTSTRING.\n"
+            fi
+            CHARGECUR_S=$(curl -s -X GET $SLAVE/settings | jq ".settings.charge_current")
+            if [ $CHARGECUR_S -eq $TESTVALUE10 ]; then
+                printf "$Green Passed $NC LBL=$loadbl_slave, Mode=$MODE: Slave chargecurrent is limited to $TESTSTRING.\n"
+            else
+                printf "$Red Failed $NC LBL=$loadbl_slave, Mode=$MODE: Slave chargecurrent is $CHARGECUR_S dA and should be limited to $TESTVALUE10 dA because of $TESTSTRING.\n"
+            fi
+        done
+    done
+fi
+
+exit 0
