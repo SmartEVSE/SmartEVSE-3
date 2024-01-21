@@ -46,6 +46,17 @@ White='\033[0;37m'        # White
 
 ABORT=0
 
+init_devices () {
+for device in $SLAVE $MASTER; do
+    #go to Normal Mode for init
+    $CURLPOST $device/automated_testing?loadbl=0
+    $CURLPOST $device/settings?mode=1
+    $CURLPOST $device/reboot
+done
+read -p "Make sure all EVSE's are set to NOT CHARGING, then press <ENTER>" dummy
+sleep 5
+}
+
 #TEST1: MODESWITCH TEST: test if mode changes on master reflects on slave and vice versa
 if [ $((SEL & 2**0)) -ne 0 ]; then
     $CURLPOST $MASTER/automated_testing?loadbl=1
@@ -88,13 +99,9 @@ fi
 #TEST2: SOCKET HARDWIRING TEST: test if Socket resistors in test bench limit our current // Configuration (0:Socket / 1:Fixed Cable)
 #                        needs setting [MASTER|SLAVE]_SOCKET_HARDWIRED to the correct values of your test bench
 if [ $((SEL & 2**1)) -ne 0 ]; then
+    init_devices
     #first load all settings before the test
     for device in $SLAVE $MASTER; do
-        #go to Normal Mode for init
-        $CURLPOST $device/automated_testing?loadbl=0
-        $CURLPOST $device/settings?mode=1
-        $CURLPOST $device/reboot
-        sleep 5
         $CURLPOST $device/automated_testing?config=0
         $CURLPOST $device/automated_testing?config=0
         #save MaxCurrent setting and set it very high
@@ -108,8 +115,6 @@ if [ $((SEL & 2**1)) -ne 0 ]; then
         $CURLPOST $device/automated_testing?current_main=80
     done
 
-    read -p "Make sure all EVSE's are set to NOT CHARGING, then press <ENTER>" dummy
-    sleep 1
     read -p "Make sure all EVSE's are set to CHARGING, then press <ENTER>" dummy
 
     for loadbl_master in 0 1; do
@@ -157,13 +162,9 @@ fi
 
 #TEST3: MAXCURRENT TEST: test if MaxCurrent is obeyed
 if [ $((SEL & 2**2)) -ne 0 ]; then
+    init_devices
     #first load all settings before the test
     for device in $SLAVE $MASTER; do
-        #go to Normal Mode for init
-        $CURLPOST $device/automated_testing?loadbl=0
-        $CURLPOST $device/settings?mode=1
-        $CURLPOST $device/reboot
-        sleep 5
         $CURLPOST $device/automated_testing?config=1
         $CURLPOST $device/automated_testing?config=1
         #save MaxCurrent setting and set it very high
@@ -176,8 +177,7 @@ if [ $((SEL & 2**2)) -ne 0 ]; then
         MAXMAINS=$(curl -s -X GET $device/settings | jq ".settings.current_main")
         $CURLPOST $device/automated_testing?current_main=80
     done
-    read -p "Make sure all EVSE's are set to NOT CHARGING, then press <ENTER>" dummy
-    sleep 1
+
     read -p "Make sure all EVSE's are set to CHARGING, then press <ENTER>" dummy
 
     for loadbl_master in 0 1; do
