@@ -79,6 +79,16 @@ for device in $MASTER $SLAVE; do
 done
 }
 
+set_loadbalancing () {
+    $CURLPOST $MASTER/automated_testing?loadbl=$loadbl_master
+    if [ $loadbl_master -eq 1 ]; then
+        loadbl_slave=2
+    else
+        loadbl_slave=0
+    fi
+    $CURLPOST $SLAVE/automated_testing?loadbl=$loadbl_slave
+}
+
 #TEST1: MODESWITCH TEST: test if mode changes on master reflects on slave and vice versa
 if [ $((SEL & 2**0)) -ne 0 ]; then
     $CURLPOST $MASTER/automated_testing?loadbl=1
@@ -132,13 +142,7 @@ if [ $((SEL & 2**1)) -ne 0 ]; then
     read -p "Make sure all EVSE's are set to CHARGING, then press <ENTER>" dummy
 
     for loadbl_master in 0 1; do
-        $CURLPOST $MASTER/automated_testing?loadbl=$loadbl_master
-        if [ $loadbl_master -eq 1 ]; then
-            loadbl_slave=2
-        else
-            loadbl_slave=0
-        fi
-        $CURLPOST $SLAVE/automated_testing?loadbl=$loadbl_slave
+        set_loadbalancing
         #if we are in loadbl 0 we test the slave device in loadbl 0 also
         for mode_master in 1 2 3; do
             $CURLPOST $MASTER/settings?mode=$mode_master
@@ -181,13 +185,7 @@ if [ $((SEL & 2**2)) -ne 0 ]; then
     read -p "Make sure all EVSE's are set to CHARGING, then press <ENTER>" dummy
 
     for loadbl_master in 0 1; do
-        $CURLPOST $MASTER/automated_testing?loadbl=$loadbl_master
-        if [ $loadbl_master -eq 1 ]; then
-            loadbl_slave=2
-        else
-            loadbl_slave=0
-        fi
-        $CURLPOST $SLAVE/automated_testing?loadbl=$loadbl_slave
+        set_loadbalancing
         #if we are in loadbl 0 we test the slave device in loadbl 0 also
         TESTVALUE=12
         TESTSTRING="MaxCurrent"
@@ -220,13 +218,7 @@ if [ $((SEL & 2**3)) -ne 0 ]; then
     read -p "Make sure all EVSE's are set to CHARGING, then press <ENTER>" dummy
 
     for loadbl_master in 0 1; do
-        $CURLPOST $MASTER/automated_testing?loadbl=$loadbl_master
-        if [ $loadbl_master -eq 1 ]; then
-            loadbl_slave=2
-        else
-            loadbl_slave=0
-        fi
-        $CURLPOST $SLAVE/automated_testing?loadbl=$loadbl_slave
+        set_loadbalancing
         #if we are in loadbl 0 we test the slave device in loadbl 0 also
         TESTVALUE=20
         TESTSTRING="MaxCirCuit"
