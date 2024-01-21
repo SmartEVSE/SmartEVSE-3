@@ -89,6 +89,16 @@ set_loadbalancing () {
     $CURLPOST $SLAVE/automated_testing?loadbl=$loadbl_slave
 }
 
+set_mode () {
+    $CURLPOST $MASTER/settings?mode=$mode_master
+    if [ $loadbl_slave -eq 0 ]; then
+        $CURLPOST $SLAVE/settings?mode=$mode_master
+    fi
+    MODE=$(curl -s -X GET $MASTER/settings | jq ".mode")
+    printf "Testing  LBL=$loadbl_master, mode=$MODE.\r"
+    TESTVALUE10=$((TESTVALUE * 10))
+}
+
 #TEST1: MODESWITCH TEST: test if mode changes on master reflects on slave and vice versa
 if [ $((SEL & 2**0)) -ne 0 ]; then
     $CURLPOST $MASTER/automated_testing?loadbl=1
@@ -145,14 +155,7 @@ if [ $((SEL & 2**1)) -ne 0 ]; then
         set_loadbalancing
         #if we are in loadbl 0 we test the slave device in loadbl 0 also
         for mode_master in 1 2 3; do
-            $CURLPOST $MASTER/settings?mode=$mode_master
-            if [ $loadbl_slave -eq 0 ]; then
-                $CURLPOST $SLAVE/settings?mode=$mode_master
-            fi
-            #LBL=$(curl -s -X GET $MASTER/settings | jq ".evse.loadbl")
-            MODE=$(curl -s -X GET $MASTER/settings | jq ".mode")
-            #echo LOADBL=$LBL, MODE=$MODE
-            printf "Testing  LBL=$loadbl_master, mode=$MODE.\r"
+            set_mode
             #settle switching modes AND stabilizing charging speeds
             sleep 10
             CHARGECUR_M=$(curl -s -X GET $MASTER/settings | jq ".settings.charge_current")
@@ -190,15 +193,7 @@ if [ $((SEL & 2**2)) -ne 0 ]; then
         TESTVALUE=12
         TESTSTRING="MaxCurrent"
         for mode_master in 1 3 2; do
-            $CURLPOST $MASTER/settings?mode=$mode_master
-            if [ $loadbl_slave -eq 0 ]; then
-                $CURLPOST $SLAVE/settings?mode=$mode_master
-            fi
-            #LBL=$(curl -s -X GET $MASTER/settings | jq ".evse.loadbl")
-            MODE=$(curl -s -X GET $MASTER/settings | jq ".mode")
-            #echo LOADBL=$LBL, MODE=$MODE
-            printf "Testing  LBL=$loadbl_master, mode=$MODE.\r"
-            TESTVALUE10=$((TESTVALUE * 10))
+            set_mode
             for device in $MASTER $SLAVE; do
                 $CURLPOST $device/automated_testing?current_max=$TESTVALUE
             done
@@ -223,15 +218,7 @@ if [ $((SEL & 2**3)) -ne 0 ]; then
         TESTVALUE=20
         TESTSTRING="MaxCirCuit"
         for mode_master in 1 3 2; do
-            $CURLPOST $MASTER/settings?mode=$mode_master
-            if [ $loadbl_slave -eq 0 ]; then
-                $CURLPOST $SLAVE/settings?mode=$mode_master
-            fi
-            #LBL=$(curl -s -X GET $MASTER/settings | jq ".evse.loadbl")
-            MODE=$(curl -s -X GET $MASTER/settings | jq ".mode")
-            #echo LOADBL=$LBL, MODE=$MODE
-            printf "Testing  LBL=$loadbl_master, mode=$MODE.\r"
-            TESTVALUE10=$((TESTVALUE * 10))
+            set_mode
             for device in $MASTER $SLAVE; do
                 $CURLPOST $device/automated_testing?current_max_circuit=$TESTVALUE
             done
