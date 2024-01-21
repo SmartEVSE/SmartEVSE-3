@@ -49,9 +49,9 @@ ABORT=0
 init_devices () {
 for device in $SLAVE $MASTER; do
     #go to Normal Mode for init
+    $CURLPOST $device/reboot
     $CURLPOST $device/automated_testing?loadbl=0
     $CURLPOST $device/settings?mode=1
-    $CURLPOST $device/reboot
 done
 read -p "Make sure all EVSE's are set to NOT CHARGING, then press <ENTER>" dummy
 sleep 5
