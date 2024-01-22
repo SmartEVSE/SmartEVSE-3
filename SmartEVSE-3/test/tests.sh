@@ -64,6 +64,7 @@ for device in $SLAVE $MASTER; do
     $CURLPOST $device/automated_testing?current_max=60
     $CURLPOST $device/automated_testing?current_max_circuit=70
     $CURLPOST $device/automated_testing?current_main=80
+    $CURLPOST $device/settings?enable_C2=0 #TODO cycle through all tests with different settings !!!
 done
 }
 
