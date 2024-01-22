@@ -8,7 +8,7 @@ fi
 echo "Enter your current in deci-Ampères:"
 OLD_CURRENT=20
 while true; do
-    read -t 8 CURRENT
+    read -t 1 CURRENT
     if [ $CURRENT"x" == "x" ]; then
         CURRENT=$OLD_CURRENT
     else
@@ -16,4 +16,5 @@ while true; do
     fi
     echo $FEED-CURRENT=$CURRENT.
     mosquitto_pub  -h 127.0.0.1 -t "SmartEVSE-$1/Set/$FEED" -m $CURRENT:$CURRENT:$CURRENT
+    sleep 1
 done
