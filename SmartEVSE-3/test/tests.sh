@@ -69,14 +69,18 @@ done
 }
 
 check_charge_current () {
-for device in $MASTER $SLAVE; do
     CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
-    if [ $CHARGECUR -eq $TESTVALUE10 ]; then
+    if [ $CHARGECUR -eq $1 ]; then
         printf "$Green Passed $NC LBL=$loadbl_master, Mode=$MODE: $device chargecurrent is limited to $TESTSTRING.\n"
     else
-        printf "$Red Failed $NC LBL=$loadbl_master, Mode=$MODE: $device chargecurrent is $CHARGECUR dA and should be limited to $TESTVALUE10 dA because of $TESTSTRING.\n"
+        printf "$Red Failed $NC LBL=$loadbl_master, Mode=$MODE: $device chargecurrent is $CHARGECUR dA and should be limited to $1 dA because of $TESTSTRING.\n"
     fi
-done
+}
+
+check_all_charge_currents () {
+    for device in $MASTER $SLAVE; do
+        check_charge_current "$TESTVALUE10"
+    done
 }
 
 set_loadbalancing () {
@@ -160,16 +164,10 @@ if [ $((SEL & 2**1)) -ne 0 ]; then
             #settle switching modes AND stabilizing charging speeds
             sleep 10
             for device in $SLAVE $MASTER; do
-                CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
                 if [ $device == $MASTER ]; then
-                    TESTVALUE10=$MASTER_SOCKET_HARDWIRED
+                    check_charge_current "$MASTER_SOCKET_HARDWIRED"
                 else
-                    TESTVALUE10=$SLAVE_SOCKET_HARDWIRED
-                fi
-                if [ $CHARGECUR -eq $TESTVALUE10 ]; then
-                    printf "$Green Passed $NC LBL=$loadbl_master, Mode=$MODE: $device chargecurrent is limited to $TESTSTRING.\n"
-                else
-                    printf "$Red Failed $NC LBL=$loadbl_master, Mode=$MODE: $device chargecurrent is $CHARGECUR dA and should be limited to $TESTVALUE10 dA because of $TESTSTRING.\n"
+                    check_charge_current "$SLAVE_SOCKET_HARDWIRED"
                 fi
             done
         done
@@ -201,7 +199,7 @@ if [ $((SEL & 2**2)) -ne 0 ]; then
             done
             #settle switching modes AND stabilizing charging speeds
             sleep 10
-            check_charge_current
+            check_all_charge_currents
             #increase testvalue to test if the device responds to that
             TESTVALUE=$(( TESTVALUE + 1 ))
         done
@@ -228,7 +226,7 @@ if [ $((SEL & 2**3)) -ne 0 ]; then
             sleep 10
 
             if [ $loadbl_master -eq 0 ]; then
-                check_charge_current
+                check_all_charge_currents
             else
                 TOTCUR=0
                 for device in $SLAVE $MASTER; do
