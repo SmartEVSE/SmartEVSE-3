@@ -109,6 +109,8 @@ set_mode () {
 
 #TEST1: MODESWITCH TEST: test if mode changes on master reflects on slave and vice versa
 if [ $((SEL & 2**0)) -ne 0 ]; then
+    TESTSTRING="Modeswitch"
+    printf "Starting $TESTSTRING test:\n"
     $CURLPOST $MASTER/automated_testing?loadbl=1
     $CURLPOST $SLAVE/automated_testing?loadbl=2
     for mode_master in 1 2 3; do
@@ -116,9 +118,9 @@ if [ $((SEL & 2**0)) -ne 0 ]; then
         sleep 5
         mode_slave=$(curl -s -X GET $SLAVE/settings | jq ".mode_id")
         if [ "x"$mode_slave == "x"$mode_master ]; then
-            printf "$Green Passed $NC Master switching to $mode_master, slave follows.\n"
+            printf "$Green Passed $NC Master switching to mode $mode_master, slave follows.\n"
         else
-            printf "$Red Failed $NC Master switching to $mode_master, slave is at $mode_slave.\n"
+            printf "$Red Failed $NC Master switching to mode $mode_master, slave is at $mode_slave.\n"
             ABORT=1
         fi
     done
@@ -149,19 +151,19 @@ fi
 #TEST2: SOCKET HARDWIRING TEST: test if Socket resistors in test bench limit our current // Configuration (0:Socket / 1:Fixed Cable)
 #                        needs setting [MASTER|SLAVE]_SOCKET_HARDWIRED to the correct values of your test bench
 if [ $((SEL & 2**1)) -ne 0 ]; then
+    TESTSTRING="Socket Hardwiring"
+    printf "Starting $TESTSTRING test:\n"
     init_devices
     init_currents
     #first load all settings before the test
     for device in $SLAVE $MASTER; do
         $CURLPOST $device/automated_testing?config=0
     done
-
     read -p "Make sure all EVSE's are set to CHARGING, then press <ENTER>" dummy
 
     for loadbl_master in 0 1; do
         set_loadbalancing
         #if we are in loadbl 0 we test the slave device in loadbl 0 also
-        TESTSTRING="Socket Hardwiring"
         for mode_master in 1 2 3; do
             set_mode
             #settle switching modes AND stabilizing charging speeds
@@ -182,8 +184,10 @@ if [ $((SEL & 2**1)) -ne 0 ]; then
     done
 fi
 
-#TEST3: MAXCURRENT TEST: test if MaxCurrent is obeyed
+#TEST4: MAXCURRENT TEST: test if MaxCurrent is obeyed
 if [ $((SEL & 2**2)) -ne 0 ]; then
+    TESTSTRING="MaxCurrent"
+    printf "Starting $TESTSTRING test:\n"
     init_devices
     init_currents
 
@@ -193,7 +197,6 @@ if [ $((SEL & 2**2)) -ne 0 ]; then
         set_loadbalancing
         #if we are in loadbl 0 we test the slave device in loadbl 0 also
         TESTVALUE=12
-        TESTSTRING="MaxCurrent"
         for mode_master in 1 3 2; do
             set_mode
             for device in $MASTER $SLAVE; do
@@ -208,8 +211,10 @@ if [ $((SEL & 2**2)) -ne 0 ]; then
     done
 fi
 
-#TEST4: MAXCIRCUIT TEST: test if MaxCircuit is obeyed
+#TEST8: MAXCIRCUIT TEST: test if MaxCircuit is obeyed
 if [ $((SEL & 2**3)) -ne 0 ]; then
+    TESTSTRING="MaxCirCuit"
+    printf "Starting $TESTSTRING test:\n"
     init_devices
     init_currents
     read -p "Make sure all EVSE's are set to CHARGING, then press <ENTER>" dummy
@@ -218,7 +223,6 @@ if [ $((SEL & 2**3)) -ne 0 ]; then
         set_loadbalancing
         #if we are in loadbl 0 we test the slave device in loadbl 0 also
         TESTVALUE=20
-        TESTSTRING="MaxCirCuit"
         for mode_master in 1 3 2; do
             set_mode
             for device in $MASTER $SLAVE; do
