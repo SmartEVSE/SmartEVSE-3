@@ -21,7 +21,8 @@ fi
 # please give values in deci-Ampère:
 MASTER_SOCKET_HARDWIRED=320
 SLAVE_SOCKET_HARDWIRED=130
-
+MASTER_MAC_ID=5700
+SLAVE_MAC_ID=45327
 
 MASTER="smartevse-"$1".local"
 SLAVE="smartevse-"$2".local"
@@ -261,6 +262,75 @@ if [ $((SEL & 2**3)) -ne 0 ]; then
             TESTVALUE=$(( TESTVALUE + 1 ))
         done
     done
+fi
+
+#TEST16: MAXMAINS TEST: test if MaxMains is obeyed when using EM_API
+if [ $((SEL & 2**4)) -ne 0 ]; then
+    #the margin for which we will accept the lowering/upping of the charge current, in dA
+    MARGIN=20
+    TESTVALUE=25
+    TESTSTRING="MaxMains via EM_API"
+    printf "Starting $TESTSTRING test:\n"
+    init_devices
+    init_currents
+    #set MainsMeter to API
+    for device in $MASTER $SLAVE; do
+        if [ ! -e "feed_mains_$device" ]; then
+            mkfifo feed_mains_$device
+        fi
+        if [ $device == $MASTER ]; then
+            MAC_ID=$MASTER_MAC_ID
+        else
+            MAC_ID=$SLAVE_MAC_ID
+        fi
+        ./feed_mains.sh $MAC_ID <feed_mains_$device >/dev/null &
+        echo $TESTVALUE10 >feed_mains_$device
+        $CURLPOST $device/automated_testing?mainsmeter=9
+    done
+    read -p "Make sure all EVSE's are set to CHARGING, then press <ENTER>" dummy
+
+    for loadbl_master in 0; do
+    #TODO for loadbl_master in 0 1; do
+        set_loadbalancing
+        #if we are in loadbl 0 we don't test the slave device
+        for mode_master in 3 2; do
+            set_mode
+            for device in $MASTER $SLAVE; do
+                $CURLPOST $device/automated_testing?current_main=$TESTVALUE
+                echo $TESTVALUE10 >feed_mains_$device
+                #now overload the mains by 1A
+                echo $(( TESTVALUE10 + 10 )) >feed_mains_$device
+                #settle switching modes AND stabilizing charging speeds
+                printf "Watch the charge current of device $device going down in 1-2A steps!\r"
+                sleep 10
+                #now stabilize the mains to MaxMains
+                echo $(( TESTVALUE10 )) >feed_mains_$device
+                CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
+                #we start charging at maxcurrent and then step down for approx. 1A per 670ms
+                if [ $mode_master -eq 3 ]; then
+                    #Smart
+                    TARGET=475
+                else
+                    #Solar
+                    TARGET=340
+                fi
+                #printf "CHARGECUR=$CHARGECUR, TARGET=$TARGET."
+                if [ $CHARGECUR -ge $(( TARGET - MARGIN )) ] && [ $CHARGECUR -le $(( TARGET + MARGIN )) ]; then
+                    #pass test, trick:
+                    check_charge_current $CHARGECUR
+                else
+                    #fail test, trick:
+                    check_charge_current $TARGET
+                fi
+            done
+        done
+    done
+    #set MainsMeter to Sensorbox
+    for device in $MASTER $SLAVE; do
+        $CURLPOST $device/automated_testing?mainsmeter=1
+    done
+    #kill all running subprocesses
+    pkill -P $$
 fi
 
 exit 0
