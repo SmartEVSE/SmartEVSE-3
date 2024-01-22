@@ -4299,6 +4299,7 @@ void StartwebServer(void) {
         }
         if(request->hasParam("config")) {
             Config = strtol(request->getParam("config")->value().c_str(),NULL,0);
+            setState(STATE_A);                                                  // so the new value will actually be read
         }
         if(request->hasParam("loadbl")) {
             int LBL = strtol(request->getParam("loadbl")->value().c_str(),NULL,0);
