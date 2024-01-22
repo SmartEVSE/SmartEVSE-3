@@ -61,7 +61,6 @@ init_currents () {
 #first load all settings before the test
 for device in $SLAVE $MASTER; do
     $CURLPOST $device/automated_testing?config=1
-    $CURLPOST $device/automated_testing?config=1
     $CURLPOST $device/automated_testing?current_max=60
     $CURLPOST $device/automated_testing?current_max_circuit=70
     $CURLPOST $device/automated_testing?current_main=80
@@ -150,7 +149,6 @@ if [ $((SEL & 2**1)) -ne 0 ]; then
     #first load all settings before the test
     for device in $SLAVE $MASTER; do
         $CURLPOST $device/automated_testing?config=0
-        $CURLPOST $device/automated_testing?config=0
     done
 
     read -p "Make sure all EVSE's are set to CHARGING, then press <ENTER>" dummy
@@ -175,7 +173,6 @@ if [ $((SEL & 2**1)) -ne 0 ]; then
 
     #for all other tests we don't want socket resistors to limit our currents, so switch to Fixed Cable
     for device in $MASTER $SLAVE; do
-        $CURLPOST $device/automated_testing?config=1
         $CURLPOST $device/automated_testing?config=1
     done
 fi
