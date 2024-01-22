@@ -84,13 +84,17 @@ check_all_charge_currents () {
 }
 
 set_loadbalancing () {
-    $CURLPOST $MASTER/automated_testing?loadbl=$loadbl_master
-    if [ $loadbl_master -eq 1 ]; then
-        loadbl_slave=2
-    else
+    #make sure we switch lbl in the right order so we dont get modbus errors
+    if [ $loadbl_master -eq 0 ]; then
         loadbl_slave=0
+        $CURLPOST $SLAVE/automated_testing?loadbl=$loadbl_slave
+        $CURLPOST $MASTER/automated_testing?loadbl=$loadbl_master
     fi
-    $CURLPOST $SLAVE/automated_testing?loadbl=$loadbl_slave
+    if [ $loadbl_master -eq 1 ]; then
+        $CURLPOST $MASTER/automated_testing?loadbl=$loadbl_master
+        loadbl_slave=2
+        $CURLPOST $SLAVE/automated_testing?loadbl=$loadbl_slave
+    fi
 }
 
 set_mode () {
