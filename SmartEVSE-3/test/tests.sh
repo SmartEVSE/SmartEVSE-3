@@ -26,6 +26,18 @@ SLAVE_SOCKET_HARDWIRED=130
 MASTER="smartevse-"$1".local"
 SLAVE="smartevse-"$2".local"
 
+control_c()
+# run if user hits control-c
+{
+    echo -en "\n*** Ouch! Exiting ***\n"
+    #kill all running subprocesses
+    pkill -P $$
+    exit $?
+}
+
+# trap keyboard interrupt (control-c)
+trap control_c SIGINT
+
 
 #curl suppress data
 CURLPOST="curl -s -o /dev/null -X POST"
