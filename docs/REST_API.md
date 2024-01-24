@@ -109,6 +109,13 @@ This output is often used to add to your bug report, so the developers can see y
 <br>&emsp;&emsp;If you want the car to stop charging when the sum of all 3 phases of the MainsMeter is importing 0A or more to the grid,
 <br>&emsp;&emsp;the value to be sent is 0
 
+* current_max_sum_mains
+
+&emsp;&emsp;The Maximum allowed Mains Current summed over all phases: 10-600A
+<br>&emsp;&emsp;This is used for the EU Capacity rate limiting, currently only in Belgium.
+<br>&emsp;&emsp;Usually you should leave this setting at its default value (600A)
+<br>&emsp;&emsp;since your electricity provider probably does not supports this.
+
 # POST: /currents
 
 * battery_current
