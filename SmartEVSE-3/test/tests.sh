@@ -77,6 +77,7 @@ for device in $SLAVE $MASTER; do
     $CURLPOST $device/automated_testing?current_max=60
     $CURLPOST $device/automated_testing?current_max_circuit=70
     $CURLPOST $device/automated_testing?current_main=80
+    $CURLPOST $device/settings?current_max_sum_mains=600
     $CURLPOST $device/settings?enable_C2=0 #TODO cycle through all tests with different settings !!!
 done
 }
@@ -392,6 +393,73 @@ if [ $((SEL & 2**5)) -ne 0 ]; then
                     check_charge_current $TARGET
                 fi
             done
+        done
+    done
+    #set MainsMeter to Sensorbox
+    for device in $MASTER $SLAVE; do
+        $CURLPOST $device/automated_testing?mainsmeter=1
+    done
+    #kill all running subprocesses
+    pkill -P $$
+fi
+
+#TEST64: MAXSUMMAINS TEST: test if MaxSumMains is obeyed when using EM_API for loadbl=0
+if [ $((SEL & 2**6)) -ne 0 ]; then
+    #the margin for which we will accept the lowering/upping of the charge current, in dA
+    MARGIN=20
+    TESTVALUE=50
+    TESTSTRING="MaxSumMains via EM_API for loadbl=0"
+    printf "Starting $TESTSTRING test:\n"
+    init_devices
+    init_currents
+    #set MainsMeter to API
+    for device in $MASTER $SLAVE; do
+        if [ ! -e "feed_mains_$device" ]; then
+            mkfifo feed_mains_$device
+        fi
+        if [ $device == $MASTER ]; then
+            MAC_ID=$MASTER_MAC_ID
+        else
+            MAC_ID=$SLAVE_MAC_ID
+        fi
+        ./feed_mains.sh $MAC_ID <feed_mains_$device >/dev/null &
+        echo $TESTVALUE10 >feed_mains_$device
+        $CURLPOST $device/automated_testing?mainsmeter=9
+    done
+    read -p "Make sure all EVSE's are set to CHARGING, then press <ENTER>" dummy
+
+    loadbl_master=0
+    set_loadbalancing
+    for mode_master in 3 2; do
+        set_mode
+        for device in $MASTER $SLAVE; do
+            #MaxMains is set to 80A by init_current
+            #MaxCurrent is set to 60A by init_current
+            #so we are going to charge 3 * Maxcurrent = 180A, so lets limit outselves to 150A over 3 phases
+            #So if we feed mains with 51A we should drop chargecurrent in 1A steps
+            $CURLPOST $device/settings?current_max_sum_mains=150
+            echo $(( TESTVALUE10 + 10 )) >feed_mains_$device
+            printf "Watch the charge current of device $device going down in approx. 2A steps!\r"
+            sleep 10
+            #now stabilize the mains to MaxMains
+            echo $(( TESTVALUE10 )) >feed_mains_$device
+            CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
+            #we start charging at maxcurrent and then step down for approx. 1A per 670ms
+            if [ $mode_master -eq 3 ]; then
+                #Smart
+                TARGET=455
+            else
+                #Solar
+                TARGET=310
+            fi
+            printf "CHARGECUR=$CHARGECUR, TARGET=$TARGET."
+            if [ $CHARGECUR -ge $(( TARGET - MARGIN )) ] && [ $CHARGECUR -le $(( TARGET + MARGIN )) ]; then
+                #pass test, trick:
+                check_charge_current $CHARGECUR
+            else
+                #fail test, trick:
+                check_charge_current $TARGET
+            fi
         done
     done
     #set MainsMeter to Sensorbox
