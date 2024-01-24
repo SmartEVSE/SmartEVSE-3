@@ -370,27 +370,27 @@ if [ $((SEL & 2**5)) -ne 0 ]; then
                 sleep 10
                 #now stabilize the mains to MaxMains
                 echo $(( TESTVALUE10 )) >feed_mains_$device
-                        TOTCUR=0
-                        for device in $SLAVE $MASTER; do
-                            CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
-                            TOTCUR=$((TOTCUR + CHARGECUR))
-                        done
-                        #we started charging at maxcurrent and then stepped down for approx. 1A per 670ms
-                        if [ $mode_master -eq 3 ]; then
-                            #Smart
-                            TARGET=570
-                        else
-                            #Solar
-                            TARGET=455
-                        fi
-                        #printf "TOTCUR=$TOTCUR, TARGET=$TARGET."
-                        if [ $TOTCUR -ge $(( TARGET - MARGIN )) ] && [ $TOTCUR -le $(( TARGET + MARGIN )) ]; then
-                            #pass test, trick:
-                            check_charge_current $CHARGECUR
-                        else
-                            #fail test, trick:
-                            check_charge_current $TARGET
-                        fi
+                TOTCUR=0
+                for device in $SLAVE $MASTER; do
+                    CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
+                    TOTCUR=$((TOTCUR + CHARGECUR))
+                done
+                #we started charging at maxcurrent and then stepped down for approx. 1A per 670ms
+                if [ $mode_master -eq 3 ]; then
+                    #Smart
+                    TARGET=570
+                else
+                    #Solar
+                    TARGET=455
+                fi
+                #printf "TOTCUR=$TOTCUR, TARGET=$TARGET."
+                if [ $TOTCUR -ge $(( TARGET - MARGIN )) ] && [ $TOTCUR -le $(( TARGET + MARGIN )) ]; then
+                    #pass test, trick:
+                    check_charge_current $CHARGECUR
+                else
+                    #fail test, trick:
+                    check_charge_current $TARGET
+                fi
             done
         done
     done
