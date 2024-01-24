@@ -104,7 +104,7 @@ MAX TEMP      Maximum allowed temperature for your SmartEVSE; 40-75C, default 65
               You can increase this if your SmartEVSE is in direct sunlight.
 
 SUMMAINS      (only appears when a MAINSMET is configured):
-              Maximum allowed current summed over all phases: 10-600A
+              Maximum allowed Mains Current summed over all phases: 10-600A
               This is used for the EU Capacity rate limiting, currently only in Belgium
 
 MODEM         If a modem that can communicate with your EV is connected
