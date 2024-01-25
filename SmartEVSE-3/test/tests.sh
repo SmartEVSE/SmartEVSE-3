@@ -66,6 +66,7 @@ for device in $SLAVE $MASTER; do
     #go to Normal Mode for init
     $CURLPOST $device/reboot
     $CURLPOST $device/automated_testing?loadbl=0
+    $CURLPOST $device/automated_testing?mainsmeter=1
     $CURLPOST $device/settings?mode=1
 done
 read -p "Make sure all EVSE's are set to NOT CHARGING, then press <ENTER>" dummy
@@ -140,6 +141,7 @@ overload_mains () {
 
 #TEST1: MODESWITCH TEST: test if mode changes on master reflects on slave and vice versa
 if [ $((SEL & 2**0)) -ne 0 ]; then
+    init_devices
     TESTSTRING="Modeswitch"
     printf "Starting $TESTSTRING test:\n"
     $CURLPOST $MASTER/automated_testing?loadbl=1
