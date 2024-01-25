@@ -96,18 +96,10 @@ print_results() {
     fi
 }
 
-check_charge_current () {
-    CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
-    if [ $CHARGECUR -eq $1 ]; then
-        printf "$Green Passed $NC LBL=$loadbl_master, Mode=$MODE: $device chargecurrent is limited to $TESTSTRING.\n"
-    else
-        printf "$Red Failed $NC LBL=$loadbl_master, Mode=$MODE: $device chargecurrent is $CHARGECUR dA and should be limited to $1 dA because of $TESTSTRING.\n"
-    fi
-}
-
 check_all_charge_currents () {
     for device in $MASTER $SLAVE; do
-        check_charge_current "$TESTVALUE10"
+        CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
+        print_results "$CHARGECUR" "$TESTVALUE10" "0"
     done
 }
 
@@ -208,10 +200,11 @@ if [ $((SEL & 2**1)) -ne 0 ]; then
             #settle switching modes AND stabilizing charging speeds
             sleep 10
             for device in $SLAVE $MASTER; do
+                CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
                 if [ $device == $MASTER ]; then
-                    check_charge_current "$MASTER_SOCKET_HARDWIRED"
+                    print_results "$CHARGECUR" "$MASTER_SOCKET_HARDWIRED" "0"
                 else
-                    check_charge_current "$SLAVE_SOCKET_HARDWIRED"
+                    print_results "$CHARGECUR" "$SLAVE_SOCKET_HARDWIRED" "0"
                 fi
             done
         done
