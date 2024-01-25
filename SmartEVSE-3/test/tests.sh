@@ -122,7 +122,7 @@ set_mode () {
 }
 
 overload_mains () {
-    echo $TESTVALUE10 >feed_mains_$device
+#    echo $TESTVALUE10 >feed_mains_$device
     #now overload the mains by 1A
     echo $(( TESTVALUE10 + 10 )) >feed_mains_$device
     #settle switching modes AND stabilizing charging speeds
@@ -312,12 +312,12 @@ if [ $((SEL & 2**4)) -ne 0 ]; then
             #we start charging at maxcurrent and then step down for approx. 1A per 670ms
             if [ $mode_master -eq 3 ]; then
                 #Smart
-                TARGET=475
+                TARGET=450
             else
                 #Solar
-                TARGET=340
+                TARGET=300
             fi
-            #printf "CHARGECUR=$CHARGECUR, TARGET=$TARGET."
+            printf "CHARGECUR=$CHARGECUR, TARGET=$TARGET."
             if [ $CHARGECUR -ge $(( TARGET - MARGIN )) ] && [ $CHARGECUR -le $(( TARGET + MARGIN )) ]; then
                 #pass test, trick:
                 check_charge_current $CHARGECUR
@@ -381,7 +381,7 @@ if [ $((SEL & 2**5)) -ne 0 ]; then
                     #Solar
                     TARGET=455
                 fi
-                #printf "TOTCUR=$TOTCUR, TARGET=$TARGET."
+                printf "TOTCUR=$TOTCUR, TARGET=$TARGET."
                 if [ $TOTCUR -ge $(( TARGET - MARGIN )) ] && [ $TOTCUR -le $(( TARGET + MARGIN )) ]; then
                     #pass test, trick:
                     check_charge_current $CHARGECUR
