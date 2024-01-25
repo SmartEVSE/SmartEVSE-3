@@ -140,10 +140,11 @@ overload_mains () {
 }
 
 #TEST1: MODESWITCH TEST: test if mode changes on master reflects on slave and vice versa
-if [ $((SEL & 2**0)) -ne 0 ]; then
-    init_devices
+NR=$((2**0))
+if [ $((SEL & NR)) -ne 0 ]; then
     TESTSTRING="Modeswitch"
-    printf "Starting $TESTSTRING test:\n"
+    printf "Starting $TESTSTRING test #$NR:\n"
+    init_devices
     $CURLPOST $MASTER/automated_testing?loadbl=1
     $CURLPOST $SLAVE/automated_testing?loadbl=2
     for mode_master in 1 2 3; do
@@ -183,9 +184,10 @@ fi
 
 #TEST2: SOCKET HARDWIRING TEST: test if Socket resistors in test bench limit our current // Configuration (0:Socket / 1:Fixed Cable)
 #                        needs setting [MASTER|SLAVE]_SOCKET_HARDWIRED to the correct values of your test bench
-if [ $((SEL & 2**1)) -ne 0 ]; then
+NR=$((2**1))
+if [ $((SEL & NR)) -ne 0 ]; then
     TESTSTRING="Socket Hardwiring"
-    printf "Starting $TESTSTRING test:\n"
+    printf "Starting $TESTSTRING test #$NR:\n"
     init_devices
     init_currents
     #first load all settings before the test
@@ -219,9 +221,10 @@ if [ $((SEL & 2**1)) -ne 0 ]; then
 fi
 
 #TEST4: MAXCURRENT TEST: test if MaxCurrent is obeyed
-if [ $((SEL & 2**2)) -ne 0 ]; then
+NR=$((2**2))
+if [ $((SEL & NR)) -ne 0 ]; then
     TESTSTRING="MaxCurrent"
-    printf "Starting $TESTSTRING test:\n"
+    printf "Starting $TESTSTRING test #$NR:\n"
     init_devices
     init_currents
 
@@ -246,9 +249,10 @@ if [ $((SEL & 2**2)) -ne 0 ]; then
 fi
 
 #TEST8: MAXCIRCUIT TEST: test if MaxCircuit is obeyed
-if [ $((SEL & 2**3)) -ne 0 ]; then
+NR=$((2**3))
+if [ $((SEL & NR)) -ne 0 ]; then
     TESTSTRING="MaxCirCuit"
-    printf "Starting $TESTSTRING test:\n"
+    printf "Starting $TESTSTRING test #$NR:\n"
     init_devices
     init_currents
     read -p "Make sure all EVSE's are set to CHARGING, then press <ENTER>" dummy
@@ -286,12 +290,13 @@ if [ $((SEL & 2**3)) -ne 0 ]; then
 fi
 
 #TEST16: MAXMAINS TEST: test if MaxMains is obeyed when using EM_API for loadbl=0
-if [ $((SEL & 2**4)) -ne 0 ]; then
+NR=$((2**4))
+if [ $((SEL & NR)) -ne 0 ]; then
+    TESTSTRING="MaxMains via EM_API for loadbl=0"
+    printf "Starting $TESTSTRING test #$NR:\n"
     #the margin for which we will accept the lowering/upping of the charge current, in dA
     MARGIN=20
     TESTVALUE=25
-    TESTSTRING="MaxMains via EM_API for loadbl=0"
-    printf "Starting $TESTSTRING test:\n"
     init_devices
     init_currents
     #set MainsMeter to API
@@ -338,12 +343,13 @@ if [ $((SEL & 2**4)) -ne 0 ]; then
 fi
 
 #TEST32: MAXMAINS TEST: test if MaxMains is obeyed when using EM_API
-if [ $((SEL & 2**5)) -ne 0 ]; then
+NR=$((2**5))
+if [ $((SEL & NR)) -ne 0 ]; then
+    TESTSTRING="MaxMains via EM_API for loadbl=1"
+    printf "Starting $TESTSTRING test #$NR:\n"
     #the margin for which we will accept the lowering/upping of the charge current, in dA
     MARGIN=20
     TESTVALUE=25
-    TESTSTRING="MaxMains via EM_API for loadbl=1"
-    printf "Starting $TESTSTRING test:\n"
     init_devices
     init_currents
     #set MainsMeter to API
@@ -396,12 +402,13 @@ if [ $((SEL & 2**5)) -ne 0 ]; then
 fi
 
 #TEST64: MAXSUMMAINS TEST: test if MaxSumMains is obeyed when using EM_API for loadbl=0
-if [ $((SEL & 2**6)) -ne 0 ]; then
+NR=$((2**6))
+if [ $((SEL & NR)) -ne 0 ]; then
+    TESTSTRING="MaxSumMains via EM_API for loadbl=0"
+    printf "Starting $TESTSTRING test #$NR:\n"
     #the margin for which we will accept the lowering/upping of the charge current, in dA
     MARGIN=20
     TESTVALUE=50
-    TESTSTRING="MaxSumMains via EM_API for loadbl=0"
-    printf "Starting $TESTSTRING test:\n"
     init_devices
     init_currents
     #set MainsMeter to API
