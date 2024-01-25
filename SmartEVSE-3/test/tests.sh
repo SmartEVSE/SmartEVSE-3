@@ -18,6 +18,8 @@ else
     SEL=$3
 fi
 
+DBG=1 #1 means debug mode on, 0 means debug mode off
+
 # please give values in deci-Ampère:
 MASTER_SOCKET_HARDWIRED=320
 SLAVE_SOCKET_HARDWIRED=130
@@ -326,7 +328,9 @@ if [ $((SEL & 2**4)) -ne 0 ]; then
                 #Solar
                 TARGET=300
             fi
-            printf "CHARGECUR=$CHARGECUR, TARGET=$TARGET."
+            if [ $DBG -eq 1 ]; then
+                printf "CHARGECUR=$CHARGECUR, TARGET=$TARGET."
+            fi
             if [ $CHARGECUR -ge $(( TARGET - MARGIN )) ] && [ $CHARGECUR -le $(( TARGET + MARGIN )) ]; then
                 #pass test, trick:
                 check_charge_current $CHARGECUR
@@ -390,7 +394,9 @@ if [ $((SEL & 2**5)) -ne 0 ]; then
                     #Solar
                     TARGET=455
                 fi
-                printf "TOTCUR=$TOTCUR, TARGET=$TARGET."
+                if [ $DBG -eq 1 ]; then
+                    printf "CHARGECUR=$TOTCUR, TARGET=$TARGET."
+                fi
                 if [ $TOTCUR -ge $(( TARGET - MARGIN )) ] && [ $TOTCUR -le $(( TARGET + MARGIN )) ]; then
                     #pass test, trick:
                     check_charge_current $CHARGECUR
@@ -454,7 +460,9 @@ if [ $((SEL & 2**6)) -ne 0 ]; then
                 #Solar
                 TARGET=310
             fi
-            printf "CHARGECUR=$CHARGECUR, TARGET=$TARGET."
+            if [ $DBG -eq 1 ]; then
+                printf "CHARGECUR=$CHARGECUR, TARGET=$TARGET."
+            fi
             [ $CHARGECUR -ge $(( TARGET - MARGIN )) ] && [ $CHARGECUR -le $(( TARGET + MARGIN )) ]
             print_results $?
         done
