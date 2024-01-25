@@ -331,13 +331,8 @@ if [ $((SEL & 2**4)) -ne 0 ]; then
             if [ $DBG -eq 1 ]; then
                 printf "CHARGECUR=$CHARGECUR, TARGET=$TARGET."
             fi
-            if [ $CHARGECUR -ge $(( TARGET - MARGIN )) ] && [ $CHARGECUR -le $(( TARGET + MARGIN )) ]; then
-                #pass test, trick:
-                check_charge_current $CHARGECUR
-            else
-                #fail test, trick:
-                check_charge_current $TARGET
-            fi
+            [ $CHARGECUR -ge $(( TARGET - MARGIN )) ] && [ $CHARGECUR -le $(( TARGET + MARGIN )) ]
+            print_results $?
         done
     done
     #set MainsMeter to Sensorbox
@@ -395,15 +390,10 @@ if [ $((SEL & 2**5)) -ne 0 ]; then
                     TARGET=455
                 fi
                 if [ $DBG -eq 1 ]; then
-                    printf "CHARGECUR=$TOTCUR, TARGET=$TARGET."
+                    printf "TOTCUR=$TOTCUR, TARGET=$TARGET."
                 fi
-                if [ $TOTCUR -ge $(( TARGET - MARGIN )) ] && [ $TOTCUR -le $(( TARGET + MARGIN )) ]; then
-                    #pass test, trick:
-                    check_charge_current $CHARGECUR
-                else
-                    #fail test, trick:
-                    check_charge_current $TARGET
-                fi
+                [ $TOTCUR -ge $(( TARGET - MARGIN )) ] && [ $TOTCUR -le $(( TARGET + MARGIN )) ]
+                print_results $?
             done
         done
     done
