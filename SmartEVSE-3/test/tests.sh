@@ -82,6 +82,15 @@ for device in $SLAVE $MASTER; do
 done
 }
 
+#takes 1 argument, true=Passed, false=Failed
+print_results() {
+    if [ $1 -eq 0 ]; then #0 means success in unix
+        printf "$Green Passed $NC LBL=$loadbl_master, Mode=$MODE: $device chargecurrent is limited to $TESTSTRING.\n"
+    else
+        printf "$Red Failed $NC LBL=$loadbl_master, Mode=$MODE: $device chargecurrent is $CHARGECUR dA and should be limited to $1 dA because of $TESTSTRING.\n"
+    fi
+}
+
 check_charge_current () {
     CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
     if [ $CHARGECUR -eq $1 ]; then
@@ -447,11 +456,11 @@ if [ $((SEL & 2**6)) -ne 0 ]; then
             fi
             printf "CHARGECUR=$CHARGECUR, TARGET=$TARGET."
             if [ $CHARGECUR -ge $(( TARGET - MARGIN )) ] && [ $CHARGECUR -le $(( TARGET + MARGIN )) ]; then
-                #pass test, trick:
-                check_charge_current $CHARGECUR
+                #pass test
+                print_results 0 #0=success in unix
             else
-                #fail test, trick:
-                check_charge_current $TARGET
+                #fail test
+                print_results 1
             fi
         done
     done
