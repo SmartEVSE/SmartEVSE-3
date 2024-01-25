@@ -121,6 +121,17 @@ set_mode () {
     TESTVALUE10=$((TESTVALUE * 10))
 }
 
+overload_mains () {
+    echo $TESTVALUE10 >feed_mains_$device
+    #now overload the mains by 1A
+    echo $(( TESTVALUE10 + 10 )) >feed_mains_$device
+    #settle switching modes AND stabilizing charging speeds
+    printf "Watch the charge current of device $device going down in 1-2A steps!\r"
+    sleep 10
+    #now stabilize the mains to MaxMains
+    echo $(( TESTVALUE10 )) >feed_mains_$device
+}
+
 #TEST1: MODESWITCH TEST: test if mode changes on master reflects on slave and vice versa
 if [ $((SEL & 2**0)) -ne 0 ]; then
     TESTSTRING="Modeswitch"
@@ -296,14 +307,7 @@ if [ $((SEL & 2**4)) -ne 0 ]; then
         set_mode
         for device in $MASTER $SLAVE; do
             $CURLPOST $device/automated_testing?current_main=$TESTVALUE
-            echo $TESTVALUE10 >feed_mains_$device
-            #now overload the mains by 1A
-            echo $(( TESTVALUE10 + 10 )) >feed_mains_$device
-            #settle switching modes AND stabilizing charging speeds
-            printf "Watch the charge current of device $device going down in 1-2A steps!\r"
-            sleep 10
-            #now stabilize the mains to MaxMains
-            echo $(( TESTVALUE10 )) >feed_mains_$device
+            overload_mains
             CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
             #we start charging at maxcurrent and then step down for approx. 1A per 670ms
             if [ $mode_master -eq 3 ]; then
@@ -363,14 +367,7 @@ if [ $((SEL & 2**5)) -ne 0 ]; then
             set_mode
             for device in $MASTER; do
                 $CURLPOST $device/automated_testing?current_main=$TESTVALUE
-                echo $TESTVALUE10 >feed_mains_$device
-                #now overload the mains by 1A
-                echo $(( TESTVALUE10 + 10 )) >feed_mains_$device
-                #settle switching modes AND stabilizing charging speeds
-                printf "Watch the charge current of device $device going down in 1-2A steps!\r"
-                sleep 10
-                #now stabilize the mains to MaxMains
-                echo $(( TESTVALUE10 )) >feed_mains_$device
+                overload_mains
                 TOTCUR=0
                 for device in $SLAVE $MASTER; do
                     CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
@@ -438,11 +435,7 @@ if [ $((SEL & 2**6)) -ne 0 ]; then
             #so we are going to charge 3 * Maxcurrent = 180A, so lets limit outselves to 150A over 3 phases
             #So if we feed mains with 51A we should drop chargecurrent in 1A steps
             $CURLPOST $device/settings?current_max_sum_mains=150
-            echo $(( TESTVALUE10 + 10 )) >feed_mains_$device
-            printf "Watch the charge current of device $device going down in approx. 2A steps!\r"
-            sleep 10
-            #now stabilize the mains to MaxMains
-            echo $(( TESTVALUE10 )) >feed_mains_$device
+            overload_mains
             CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
             #we start charging at maxcurrent and then step down for approx. 1A per 670ms
             if [ $mode_master -eq 3 ]; then
