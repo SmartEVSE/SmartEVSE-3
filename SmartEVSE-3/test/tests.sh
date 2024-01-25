@@ -387,7 +387,7 @@ if [ $((SEL & 2**5)) -ne 0 ]; then
                     TARGET=570
                 else
                     #Solar
-                    TARGET=455
+                    TARGET=425
                 fi
                 if [ $DBG -eq 1 ]; then
                     printf "TOTCUR=$TOTCUR, TARGET=$TARGET."
