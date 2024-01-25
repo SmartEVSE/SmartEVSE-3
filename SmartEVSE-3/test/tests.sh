@@ -455,13 +455,8 @@ if [ $((SEL & 2**6)) -ne 0 ]; then
                 TARGET=310
             fi
             printf "CHARGECUR=$CHARGECUR, TARGET=$TARGET."
-            if [ $CHARGECUR -ge $(( TARGET - MARGIN )) ] && [ $CHARGECUR -le $(( TARGET + MARGIN )) ]; then
-                #pass test
-                print_results 0 #0=success in unix
-            else
-                #fail test
-                print_results 1
-            fi
+            [ $CHARGECUR -ge $(( TARGET - MARGIN )) ] && [ $CHARGECUR -le $(( TARGET + MARGIN )) ]
+            print_results $?
         done
     done
     #set MainsMeter to Sensorbox
