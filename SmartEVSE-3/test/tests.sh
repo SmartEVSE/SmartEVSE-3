@@ -84,12 +84,15 @@ for device in $SLAVE $MASTER; do
 done
 }
 
-#takes 1 argument, true=Passed, false=Failed
+#takes 3 arguments, actual value, test value and margin
 print_results() {
-    if [ $1 -eq 0 ]; then #0 means success in unix
+    if [ $DBG -eq 1 ]; then
+        printf "CHARGECUR=$1, TARGET=$2."
+    fi
+    if [ $1 -ge $(( $2 - $3 )) ] && [ $CHARGECUR -le $(( $2 + $3 )) ]; then
         printf "$Green Passed $NC LBL=$loadbl_master, Mode=$MODE: $device chargecurrent is limited to $TESTSTRING.\n"
     else
-        printf "$Red Failed $NC LBL=$loadbl_master, Mode=$MODE: $device chargecurrent is $CHARGECUR dA and should be limited to $1 dA because of $TESTSTRING.\n"
+        printf "$Red Failed $NC LBL=$loadbl_master, Mode=$MODE: $device chargecurrent is $1 dA and should be limited to $2 dA (with a margin of $3 dA) because of $TESTSTRING.\n"
     fi
 }
 
@@ -328,11 +331,7 @@ if [ $((SEL & 2**4)) -ne 0 ]; then
                 #Solar
                 TARGET=300
             fi
-            if [ $DBG -eq 1 ]; then
-                printf "CHARGECUR=$CHARGECUR, TARGET=$TARGET."
-            fi
-            [ $CHARGECUR -ge $(( TARGET - MARGIN )) ] && [ $CHARGECUR -le $(( TARGET + MARGIN )) ]
-            print_results $?
+            print_results "$CHARGECUR" "$TARGET" "$MARGIN"
         done
     done
     #set MainsMeter to Sensorbox
@@ -389,11 +388,7 @@ if [ $((SEL & 2**5)) -ne 0 ]; then
                     #Solar
                     TARGET=425
                 fi
-                if [ $DBG -eq 1 ]; then
-                    printf "TOTCUR=$TOTCUR, TARGET=$TARGET."
-                fi
-                [ $TOTCUR -ge $(( TARGET - MARGIN )) ] && [ $TOTCUR -le $(( TARGET + MARGIN )) ]
-                print_results $?
+                print_results "$TOTCUR" "$TARGET" "$MARGIN"
             done
         done
     done
@@ -450,11 +445,7 @@ if [ $((SEL & 2**6)) -ne 0 ]; then
                 #Solar
                 TARGET=310
             fi
-            if [ $DBG -eq 1 ]; then
-                printf "CHARGECUR=$CHARGECUR, TARGET=$TARGET."
-            fi
-            [ $CHARGECUR -ge $(( TARGET - MARGIN )) ] && [ $CHARGECUR -le $(( TARGET + MARGIN )) ]
-            print_results $?
+            print_results "$CHARGECUR" "$TARGET" "$MARGIN"
         done
     done
     #set MainsMeter to Sensorbox
