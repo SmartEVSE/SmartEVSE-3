@@ -4261,10 +4261,6 @@ void StartwebServer(void) {
     },[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
     });
 
-    webServer.on("/modbus", HTTP_POST, [](AsyncWebServerRequest *request) {
-        DynamicJsonDocument doc(200);
-    });
-
 #if FAKE_RFID
     //this can be activated by: http://smartevse-xxx.lan/debug?showrfid=1
     webServer.on("/debug", HTTP_GET, [](AsyncWebServerRequest *request) {
