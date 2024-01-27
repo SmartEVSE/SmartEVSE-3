@@ -437,4 +437,51 @@ if [ $((SEL & NR)) -ne 0 ]; then
     pkill -P $$
 fi
 
+#TEST128: MAXSUMMAINS TEST: test if MaxSumMains is obeyed when using EM_API for loadbl=1
+NR=$((2**7))
+if [ $((SEL & NR)) -ne 0 ]; then
+    TESTSTRING="MaxSumMains via EM_API for loadbl=1"
+    printf "Starting $TESTSTRING test #$NR:\n"
+    #the margin for which we will accept the lowering/upping of the charge current, in dA
+    MARGIN=20
+    TESTVALUE=50
+    init_devices
+    init_currents
+    for device in $MASTER; do
+        set_mainsmeter_to_api
+    done
+    for loadbl_master in 1; do
+        set_loadbalancing
+        read -p "Make sure all EVSE's are set to CHARGING, then press <ENTER>" dummy
+        #if we are in loadbl 0 we don't test the slave device
+        for mode_master in 3 2; do
+            set_mode
+            for device in $MASTER; do
+                $CURLPOST $device/settings?current_max_sum_mains=150
+                overload_mains
+                TOTCUR=0
+                for device in $SLAVE $MASTER; do
+                    CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
+                    TOTCUR=$((TOTCUR + CHARGECUR))
+                done
+                #we started charging at maxcurrent and then stepped down for approx. 1A per 670ms
+                if [ $mode_master -eq 3 ]; then
+                    #Smart
+                    TARGET=560
+                else
+                    #Solar
+                    TARGET=425
+                fi
+                print_results "$TOTCUR" "$TARGET" "$MARGIN"
+            done
+        done
+    done
+    #set MainsMeter to Sensorbox
+    for device in $MASTER $SLAVE; do
+        $CURLPOST $device/automated_testing?mainsmeter=1
+    done
+    #kill all running subprocesses
+    pkill -P $$
+fi
+
 exit 0
