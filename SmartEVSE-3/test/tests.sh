@@ -270,7 +270,7 @@ if [ $((SEL & NR)) -ne 0 ]; then
                 $CURLPOST $device/automated_testing?current_max_circuit=$TESTVALUE
             done
             #settle switching modes AND stabilizing charging speeds
-            sleep 10
+            sleep 13
 
             if [ $loadbl_master -eq 0 ]; then
                 check_all_charge_currents
@@ -280,11 +280,7 @@ if [ $((SEL & NR)) -ne 0 ]; then
                     CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
                     TOTCUR=$((TOTCUR + CHARGECUR))
                 done
-                if [ $TOTCUR -eq $TESTVALUE10 ]; then
-                    printf "$Green Passed $NC LBL=$loadbl_master, Mode=$MODE: $device chargecurrent is limited to $TESTSTRING.\n"
-                else
-                    printf "$Red Failed $NC LBL=$loadbl_master, Mode=$MODE: $device chargecurrent is $CHARGECUR dA and should be limited to $TESTVALUE10 dA because of $TESTSTRING.\n"
-                fi
+                print_results "$TOTCUR" "$TESTVALUE10" "0"
             fi
             #increase testvalue to test if the device responds to that
             TESTVALUE=$(( TESTVALUE + 1 ))
