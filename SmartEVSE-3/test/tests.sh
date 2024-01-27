@@ -7,6 +7,9 @@
 
 if [ "$#" -ne 3 ]; then
     echo "Usage: $0 <serialnr_of_master> <serialnr_of_slave> <test_selection> ; serialnr is 4 digits."
+    echo
+    echo "Make sure you compiled your test version with -DAUTOMATED_TESTING=1 !!"
+    echo
     echo "WARNING: ONLY USE THIS SCRIPT ON SMARTEVSEs ON A TEST BENCH"
     echo "NEVER USE THIS SCRIPT ON A LIVE SMARTEVSE; IT _WILL_ BLOW YOUR FUSES AND YOUR BREAKERS!!!"
     exit 1
