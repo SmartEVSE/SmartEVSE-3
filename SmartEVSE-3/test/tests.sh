@@ -139,6 +139,20 @@ overload_mains () {
     echo $(( TESTVALUE10 )) >feed_mains_$device
 }
 
+set_mainsmeter_to_api () {
+    if [ ! -e "feed_mains_$device" ]; then
+        mkfifo feed_mains_$device
+    fi
+    if [ $device == $MASTER ]; then
+        MAC_ID=$MASTER_MAC_ID
+    else
+        MAC_ID=$SLAVE_MAC_ID
+    fi
+    ./feed_mains.sh $MAC_ID <feed_mains_$device >/dev/null &
+    echo $TESTVALUE10 >feed_mains_$device
+    $CURLPOST $device/automated_testing?mainsmeter=9
+}
+
 #TEST1: MODESWITCH TEST: test if mode changes on master reflects on slave and vice versa
 NR=$((2**0))
 if [ $((SEL & NR)) -ne 0 ]; then
@@ -298,19 +312,8 @@ if [ $((SEL & NR)) -ne 0 ]; then
     TESTVALUE=25
     init_devices
     init_currents
-    #set MainsMeter to API
     for device in $MASTER $SLAVE; do
-        if [ ! -e "feed_mains_$device" ]; then
-            mkfifo feed_mains_$device
-        fi
-        if [ $device == $MASTER ]; then
-            MAC_ID=$MASTER_MAC_ID
-        else
-            MAC_ID=$SLAVE_MAC_ID
-        fi
-        ./feed_mains.sh $MAC_ID <feed_mains_$device >/dev/null &
-        echo $TESTVALUE10 >feed_mains_$device
-        $CURLPOST $device/automated_testing?mainsmeter=9
+        set_mainsmeter_to_api
     done
     read -p "Make sure all EVSE's are set to CHARGING, then press <ENTER>" dummy
 
@@ -351,21 +354,9 @@ if [ $((SEL & NR)) -ne 0 ]; then
     TESTVALUE=25
     init_devices
     init_currents
-    #set MainsMeter to API
     for device in $MASTER; do
-        if [ ! -e "feed_mains_$device" ]; then
-            mkfifo feed_mains_$device
-        fi
-        if [ $device == $MASTER ]; then
-            MAC_ID=$MASTER_MAC_ID
-        else
-            MAC_ID=$SLAVE_MAC_ID
-        fi
-        ./feed_mains.sh $MAC_ID <feed_mains_$device >/dev/null &
-        echo $TESTVALUE10 >feed_mains_$device
-        $CURLPOST $device/automated_testing?mainsmeter=9
+        set_mainsmeter_to_api
     done
-
     for loadbl_master in 1; do
         set_loadbalancing
         read -p "Make sure all EVSE's are set to CHARGING, then press <ENTER>" dummy
@@ -410,19 +401,8 @@ if [ $((SEL & NR)) -ne 0 ]; then
     TESTVALUE=50
     init_devices
     init_currents
-    #set MainsMeter to API
     for device in $MASTER $SLAVE; do
-        if [ ! -e "feed_mains_$device" ]; then
-            mkfifo feed_mains_$device
-        fi
-        if [ $device == $MASTER ]; then
-            MAC_ID=$MASTER_MAC_ID
-        else
-            MAC_ID=$SLAVE_MAC_ID
-        fi
-        ./feed_mains.sh $MAC_ID <feed_mains_$device >/dev/null &
-        echo $TESTVALUE10 >feed_mains_$device
-        $CURLPOST $device/automated_testing?mainsmeter=9
+        set_mainsmeter_to_api
     done
     read -p "Make sure all EVSE's are set to CHARGING, then press <ENTER>" dummy
 
