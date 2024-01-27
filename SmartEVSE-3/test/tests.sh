@@ -383,7 +383,7 @@ if [ $((SEL & NR)) -ne 0 ]; then
                 #we started charging at maxcurrent and then stepped down for approx. 1A per 670ms
                 if [ $mode_master -eq 3 ]; then
                     #Smart
-                    TARGET=570
+                    TARGET=560
                 else
                     #Solar
                     TARGET=425
