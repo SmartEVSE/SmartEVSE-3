@@ -188,6 +188,7 @@ NR=$((2**1))
 if [ $((SEL & NR)) -ne 0 ]; then
     TESTSTRING="Socket Hardwiring"
     printf "Starting $TESTSTRING test #$NR:\n"
+    printf "Make sure your Sensorbox is on MAX power delivery to the grid, or Solar tests will fail!\n"
     init_devices
     init_currents
     #first load all settings before the test
@@ -225,6 +226,7 @@ NR=$((2**2))
 if [ $((SEL & NR)) -ne 0 ]; then
     TESTSTRING="MaxCurrent"
     printf "Starting $TESTSTRING test #$NR:\n"
+    printf "Make sure your Sensorbox is on MAX power delivery to the grid, or Solar tests will fail!\n"
     init_devices
     init_currents
 
@@ -253,6 +255,7 @@ NR=$((2**3))
 if [ $((SEL & NR)) -ne 0 ]; then
     TESTSTRING="MaxCirCuit"
     printf "Starting $TESTSTRING test #$NR:\n"
+    printf "Make sure your Sensorbox is on MAX power delivery to the grid, or Solar tests will fail!\n"
     init_devices
     init_currents
     read -p "Make sure all EVSE's are set to CHARGING, then press <ENTER>" dummy
