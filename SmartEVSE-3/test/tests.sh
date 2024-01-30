@@ -187,27 +187,23 @@ run_test_loadbl0 () {
 run_test_loadbl1 () {
     init_devices
     init_currents
-    for device in $MASTER; do
-        set_mainsmeter_to_api
-    done
-    for loadbl_master in 1; do
-        set_loadbalancing
-        read -p "Make sure all EVSE's are set to CHARGING, then press <ENTER>" dummy
-        #if we are in loadbl 0 we don't test the slave device
-        for mode_master in 3 2; do
-            set_mode
-            for device in $MASTER; do
-                $CURLPOST $device$CONFIG_COMMAND
-                overload_mains
-                TOTCUR=0
-                for device in $SLAVE $MASTER; do
-                    CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
-                    TOTCUR=$((TOTCUR + CHARGECUR))
-                done
-                #we started charging at maxcurrent and then stepped down for approx. 1A per 670ms
-                print_results "$TOTCUR" "${TARGET[$mode_master]}" "$MARGIN"
-            done
+    device=$MASTER
+    set_mainsmeter_to_api
+    loadbl_master=1
+    set_loadbalancing
+    read -p "Make sure all EVSE's are set to CHARGING, then press <ENTER>" dummy
+    #if we are in loadbl 0 we don't test the slave device
+    for mode_master in 3 2; do
+        set_mode
+        $CURLPOST $device$CONFIG_COMMAND
+        overload_mains
+        TOTCUR=0
+        for device in $SLAVE $MASTER; do
+            CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
+            TOTCUR=$((TOTCUR + CHARGECUR))
         done
+        #we started charging at maxcurrent and then stepped down for approx. 1A per 670ms
+        print_results "$TOTCUR" "${TARGET[$mode_master]}" "$MARGIN"
     done
     #set MainsMeter to Sensorbox
     for device in $MASTER $SLAVE; do
