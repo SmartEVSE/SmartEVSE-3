@@ -156,6 +156,34 @@ set_mainsmeter_to_api () {
     $CURLPOST $device/automated_testing?mainsmeter=9
 }
 
+run_test_loadbl0 () {
+    init_devices
+    init_currents
+    for device in $MASTER $SLAVE; do
+        set_mainsmeter_to_api
+    done
+    read -p "Make sure all EVSE's are set to CHARGING, then press <ENTER>" dummy
+
+    loadbl_master=0
+    set_loadbalancing
+    for mode_master in 3 2; do
+        set_mode
+        for device in $MASTER $SLAVE; do
+            $CURLPOST $device$CONFIG_COMMAND
+            overload_mains
+            CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
+            #we start charging at maxcurrent and then step down for approx. 1A per 670ms
+            print_results "$CHARGECUR" "${TARGET[$mode_master]}" "$MARGIN"
+        done
+    done
+    #set MainsMeter to Sensorbox
+    for device in $MASTER $SLAVE; do
+        $CURLPOST $device/automated_testing?mainsmeter=1
+    done
+    #kill all running subprocesses
+    pkill -P $$
+}
+
 #TEST1: MODESWITCH TEST: test if mode changes on master reflects on slave and vice versa
 NR=$((2**0))
 if [ $((SEL & NR)) -ne 0 ]; then
@@ -313,38 +341,10 @@ if [ $((SEL & NR)) -ne 0 ]; then
     #the margin for which we will accept the lowering/upping of the charge current, in dA
     MARGIN=20
     TESTVALUE=25
-    init_devices
-    init_currents
-    for device in $MASTER $SLAVE; do
-        set_mainsmeter_to_api
-    done
-    read -p "Make sure all EVSE's are set to CHARGING, then press <ENTER>" dummy
-
-    loadbl_master=0
-    set_loadbalancing
-    for mode_master in 3 2; do
-        set_mode
-        for device in $MASTER $SLAVE; do
-            $CURLPOST $device/automated_testing?current_main=$TESTVALUE
-            overload_mains
-            CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
-            #we start charging at maxcurrent and then step down for approx. 1A per 670ms
-            if [ $mode_master -eq 3 ]; then
-                #Smart
-                TARGET=450
-            else
-                #Solar
-                TARGET=300
-            fi
-            print_results "$CHARGECUR" "$TARGET" "$MARGIN"
-        done
-    done
-    #set MainsMeter to Sensorbox
-    for device in $MASTER $SLAVE; do
-        $CURLPOST $device/automated_testing?mainsmeter=1
-    done
-    #kill all running subprocesses
-    pkill -P $$
+    #Target values for Off, Normal, Solar, Smart mode RESPECTIVELY:
+    TARGET=(0 0 300 450)
+    CONFIG_COMMAND="/automated_testing?current_main=$TESTVALUE"
+    run_test_loadbl0
 fi
 
 #TEST32: MAXMAINS TEST: test if MaxMains is obeyed when using EM_API
@@ -402,42 +402,10 @@ if [ $((SEL & NR)) -ne 0 ]; then
     #the margin for which we will accept the lowering/upping of the charge current, in dA
     MARGIN=20
     TESTVALUE=50
-    init_devices
-    init_currents
-    for device in $MASTER $SLAVE; do
-        set_mainsmeter_to_api
-    done
-    read -p "Make sure all EVSE's are set to CHARGING, then press <ENTER>" dummy
-
-    loadbl_master=0
-    set_loadbalancing
-    for mode_master in 3 2; do
-        set_mode
-        for device in $MASTER $SLAVE; do
-            #MaxMains is set to 80A by init_current
-            #MaxCurrent is set to 60A by init_current
-            #so we are going to charge 3 * Maxcurrent = 180A, so lets limit outselves to 150A over 3 phases
-            #So if we feed mains with 51A we should drop chargecurrent in 1A steps
-            $CURLPOST $device/settings?current_max_sum_mains=150
-            overload_mains
-            CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
-            #we start charging at maxcurrent and then step down for approx. 1A per 670ms
-            if [ $mode_master -eq 3 ]; then
-                #Smart
-                TARGET=455
-            else
-                #Solar
-                TARGET=310
-            fi
-            print_results "$CHARGECUR" "$TARGET" "$MARGIN"
-        done
-    done
-    #set MainsMeter to Sensorbox
-    for device in $MASTER $SLAVE; do
-        $CURLPOST $device/automated_testing?mainsmeter=1
-    done
-    #kill all running subprocesses
-    pkill -P $$
+    #Target values for Off, Normal, Solar, Smart mode RESPECTIVELY:
+    TARGET=(0 0 310 455)
+    CONFIG_COMMAND="/settings?current_max_sum_mains=$((TESTVALUE * 3))"
+    run_test_loadbl0
 fi
 
 #TEST128: MAXSUMMAINS TEST: test if MaxSumMains is obeyed when using EM_API for loadbl=1
