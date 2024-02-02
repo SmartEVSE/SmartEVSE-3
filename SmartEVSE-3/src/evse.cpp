@@ -707,7 +707,7 @@ void setState(uint8_t NewState) {
                 PilotDisconnected = true;
                 PilotDisconnectTime = 5;                                       // Set PilotDisconnectTime to 5 seconds
 
-                Serial.print("Pilot Disconnected\n");
+                _LOG_A("Pilot Disconnected\n");
             }
             // fall through
         case STATE_A:                                                           // State A1
@@ -2034,7 +2034,7 @@ void EVSEStates(void * parameter) {
                 if (PilotDisconnectTime == 0 && pilot == PILOT_NOK ) {          // Pilot should be ~ 0V when disconnected
                     PILOT_CONNECTED;
                     PilotDisconnected = false;
-                    Serial.print("Pilot Connected\n");
+                    _LOG_A("Pilot Connected\n");
                 }
             } else if (pilot == PILOT_12V) {                                    // Check if we are disconnected, or forced to State A, but still connected to the EV
                 // If the RFID reader is set to EnableOne or EnableAll mode, and the Charging cable is disconnected
