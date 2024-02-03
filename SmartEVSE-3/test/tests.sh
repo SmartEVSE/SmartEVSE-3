@@ -432,7 +432,7 @@ fi
 #TEST256: STARTCURRENT TEST: test if StartCurrent is obeyed in Solar Mode for loadbl=0
 NR=$((2**8))
 if [ $((SEL & NR)) -ne 0 ]; then
-    TESTSTRING="StartCurrent via EM_API for loadbl=0"
+    TESTSTRING="StartCurrent, StopTimer and ImportCurrent via EM_API for loadbl=0"
     printf "Starting $TESTSTRING test #$NR:\n"
     #the margin for which we will accept the lowering/upping of the charge current, in dA
     MARGIN=20
@@ -457,42 +457,38 @@ if [ $((SEL & NR)) -ne 0 ]; then
         set_mode
         for device in $MASTER; do
         #TODO for device in $MASTER $SLAVE; do
-            #feed mains to -3A = -1A per phase
             echo 60 >feed_mains_$device
-            #sleep 3
-    echo "Feeding total of 18A....chargecurrent should drop to 6A, then triggers stoptimer and when it expires, stop charging because over import limit of 15A"
+            printf "Feeding total of 18A....chargecurrent should drop to 6A, then triggers stoptimer and when it expires, stops charging because over import limit of 15A\r"
             sleep 100
-            #CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
             STATE=$(curl -s -X GET $device/settings | jq ".evse.state")
             STATE_ID=$(curl -s -X GET $device/settings | jq ".evse.state_id")
-            echo "Expected: waiting or stopped"
-            echo STATE=$STATE,ID=$STATE_ID.
-            print_state "$STATE_ID" "2"
-            #we should not be charging because we are at -3A and StartCurrent is at -4A
-            #print_results "$CHARGECUR" "0" "$MARGIN"
-            #feed mains to -2A per phase so Isum = -6A
+            #echo "Expected: waiting or stopped"
+            #echo STATE=$STATE,ID=$STATE_ID.
+            print_state "$STATE_ID" "9"
             echo -20 >feed_mains_$device
-    echo "Feeding total of -6A....should trigger ready-timer 60s"
+            printf "Feeding total of -6A....should trigger ready-timer 60s\r"
             sleep 65
-    read -p "To start charging, set EVSE's to NO CHARGING and then to CHARGING again, then press <ENTER>" dummy
-            #sleep 10
-            #print_results "$CHARGECUR" "0" "$MARGIN"
+            read -p "To start charging, set EVSE's to NO CHARGING and then to CHARGING again, then press <ENTER>" dummy
             STATE=$(curl -s -X GET $device/settings | jq ".evse.state")
             STATE_ID=$(curl -s -X GET $device/settings | jq ".evse.state_id")
             print_state "$STATE_ID" "2"
-            echo "Expected: Charging"
-            echo STATE=$STATE,ID=$STATE_ID.
+            #echo "Expected: Charging"
+            #echo STATE=$STATE,ID=$STATE_ID.
+            #dropping the charge current by a few amps
+            echo 60 >feed_mains_$device
+            sleep 3
+            CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
+            print_results "$CHARGECUR" "535" "10"
             echo 50 >feed_mains_$device
-    echo "Feeding total of 15A....charging should remain stable"
+            printf "Feeding total of 15A....charging should remain stable\r"
             sleep 10
             CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
             STATE=$(curl -s -X GET $device/settings | jq ".evse.state")
             STATE_ID=$(curl -s -X GET $device/settings | jq ".evse.state_id")
             print_state "$STATE_ID" "2"
-            echo "Expected: Charging around 60A"
-            echo STATE=$STATE,ID=$STATE_ID.
-            print_results "$CHARGECUR" "555" "20"
-
+            #echo "Expected: Charging around 60A"
+            #echo STATE=$STATE,ID=$STATE_ID.
+            print_results "$CHARGECUR" "535" "10"
         done
     done
     #set MainsMeter to Sensorbox
