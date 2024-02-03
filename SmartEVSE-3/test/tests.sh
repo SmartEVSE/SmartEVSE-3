@@ -100,6 +100,18 @@ print_results() {
     fi
 }
 
+#takes 2 arguments, actual state_id, test value
+print_state() {
+    if [ $DBG -eq 1 ]; then
+        printf "STATE_ID=$1, TARGET=$2."
+    fi
+    if [ $1 -eq $2 ]; then
+        printf "$Green Passed $NC LBL=$loadbl_master, Mode=$MODE: $device state is as expected when testing $TESTSTRING.\n"
+    else
+        printf "$Red Failed $NC LBL=$loadbl_master, Mode=$MODE: $device state_id=$1 and should be state_id=$2 when testing $TESTSTRING.\n"
+    fi
+}
+
 check_all_charge_currents () {
     for device in $MASTER $SLAVE; do
         CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
@@ -415,6 +427,80 @@ if [ $((SEL & NR)) -ne 0 ]; then
     TARGET=(0 0 425 560)
     CONFIG_COMMAND="/settings?current_max_sum_mains=$((TESTVALUE * 3))"
     run_test_loadbl1
+fi
+
+#TEST256: STARTCURRENT TEST: test if StartCurrent is obeyed in Solar Mode for loadbl=0
+NR=$((2**8))
+if [ $((SEL & NR)) -ne 0 ]; then
+    TESTSTRING="StartCurrent via EM_API for loadbl=0"
+    printf "Starting $TESTSTRING test #$NR:\n"
+    #the margin for which we will accept the lowering/upping of the charge current, in dA
+    MARGIN=20
+    #make mains_overload feed mains_current with 3A to the grid
+    TESTVALUE=-3
+    #Target values for Off, Normal, Solar, Smart mode RESPECTIVELY:
+    TARGET=(0 0 310 0)
+    #note that startcurrent shown as -4A on the display is stored as 4A !
+    #CONFIG_COMMAND="/settings?solar_start_current=4"
+    init_devices
+    init_currents
+    for device in $MASTER $SLAVE; do
+        set_mainsmeter_to_api
+        $CURLPOST "$device/settings?solar_start_current=4"
+        $CURLPOST "$device/settings?solar_max_import=15"
+    done
+    read -p "Make sure all EVSE's are set to CHARGING, then press <ENTER>" dummy
+
+    loadbl_master=0
+    set_loadbalancing
+    for mode_master in 2; do
+        set_mode
+        for device in $MASTER; do
+        #TODO for device in $MASTER $SLAVE; do
+            #feed mains to -3A = -1A per phase
+            echo 60 >feed_mains_$device
+            #sleep 3
+    echo "Feeding total of 18A....chargecurrent should drop to 6A, then triggers stoptimer and when it expires, stop charging because over import limit of 15A"
+            sleep 100
+            #CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
+            STATE=$(curl -s -X GET $device/settings | jq ".evse.state")
+            STATE_ID=$(curl -s -X GET $device/settings | jq ".evse.state_id")
+            echo "Expected: waiting or stopped"
+            echo STATE=$STATE,ID=$STATE_ID.
+            print_state "$STATE_ID" "2"
+            #we should not be charging because we are at -3A and StartCurrent is at -4A
+            #print_results "$CHARGECUR" "0" "$MARGIN"
+            #feed mains to -2A per phase so Isum = -6A
+            echo -20 >feed_mains_$device
+    echo "Feeding total of -6A....should trigger ready-timer 60s"
+            sleep 65
+    read -p "To start charging, set EVSE's to NO CHARGING and then to CHARGING again, then press <ENTER>" dummy
+            #sleep 10
+            #print_results "$CHARGECUR" "0" "$MARGIN"
+            STATE=$(curl -s -X GET $device/settings | jq ".evse.state")
+            STATE_ID=$(curl -s -X GET $device/settings | jq ".evse.state_id")
+            print_state "$STATE_ID" "2"
+            echo "Expected: Charging"
+            echo STATE=$STATE,ID=$STATE_ID.
+            echo 50 >feed_mains_$device
+    echo "Feeding total of 15A....charging should remain stable"
+            sleep 10
+            CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
+            STATE=$(curl -s -X GET $device/settings | jq ".evse.state")
+            STATE_ID=$(curl -s -X GET $device/settings | jq ".evse.state_id")
+            print_state "$STATE_ID" "2"
+            echo "Expected: Charging around 60A"
+            echo STATE=$STATE,ID=$STATE_ID.
+            print_results "$CHARGECUR" "555" "20"
+
+        done
+    done
+    #set MainsMeter to Sensorbox
+    for device in $MASTER $SLAVE; do
+        $CURLPOST $device/automated_testing?mainsmeter=1
+    done
+    #kill all running subprocesses
+    pkill -P $$
 fi
 
 exit 0
