@@ -112,11 +112,6 @@ print_results2() {
     fi
 }
 
-#takes 2 arguments, actual state_id, test value
-print_state() {
-    print_results2 "$1" "$2" "0" "STATE_ID"
-}
-
 check_all_charge_currents () {
     for device in $MASTER $SLAVE; do
         CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
@@ -469,20 +464,14 @@ if [ $((SEL & NR)) -ne 0 ]; then
             TIMER=$(curl -s -X GET $device/settings | jq ".evse.solar_stop_timer")
             print_results2 "$TIMER" "28" "5" "SOLAR_STOP_TIMER"
             sleep 40
-            STATE=$(curl -s -X GET $device/settings | jq ".evse.state")
             STATE_ID=$(curl -s -X GET $device/settings | jq ".evse.state_id")
-            #echo "Expected: waiting or stopped"
-            #echo STATE=$STATE,ID=$STATE_ID.
-            print_state "$STATE_ID" "9"
+            print_results2 "$STATE_ID" "9" "0" "STATE_ID"
             echo -20 >feed_mains_$device
             printf "Feeding total of -6A....should trigger ready-timer 60s\r"
             sleep 65
             read -p "To start charging, set EVSE's to NO CHARGING and then to CHARGING again, then press <ENTER>" dummy
-            STATE=$(curl -s -X GET $device/settings | jq ".evse.state")
             STATE_ID=$(curl -s -X GET $device/settings | jq ".evse.state_id")
-            print_state "$STATE_ID" "2"
-            #echo "Expected: Charging"
-            #echo STATE=$STATE,ID=$STATE_ID.
+            print_results2 "$STATE_ID" "2" "0" "STATE_ID"
             #dropping the charge current by a few amps
             echo 60 >feed_mains_$device
             sleep 3
@@ -492,11 +481,8 @@ if [ $((SEL & NR)) -ne 0 ]; then
             printf "Feeding total of 15A....charging should remain stable\r"
             sleep 10
             CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
-            STATE=$(curl -s -X GET $device/settings | jq ".evse.state")
             STATE_ID=$(curl -s -X GET $device/settings | jq ".evse.state_id")
-            print_state "$STATE_ID" "2"
-            #echo "Expected: Charging around 60A"
-            #echo STATE=$STATE,ID=$STATE_ID.
+            print_results2 "$STATE_ID" "2" "0" "STATE_ID"
             print_results "$CHARGECUR" "535" "10"
         done
     done
