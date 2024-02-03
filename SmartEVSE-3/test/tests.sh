@@ -100,16 +100,21 @@ print_results() {
     fi
 }
 
+#takes 4 arguments, actual value, test value, margin, string_to_test
+print_results2() {
+    if [ $DBG -eq 1 ]; then
+        printf "$4=$1, TARGET=$2."
+    fi
+    if [ $1 -ge $(( $2 - $3 )) ] && [ $1 -le $(( $2 + $3 )) ]; then
+        printf "$Green Passed $NC LBL=$loadbl_master, Mode=$MODE: $device $4 is as expected when testing $TESTSTRING.\n"
+    else
+        printf "$Red Failed $NC LBL=$loadbl_master, Mode=$MODE: $device $4=$1 should be $4=$2 when testing $TESTSTRING.\n"
+    fi
+}
+
 #takes 2 arguments, actual state_id, test value
 print_state() {
-    if [ $DBG -eq 1 ]; then
-        printf "STATE_ID=$1, TARGET=$2."
-    fi
-    if [ $1 -eq $2 ]; then
-        printf "$Green Passed $NC LBL=$loadbl_master, Mode=$MODE: $device state is as expected when testing $TESTSTRING.\n"
-    else
-        printf "$Red Failed $NC LBL=$loadbl_master, Mode=$MODE: $device state_id=$1 and should be state_id=$2 when testing $TESTSTRING.\n"
-    fi
+    print_results2 "$1" "$2" "0" "STATE_ID"
 }
 
 check_all_charge_currents () {
@@ -448,6 +453,7 @@ if [ $((SEL & NR)) -ne 0 ]; then
         set_mainsmeter_to_api
         $CURLPOST "$device/settings?solar_start_current=4"
         $CURLPOST "$device/settings?solar_max_import=15"
+        $CURLPOST "$device/settings?solar_stop_time=1"
     done
     read -p "Make sure all EVSE's are set to CHARGING, then press <ENTER>" dummy
 
@@ -459,7 +465,10 @@ if [ $((SEL & NR)) -ne 0 ]; then
         #TODO for device in $MASTER $SLAVE; do
             echo 60 >feed_mains_$device
             printf "Feeding total of 18A....chargecurrent should drop to 6A, then triggers stoptimer and when it expires, stops charging because over import limit of 15A\r"
-            sleep 100
+            sleep 60
+            TIMER=$(curl -s -X GET $device/settings | jq ".evse.solar_stop_timer")
+            print_results2 "$TIMER" "28" "5" "SOLAR_STOP_TIMER"
+            sleep 40
             STATE=$(curl -s -X GET $device/settings | jq ".evse.state")
             STATE_ID=$(curl -s -X GET $device/settings | jq ".evse.state_id")
             #echo "Expected: waiting or stopped"
