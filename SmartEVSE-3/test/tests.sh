@@ -454,37 +454,53 @@ if [ $((SEL & NR)) -ne 0 ]; then
 
     loadbl_master=0
     set_loadbalancing
-    for mode_master in 2; do
-        set_mode
-        for device in $MASTER; do
-        #TODO for device in $MASTER $SLAVE; do
-            echo 60 >feed_mains_$device
-            printf "Feeding total of 18A....chargecurrent should drop to 6A, then triggers stoptimer and when it expires, stops charging because over import limit of 15A\r"
-            sleep 60
-            TIMER=$(curl -s -X GET $device/settings | jq ".evse.solar_stop_timer")
-            print_results2 "$TIMER" "28" "5" "SOLAR_STOP_TIMER"
-            sleep 40
-            STATE_ID=$(curl -s -X GET $device/settings | jq ".evse.state_id")
-            print_results2 "$STATE_ID" "9" "0" "STATE_ID"
-            echo -20 >feed_mains_$device
-            printf "Feeding total of -6A....should trigger ready-timer 60s\r"
-            sleep 65
-            read -p "To start charging, set EVSE's to NO CHARGING and then to CHARGING again, then press <ENTER>" dummy
-            STATE_ID=$(curl -s -X GET $device/settings | jq ".evse.state_id")
-            print_results2 "$STATE_ID" "2" "0" "STATE_ID"
-            #dropping the charge current by a few amps
-            echo 60 >feed_mains_$device
-            sleep 3
-            CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
-            print_results "$CHARGECUR" "535" "10"
-            echo 50 >feed_mains_$device
-            printf "Feeding total of 15A....charging should remain stable\r"
-            sleep 10
-            CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
-            STATE_ID=$(curl -s -X GET $device/settings | jq ".evse.state_id")
-            print_results2 "$STATE_ID" "2" "0" "STATE_ID"
-            print_results "$CHARGECUR" "535" "10"
-        done
+    #SOLAR mode
+    mode_master=2
+    set_mode
+    for device in $MASTER $SLAVE; do
+        echo 60 >feed_mains_$device
+    done
+    printf "Feeding total of 18A....chargecurrent should drop to 6A, then triggers stoptimer and when it expires, stops charging because over import limit of 15A\r"
+    TESTSTRING="SolarStopTimer should have been activated on overload on ImportCurrent"
+    sleep 60
+    for device in $MASTER $SLAVE; do
+        TIMER=$(curl -s -X GET $device/settings | jq ".evse.solar_stop_timer")
+        print_results2 "$TIMER" "28" "5" "SOLAR_STOP_TIMER"
+    done
+    TESTSTRING="Charging should stop after expering SolarStopTimer"
+    printf "$TESTSTRING\r"
+    sleep 40
+    for device in $MASTER $SLAVE; do
+        STATE_ID=$(curl -s -X GET $device/settings | jq ".evse.state_id")
+        print_results2 "$STATE_ID" "9" "0" "STATE_ID"
+        echo -20 >feed_mains_$device
+    done
+    TESTSTRING="Feeding total of -6A....should trigger ready-timer 60s"
+    printf "$TESTSTRING\r"
+    sleep 65
+    read -p "To start charging, set EVSE's to NO CHARGING and then to CHARGING again, then press <ENTER>" dummy
+    TESTSTRING="Feeding total of 18A should drop the charging current"
+    printf "$TESTSTRING\r"
+    for device in $MASTER $SLAVE; do
+        STATE_ID=$(curl -s -X GET $device/settings | jq ".evse.state_id")
+        print_results2 "$STATE_ID" "2" "0" "STATE_ID"
+        #dropping the charge current by a few amps
+        echo 60 >feed_mains_$device
+    done
+    sleep 3
+    TESTSTRING="Feeding total of 15A should stabilize the charging current"
+    printf "$TESTSTRING\r"
+    for device in $MASTER $SLAVE; do
+        CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
+        print_results "$CHARGECUR" "500" "30"
+        echo 50 >feed_mains_$device
+    done
+    sleep 10
+    for device in $MASTER $SLAVE; do
+        CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
+        STATE_ID=$(curl -s -X GET $device/settings | jq ".evse.state_id")
+        print_results2 "$STATE_ID" "2" "0" "STATE_ID"
+        print_results "$CHARGECUR" "485" "35"
     done
     #set MainsMeter to Sensorbox
     for device in $MASTER $SLAVE; do
