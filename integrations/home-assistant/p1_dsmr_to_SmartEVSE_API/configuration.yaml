@@ -1,6 +1,6 @@
 #Data naar SMARTEVSe
 shell_command:
-  dsmrtosmartevse: 'curl -X POST "http://192.168.x.x/currents?L1={{ states("nettocurrent_l1") | float*10 }}&L2={{ states("nettocurrent_l2") | float*10 }}&L3={{ states("nettocurrent_l3") | float*10 }}" -H "accept: application/json" -H "Content-Type: application/json" -d {}'
+  dsmrtosmartevse: 'curl -X POST "http://192.168.x.x/currents?L1={{ states("sensor.nettocurrent_l1") | float*10 }}&L2={{ states("sensor.nettocurrent_l2") | float*10 }}&L3={{ states("sensor.nettocurrent_l3") | float*10 }}" -H "accept: application/json" -H "Content-Type: application/json" -d {}'
 
 template:
   - sensor:
