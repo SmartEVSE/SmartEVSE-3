@@ -465,7 +465,7 @@ if [ $((SEL & NR)) -ne 0 ]; then
         TIMER=$(curl -s -X GET $device/settings | jq ".evse.solar_stop_timer")
         print_results2 "$TIMER" "28" "5" "SOLAR_STOP_TIMER"
     done
-    TESTSTRING="Charging should stop after expering SolarStopTimer"
+    TESTSTRING="Charging should stop after expiring SolarStopTimer"
     printf "$TESTSTRING\r"
     sleep 40
     for device in $MASTER $SLAVE; do
