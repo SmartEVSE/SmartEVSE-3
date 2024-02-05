@@ -438,8 +438,6 @@ if [ $((SEL & NR)) -ne 0 ]; then
     MARGIN=20
     #make mains_overload feed mains_current with 3A to the grid
     TESTVALUE=-3
-    #Target values for Off, Normal, Solar, Smart mode RESPECTIVELY:
-    TARGET=(0 0 310 0)
     #note that startcurrent shown as -4A on the display is stored as 4A !
     #CONFIG_COMMAND="/settings?solar_start_current=4"
     init_devices
@@ -519,8 +517,6 @@ if [ $((SEL & NR)) -ne 0 ]; then
     MARGIN=20
     #make mains_overload feed mains_current with 3A to the grid
     TESTVALUE=-3
-    #Target values for Off, Normal, Solar, Smart mode RESPECTIVELY:
-    TARGET=(0 0 310 0)
     #note that startcurrent shown as -4A on the display is stored as 4A !
     #CONFIG_COMMAND="/settings?solar_start_current=4"
     init_devices
