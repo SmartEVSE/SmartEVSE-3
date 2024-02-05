@@ -531,10 +531,10 @@ if [ $((SEL & NR)) -ne 0 ]; then
     loadbl_master=1
     set_loadbalancing
     #SOLAR mode
-    sleep 1
+    sleep 2
     mode_master=2
     set_mode
-    sleep 1
+    sleep 2
     printf "\n"
     read -p "Make sure all EVSE's are set to CHARGING, then press <ENTER>" dummy
     TESTSTRING="Feeding total of 3A so we should wait for the sun"
@@ -548,7 +548,7 @@ if [ $((SEL & NR)) -ne 0 ]; then
     TESTSTRING="Feeding total of -6A....should trigger ready-timer 60s"
     printf "$TESTSTRING\r"
     echo -20 >feed_mains_$MASTER
-    sleep 63
+    sleep 70
     read -p "To start charging, set EVSE's to NO CHARGING and then to CHARGING again, then press <ENTER>" dummy
     sleep 2
     for device in $MASTER $SLAVE; do
@@ -556,32 +556,6 @@ if [ $((SEL & NR)) -ne 0 ]; then
         print_results2 "$STATE_ID" "2" "0" "STATE_ID"
         #dropping the charge current by a few amps
     done
-#    printf "Feeding total of 18A....chargecurrent should drop to 6A, then triggers stoptimer and when it expires, stops charging because over import limit of 15A\r"
-#    TESTSTRING="SolarStopTimer should have been activated on overload on ImportCurrent"
-#    echo 60 >feed_mains_$MASTER
-#    sleep 60
-#    for device in $MASTER; do
-#        TIMER=$(curl -s -X GET $device/settings | jq ".evse.solar_stop_timer")
-#        print_results2 "$TIMER" "28" "5" "SOLAR_STOP_TIMER"
-#    done
-#    TESTSTRING="Charging should stop after expering SolarStopTimer"
-#    printf "$TESTSTRING\r"
-#    sleep 40
-#    for device in $MASTER; do
-#        STATE_ID=$(curl -s -X GET $device/settings | jq ".evse.state_id")
-#        print_results2 "$STATE_ID" "9" "0" "STATE_ID"
-#    done
-#    TESTSTRING="Feeding total of -6A....should trigger ready-timer 60s"
-#    printf "$TESTSTRING\r"
-#    echo -20 >feed_mains_$MASTER
-#    sleep 63
-#    read -p "To start charging, set EVSE's to NO CHARGING and then to CHARGING again, then press <ENTER>" dummy
-#    sleep 2
-#    for device in $MASTER $SLAVE; do
-#        STATE_ID=$(curl -s -X GET $device/settings | jq ".evse.state_id")
-#        print_results2 "$STATE_ID" "2" "0" "STATE_ID"
-#        #dropping the charge current by a few amps
-#    done
     TESTSTRING="Feeding total of 18A should drop the charging current"
     printf "$TESTSTRING\r"
     echo 60 >feed_mains_$MASTER
@@ -601,6 +575,32 @@ if [ $((SEL & NR)) -ne 0 ]; then
         STATE_ID=$(curl -s -X GET $device/settings | jq ".evse.state_id")
         print_results2 "$STATE_ID" "2" "0" "STATE_ID"
         print_results "$CHARGECUR" "195" "20"
+    done
+    printf "Feeding total of 18A....chargecurrent should drop to 6A, then triggers stoptimer and when it expires, stops charging because over import limit of 15A\r"
+    TESTSTRING="SolarStopTimer should have been activated on overload on ImportCurrent"
+    echo 60 >feed_mains_$MASTER
+    sleep 60
+    for device in $MASTER $SLAVE; do
+        TIMER=$(curl -s -X GET $device/settings | jq ".evse.solar_stop_timer")
+        print_results2 "$TIMER" "19" "5" "SOLAR_STOP_TIMER"
+    done
+    TESTSTRING="Charging should stop after expiring SolarStopTimer"
+    printf "$TESTSTRING\r"
+    sleep 40
+    for device in $MASTER $SLAVE; do
+        STATE_ID=$(curl -s -X GET $device/settings | jq ".evse.state_id")
+        print_results2 "$STATE_ID" "9" "0" "STATE_ID"
+    done
+    TESTSTRING="Feeding total of -6A....should trigger ready-timer 60s"
+    printf "$TESTSTRING\r"
+    echo -20 >feed_mains_$MASTER
+    sleep 63
+    read -p "To start charging, set EVSE's to NO CHARGING and then to CHARGING again, then press <ENTER>" dummy
+    sleep 2
+    for device in $MASTER $SLAVE; do
+        STATE_ID=$(curl -s -X GET $device/settings | jq ".evse.state_id")
+        print_results2 "$STATE_ID" "2" "0" "STATE_ID"
+        #dropping the charge current by a few amps
     done
     #set MainsMeter to Sensorbox
     for device in $MASTER $SLAVE; do
