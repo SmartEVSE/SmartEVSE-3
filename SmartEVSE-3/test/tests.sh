@@ -630,6 +630,10 @@ if [ $((SEL & NR)) -ne 0 ]; then
         $CURLPOST "$device/settings?solar_max_import=15"
         $CURLPOST "$device/settings?solar_stop_time=1"
     done
+    #to speed up testing lower max_current
+    for device in $MASTER $SLAVE; do
+        $CURLPOST $device/automated_testing?current_max=9
+    done
     loadbl_master=1
     set_loadbalancing
     #SOLAR mode
