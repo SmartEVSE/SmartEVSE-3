@@ -1182,6 +1182,30 @@ void CalcBalancedCurrent(char mod) {
  * Broadcast momentary currents to all Node EVSE's
  */
 void BroadcastCurrent(void) {
+
+    // We prepend the broadcastmessage with the 2 byte register number
+    // Irms is uin32_t so 4 bytes, 3phases makes 12bytes
+    unsigned char Register[2]={0, 0x30};  //register 0x0030 is send MainsMeter currents
+    unsigned char data[14];
+    memcpy(data, Register, 2);
+    memcpy(data+2 , Irms, sizeof(Irms));
+
+    // Send message
+    Error err = MBclient.addBroadcastMessage(data, sizeof(Irms) + sizeof(Register));
+    if (err!=SUCCESS) {
+        ModbusError e(err);
+        _LOG_A("Error creating request: %02X - %s\n", (int)e, (const char *)e);
+    }
+    else
+        _LOG_D("Sent broadcast packet");
+    char Str[128];
+    char *cur = Str, * const end = Str + sizeof Str;
+    for (auto b : Msg) {
+        if (cur < end) cur += snprintf(cur, end-cur, "%02x ", b);
+        else strcpy(end-sizeof("**truncated**"), "**truncated**");
+    }
+    _LOG_V(" (%i bytes) %s\n", Msg.size(), Str);
+    _LOG_D("\n");
     ModbusWriteMultipleRequest(BROADCAST_ADR, 0x0020, Balanced, NR_EVSES);
 }
 
@@ -1316,6 +1340,10 @@ Regist 	Access  Description 	        Unit 	Values
 0x000B 	R 	Serial number
 0x0020 - 0x0027
         W 	Broadcast charge current. SmartEVSE uses only one value depending on the "Load Balancing" configuration
+                                        0.1 A 	0:no current available
+//this data sent through actual addBroadcast function of emodbus library so we keep backwards compatibility
+0x0030 - 0x0032
+        W 	Broadcast MainsMeter currents L1 - L3.
                                         0.1 A 	0:no current available
 **/
 
@@ -3192,6 +3220,41 @@ ModbusMessage MBNodeRequest(ModbusMessage request) {
   return response;
 }
 
+// Worker function for broadcast requests
+void BroadcastWorker(ModbusMessage Msg) {
+    const uint8_t *Data = Msg.data();
+    uint16_t Register;
+    //notice that the first byte is a leading 0x00 byte
+    Register= (Msg.data()[1] << 8) | Msg.data()[2];
+    _LOG_D("Received broadcast packet, reg=%04x: ", Register);
+    char Str[128];
+    char *cur = Str, * const end = Str + sizeof Str;
+    for (auto b : Msg) {
+        if (cur < end) cur += snprintf(cur, end-cur, "%02x ", b);
+        else strcpy(end-sizeof("**truncated**"), "**truncated**");
+    }
+    _LOG_V(" (%i bytes) %s\n", Msg.size(), Str);
+
+    if (Register == 0x0030) {
+        if (Msg.size() == 15)
+            memcpy(Irms, Data + 3, sizeof(Irms));
+        else {
+            _LOG_A("Received invalid broadcast packet:");
+            _LOG_A(" (%i bytes) %s", Msg.size(), Str);
+        }
+    }
+    _LOG_D("\n");
+
+    //new try
+    _LOG_V("New style:");
+    uint16_t index,test=0;
+    //ModbusMessage Hans;
+    for (int i=0; i<7; i++) {
+        index=Msg.get(i, test);
+        _LOG_V("Index: %u Data: %u,", index, test);
+    }
+}
+
 // The Node/Server receives a broadcast message from the Master
 // Does not send any data back.
 ModbusMessage MBbroadcast(ModbusMessage request) {
@@ -3319,6 +3382,7 @@ void ConfigureModbusMode(uint8_t newmode) {
             MBserver.registerWorker(LoadBl, ANY_FUNCTION_CODE, &MBNodeRequest);      
             // Also add handler for all broadcast messages from Master.
             MBserver.registerWorker(BROADCAST_ADR, ANY_FUNCTION_CODE, &MBbroadcast);
+            MBserver.registerBroadcastWorker(BroadcastWorker);
 
 
             if (MainsMeter && MainsMeter != EM_API) MBserver.registerWorker(MainsMeterAddress, ANY_FUNCTION_CODE, &MBMainsMeterResponse);
