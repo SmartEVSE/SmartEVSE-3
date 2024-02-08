@@ -1184,14 +1184,15 @@ void CalcBalancedCurrent(char mod) {
 void BroadcastCurrent(void) {
 
     // We prepend the broadcastmessage with the 2 byte register number
-    // Irms is uin32_t so 4 bytes, 3phases makes 12bytes
-    unsigned char Register[2]={0, 0x30};  //register 0x0030 is send MainsMeter currents
-    unsigned char data[14];
-    memcpy(data, Register, 2);
-    memcpy(data+2 , Irms, sizeof(Irms));
-
+    uint16_t reg = 0x0030;
     // Send message
-    Error err = MBclient.addBroadcastMessage(data, sizeof(Irms) + sizeof(Register));
+    ModbusMessage Msg;
+    Msg.clear();
+    Msg.add(reg);
+    for (uint16_t i=0; i<3; i++) {
+        Msg.add(Irms[i]);
+    }
+    Error err = MBclient.addBroadcastMessage(Msg.data(), Msg.size());
     if (err!=SUCCESS) {
         ModbusError e(err);
         _LOG_A("Error creating request: %02X - %s\n", (int)e, (const char *)e);
@@ -1204,8 +1205,9 @@ void BroadcastCurrent(void) {
         if (cur < end) cur += snprintf(cur, end-cur, "%02x ", b);
         else strcpy(end-sizeof("**truncated**"), "**truncated**");
     }
-    _LOG_V(" (%i bytes) %s\n", Msg.size(), Str);
+    _LOG_V(" (%i bytes) %s", Msg.size(), Str);
     _LOG_D("\n");
+
     ModbusWriteMultipleRequest(BROADCAST_ADR, 0x0020, Balanced, NR_EVSES);
 }
 
@@ -3222,10 +3224,10 @@ ModbusMessage MBNodeRequest(ModbusMessage request) {
 
 // Worker function for broadcast requests
 void BroadcastWorker(ModbusMessage Msg) {
-    const uint8_t *Data = Msg.data();
     uint16_t Register;
     //notice that the first byte is a leading 0x00 byte
-    Register= (Msg.data()[1] << 8) | Msg.data()[2];
+    uint16_t index = 1;
+    index=Msg.get(index, Register);
     _LOG_D("Received broadcast packet, reg=%04x: ", Register);
     char Str[128];
     char *cur = Str, * const end = Str + sizeof Str;
@@ -3236,23 +3238,20 @@ void BroadcastWorker(ModbusMessage Msg) {
     _LOG_V(" (%i bytes) %s\n", Msg.size(), Str);
 
     if (Register == 0x0030) {
-        if (Msg.size() == 15)
-            memcpy(Irms, Data + 3, sizeof(Irms));
+        if (Msg.size() == 15) {
+            Isum = 0;
+            for (int i=0; i<3; i++) {
+                index = Msg.get(index, Irms[i]);
+                Isum = Isum + Irms[i];
+                _LOG_V("Index=%u, Irms[%i]=%u.\n", index, i, Irms[i]);
+            }
+        }
         else {
             _LOG_A("Received invalid broadcast packet:");
             _LOG_A(" (%i bytes) %s", Msg.size(), Str);
         }
     }
     _LOG_D("\n");
-
-    //new try
-    _LOG_V("New style:");
-    uint16_t index,test=0;
-    //ModbusMessage Hans;
-    for (int i=0; i<7; i++) {
-        index=Msg.get(i, test);
-        _LOG_V("Index: %u Data: %u,", index, test);
-    }
 }
 
 // The Node/Server receives a broadcast message from the Master
