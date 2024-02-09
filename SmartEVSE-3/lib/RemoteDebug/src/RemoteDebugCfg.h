@@ -72,7 +72,7 @@
 
 // Buffered print write to WiFi -> length of buffer
 // Can be by project, just define it before include this file
-#define BUFFER_PRINT 150
+#define BUFFER_PRINT 170
 
 // Should the help text be displayed on connection.
 // Enabled by default, comment to disable

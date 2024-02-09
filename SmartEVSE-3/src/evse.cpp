@@ -3177,17 +3177,13 @@ ModbusMessage MBNodeRequest(ModbusMessage request) {
             if (ItemID) {
                 response.add(MB.Address, MB.Function, (uint8_t)(MB.RegisterCount * 2));
 
-                _LOG_D("Node answering NodeStatus request ");
-                char Str[128];
-                char *cur = Str, * const end = Str + sizeof Str;
+                _LOG_D("Node answering NodeStatus request");
                 for (i = 0; i < MB.RegisterCount; i++) {
                     values[i] = getItemValue(ItemID + i);
                     response.add(values[i]);
-                    if (cur < end) cur += snprintf(cur, end-cur, "value[%u]=%u,", i, values[i]);
-                    else strcpy(end-sizeof("**truncated**"), "**truncated**");
+                    _LOG_V_NO_FUNC(" value[%u]=%u", i, values[i]);
                 }
-                _LOG_V("%s", Str);
-                _LOG_D("\n");
+                _LOG_D_NO_FUNC("\n");
                 //ModbusReadInputResponse(MB.Address, MB.Function, values, MB.RegisterCount);
             } else {
                 response.setError(MB.Address, MB.Function, ILLEGAL_DATA_ADDRESS);
