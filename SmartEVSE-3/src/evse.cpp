@@ -967,7 +967,7 @@ void Set_Nr_of_Phases_Charging(void) {
 // only runs on the Master or when loadbalancing Disabled
 void CalcBalancedCurrent(char mod) {
     int Average, MaxBalanced, Idifference, Baseload_EV;
-    int BalancedLeft = 0;
+    int ActiveEVSE = 0;
     signed int IsumImport;
     int ActiveMax = 0, TotalCurrent = 0, Baseload;
     char CurrentSet[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};
@@ -985,7 +985,7 @@ void CalcBalancedCurrent(char mod) {
     BalancedMax[0] = ChargeCurrent;
                                                                                 // update BalancedMax[0] if the MAX current was adjusted using buttons or CLI
     for (n = 0; n < NR_EVSES; n++) if (BalancedState[n] == STATE_C) {
-            BalancedLeft++;                                                     // Count nr of Active (Charging) EVSE's
+            ActiveEVSE++;                                                       // Count nr of Active (Charging) EVSE's
             ActiveMax += BalancedMax[n];                                        // Calculate total Max Amps for all active EVSEs
             TotalCurrent += Balanced[n];                                        // Calculate total of all set charge currents
     }
@@ -1007,7 +1007,7 @@ void CalcBalancedCurrent(char mod) {
                                                                                 // limiting is per phase so no Nr_Of_Phases_Charging here!
         else
             IsetBalanced = ChargeCurrent;                                       // No Load Balancing in Normal Mode. Set current to ChargeCurrent (fix: v2.05)
-        if (BalancedLeft && mod) {                                              // Only if we have active EVSE's and New EVSE charging
+        if (ActiveEVSE && mod) {                                                // Only if we have active EVSE's and New EVSE charging
             // Set max combined charge current to MaxMains - Baseload, or MaxCircuit - Baseload_EV if that is less
             IsetBalanced = min((MaxMains * 10) - Baseload, (MaxCircuit * 10 ) - Baseload_EV); //TODO: why are we checking MaxMains and MaxCircuit while we are in Normal mode?
                                                                                               //TODO: capacity rate limiting here?
@@ -1063,10 +1063,10 @@ void CalcBalancedCurrent(char mod) {
             _LOG_V("Checkpoint 3 Isetbalanced=%.1f A, IsumImport=%.1f, Isum=%.1f, ImportCurrent=%i.\n", (float)IsetBalanced/10, (float)IsumImport/10, (float)Isum/10, ImportCurrent);
 
             // If IsetBalanced is below MinCurrent or negative, make sure it's set to MinCurrent.
-            if ( (IsetBalanced < (BalancedLeft * MinCurrent * 10)) || (IsetBalanced < 0) ) {
-                IsetBalanced = BalancedLeft * MinCurrent * 10;
+            if ( (IsetBalanced < (ActiveEVSE * MinCurrent * 10)) || (IsetBalanced < 0) ) {
+                IsetBalanced = ActiveEVSE * MinCurrent * 10;
                 // ----------- Check to see if we have to continue charging on solar power alone ----------
-                if (BalancedLeft && StopTime && (IsumImport > 10)) {
+                if (ActiveEVSE && StopTime && (IsumImport > 10)) {
                     //TODO maybe enable solar switching for loadbl = 1
                     if (EnableC2 == AUTO && LoadBl == 0)
                         Set_Nr_of_Phases_Charging();
@@ -1081,17 +1081,17 @@ void CalcBalancedCurrent(char mod) {
                         if (SolarStopTimer == 0) setSolarStopTimer(StopTime * 60); // Convert minutes into seconds
                     }
                 } else {
-                    _LOG_D("Checkpoint a: Resetting SolarStopTimer, IsetBalanced=%.1fA, BalancedLeft=%i.\n", (float)IsetBalanced/10, BalancedLeft);
+                    _LOG_D("Checkpoint a: Resetting SolarStopTimer, IsetBalanced=%.1fA, ActiveEVSE=%i.\n", (float)IsetBalanced/10, ActiveEVSE);
                     setSolarStopTimer(0);
                 }
             } else {
-                _LOG_D("Checkpoint b: Resetting SolarStopTimer, IsetBalanced=%.1fA, BalancedLeft=%i.\n", (float)IsetBalanced/10, BalancedLeft);
+                _LOG_D("Checkpoint b: Resetting SolarStopTimer, IsetBalanced=%.1fA, ActiveEVSE=%i.\n", (float)IsetBalanced/10, ActiveEVSE);
                 setSolarStopTimer(0);
             }
         } //end MODE_SOLAR
         else { // MODE_SMART
         // New EVSE charging, and only if we have active EVSE's
-            if (mod && BalancedLeft) {                                          // Set max combined charge current to MaxMains - Baseload
+            if (mod && ActiveEVSE) {                                            // Set max combined charge current to MaxMains - Baseload
                 IsetBalanced = min((MaxMains * 10) - Baseload, min((MaxCircuit * 10 ) - Baseload_EV, ((MaxSumMains * 10) - Isum)/3)); //assume the current should be available on all 3 phases
             }
         } //end MODE_SMART
@@ -1103,9 +1103,9 @@ void CalcBalancedCurrent(char mod) {
 
     _LOG_V("Checkpoint 4 Isetbalanced=%.1f A.\n", (float)IsetBalanced/10);
 
-    if (BalancedLeft) {                                                         // Only if we have active EVSE's
-        if (IsetBalanced < 0 || IsetBalanced < (BalancedLeft * MinCurrent * 10)) {
-            IsetBalanced = BalancedLeft * MinCurrent * 10;                      // retain old software behaviour: set minimal "MinCurrent" charge per active EVSE
+    if (ActiveEVSE) {                                                           // Only if we have active EVSE's
+        if (IsetBalanced < 0 || IsetBalanced < (ActiveEVSE * MinCurrent * 10)) {
+            IsetBalanced = ActiveEVSE * MinCurrent * 10;                        // retain old software behaviour: set minimal "MinCurrent" charge per active EVSE
             NoCurrent++;                                                        // Flag NoCurrent left
             _LOG_I("No Current!!\n");
         } else
@@ -1118,35 +1118,35 @@ void CalcBalancedCurrent(char mod) {
         // Calculate average current per EVSE
         n = 0;
         do {
-            Average = MaxBalanced / BalancedLeft;                               // Average current for all active EVSE's
+            Average = MaxBalanced / ActiveEVSE;                                 // Average current for all active EVSE's
 
             // Check for EVSE's that have a lower MAX current
             if ((BalancedState[n] == STATE_C) && (!CurrentSet[n]) && (Average >= BalancedMax[n])) // Active EVSE, and current not yet calculated?
             {
                 Balanced[n] = BalancedMax[n];                                   // Set current to Maximum allowed for this EVSE
                 CurrentSet[n] = 1;                                              // mark this EVSE as set.
-                BalancedLeft--;                                                 // decrease counter of active EVSE's
+                ActiveEVSE--;                                                   // decrease counter of active EVSE's
                 MaxBalanced -= Balanced[n];                                     // Update total current to new (lower) value
                 n = 0;                                                          // check all EVSE's again
             } else n++;
-        } while (n < NR_EVSES && BalancedLeft);
+        } while (n < NR_EVSES && ActiveEVSE);
 
         // All EVSE's which had a Max current lower then the average are set.
         // Now calculate the current for the EVSE's which had a higher Max current
         n = 0;
-        if (BalancedLeft) {                                                     // Any Active EVSE's left?
+        if (ActiveEVSE) {                                                     // Any Active EVSE's left?
             do {                                                                // Check for EVSE's that are not set yet
                 if ((BalancedState[n] == STATE_C) && (!CurrentSet[n])) {        // Active EVSE, and current not yet calculated?
-                    Balanced[n] = MaxBalanced / BalancedLeft;                   // Set current to Average
+                    Balanced[n] = MaxBalanced / ActiveEVSE;                   // Set current to Average
                     CurrentSet[n] = 1;                                          // mark this EVSE as set.
-                    BalancedLeft--;                                             // decrease counter of active EVSE's
+                    ActiveEVSE--;                                             // decrease counter of active EVSE's
                     MaxBalanced -= Balanced[n];                                 // Update total current to new (lower) value
                 }                                                               //TODO since the average has risen the other EVSE's should be checked for exceeding their MAX's too!
-            } while (++n < NR_EVSES && BalancedLeft);
+            } while (++n < NR_EVSES && ActiveEVSE);
         }
 
 
-    } // BalancedLeft
+    } // ActiveEVSE
     _LOG_V("Checkpoint 5 Isetbalanced=%.1f A.\n", (float)IsetBalanced/10);
 
     char Str[128];
