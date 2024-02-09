@@ -860,6 +860,20 @@ char IsCurrentAvailable(void) {
         TotalCurrent += Balanced[n];                                            // Calculate total of all set charge currents
     }
 
+    // Allow solar Charging if surplus current is above 'StartCurrent' (sum of all phases)
+    // Charging will start after the timeout (chargedelay) period has ended
+     // Only when StartCurrent configured or Node MinCurrent detected or Node inactive
+    if (Mode == MODE_SOLAR) {                                                   // no active EVSE yet?
+        if (ActiveEVSE == 0 && Isum >= ((signed int)StartCurrent *-10)) {
+            _LOG_D("No current available checkpoint A. ActiveEVSE=%i, TotalCurrent=%.1fA, StartCurrent=%iA, Isum=%.1fA, ImportCurrent=%iA.\n", ActiveEVSE, (float) TotalCurrent/10, StartCurrent, (float)Isum/10, ImportCurrent);
+            return 0;
+        }
+        else if ((ActiveEVSE * MinCurrent * 10) > TotalCurrent) {               // check if we can split the available current between all active EVSE's
+            _LOG_D("No current available checkpoint B. ActiveEVSE=%i, TotalCurrent=%.1fA, StartCurrent=%iA, Isum=%.1fA, ImportCurrent=%iA.\n", ActiveEVSE, (float) TotalCurrent/10, StartCurrent, (float)Isum/10, ImportCurrent);
+            return 0;
+        }
+    }
+
     ActiveEVSE++;                                                           // Do calculations with one more EVSE
     if (ActiveEVSE > NR_EVSES) ActiveEVSE = NR_EVSES;
     Baseload = Imeasured - TotalCurrent;                                    // Calculate Baseload (load without any active EVSE)
@@ -881,13 +895,7 @@ char IsCurrentAvailable(void) {
         return 0;                                                           // Not enough current available!, return with error
     }
 
-    // Allow solar Charging if surplus current is above 'StartCurrent' (sum of all phases)
-    // Charging will start after the timeout (chargedelay) period has ended
-     // Only when StartCurrent configured or Node MinCurrent detected or Node inactive
-    if (Mode == MODE_SOLAR) {                                                   // no active EVSE yet?
-        if (ActiveEVSE == 1 && Isum >= ((signed int)StartCurrent *-10)) return 0;
-    }
-
+    _LOG_D("Current available checkpoint C. ActiveEVSE increased by one=%i, TotalCurrent=%.1fA, StartCurrent=%iA, Isum=%.1fA, ImportCurrent=%iA.\n", ActiveEVSE, (float) TotalCurrent/10, StartCurrent, (float)Isum/10, ImportCurrent);
     return 1;
 }
 
@@ -1073,9 +1081,11 @@ void CalcBalancedCurrent(char mod) {
                         if (SolarStopTimer == 0) setSolarStopTimer(StopTime * 60); // Convert minutes into seconds
                     }
                 } else {
+                    _LOG_D("Checkpoint a: Resetting SolarStopTimer, IsetBalanced=%.1fA, BalancedLeft=%i.\n", (float)IsetBalanced/10, BalancedLeft);
                     setSolarStopTimer(0);
                 }
             } else {
+                _LOG_D("Checkpoint b: Resetting SolarStopTimer, IsetBalanced=%.1fA, BalancedLeft=%i.\n", (float)IsetBalanced/10, BalancedLeft);
                 setSolarStopTimer(0);
             }
         } //end MODE_SOLAR
