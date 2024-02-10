@@ -58,8 +58,9 @@ void ModbusSend8(uint8_t address, uint8_t function, uint16_t reg, uint16_t data)
         ModbusError e(err);
         _LOG_A("Error creating request: %02X - %s\n", (int)e, (const char *)e);
     }
-    else
+    else {
         _LOG_D("Sent packet");
+    }
     _LOG_V_NO_FUNC(" address: %02x, function: %02x, reg: %04x, data: %04x.", address, function, reg, data);
     _LOG_D_NO_FUNC("\n");
 }

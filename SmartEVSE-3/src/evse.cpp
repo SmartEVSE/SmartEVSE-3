@@ -1204,13 +1204,15 @@ void BroadcastCurrent(void) {
         ModbusError e(err);
         _LOG_A("Error creating request: %02X - %s\n", (int)e, (const char *)e);
     }
-    else
+    else {
         _LOG_D("Sent broadcast packet");
+    }
+#if DBG != 0
     _LOG_V_NO_FUNC(" (%i bytes)", Msg.size());
     for (auto b : Msg)
         _LOG_V_NO_FUNC(" %02x", b);
     _LOG_D_NO_FUNC("\n");
-
+#endif
     ModbusWriteMultipleRequest(BROADCAST_ADR, 0x0020, Balanced, NR_EVSES);
 }
 
@@ -3234,11 +3236,12 @@ void BroadcastWorker(ModbusMessage Msg) {
     //notice that the first byte is a leading 0x00 byte
     uint16_t index = 1;
     index=Msg.get(index, Register);
+#if DBG != 0
     _LOG_D("Received broadcast packet, reg=%04x (%i bytes)", Register, Msg.size());
     for (auto b : Msg)
         _LOG_V_NO_FUNC(" %02x", b);
     _LOG_V_NO_FUNC("\n");
-
+#endif
     if (Register == 0x0030) {
         if (Msg.size() == 15) {
             Isum = 0;
@@ -3251,10 +3254,12 @@ void BroadcastWorker(ModbusMessage Msg) {
             _LOG_V_NO_FUNC("\n");
         }
         else {
+#if DBG != 0
             _LOG_A("Received invalid broadcast packet, reg=%04x (%i bytes)", Register, Msg.size());
             for (auto b : Msg)
                 _LOG_A_NO_FUNC(" %02x", b);
             _LOG_A_NO_FUNC("\n");
+#endif
         }
     }
 }
@@ -4448,9 +4453,6 @@ void WiFiSetup(void) {
     // Initialize the server (telnet or web socket) of RemoteDebug
     Debug.begin(APhostname, 23, 1);
     Debug.showColors(true); // Colors
-#endif
-#if DBG == 2
-    Debug.setSerialEnabled(true); // if you wants serial echo - only recommended if ESP is plugged in USB
 #endif
     handleWIFImode();                                                           //go into the mode that was saved in nonvolatile memory
     StartwebServer();
