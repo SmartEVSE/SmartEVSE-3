@@ -3321,8 +3321,7 @@ ModbusMessage MBbroadcast(ModbusMessage request) {
 // Responses from Slaves/Nodes are handled here
 void MBhandleData(ModbusMessage msg, uint32_t token) 
 {
-   uint8_t Address = msg.getServerID();
-
+    uint8_t Address = msg.getServerID();
     if (Address == MainsMeterAddress) {
         //_LOG_A("MainsMeter data\n");
         MBMainsMeterResponse(msg);
@@ -3332,6 +3331,24 @@ void MBhandleData(ModbusMessage msg, uint32_t token)
     // Only responses to FC 03/04 are handled here. FC 06/10 response is only a acknowledge.
     } else {
         ModbusDecode( (uint8_t*)msg.data(), msg.size());
+        // ModbusDecode does NOT always decodes the register correctly.
+        // This bug manifested itself as the <Mode=186 bug>:
+
+        // (Timer100ms)(C1) ModbusRequest 4: Request Configuration Node 1
+        // (D) (ModbusSend8)(C1) Sent packet address: 02, function: 04, reg: 0108, data: 0002.
+        // (D) (ModbusDecode)(C0) Received packet (7 bytes) 02 04 04 00 00 00 0c
+        // (V) (ModbusDecode)(C0)  valid Modbus packet: Address 02 Function 04 Register 0000 Response
+        // (D) (receiveNodeStatus)(C0) ReceivedNode[1]Status State:0 Error:12, BalancedMax:2530, Mode:186, ConfigChanged:253.
+
+        // The response is the response for a request of node config 0x0108, but is interpreted as a request for node status 0x0000
+        //
+        // Using a global variable struct ModBus MB is not a good idea, but localizing it does not
+        // solve the problem.
+
+        // Luckily we have coded the register in the token we sent....
+        // token: first byte address, second byte function, third and fourth reg
+        uint16_t reg = (token & 0x0000FFFF);
+        MB.Register = reg;
 
         if (MB.Address > 1 && MB.Address <= NR_EVSES && (MB.Function == 03 || MB.Function == 04)) {
         
