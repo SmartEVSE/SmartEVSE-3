@@ -61,7 +61,7 @@ void ModbusSend8(uint8_t address, uint8_t function, uint16_t reg, uint16_t data)
     else {
         _LOG_D("Sent packet");
     }
-    _LOG_V_NO_FUNC(" address: %02x, function: %02x, reg: %04x, data: %04x.", address, function, reg, data);
+    _LOG_V_NO_FUNC(" address: %02x, function: %02x, reg: %04x, token:%08x, data: %04x.", address, function, reg, token, data);
     _LOG_D_NO_FUNC("\n");
 }
 
@@ -195,7 +195,7 @@ void ModbusWriteMultipleRequest(uint8_t address, uint16_t reg, uint16_t *values,
       _LOG_A("Error creating request: %02X - %s\n", (int)e, (const char *)e);
     }
     _LOG_D("Sent packet");
-    _LOG_V_NO_FUNC(" address: %02x, function: 0x10, reg: %04x, count: %u, values:", address, reg, count);
+    _LOG_V_NO_FUNC(" address: %02x, function: 0x10, reg: %04x, token: %08x count: %u, values:", address, reg, token, count);
     for (uint16_t i = 0; i < count; i++) {
         _LOG_V_NO_FUNC(" %04x", values[i]);
     }

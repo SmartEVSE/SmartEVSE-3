@@ -3321,7 +3321,7 @@ ModbusMessage MBbroadcast(ModbusMessage request) {
 // Responses from Slaves/Nodes are handled here
 void MBhandleData(ModbusMessage msg, uint32_t token) 
 {
-    uint8_t Address = msg.getServerID();
+    uint8_t Address = msg.getServerID();    // returns Server ID or 0 if MM_data is shorter than 3
     if (Address == MainsMeterAddress) {
         //_LOG_A("MainsMeter data\n");
         MBMainsMeterResponse(msg);
@@ -3330,6 +3330,7 @@ void MBhandleData(ModbusMessage msg, uint32_t token)
         MBEVMeterResponse(msg);
     // Only responses to FC 03/04 are handled here. FC 06/10 response is only a acknowledge.
     } else {
+        //_LOG_V("Received Packet with ServerID=%i, FunctionID=%i, token=%08x.\n", msg.getServerID(), msg.getFunctionCode(), token);
         ModbusDecode( (uint8_t*)msg.data(), msg.size());
         // ModbusDecode does NOT always decodes the register correctly.
         // This bug manifested itself as the <Mode=186 bug>:
@@ -3347,6 +3348,12 @@ void MBhandleData(ModbusMessage msg, uint32_t token)
 
         // Luckily we have coded the register in the token we sent....
         // token: first byte address, second byte function, third and fourth reg
+        uint8_t token_function = (token & 0x00FF0000) >> 16;
+        uint8_t token_address = token >> 24;
+        if (token_address != MB.Address)
+            _LOG_A("ERROR: Address=%u, MB.Address=%u, token_address=%u.\n", Address, MB.Address, token_address);
+        if (token_function != MB.Function)
+            _LOG_A("ERROR: MB.Function=%u, token_function=%u.\n", MB.Function, token_function);
         uint16_t reg = (token & 0x0000FFFF);
         MB.Register = reg;
 
