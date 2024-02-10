@@ -55,12 +55,13 @@ void ModbusSend8(uint8_t address, uint8_t function, uint16_t reg, uint16_t data)
     token += function << 16;
     Error err = MBclient.addRequest(token, address, function, reg, data);
     if (err!=SUCCESS) {
-      ModbusError e(err);
-      _LOG_A("Error creating request: %02X - %s\n", (int)e, (const char *)e);
+        ModbusError e(err);
+        _LOG_A("Error creating request: %02X - %s\n", (int)e, (const char *)e);
     }
-
-    _LOG_D("Sent packet");
-    _LOG_V("address: %02x, function: %02x, reg: %04x, data: %04x.\n", address, function, reg, data);
+    else
+        _LOG_D("Sent packet");
+    _LOG_V_NO_FUNC(" address: %02x, function: %02x, reg: %04x, data: %04x.", address, function, reg, data);
+    _LOG_D_NO_FUNC("\n");
 }
 
 /**
@@ -193,14 +194,11 @@ void ModbusWriteMultipleRequest(uint8_t address, uint16_t reg, uint16_t *values,
       _LOG_A("Error creating request: %02X - %s\n", (int)e, (const char *)e);
     }
     _LOG_D("Sent packet");
-    uint16_t i;
-    char Str[MODBUS_SYS_CONFIG_COUNT * 5 + 10];
-    char *cur = Str, * const end = Str + sizeof Str;
-    for (i = 0; i < MODBUS_SYS_CONFIG_COUNT; i++) {
-        if (cur < end) cur += snprintf(cur, end-cur, "%04x ", values[i]);
-        else strcpy(end-sizeof("**truncated**"), "**truncated**");
+    _LOG_V_NO_FUNC(" address: %02x, function: 0x10, reg: %04x, count: %u, values:", address, reg, count);
+    for (uint16_t i = 0; i < count; i++) {
+        _LOG_V_NO_FUNC(" %04x", values[i]);
     }
-    _LOG_V("address: %02x, function: 0x10, reg: %04x, count: %u, values: %s.\n", address, reg, count, Str);
+    _LOG_V_NO_FUNC("\n");
 }
 
 /**
@@ -233,14 +231,11 @@ void ModbusDecode(uint8_t * buf, uint8_t len) {
     MB.Type = MODBUS_INVALID;
     MB.Exception = 0;
 
-    _LOG_D("Received packet");
-    char Str[128];
-    char *cur = Str, * const end = Str + sizeof Str;
+    _LOG_D("Received packet (%i bytes)", len);
     for (uint8_t x=0; x<len; x++) {
-        if (cur < end) cur += snprintf(cur, end-cur, "%02x ", buf[x]);
-        else strcpy(end-sizeof("**truncated**"), "**truncated**");
+        _LOG_V_NO_FUNC(" %02x", buf[x]);
     }
-    _LOG_V(" (%i bytes) %s\n", len, Str);
+    _LOG_V_NO_FUNC("\n");
 
     // Modbus error packets length is 5 bytes
     if (len == 3) {
@@ -365,14 +360,14 @@ void ModbusDecode(uint8_t * buf, uint8_t len) {
         }
     }
     if(MB.Type) {
-        _LOG_V(" Register %04x", MB.Register);
+        _LOG_V_NO_FUNC(" Register %04x", MB.Register);
     }
     switch (MB.Type) {
         case MODBUS_REQUEST:
-            _LOG_D(" Request\n");
+            _LOG_D_NO_FUNC(" Request\n");
             break;
         case MODBUS_RESPONSE:
-            _LOG_D(" Response\n");
+            _LOG_D_NO_FUNC(" Response\n");
             break;
     }
 }

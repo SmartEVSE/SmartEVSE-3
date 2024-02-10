@@ -1148,15 +1148,12 @@ void CalcBalancedCurrent(char mod) {
 
     } // ActiveEVSE
     _LOG_V("Checkpoint 5 Isetbalanced=%.1f A.\n", (float)IsetBalanced/10);
-
-    char Str[128];
-    char *cur = Str, * const end = Str + sizeof Str;
     if (LoadBl == 1) {
+        _LOG_D("Balance: ");
         for (n = 0; n < NR_EVSES; n++) {
-            if (cur < end) cur += snprintf(cur, end-cur, "EVSE%u:%s(%u.%1uA),", n, getStateName(BalancedState[n]), Balanced[n]/10, Balanced[n]%10);
-            else strcpy(end-sizeof("**truncated**"), "**truncated**");
+            _LOG_D_NO_FUNC("EVSE%u:%s(%.1fA) ", n, getStateName(BalancedState[n]), (float)Balanced[n]/10);
         }
-    _LOG_D("Balance: %s\n", Str);
+        _LOG_D_NO_FUNC("\n");
     }
 } //CalcBalancedCurrent
 
@@ -1209,14 +1206,10 @@ void BroadcastCurrent(void) {
     }
     else
         _LOG_D("Sent broadcast packet");
-    char Str[128];
-    char *cur = Str, * const end = Str + sizeof Str;
-    for (auto b : Msg) {
-        if (cur < end) cur += snprintf(cur, end-cur, "%02x ", b);
-        else strcpy(end-sizeof("**truncated**"), "**truncated**");
-    }
-    _LOG_V(" (%i bytes) %s", Msg.size(), Str);
-    _LOG_D("\n");
+    _LOG_V_NO_FUNC(" (%i bytes)", Msg.size());
+    for (auto b : Msg)
+        _LOG_V_NO_FUNC(" %02x", b);
+    _LOG_D_NO_FUNC("\n");
 
     ModbusWriteMultipleRequest(BROADCAST_ADR, 0x0020, Balanced, NR_EVSES);
 }
@@ -3241,30 +3234,29 @@ void BroadcastWorker(ModbusMessage Msg) {
     //notice that the first byte is a leading 0x00 byte
     uint16_t index = 1;
     index=Msg.get(index, Register);
-    _LOG_D("Received broadcast packet, reg=%04x: ", Register);
-    char Str[128];
-    char *cur = Str, * const end = Str + sizeof Str;
-    for (auto b : Msg) {
-        if (cur < end) cur += snprintf(cur, end-cur, "%02x ", b);
-        else strcpy(end-sizeof("**truncated**"), "**truncated**");
-    }
-    _LOG_V(" (%i bytes) %s\n", Msg.size(), Str);
+    _LOG_D("Received broadcast packet, reg=%04x (%i bytes)", Register, Msg.size());
+    for (auto b : Msg)
+        _LOG_V_NO_FUNC(" %02x", b);
+    _LOG_V_NO_FUNC("\n");
 
     if (Register == 0x0030) {
         if (Msg.size() == 15) {
             Isum = 0;
+            _LOG_V("Irms from MainsMeter received: ");
             for (int i=0; i<3; i++) {
                 index = Msg.get(index, Irms[i]);
                 Isum = Isum + Irms[i];
-                _LOG_V("Index=%u, Irms[%i]=%u.\n", index, i, Irms[i]);
+                _LOG_V_NO_FUNC("Index=%u, L%i=%.1fA,", index, i+1, (float)Irms[i]/10);
             }
+            _LOG_V_NO_FUNC("\n");
         }
         else {
-            _LOG_A("Received invalid broadcast packet:");
-            _LOG_A(" (%i bytes) %s", Msg.size(), Str);
+            _LOG_A("Received invalid broadcast packet, reg=%04x (%i bytes)", Register, Msg.size());
+            for (auto b : Msg)
+                _LOG_A_NO_FUNC(" %02x", b);
+            _LOG_A_NO_FUNC("\n");
         }
     }
-    _LOG_D("\n");
 }
 
 // The Node/Server receives a broadcast message from the Master
@@ -3296,7 +3288,7 @@ ModbusMessage MBbroadcast(ModbusMessage request) {
                     Balanced[0] = (MB.Data[(LoadBl - 1) * 2] <<8) | MB.Data[(LoadBl - 1) * 2 + 1];
                     if (Balanced[0] == 0 && State == STATE_C) setState(STATE_C1);               // tell EV to stop charging if charge current is zero
                     else if ((State == STATE_B) || (State == STATE_C)) SetCurrent(Balanced[0]); // Set charge current, and PWM output
-                    _LOG_V("Broadcast received, Node %u.%1u A\n", Balanced[0]/10, Balanced[0]%10);
+                    _LOG_V("Broadcast received, Node %.1f A\n", (float) Balanced[0]/10);
                     timeout = COMM_TIMEOUT;                     // reset 10 second timeout
                 } else {
                     //WriteMultipleItemValueResponse();
