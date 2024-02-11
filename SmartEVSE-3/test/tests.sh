@@ -93,7 +93,7 @@ print_results() {
     if [ $DBG -eq 1 ]; then
         printf "CHARGECUR=$1, TARGET=$2."
     fi
-    if [ $1 -ge $(( $2 - $3 )) ] && [ $CHARGECUR -le $(( $2 + $3 )) ]; then
+    if [ $1 -ge $(( $2 - $3 )) ] && [ $1 -le $(( $2 + $3 )) ]; then
         printf "$Green Passed $NC LBL=$loadbl_master, Mode=$MODE: $device chargecurrent is limited to $TESTSTRING.\n"
     else
         printf "$Red Failed $NC LBL=$loadbl_master, Mode=$MODE: $device chargecurrent is $1 dA and should be limited to $2 dA (with a margin of $3 dA) because of $TESTSTRING.\n"
