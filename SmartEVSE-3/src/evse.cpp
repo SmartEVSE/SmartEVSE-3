@@ -1717,7 +1717,7 @@ uint16_t getItemValue(uint8_t nav) {
 
         // Status readonly
         case STATUS_MAX:
-            return MaxCapacity;
+            return min(MaxCapacity,MaxCurrent);
         case STATUS_TEMP:
             return (signed int)TempEVSE;
         case STATUS_SERIAL:
