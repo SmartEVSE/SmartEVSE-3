@@ -56,12 +56,12 @@ void ModbusSend8(uint8_t address, uint8_t function, uint16_t reg, uint16_t data)
     Error err = MBclient.addRequest(token, address, function, reg, data);
     if (err!=SUCCESS) {
         ModbusError e(err);
-        _LOG_A("Error creating request: %02X - %s\n", (int)e, (const char *)e);
+        _LOG_A("Error creating request: 0x%02x - %s\n", (int)e, (const char *)e);
     }
     else {
         _LOG_D("Sent packet");
     }
-    _LOG_V_NO_FUNC(" address: %02x, function: %02x, reg: %04x, token:%08x, data: %04x.", address, function, reg, token, data);
+    _LOG_V_NO_FUNC(" address: 0x%02x, function: 0x%02x, reg: 0x%04x, token:0x%08x, data: 0x%04x.", address, function, reg, token, data);
     _LOG_D_NO_FUNC("\n");
 }
 
@@ -192,10 +192,10 @@ void ModbusWriteMultipleRequest(uint8_t address, uint16_t reg, uint16_t *values,
     Error err = MBclient.addRequest(token, address, 0x10, reg, (uint16_t) count, count * 2u, values);
     if (err!=SUCCESS) {
       ModbusError e(err);
-      _LOG_A("Error creating request: %02X - %s\n", (int)e, (const char *)e);
+      _LOG_A("Error creating request: 0x%02x - %s\n", (int)e, (const char *)e);
     }
     _LOG_D("Sent packet");
-    _LOG_V_NO_FUNC(" address: %02x, function: 0x10, reg: %04x, token: %08x count: %u, values:", address, reg, token, count);
+    _LOG_V_NO_FUNC(" address: 0x%02x, function: 0x10, reg: 0x%04x, token: 0x%08x count: %u, values:", address, reg, token, count);
     for (uint16_t i = 0; i < count; i++) {
         _LOG_V_NO_FUNC(" %04x", values[i]);
     }
@@ -247,7 +247,7 @@ void ModbusDecode(uint8_t * buf, uint8_t len) {
         MB.Function = buf[1];
         // Modbus Exception code
         MB.Exception = buf[2];
-        _LOG_A("Modbus Exception %i, Address=%i, Function=%i.\n", MB.Exception, MB.Address, MB.Function);
+        _LOG_A("Modbus Exception 0x%02x, Address=0x%02x, Function=0x%02x.\n", MB.Exception, MB.Address, MB.Function);
     // Modbus data packets minimum length is 8 bytes
     } else if (len >= 6) {
         // Modbus device address
@@ -255,7 +255,7 @@ void ModbusDecode(uint8_t * buf, uint8_t len) {
         // Modbus function
         MB.Function = buf[1];
 
-        _LOG_V(" valid Modbus packet: Address %02x Function %02x", MB.Address, MB.Function);
+        _LOG_V(" valid Modbus packet: Address 0x%02x Function 0x%02x", MB.Address, MB.Function);
         switch (MB.Function) {
             case 0x03: // (Read holding register)
             case 0x04: // (Read input register)
@@ -361,7 +361,7 @@ void ModbusDecode(uint8_t * buf, uint8_t len) {
         }
     }
     if(MB.Type) {
-        _LOG_V_NO_FUNC(" Register %04x", MB.Register);
+        _LOG_V_NO_FUNC(" Register 0x%04x", MB.Register);
     }
     switch (MB.Type) {
         case MODBUS_REQUEST:
