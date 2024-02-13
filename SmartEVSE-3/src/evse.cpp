@@ -845,6 +845,7 @@ int getBatteryCurrent(void) {
 }
 
 
+
 // Is there at least 6A(configurable MinCurrent) available for a new EVSE?
 // Look whether there would be place for one more EVSE if we could lower them all down to MinCurrent
 // returns 1 if there is 6A available
@@ -2781,10 +2782,11 @@ void Timer1S(void * parameter) {
     uint8_t Broadcast = 1;
     //uint8_t Timer5sec = 0;
     uint8_t x;
-
+    unsigned long loopstart;
 
     while(1) { // infinite loop
 
+        loopstart = millis();
         if (homeBatteryLastUpdate != 0 && homeBatteryLastUpdate < (time(NULL) - 60)) {
             homeBatteryCurrent = 0;
             homeBatteryLastUpdate = 0;
@@ -2996,7 +2998,7 @@ void Timer1S(void * parameter) {
 #endif
 
         // Pause the task for 1 Sec
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        vTaskDelay((1000 - (millis() - loopstart)) / portTICK_PERIOD_MS);
 
     } // while(1)
 }
