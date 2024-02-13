@@ -617,7 +617,6 @@ if [ $((SEL & NR)) -ne 0 ]; then
     printf "Starting $TESTSTRING test #$NR:\n"
     #the margin for which we will accept the lowering/upping of the charge current, in dA
     MARGIN=20
-    #make mains_overload feed mains_current with 3A per phase to the grid
     TESTVALUE=-3
     TESTVALUE10=$((TESTVALUE*10))
     #note that startcurrent shown as -4A on the display is stored as 4A !
@@ -646,7 +645,7 @@ if [ $((SEL & NR)) -ne 0 ]; then
     printf "Feeding total of 18A....chargecurrent should drop to 6A, then triggers stoptimer and when it expires, stops charging because over import limit of 15A\r"
     TESTSTRING="SolarStopTimer should have been activated on overload on ImportCurrent"
     echo 60 >feed_mains_$MASTER
-    sleep 60
+    sleep 40
     for device in $MASTER $SLAVE; do
         TIMER=$(curl -s -X GET $device/settings | jq ".evse.solar_stop_timer")
         print_results2 "$TIMER" "26" "5" "SOLAR_STOP_TIMER"
