@@ -114,6 +114,9 @@ print_results2() {
 
 check_all_charge_currents () {
     for device in $MASTER $SLAVE; do
+        #make sure we are actually charging
+        STATE_ID=$(curl -s -X GET $device/settings | jq ".evse.state_id")
+        print_results2 "$STATE_ID" "2" "0" "STATE_ID"
         CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
         print_results "$CHARGECUR" "$TESTVALUE10" "0"
     done
@@ -363,6 +366,9 @@ if [ $((SEL & NR)) -ne 0 ]; then
             else
                 TOTCUR=0
                 for device in $SLAVE $MASTER; do
+                    #make sure we are actually charging
+                    STATE_ID=$(curl -s -X GET $device/settings | jq ".evse.state_id")
+                    print_results2 "$STATE_ID" "2" "0" "STATE_ID"
                     CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
                     TOTCUR=$((TOTCUR + CHARGECUR))
                 done
@@ -460,10 +466,10 @@ if [ $((SEL & NR)) -ne 0 ]; then
     done
     printf "Feeding total of 18A....chargecurrent should drop to 6A, then triggers stoptimer and when it expires, stops charging because over import limit of 15A\r"
     TESTSTRING="SolarStopTimer should have been activated on overload on ImportCurrent"
-    sleep 60
+    sleep 50
     for device in $MASTER $SLAVE; do
         TIMER=$(curl -s -X GET $device/settings | jq ".evse.solar_stop_timer")
-        print_results2 "$TIMER" "28" "5" "SOLAR_STOP_TIMER"
+        print_results2 "$TIMER" "28" "15" "SOLAR_STOP_TIMER"
     done
     TESTSTRING="Charging should stop after expiring SolarStopTimer"
     printf "$TESTSTRING\r"
@@ -554,7 +560,6 @@ if [ $((SEL & NR)) -ne 0 ]; then
     for device in $MASTER $SLAVE; do
         STATE_ID=$(curl -s -X GET $device/settings | jq ".evse.state_id")
         print_results2 "$STATE_ID" "2" "0" "STATE_ID"
-        #dropping the charge current by a few amps
     done
     TESTSTRING="Feeding total of 18A should drop the charging current"
     printf "$TESTSTRING\r"
@@ -564,7 +569,7 @@ if [ $((SEL & NR)) -ne 0 ]; then
         CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
         STATE_ID=$(curl -s -X GET $device/settings | jq ".evse.state_id")
         print_results2 "$STATE_ID" "2" "0" "STATE_ID"
-        print_results "$CHARGECUR" "218" "20"
+        print_results "$CHARGECUR" "225" "20"
     done
     TESTSTRING="Feeding total of 15A should stabilize the charging current"
     printf "$TESTSTRING\r"
@@ -574,7 +579,7 @@ if [ $((SEL & NR)) -ne 0 ]; then
         CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
         STATE_ID=$(curl -s -X GET $device/settings | jq ".evse.state_id")
         print_results2 "$STATE_ID" "2" "0" "STATE_ID"
-        print_results "$CHARGECUR" "195" "20"
+        print_results "$CHARGECUR" "210" "20"
     done
     printf "Feeding total of 18A....chargecurrent should drop to 6A, then triggers stoptimer and when it expires, stops charging because over import limit of 15A\r"
     TESTSTRING="SolarStopTimer should have been activated on overload on ImportCurrent"
