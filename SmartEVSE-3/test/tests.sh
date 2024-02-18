@@ -115,7 +115,6 @@ print_results2() {
 check_all_charge_currents () {
     for device in $MASTER $SLAVE; do
         check_charging
-        CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
         print_results "$CHARGECUR" "$TESTVALUE10" "0"
     done
 }
@@ -184,7 +183,7 @@ run_test_loadbl0 () {
         for device in $MASTER $SLAVE; do
             $CURLPOST $device$CONFIG_COMMAND
             overload_mains
-            CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
+            check_charging
             #we start charging at maxcurrent and then step down for approx. 1A per 670ms
             print_results "$CHARGECUR" "${TARGET[$mode_master]}" "$MARGIN"
         done
@@ -212,7 +211,7 @@ run_test_loadbl1 () {
         overload_mains
         TOTCUR=0
         for device in $SLAVE $MASTER; do
-            CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
+            check_charging
             TOTCUR=$((TOTCUR + CHARGECUR))
         done
         #we started charging at maxcurrent and then stepped down for approx. 1A per 670ms
@@ -228,8 +227,10 @@ run_test_loadbl1 () {
 
 check_charging () {
     #make sure we are actually charging
-    STATE_ID=$(curl -s -X GET $device/settings | jq ".evse.state_id")
+    CURL=$(curl -s -X GET $device/settings)
+    STATE_ID=$(echo $CURL | jq ".evse.state_id")
     print_results2 "$STATE_ID" "2" "0" "STATE_ID"
+    CHARGECUR=$(echo $CURL | jq ".settings.charge_current")
 }
 
 #TEST1: MODESWITCH TEST: test if mode changes on master reflects on slave and vice versa
@@ -299,7 +300,6 @@ if [ $((SEL & NR)) -ne 0 ]; then
             sleep 10
             for device in $SLAVE $MASTER; do
                 check_charging
-                CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
                 if [ $device == $MASTER ]; then
                     print_results "$CHARGECUR" "$MASTER_SOCKET_HARDWIRED" "0"
                 else
@@ -372,7 +372,6 @@ if [ $((SEL & NR)) -ne 0 ]; then
                 TOTCUR=0
                 for device in $SLAVE $MASTER; do
                     check_charging
-                    CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
                     TOTCUR=$((TOTCUR + CHARGECUR))
                 done
                 print_results "$TOTCUR" "$TESTVALUE10" "0"
@@ -497,14 +496,13 @@ if [ $((SEL & NR)) -ne 0 ]; then
     TESTSTRING="Feeding total of 15A should stabilize the charging current"
     printf "$TESTSTRING\r"
     for device in $MASTER $SLAVE; do
-        CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
+        check_charging
         print_results "$CHARGECUR" "500" "30"
         echo 50 >feed_mains_$device
     done
     sleep 10
     for device in $MASTER $SLAVE; do
         check_charging
-        CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
         print_results "$CHARGECUR" "485" "35"
     done
     #set MainsMeter to Sensorbox
@@ -567,7 +565,6 @@ if [ $((SEL & NR)) -ne 0 ]; then
     sleep 10
     for device in $MASTER $SLAVE; do
         check_charging
-        CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
         print_results "$CHARGECUR" "225" "20"
     done
     TESTSTRING="Feeding total of 15A should stabilize the charging current"
@@ -576,7 +573,6 @@ if [ $((SEL & NR)) -ne 0 ]; then
     sleep 10
     for device in $MASTER $SLAVE; do
         check_charging
-        CHARGECUR=$(curl -s -X GET $device/settings | jq ".settings.charge_current")
         print_results "$CHARGECUR" "210" "20"
     done
     printf "Feeding total of 18A....chargecurrent should drop to 6A, then triggers stoptimer and when it expires, stops charging because over import limit of 15A\r"
