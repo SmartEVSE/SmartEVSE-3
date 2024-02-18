@@ -68,8 +68,8 @@ init_devices () {
 for device in $SLAVE $MASTER; do
     #go to Normal Mode for init
     $CURLPOST $device/reboot
-    $CURLPOST $device/automated_testing?loadbl=0
-    $CURLPOST $device/automated_testing?mainsmeter=1
+    sleep 1
+    $CURLPOST "$device/automated_testing?loadbl=0&mainsmeter=1"
     $CURLPOST $device/settings?mode=1
 done
 read -p "Make sure all EVSE's are set to NOT CHARGING, then press <ENTER>" dummy
@@ -79,12 +79,9 @@ sleep 5
 init_currents () {
 #first load all settings before the test
 for device in $SLAVE $MASTER; do
-    $CURLPOST $device/automated_testing?config=1
-    $CURLPOST $device/automated_testing?current_max=60
-    $CURLPOST $device/automated_testing?current_max_circuit=70
-    $CURLPOST $device/automated_testing?current_main=80
-    $CURLPOST $device/settings?current_max_sum_mains=600
-    $CURLPOST $device/settings?enable_C2=0 #TODO cycle through all tests with different settings !!!
+    $CURLPOST "$device/automated_testing?config=1&current_max=60&current_max_circuit=70&current_main=80"
+    $CURLPOST "$device/settings?current_max_sum_mains=600&enable_C2=0"
+    #$CURLPOST $device/settings?enable_C2=0 #TODO cycle through all tests with different settings !!!
 done
 }
 
@@ -452,9 +449,7 @@ if [ $((SEL & NR)) -ne 0 ]; then
     init_currents
     for device in $MASTER $SLAVE; do
         set_mainsmeter_to_api
-        $CURLPOST "$device/settings?solar_start_current=4"
-        $CURLPOST "$device/settings?solar_max_import=15"
-        $CURLPOST "$device/settings?solar_stop_time=1"
+        $CURLPOST "$device/settings?solar_start_current=4&solar_max_import=15&solar_stop_time=1"
     done
     read -p "Make sure all EVSE's are set to CHARGING, then press <ENTER>" dummy
 
@@ -528,9 +523,7 @@ if [ $((SEL & NR)) -ne 0 ]; then
     init_currents
     for device in $MASTER; do
         set_mainsmeter_to_api
-        $CURLPOST "$device/settings?solar_start_current=4"
-        $CURLPOST "$device/settings?solar_max_import=15"
-        $CURLPOST "$device/settings?solar_stop_time=1"
+        $CURLPOST "$device/settings?solar_start_current=4&solar_max_import=15&solar_stop_time=1"
     done
 
     loadbl_master=1
@@ -622,9 +615,7 @@ if [ $((SEL & NR)) -ne 0 ]; then
     init_currents
     for device in $MASTER; do
         set_mainsmeter_to_api
-        $CURLPOST "$device/settings?solar_start_current=4"
-        $CURLPOST "$device/settings?solar_max_import=15"
-        $CURLPOST "$device/settings?solar_stop_time=1"
+        $CURLPOST "$device/settings?solar_start_current=4&solar_max_import=15&solar_stop_time=1"
     done
     #to speed up testing lower max_current
     for device in $MASTER $SLAVE; do
@@ -687,9 +678,7 @@ if [ $((SEL & NR)) -ne 0 ]; then
     init_currents
     for device in $MASTER; do
         set_mainsmeter_to_api
-        $CURLPOST "$device/settings?solar_start_current=4"
-        $CURLPOST "$device/settings?solar_max_import=15"
-        $CURLPOST "$device/settings?solar_stop_time=1"
+        $CURLPOST "$device/settings?solar_start_current=4&solar_max_import=15&solar_stop_time=1"
     done
     #to speed up testing lower max_current
     for device in $MASTER $SLAVE; do
