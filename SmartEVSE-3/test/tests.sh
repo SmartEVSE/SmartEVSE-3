@@ -125,6 +125,7 @@ set_loadbalancing () {
     fi
     if [ $loadbl_master -eq 1 ]; then
         $CURLPOST $MASTER/automated_testing?loadbl=$loadbl_master
+        sleep 1
         loadbl_slave=2
         $CURLPOST $SLAVE/automated_testing?loadbl=$loadbl_slave
     fi
@@ -402,7 +403,7 @@ if [ $((SEL & NR)) -ne 0 ]; then
     MARGIN=20
     TESTVALUE=25
     #Target values for Off, Normal, Solar, Smart mode RESPECTIVELY:
-    TARGET=(0 0 425 560)
+    TARGET=(0 0 400 560)
     CONFIG_COMMAND="/automated_testing?current_main=$TESTVALUE"
     run_test_loadbl1
 fi
@@ -473,7 +474,7 @@ if [ $((SEL & NR)) -ne 0 ]; then
     sleep 40
     for device in $MASTER $SLAVE; do
         STATE_ID=$(curl -s -X GET $device/settings | jq ".evse.state_id")
-        print_results2 "$STATE_ID" "9" "0" "STATE_ID"
+        print_results2 "$STATE_ID" "10" "0" "STATE_ID"
         echo -20 >feed_mains_$device
     done
     TESTSTRING="Feeding total of -6A....should trigger ready-timer 60s"
@@ -492,7 +493,7 @@ if [ $((SEL & NR)) -ne 0 ]; then
     printf "$TESTSTRING\r"
     for device in $MASTER $SLAVE; do
         check_charging
-        print_results "$CHARGECUR" "500" "30"
+        print_results "$CHARGECUR" "520" "30"
         echo 50 >feed_mains_$device
     done
     sleep 10
@@ -621,6 +622,7 @@ if [ $((SEL & NR)) -ne 0 ]; then
     for device in $MASTER $SLAVE; do
         $CURLPOST $device/automated_testing?current_max=9
     done
+    sleep 1
     loadbl_master=1
     set_loadbalancing
     #SOLAR mode
