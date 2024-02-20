@@ -2399,9 +2399,9 @@ uint8_t PollEVNode = NR_EVSES;
                     // fall through
                 case 20:                                                         // EV kWh meter, Current measurement
                     // Request Current if EV meter is configured
-                    if (EVMeter && EVMeter != EM_API) {
-                        _LOG_D("ModbusRequest %u: Request EVMeter Current Measurement\n", ModbusRequest);
-                        requestCurrentMeasurement(EVMeter, EVMeterAddress);
+                    if (Node[PollEVNode].EVMeter && Node[PollEVNode].EVMeter != EM_API) {
+                        _LOG_D("ModbusRequest %u: Request EVMeter Current Measurement Node %u\n", ModbusRequest, PollEVNode);
+                        requestCurrentMeasurement(Node[PollEVNode].EVMeter, Node[PollEVNode].EVAddress);
                         break;
                     }
                     ModbusRequest++;
