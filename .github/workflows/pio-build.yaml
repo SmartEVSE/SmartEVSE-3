@@ -43,7 +43,11 @@ jobs:
               then
                  echo "version=${{ steps.time.outputs.time }}" >> $GITHUB_OUTPUT
                else
-                 echo "version=${{ inputs.major }}.${{ inputs.minor }}.${{ inputs.patch }}.${{ inputs.prerelease }}" >> $GITHUB_OUTPUT
+                 if [ -z "${{ inputs.prerelease }}" ]
+                    echo "version=${{ inputs.major }}.${{ inputs.minor }}.${{ inputs.patch }}" >> $GITHUB_OUTPUT
+                 else
+                    echo "version=${{ inputs.major }}.${{ inputs.minor }}.${{ inputs.patch }}-${{ inputs.prerelease }}" >> $GITHUB_OUTPUT
+                 fi
               fi
       - uses: actions/checkout@v3
       - name: Cache pip
