@@ -427,7 +427,7 @@ void GLCD(void) {
             if (WIFImode == 1 ) {   // Wifi Enabled
 
                 if (WiFi.status() == WL_CONNECTED) {
-                    sprintf(Str, "%s %i%cC",WiFi.localIP().toString().c_str(), getItemValue(STATUS_TEMP), 0x0C);
+                    sprintf(Str, "%s",WiFi.localIP().toString().c_str());
                     GLCD_write_buf_str(0,0, Str, GLCD_ALIGN_LEFT);
                     if (LocalTimeSet) sprintf(Str, "%02u:%02u",timeinfo.tm_hour, timeinfo.tm_min);
                     else sprintf(Str, "--:--");
@@ -1173,7 +1173,10 @@ void GLCDMenu(uint8_t Buttons) {
                     GLCD_print_menu(2, MenuStr[LCDNav].LCD);                            // add navigation arrows on both sides
                     // Bottom row of the GLCD
                     GLCD_buffer_clr();
-                    GLCD_write_buf_str(0, 0, (const char *) VERSION, GLCD_ALIGN_LEFT);// show software version in bottom right corner.
+                    sprintf(Str, "%i%cC", getItemValue(STATUS_TEMP), 0x0C);                              // ° Degree symbol
+                    GLCD_write_buf_str(0, 0, Str, GLCD_ALIGN_LEFT);                     // show the internal temperature
+                    sprintf(Str, "%.19s",(const char *) VERSION);
+                    GLCD_write_buf_str(127, 0, Str, GLCD_ALIGN_RIGHT);// show software version in bottom right corner.
                     GLCD_sendbuf(7, 1);
                 }
                 ButtonRelease = 2;                                                      // Set value to 2, so that LCD will be updated only once
