@@ -898,6 +898,15 @@ char IsCurrentAvailable(void) {
     return 1;
 }
 
+void ResetBalancedStates(void) {
+    uint8_t n;
+
+    for (n = 1; n < NR_EVSES; n++) {
+        BalancedState[n] = STATE_A;                                             // Yes, disable old active Node states
+        Balanced[n] = 0;                                                        // reset ChargeCurrent to 0
+    }
+}
+
 // Set global var Nr_Of_Phases_Charging
 // 0 = undetected, 1 - 3 nr of phases we are charging
 void Set_Nr_of_Phases_Charging(void) {
@@ -971,7 +980,6 @@ void CalcBalancedCurrent(char mod) {
     int ActiveMax = 0, TotalCurrent = 0, Baseload;
     char CurrentSet[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};
     uint8_t n;
-
     if (BalancedState[0] == STATE_C && MaxCurrent > MaxCapacity && !Config)
         ChargeCurrent = MaxCapacity * 10;
     else
@@ -2906,6 +2914,8 @@ void Timer1S(void * parameter) {
 
                 if (State == STATE_C) setState(STATE_C1);                   // tell EV to stop charging
                 ErrorFlags |= NO_SUN;                                       // Set error: NO_SUN
+                if ((Mode == MODE_SOLAR) && (LoadBl == 1))                  // workaround for test1024
+                    ResetBalancedStates();                                      // reset all states
             }
         }
 
