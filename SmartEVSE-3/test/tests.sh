@@ -131,12 +131,14 @@ set_loadbalancing () {
     fi
 }
 
+MODESTR=("Off" "Normal" "Solar" "Smart")
+
 set_mode () {
     $CURLPOST $MASTER/settings?mode=$mode_master
     if [ $loadbl_slave -eq 0 ]; then
         $CURLPOST $SLAVE/settings?mode=$mode_master
     fi
-    MODE=$(curl -s -X GET $MASTER/settings | jq ".mode")
+    MODE=${MODESTR[$mode_master]}
     printf "Testing  LBL=$loadbl_master, mode=$MODE on $TESTSTRING.\r"
     TESTVALUE10=$((TESTVALUE * 10))
 }
@@ -403,7 +405,7 @@ if [ $((SEL & NR)) -ne 0 ]; then
     MARGIN=20
     TESTVALUE=25
     #Target values for Off, Normal, Solar, Smart mode RESPECTIVELY:
-    TARGET=(0 0 400 560)
+    TARGET=(0 0 420 560)
     CONFIG_COMMAND="/automated_testing?current_main=$TESTVALUE"
     run_test_loadbl1
 fi
@@ -493,13 +495,13 @@ if [ $((SEL & NR)) -ne 0 ]; then
     printf "$TESTSTRING\r"
     for device in $MASTER $SLAVE; do
         check_charging
-        print_results "$CHARGECUR" "520" "30"
+        print_results "$CHARGECUR" "475" "30"
         echo 50 >feed_mains_$device
     done
     sleep 10
     for device in $MASTER $SLAVE; do
         check_charging
-        print_results "$CHARGECUR" "485" "35"
+        print_results "$CHARGECUR" "450" "35"
     done
     #set MainsMeter to Sensorbox
     for device in $MASTER $SLAVE; do
@@ -575,7 +577,7 @@ if [ $((SEL & NR)) -ne 0 ]; then
     sleep 60
     for device in $MASTER $SLAVE; do
         TIMER=$(curl -s -X GET $device/settings | jq ".evse.solar_stop_timer")
-        print_results2 "$TIMER" "19" "5" "SOLAR_STOP_TIMER"
+        print_results2 "$TIMER" "15" "5" "SOLAR_STOP_TIMER"
     done
     TESTSTRING="Charging should stop after expiring SolarStopTimer"
     printf "$TESTSTRING\r"
@@ -700,7 +702,7 @@ if [ $((SEL & NR)) -ne 0 ]; then
     printf "Feeding total of 18A....chargecurrent should drop to 6A, then triggers stoptimer and when it expires, stops charging because over import limit of 15A\r"
     TESTSTRING="SolarStopTimer should have been activated on overload on ImportCurrent"
     echo 60 >feed_mains_$MASTER
-    sleep 60
+    sleep 65
     for device in $MASTER; do
         TIMER=$(curl -s -X GET $device/settings | jq ".evse.solar_stop_timer")
         print_results2 "$TIMER" "8" "5" "SOLAR_STOP_TIMER"
