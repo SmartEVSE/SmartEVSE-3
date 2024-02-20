@@ -601,7 +601,17 @@ void GLCD(void) {
     }                                                                           // MODE SMART or SOLAR
     else if ((Mode == MODE_SMART) || (Mode == MODE_SOLAR)) {
 
-        memcpy (GLCDbuf, LCD_Flow, 512);                                        // copy Flow Menu to LCD buffer
+        unsigned char LCD_Flow2 [512];
+        for (int y=0; y<4; y++)
+            for (x=0; x<128; x++) {
+                if ((x>=31) && (x<=63+6+20-3))
+                    LCD_Flow2[y*128+x]=LCD_Flow[y*128+x+3];
+                else
+                    LCD_Flow2[y*128+x]=LCD_Flow[y*128+x];
+                //if ((x>=64+6+20-3) && (x<=66+6+20-3))
+                //    LCD_Flow2[y*128+x]=0;
+        }
+        memcpy (GLCDbuf, LCD_Flow2, 512);                                        // copy Flow Menu to LCD buffer
 
         if (Mode == MODE_SMART) {                                               // remove the Sun from the LCD buffer
             for (x=0; x<13; x++) {
@@ -634,7 +644,7 @@ void GLCD(void) {
         if (abs(Isum) >3 ) GLCD_write_buf(0x0A, 0);                             // Show energy flow 'blob' between Grid and House
                                                                                 // If current flow is < 0.3A don't show the blob
 
-        if (EVMeter) {                                                          // If we have a EV kWh meter configured, Show total charged energy in kWh on LCD.
+        if (EVMeter && !SolarStopTimer) {                                       // If we have a EV kWh meter configured, Show total charged energy in kWh on LCD.
             sprintfl(Str, "%2u.%1ukWh", EnergyCharged, 3, 1);                   // Will reset to 0.0kWh when charging cable reconnected, and state change from STATE B->C
             GLCD_write_buf_str(89, 0, Str,GLCD_ALIGN_LEFT);                     // print to buffer
         }
@@ -682,13 +692,9 @@ void GLCD(void) {
             for (x = 0; x < 3; x++) {                                           // Display L1, L2 and L3 currents on LCD
                 sprintfl(Str, "%dA", Irms[x], 1, 0);
                 GLCD_write_buf_str(46, x, Str, GLCD_ALIGN_RIGHT);               // print to buffer
-                if (EVMeter) {
-                sprintfl(Str, "%dA", Irms_EV[x], 1, 0);
-                    if (Mode == MODE_SOLAR)
-                        GLCD_write_buf_str(100, x, Str, GLCD_ALIGN_RIGHT);      // in Solar mode the sun needs a little more room
-                    else
-                        GLCD_write_buf_str(90, x, Str, GLCD_ALIGN_RIGHT);       // print to buffer
-
+                if (EVMeter && Mode == MODE_SMART) {
+                    sprintfl(Str, "%dA", Irms_EV[x], 1, 0);
+                    GLCD_write_buf_str(87, x, Str, GLCD_ALIGN_RIGHT);           // print to buffer
                 }
             }
         }
