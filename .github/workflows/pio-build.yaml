@@ -11,6 +11,9 @@ on:
       patch:
         required: true
         type: string
+      prerelease:
+        required: false
+        type: string
    outputs:
       artifact:
         description: "The first output string"
@@ -40,7 +43,7 @@ jobs:
               then
                  echo "version=${{ steps.time.outputs.time }}" >> $GITHUB_OUTPUT
                else
-                 echo "version=${{ inputs.major }}.${{ inputs.minor }}.${{ inputs.patch }}" >> $GITHUB_OUTPUT
+                 echo "version=${{ inputs.major }}.${{ inputs.minor }}.${{ inputs.patch }}.${{ inputs.prerelease }}" >> $GITHUB_OUTPUT
               fi
       - uses: actions/checkout@v3
       - name: Cache pip
@@ -68,9 +71,9 @@ jobs:
           cd SmartEVSE-3
           pio lib install
       - name: Build normal version
-        run: PLATFORMIO_BUILD_FLAGS='-DVERSION=\"SERKRI-${{ steps.version.outputs.version }}\" -DDBG=0' pio run -d SmartEVSE-3/
+        run: PLATFORMIO_BUILD_FLAGS='-DVERSION=\"${{ steps.version.outputs.version }}\" -DDBG=0' pio run -d SmartEVSE-3/
       - name: Build spiffs
-        run: PLATFORMIO_BUILD_FLAGS='-DVERSION=\"SERKRI-${{ steps.version.outputs.version }}\" -DDBG=0' pio run -d SmartEVSE-3/ -t buildfs
+        run: PLATFORMIO_BUILD_FLAGS='-DVERSION=\"${{ steps.version.outputs.version }}\" -DDBG=0' pio run -d SmartEVSE-3/ -t buildfs
       - id: artifact
         run: echo "value=dist-${{ steps.branch.outputs.branch }}-${{ steps.datetime.outputs.datetime }}" >> $GITHUB_OUTPUT
       - name: Upload Artifact
@@ -87,7 +90,7 @@ jobs:
           retention-days: 10
       - name: Build debug version
         run: |
-          PLATFORMIO_BUILD_FLAGS='-DVERSION=\"SERKRI-${{ steps.version.outputs.version }}\" -DDBG=1' pio run -d SmartEVSE-3/
+          PLATFORMIO_BUILD_FLAGS='-DVERSION=\"${{ steps.version.outputs.version }}\" -DDBG=1' pio run -d SmartEVSE-3/
           mv ./SmartEVSE-3/.pio/build/release/firmware.bin ./SmartEVSE-3/.pio/build/release/firmware.debug.bin
       - name: Upload Artifact debug firmware
         uses: actions/upload-artifact@v3
