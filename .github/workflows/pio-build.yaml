@@ -44,6 +44,7 @@ jobs:
                  echo "version=${{ steps.time.outputs.time }}" >> $GITHUB_OUTPUT
                else
                  if [ -z "${{ inputs.prerelease }}" ]
+                 then
                     echo "version=${{ inputs.major }}.${{ inputs.minor }}.${{ inputs.patch }}" >> $GITHUB_OUTPUT
                  else
                     echo "version=${{ inputs.major }}.${{ inputs.minor }}.${{ inputs.patch }}-${{ inputs.prerelease }}" >> $GITHUB_OUTPUT
