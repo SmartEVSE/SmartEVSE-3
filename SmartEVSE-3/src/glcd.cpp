@@ -615,8 +615,8 @@ void GLCD(void) {
 
         if (Mode == MODE_SMART) {                                               // remove the Sun from the LCD buffer
             for (x=0; x<13; x++) {
-                GLCDbuf[x+74u] = 0;
-                GLCDbuf[x+74u+128u] = 0;
+                GLCDbuf[x+71u] = 0;
+                GLCDbuf[x+71u+128u] = 0;
             }
         }
         if (SolarStopTimer) {
@@ -632,10 +632,10 @@ void GLCD(void) {
 
         if (Isum < 0) {
             energy_mains -= 3;                                                  // animate the flow of Mains energy on LCD.
-            if (energy_mains < 20) energy_mains = 44;                           // Only in Mode: Smart or Solar
+            if (energy_mains < 20) energy_mains = 41;                           // Only in Mode: Smart or Solar
         } else {
             energy_mains += 3;
-            if (energy_mains > 44) energy_mains = 20;
+            if (energy_mains > 41) energy_mains = 20;
         }
 
         GLCDx = energy_mains;
@@ -678,7 +678,7 @@ void GLCD(void) {
             GLCD_write_buf_str(127,1, Str, GLCD_ALIGN_RIGHT);
         } else if (State == STATE_A) {
             // Remove line between House and Car
-            for (x = 73; x < 96; x++) GLCDbuf[3u * 128u + x] = 0;
+            for (x = 70; x < 96; x++) GLCDbuf[3u * 128u + x] = 0;
         }
 
         if (LCDToggle && Mode == MODE_SOLAR) {                                  // Show Sum of currents when solar charging.
