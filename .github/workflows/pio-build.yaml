@@ -76,9 +76,9 @@ jobs:
           cd SmartEVSE-3
           pio lib install
       - name: Build normal version
-        run: PLATFORMIO_BUILD_FLAGS='-DVERSION=\"${{ steps.version.outputs.version }}\" -DDBG=0' pio run -d SmartEVSE-3/
+        run: PLATFORMIO_BUILD_FLAGS='-DVERSION=\"v${{ steps.version.outputs.version }}\" -DDBG=0' pio run -d SmartEVSE-3/
       - name: Build spiffs
-        run: PLATFORMIO_BUILD_FLAGS='-DVERSION=\"${{ steps.version.outputs.version }}\" -DDBG=0' pio run -d SmartEVSE-3/ -t buildfs
+        run: PLATFORMIO_BUILD_FLAGS='-DVERSION=\"v${{ steps.version.outputs.version }}\" -DDBG=0' pio run -d SmartEVSE-3/ -t buildfs
       - id: artifact
         run: echo "value=dist-${{ steps.branch.outputs.branch }}-${{ steps.datetime.outputs.datetime }}" >> $GITHUB_OUTPUT
       - name: Upload Artifact
@@ -95,7 +95,7 @@ jobs:
           retention-days: 10
       - name: Build debug version
         run: |
-          PLATFORMIO_BUILD_FLAGS='-DVERSION=\"${{ steps.version.outputs.version }}\" -DDBG=1' pio run -d SmartEVSE-3/
+          PLATFORMIO_BUILD_FLAGS='-DVERSION=\"v${{ steps.version.outputs.version }}\" -DDBG=1' pio run -d SmartEVSE-3/
           mv ./SmartEVSE-3/.pio/build/release/firmware.bin ./SmartEVSE-3/.pio/build/release/firmware.debug.bin
       - name: Upload Artifact debug firmware
         uses: actions/upload-artifact@v3
