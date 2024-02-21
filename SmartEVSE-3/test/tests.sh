@@ -10,6 +10,8 @@ if [ "$#" -ne 3 ]; then
     echo
     echo "Make sure you compiled your test version with -DAUTOMATED_TESTING=1 !!"
     echo
+    echo "Known BUGS: Only run one test at a time; running multiple tests leads to false <fails>"
+    echo
     echo "WARNING: ONLY USE THIS SCRIPT ON SMARTEVSEs ON A TEST BENCH"
     echo "NEVER USE THIS SCRIPT ON A LIVE SMARTEVSE; IT _WILL_ BLOW YOUR FUSES AND YOUR BREAKERS!!!"
     exit 1
