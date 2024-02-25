@@ -1157,6 +1157,7 @@ void GLCDMenu(uint8_t Buttons) {
             break;
         case MENU_CAL:
             if (ButtonRelease == 1) {
+                GLCD_print_menu(2, MenuStr[LCDNav].LCD);                        // add navigation arrows on both sides
                 if (SubMenu) {
                     sprintf(Str, "%u.%uA", CT1 / 10, CT1 % 10);
                 } else {
