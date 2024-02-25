@@ -689,6 +689,14 @@ uint8_t Force_Single_Phase_Charging() {                                         
     return 0;
 }
 
+void setStatePowerUnavailable(void) {
+    //State changes between A,B,C,D are caused by EV or by the user
+    //State changes between x1 and x2 are created by the EVSE
+    //State changes between x1 and x2 indicate availability (x2) of unavailability (x1) of power supply to the EV
+    if (State == STATE_C) setState(STATE_C1);                       // If we are charging, tell EV to stop charging
+    else if (State != STATE_C1) setState(STATE_B1);                 // If we are not in State C1, switch to State B1
+}
+
 void setState(uint8_t NewState) {
     if (State != NewState) {
         char Str[50];
@@ -799,8 +807,9 @@ void setState(uint8_t NewState) {
 void setAccess(bool Access) {
     Access_bit = Access;
     if (Access == 0) {
+        //TODO:setStatePowerUnavailable() ?
         if (State == STATE_C) setState(STATE_C1);                               // Determine where to switch to.
-        else if (State == STATE_B || State == STATE_MODEM_REQUEST || State == STATE_MODEM_WAIT || State == STATE_MODEM_DONE || State == STATE_MODEM_DENIED) setState(STATE_B1);
+        else if (State != STATE_C1 && (State == STATE_B || State == STATE_MODEM_REQUEST || State == STATE_MODEM_WAIT || State == STATE_MODEM_DONE || State == STATE_MODEM_DENIED)) setState(STATE_B1);
     }
 
     //make mode and start/stoptimes persistent on reboot
@@ -1590,8 +1599,7 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
         case STATUS_ERROR:
             ErrorFlags = val;
             if (ErrorFlags) {                                                   // Is there an actual Error? Maybe the error got cleared?
-                if (State == STATE_C) setState(STATE_C1);                       // tell EV to stop charging
-                else setState(STATE_B1);                                        // when we are not charging switch to State B1
+                setStatePowerUnavailable();
                 ChargeDelay = CHARGEDELAY;
                 _LOG_V("Broadcast Error message received!\n");
             } else {
@@ -2942,8 +2950,7 @@ void Timer1S(void * parameter) {
             // In Normal mode do not timeout; there might be MainsMeter/EVMeter configured that can be retrieved through the API,
             // but in Normal mode we just want to charge ChargeCurrent, irrespective of communication problems.
             ErrorFlags |= CT_NOCOMM;
-            if (State == STATE_C) setState(STATE_C1);                       // tell EV to stop charging
-            else setState(STATE_B1);                                        // when we are not charging switch to State B1
+            setStatePowerUnavailable();
             _LOG_W("Error, communication error!\n");
             // Try to broadcast communication error to Nodes if we are Master
             if (LoadBl < 2) ModbusWriteSingleRequest(BROADCAST_ADR, 0x0001, ErrorFlags);         
@@ -2952,8 +2959,7 @@ void Timer1S(void * parameter) {
         if (TempEVSE > maxTemp && !(ErrorFlags & TEMP_HIGH))                         // Temperature too High?
         {
             ErrorFlags |= TEMP_HIGH;
-            if (State == STATE_C) setState(STATE_C1);                       // tell EV to stop charging
-            else setState(STATE_B1);                                        // when we are not charging switch to State B1
+            setStatePowerUnavailable();
             _LOG_W("Error, temperature %i C !\n", TempEVSE);
         }
 
@@ -2963,8 +2969,7 @@ void Timer1S(void * parameter) {
             } else {
                 if (ChargeDelay == 0) { _LOG_I("Not enough current available!\n"); }
             }
-            if (State == STATE_C) setState(STATE_C1);                       // If we are charging, tell EV to stop charging
-            else if (State != STATE_C1) setState(STATE_B1);                 // If we are not in State C1, switch to State B1
+            setStatePowerUnavailable();
             ChargeDelay = CHARGEDELAY;                                      // Set Chargedelay
         }
 
