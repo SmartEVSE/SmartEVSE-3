@@ -633,6 +633,7 @@ void setMode(uint8_t NewMode) {
     lastMqttUpdate = 10;
 #endif
 
+    _LOG_A("Newmode %u\n", NewMode);
     if (LoadBl == 1) ModbusWriteSingleRequest(BROADCAST_ADR, 0x0003, NewMode);
     if (NewMode == MODE_SMART) {
         ErrorFlags &= ~(NO_SUN | LESS_6A);                                      // Clear All errors
@@ -4053,6 +4054,7 @@ void StartwebServer(void) {
                 doc["starttime"] = (DelayedStartTime.epoch2 ? DelayedStartTime.epoch2 + EPOCH2_OFFSET : 0);
             }
 
+            _LOG_A("Mode set %lu\n",mode.toInt());
             switch(mode.toInt()) {
                 case 0: // OFF
                     ToModemWaitStateTimer = 0;
