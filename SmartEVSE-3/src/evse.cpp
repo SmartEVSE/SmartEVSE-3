@@ -3500,10 +3500,10 @@ void validate_settings(void) {
     if (!MainsMeter)
         Mode = MODE_NORMAL;
 
-    // It doesnt make sense to have ImportCurrent lower than StartCurrent + MinCurrent,
-    // because you will never start charging in Solar Mode
-    if (ImportCurrent < MinCurrent - StartCurrent)
-        ImportCurrent = MinCurrent - StartCurrent;
+    // We disabled CAL in the menu.
+    // Make sure the stored CAL value is reset to the default value
+    ICal = ICAL;
+
     // Update master node config
     if (LoadBl < 2) {
         Node[0].EVMeter = EVMeter;
