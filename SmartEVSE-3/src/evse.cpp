@@ -2054,7 +2054,7 @@ void EVSEStates(void * parameter) {
         if (LCDNav > MENU_ENTER && LCDNav < MENU_EXIT && (ScrollTimer + 5000 < millis() ) && (!SubMenu)) GLCDHelp();
 
         // Left button pressed, Loadbalancing is Master or Disabled, switch is set to "Sma-Sol B" and Mode is Smart or Solar?
-        if (!LCDNav && ButtonState == 0x6 && Mode && !leftbutton && (LoadBl < 2) && Switch == 3) {
+        if ((!LCDNav || LCDNav == MENU_OFF) && ButtonState == 0x6 && Mode && !leftbutton && (LoadBl < 2) && Switch == 3) {
             setMode(~Mode & 0x3);                                           // Change from Solar to Smart mode and vice versa.
             ErrorFlags &= ~(NO_SUN | LESS_6A);                              // Clear All errors
             ChargeDelay = 0;                                                // Clear any Chargedelay
