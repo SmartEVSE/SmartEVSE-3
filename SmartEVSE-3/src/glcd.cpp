@@ -601,22 +601,12 @@ void GLCD(void) {
     }                                                                           // MODE SMART or SOLAR
     else if ((Mode == MODE_SMART) || (Mode == MODE_SOLAR)) {
 
-        unsigned char LCD_Flow2 [512];
-        for (int y=0; y<4; y++)
-            for (x=0; x<128; x++) {
-                if ((x>=31) && (x<=63+6+20-3))
-                    LCD_Flow2[y*128+x]=LCD_Flow[y*128+x+3];
-                else
-                    LCD_Flow2[y*128+x]=LCD_Flow[y*128+x];
-                //if ((x>=64+6+20-3) && (x<=66+6+20-3))
-                //    LCD_Flow2[y*128+x]=0;
-        }
-        memcpy (GLCDbuf, LCD_Flow2, 512);                                        // copy Flow Menu to LCD buffer
+        memcpy (GLCDbuf, LCD_Flow, 512);                                        // copy Flow Menu to LCD buffer
 
         if (Mode == MODE_SMART) {                                               // remove the Sun from the LCD buffer
             for (x=0; x<13; x++) {
-                GLCDbuf[x+71u] = 0;
-                GLCDbuf[x+71u+128u] = 0;
+                GLCDbuf[x+74u] = 0;
+                GLCDbuf[x+74u+128u] = 0;
             }
         }
         if (SolarStopTimer) {
@@ -632,10 +622,10 @@ void GLCD(void) {
 
         if (Isum < 0) {
             energy_mains -= 3;                                                  // animate the flow of Mains energy on LCD.
-            if (energy_mains < 20) energy_mains = 41;                           // Only in Mode: Smart or Solar
+            if (energy_mains < 20) energy_mains = 44;                           // Only in Mode: Smart or Solar
         } else {
             energy_mains += 3;
-            if (energy_mains > 41) energy_mains = 20;
+            if (energy_mains > 44) energy_mains = 20;
         }
 
         GLCDx = energy_mains;
@@ -646,7 +636,7 @@ void GLCD(void) {
 
         if (EVMeter && !SolarStopTimer) {                                       // If we have a EV kWh meter configured, Show total charged energy in kWh on LCD.
             sprintfl(Str, "%2u.%1ukWh", EnergyCharged, 3, 1);                   // Will reset to 0.0kWh when charging cable reconnected, and state change from STATE B->C
-            GLCD_write_buf_str(89, 0, Str,GLCD_ALIGN_LEFT);                     // print to buffer
+            GLCD_write_buf_str(89, 1, Str,GLCD_ALIGN_LEFT);                     // print to buffer
         }
 
         // Write number of used phases into the car
@@ -675,10 +665,10 @@ void GLCD(void) {
             } else {
                 sprintfl(Str, "%uA", Balanced[0], 1, 0);
             }
-            GLCD_write_buf_str(127,1, Str, GLCD_ALIGN_RIGHT);
+            GLCD_write_buf_str(85, 2, Str, GLCD_ALIGN_CENTER);
         } else if (State == STATE_A) {
             // Remove line between House and Car
-            for (x = 70; x < 96; x++) GLCDbuf[3u * 128u + x] = 0;
+            for (x = 73; x < 96; x++) GLCDbuf[3u * 128u + x] = 0;
         }
 
         if (LCDToggle && Mode == MODE_SOLAR) {                                  // Show Sum of currents when solar charging.
@@ -692,10 +682,6 @@ void GLCD(void) {
             for (x = 0; x < 3; x++) {                                           // Display L1, L2 and L3 currents on LCD
                 sprintfl(Str, "%dA", Irms[x], 1, 0);
                 GLCD_write_buf_str(46, x, Str, GLCD_ALIGN_RIGHT);               // print to buffer
-                if (EVMeter && Mode == MODE_SMART) {
-                    sprintfl(Str, "%dA", Irms_EV[x], 1, 0);
-                    GLCD_write_buf_str(87, x, Str, GLCD_ALIGN_RIGHT);           // print to buffer
-                }
             }
         }
         GLCD_sendbuf(0, 4);                                                     // Copy LCD buffer to GLCD
@@ -924,37 +910,39 @@ uint8_t getMenuItems (void) {
         MenuItems[m++] = MENU_LOCK;                                             // - Cable lock (0:Disable / 1:Solenoid / 2:Motor)
     }
     MenuItems[m++] = MENU_LOADBL;                                               // Load Balance Setting (0:Disable / 1:Master / 2-8:Node)
-    if (LoadBl < 2) {                                                       // - ? Load Balancing Disabled/Master?
-        MenuItems[m++] = MENU_MAINSMETER;                                   // - - Type of Mains electric meter (0: Disabled / Constants EM_*)
-        if (MainsMeter == EM_SENSORBOX) {                                   // - - ? Sensorbox?
-            if (GridActive == 1) MenuItems[m++] = MENU_GRID;
-            if (CalActive == 1) MenuItems[m++] = MENU_CAL;                  // - - - Sensorbox CT measurement calibration
-        } else if (MainsMeter && MainsMeter != EM_API) {                    // - - ? Other?
-            MenuItems[m++] = MENU_MAINSMETERADDRESS;                        // - - - Address of Mains electric meter (9 - 247)
+    if (Mode) {                                                                 // ? Smart or Solar mode?
+        if (LoadBl < 2) {                                                       // - ? Load Balancing Disabled/Master?
+            MenuItems[m++] = MENU_MAINSMETER;                                   // - - Type of Mains electric meter (0: Disabled / Constants EM_*)
+            if (MainsMeter == EM_SENSORBOX) {                                   // - - ? Sensorbox?
+                if (GridActive == 1) MenuItems[m++] = MENU_GRID;
+//                if (CalActive == 1) MenuItems[m++] = MENU_CAL;                  // - - - Sensorbox CT measurement calibration
+            } else if (MainsMeter && MainsMeter != EM_API) {                    // - - ? Other?
+                MenuItems[m++] = MENU_MAINSMETERADDRESS;                        // - - - Address of Mains electric meter (9 - 247)
+            }
         }
-    }
-    MenuItems[m++] = MENU_EVMETER;                                          // - Type of EV electric meter (0: Disabled / Constants EM_*)
-    if (EVMeter && EVMeter != EM_API) {                                                          // - ? EV meter configured?
-        MenuItems[m++] = MENU_EVMETERADDRESS;                               // - - Address of EV electric meter (9 - 247)
-    }
-    if (LoadBl < 2) {                                                       // - ? Load Balancing Disabled/Master?
-        if (MainsMeter == EM_CUSTOM || EVMeter == EM_CUSTOM) { // ? Custom electric meter used?
-            MenuItems[m++] = MENU_EMCUSTOM_ENDIANESS;                       // - - Byte order of custom electric meter
-            MenuItems[m++] = MENU_EMCUSTOM_DATATYPE;                        // - - Data type of custom electric meter
-            MenuItems[m++] = MENU_EMCUSTOM_FUNCTION;                        // - - Modbus Function of custom electric meter
-            MenuItems[m++] = MENU_EMCUSTOM_UREGISTER;                       // - - Starting register for voltage of custom electric meter
-            MenuItems[m++] = MENU_EMCUSTOM_UDIVISOR;                        // - - Divisor for voltage of custom electric meter
-            MenuItems[m++] = MENU_EMCUSTOM_IREGISTER;                       // - - Starting register for current of custom electric meter
-            MenuItems[m++] = MENU_EMCUSTOM_IDIVISOR;                        // - - Divisor for current of custom electric meter
-            MenuItems[m++] = MENU_EMCUSTOM_PREGISTER;                       // - - Starting register for power of custom electric meter
-            MenuItems[m++] = MENU_EMCUSTOM_PDIVISOR;                        // - - Divisor for power of custom electric meter
-            MenuItems[m++] = MENU_EMCUSTOM_EREGISTER;                       // - - Starting register for energy of custom electric meter
-            MenuItems[m++] = MENU_EMCUSTOM_EDIVISOR;                        // - - Divisor for energy of custom electric meter
+        MenuItems[m++] = MENU_EVMETER;                                          // - Type of EV electric meter (0: Disabled / Constants EM_*)
+        if (EVMeter && EVMeter != EM_API) {                                                          // - ? EV meter configured?
+            MenuItems[m++] = MENU_EVMETERADDRESS;                               // - - Address of EV electric meter (9 - 247)
         }
-    }
-    if (MainsMeter && LoadBl < 2) {                                             // Mainsmeter is configured and Load Balancing Disabled/Master?
-        MenuItems[m++] = MENU_MAINS;                                            // - Max Mains Amps (hard limit, limited by the MAINS connection) (A) (Mode:Smart/Solar)
-        MenuItems[m++] = MENU_MIN;                                              // - Minimal current the EV is happy with (A) (Mode:Smart/Solar or LoadBl:Master)
+        if (LoadBl < 2) {                                                       // - ? Load Balancing Disabled/Master?
+            if (MainsMeter == EM_CUSTOM || EVMeter == EM_CUSTOM) { // ? Custom electric meter used?
+                MenuItems[m++] = MENU_EMCUSTOM_ENDIANESS;                       // - - Byte order of custom electric meter
+                MenuItems[m++] = MENU_EMCUSTOM_DATATYPE;                        // - - Data type of custom electric meter
+                MenuItems[m++] = MENU_EMCUSTOM_FUNCTION;                        // - - Modbus Function of custom electric meter
+                MenuItems[m++] = MENU_EMCUSTOM_UREGISTER;                       // - - Starting register for voltage of custom electric meter
+                MenuItems[m++] = MENU_EMCUSTOM_UDIVISOR;                        // - - Divisor for voltage of custom electric meter
+                MenuItems[m++] = MENU_EMCUSTOM_IREGISTER;                       // - - Starting register for current of custom electric meter
+                MenuItems[m++] = MENU_EMCUSTOM_IDIVISOR;                        // - - Divisor for current of custom electric meter
+                MenuItems[m++] = MENU_EMCUSTOM_PREGISTER;                       // - - Starting register for power of custom electric meter
+                MenuItems[m++] = MENU_EMCUSTOM_PDIVISOR;                        // - - Divisor for power of custom electric meter
+                MenuItems[m++] = MENU_EMCUSTOM_EREGISTER;                       // - - Starting register for energy of custom electric meter
+                MenuItems[m++] = MENU_EMCUSTOM_EDIVISOR;                        // - - Divisor for energy of custom electric meter
+            }
+            if (MainsMeter) {                                                   // Mainsmeter is configured and Load Balancing Disabled/Master?
+                MenuItems[m++] = MENU_MAINS;                                    // - Max Mains Amps (hard limit, limited by the MAINS connection) (A) (Mode:Smart/Solar)
+                MenuItems[m++] = MENU_MIN;                                      // - Minimal current the EV is happy with (A) (Mode:Smart/Solar or LoadBl:Master)
+            }
+        }
     }
     MenuItems[m++] = MENU_MAX;                                                  // Max Charge current (A)
     if (LoadBl == 1 || (LoadBl == 0 && Mode != MODE_NORMAL)) {                  // ? Load balancing Master?
@@ -1020,7 +1008,7 @@ void GLCDMenu(uint8_t Buttons) {
         ButtonRelease = 0;
         GLCD();
     // stop charging if < button is pressed longer then 2 seconds
-    } else if ((LCDNav == 0) && (Buttons == 0x6) && (ButtonRelease == 0)) {     // Button 1 pressed ?
+    } else if ((State == STATE_C) && (LCDNav == 0) && (Buttons == 0x6) && (ButtonRelease == 0)) {     // Button 1 pressed ?
         LCDNav = MENU_OFF;                                                      // about to cancel charging
         ButtonTimer = millis();
     } else if (LCDNav == MENU_OFF && ((ButtonTimer + 2000) < millis() )) {
@@ -1032,7 +1020,7 @@ void GLCDMenu(uint8_t Buttons) {
         ButtonRelease = 0;
         GLCD();
     // start charging if > button is pressed longer then 2 seconds
-    } else if ((LCDNav == 0) && (Buttons == 0x3) && (ButtonRelease == 0)) {     // Button 3 pressed ?
+    } else if ((Access_bit == 0) && (LCDNav == 0) && (Buttons == 0x3) && (ButtonRelease == 0)) {     // Button 3 pressed ?
         LCDNav = MENU_ON;                                                       // about to start charging
         ButtonTimer = millis();
     } else if (LCDNav == MENU_ON && ((ButtonTimer + 2000) < millis() )) {
@@ -1044,11 +1032,11 @@ void GLCDMenu(uint8_t Buttons) {
         ButtonRelease = 0;
         GLCD();
     ////////////////
-    } else if (Buttons == 0x2 && (ButtonRelease == 0)) {                        // Buttons < and > pressed ?
+    } else if (Buttons == 0x2 && (ButtonRelease < 2)) {                         // Buttons < and > pressed ?
         if ((LCDNav == MENU_CAL) &&  SubMenu ) {                                // While in CT CAL submenu ?
             ICal = ICAL;                                                        // reset Calibration value
             SubMenu = 0;                                                        // Exit Submenu
-        } else GLCD_init();                                                     // re-initialize LCD
+        } else if (LCDNav == 0) GLCD_init();                                    // When not in Menu, re-initialize LCD
         ButtonRelease = 1;
     } else if ((LCDNav > 1) && LCDNav != MENU_OFF && LCDNav != MENU_ON && (Buttons == 0x2 || Buttons == 0x3 || Buttons == 0x6)) { // Buttons < or > or both pressed
         if (ButtonRelease == 0) {                                               // We are navigating between sub menu options
@@ -1082,11 +1070,6 @@ void GLCDMenu(uint8_t Buttons) {
                         if (value !=2 )
                             handleWIFImode();                                   //postpone handling WIFImode == 2 to moving to upper line
                         break;
-                    case MENU_IMPORT:
-                        // note that startcurrent shown as -4A on the display is stored as 4A !
-                        value = MenuNavInt(Buttons, value, max(int(MenuStr[LCDNav].Min), getItemValue(MENU_MIN) - getItemValue(MENU_START)), MenuStr[LCDNav].Max);
-                        setItemValue(LCDNav, value);
-                        break;
                     default:
                         value = MenuNavInt(Buttons, value, MenuStr[LCDNav].Min, MenuStr[LCDNav].Max);
                         setItemValue(LCDNav, value);
@@ -1111,7 +1094,7 @@ void GLCDMenu(uint8_t Buttons) {
         ButtonRelease = 1;
         if (SubMenu) {                                                          // We are currently in Submenu
             SubMenu = 0;                                                        // Exit Submenu now
-            if (LCDNav == MENU_CAL) {                                           // Exit CT1 calibration?
+            if (LCDNav == MENU_CAL && Iuncal) {                                 // Exit CT1 calibration? check if Iuncal is not zero
                 ICal = ((unsigned long)CT1 * 10 + 5) * ICAL / Iuncal;           // Calculate new Calibration value
                 Irms[0] = CT1;                                                  // Set the Irms value, so the LCD update is instant
             }
@@ -1157,7 +1140,7 @@ void GLCDMenu(uint8_t Buttons) {
             break;
         case MENU_CAL:
             if (ButtonRelease == 1) {
-                GLCD_print_menu(2, MenuStr[LCDNav].LCD);                        // add navigation arrows on both sides
+                GLCD_print_menu(2, MenuStr[LCDNav].LCD);                            // add navigation arrows on both sides
                 if (SubMenu) {
                     sprintf(Str, "%u.%uA", CT1 / 10, CT1 % 10);
                 } else {
