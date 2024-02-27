@@ -464,6 +464,7 @@ extern int32_t EnergyCapacity;
 extern int32_t PowerMeasured;
 extern uint8_t RFIDstatus;
 extern bool LocalTimeSet;
+extern uint32_t serialnr;
 
 extern uint8_t MenuItems[MENU_EXIT];
 

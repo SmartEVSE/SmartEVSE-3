@@ -4698,6 +4698,7 @@ void setup() {
         uint16_t hwversion = preferences.getUShort("hwversion");                // 0x0101 (01 = SmartEVSE,  01 = hwver 01)
 #endif
         serialnr = preferences.getUInt("serialnr");      
+        if (!serialnr) serialnr = MacId() & 0xffff;                             // when serialnr is not programmed (anymore), we use the Mac address
         String ec_private = preferences.getString("ec_private");
         String ec_public = preferences.getString("ec_public");
         preferences.end(); 
