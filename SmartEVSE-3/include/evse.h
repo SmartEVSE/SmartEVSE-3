@@ -368,11 +368,10 @@ extern RemoteDebug Debug;
 #define MENU_WIFI 34                                                            // 0x0219: WiFi mode
 #define MENU_C2 35
 #define MENU_MAX_TEMP 36
-#define MENU_MODEM 37
-#define MENU_SUMMAINS 38
-#define MENU_OFF 39                                                             // so access bit is reset and charging stops when pressing < button 2 seconds
-#define MENU_ON 40                                                              // so access bit is set and charging starts when pressing > button 2 seconds
-#define MENU_EXIT 41
+#define MENU_SUMMAINS 37
+#define MENU_OFF 38                                                             // so access bit is reset and charging stops when pressing < button 2 seconds
+#define MENU_ON 39                                                              // so access bit is set and charging starts when pressing > button 2 seconds
+#define MENU_EXIT 40
 
 #define MENU_STATE 50
 
@@ -526,7 +525,6 @@ const struct {
     {"WIFI",    "Connect to WiFi access point",                       0, 2, WIFI_MODE},
     {"CONTACT 2","Contactor2 (C2) behaviour",                          0, sizeof(StrEnableC2) / sizeof(StrEnableC2[0])-1, ENABLE_C2},
     {"MAX TEMP","Maximum temperature for the EVSE module",            40, 75, MAX_TEMPERATURE},
-    {"MODEM",   "Is an ISO15118 modem installed (experimental)",      0, 1, NOTPRESENT},
     {"SUM MAINS","Capacity Rate limit on sum of MAINS Current (A)",    10, 600, MAX_SUMMAINS},
     {"", "Hold 2 sec to stop charging", 0, 0, 0},
     {"", "Hold 2 sec to start charging", 0, 0, 0},

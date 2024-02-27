@@ -107,11 +107,6 @@ SUMMAINS      (only appears when a MAINSMET is configured):
               Maximum allowed Mains Current summed over all phases: 10-600A
               This is used for the EU Capacity rate limiting, currently only in Belgium
 
-MODEM         If a modem that can communicate with your EV is connected
-  <Disabled>          No modem connected
-  <Experimental>      Only for expert use,
-                      if you have a modem connected AND compile the firmware with MODEM=1.
-
 The following options are only shown when Mode set to <Solar> and
 Multi set to <Disabled> or <Master>:
 START         set the current on which the EV should start Solar charging:

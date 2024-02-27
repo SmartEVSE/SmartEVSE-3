@@ -1481,9 +1481,6 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
     }
 
     switch (nav) {
-        case MENU_MODEM:
-            Modem = (Modem_t) val;
-            break;
         case MENU_MAX_TEMP:
             maxTemp = val;
             break;
@@ -1638,8 +1635,6 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
  */
 uint16_t getItemValue(uint8_t nav) {
     switch (nav) {
-        case MENU_MODEM:
-            return Modem;
         case MENU_MAX_TEMP:
             return maxTemp;
         case MENU_C2:
@@ -2708,6 +2703,7 @@ void SetupMQTTClient() {
     optional_payload = jsna("entity_category","diagnostic") + jsna("device_class","duration") + jsna("unit_of_measurement","s") + jsna("entity_registry_enabled_default","False");
     announce("ESP Uptime", "sensor");
 
+#if MODEM
     if (Modem) {
         optional_payload = jsna("unit_of_measurement","%") + jsna("value_template", R"({{ (value | int / 1024 * 100) | round(0) }})");
         announce("CP PWM", "sensor");
@@ -2717,7 +2713,7 @@ void SetupMQTTClient() {
         optional_payload += jsna("command_template", R"({{ (value | int * 1024 / 100) | round }})");
         announce("CP PWM Override", "number");
     }
-
+#endif
     //set the parameters for and announce select entities, overriding automatic state_topic:
     optional_payload = jsna("state_topic", String(MQTTprefix + "/Mode")) + jsna("command_topic", String(MQTTprefix + "/Set/Mode"));
     optional_payload += String(R"(, "options" : ["Off", "Normal", "Smart", "Solar"])");
@@ -2757,6 +2753,7 @@ void mqttPublishData() {
         MQTTclient.publish(MQTTprefix + "/WiFiSSID", String(WiFi.SSID()), true, 0);
         MQTTclient.publish(MQTTprefix + "/WiFiBSSID", String(WiFi.BSSIDstr()), true, 0);
         MQTTclient.publish(MQTTprefix + "/WiFiRSSI", String(WiFi.RSSI()), false, 0);
+#if MODEM
         if (Modem) {
             MQTTclient.publish(MQTTprefix + "/CPPWM", String(CurrentPWM), false, 0);
             MQTTclient.publish(MQTTprefix + "/CPPWMOverride", String(CPDutyOverride ? String(CurrentPWM) : "-1"), true, 0);
@@ -2770,6 +2767,7 @@ void mqttPublishData() {
             MQTTclient.publish(MQTTprefix + "/EVCCID", String(EVCCID), true, 0);
             MQTTclient.publish(MQTTprefix + "/RequiredEVCCID", String(RequiredEVCCID), true, 0);
         }
+#endif
         if (EVMeter) {
             MQTTclient.publish(MQTTprefix + "/EVChargePower", String(PowerMeasured), false, 0);
             MQTTclient.publish(MQTTprefix + "/EVEnergyCharged", String(EnergyCharged), true, 0);
@@ -3583,7 +3581,11 @@ void read_settings() {
         TZname = preferences.getString("Timezone","Europe/Berlin");
 
         EnableC2 = (EnableC2_t) preferences.getUShort("EnableC2", ENABLE_C2);
-        Modem = (Modem_t) preferences.getUShort("Modem", NOTPRESENT);
+#if MODEM
+        Modem = EXPERIMENT;
+#else
+        Modem = NOTPRESENT;
+#endif
         strncpy(RequiredEVCCID, preferences.getString("RequiredEVCCID", "").c_str(), sizeof(RequiredEVCCID));
         maxTemp = preferences.getUShort("maxTemp", MAX_TEMPERATURE);
 
@@ -3653,7 +3655,6 @@ void write_settings(void) {
     preferences.putULong("DelayedStopTime", DelayedStopTime.epoch2);   //epoch2 only needs 4 bytes
 
     preferences.putUShort("EnableC2", EnableC2);
-    preferences.putUShort("Modem", Modem);
     preferences.putString("RequiredEVCCID", String(RequiredEVCCID));
     preferences.putUShort("maxTemp", maxTemp);
 
@@ -3899,6 +3900,7 @@ void StartwebServer(void) {
         doc["settings"]["starttime"] = (DelayedStartTime.epoch2 ? DelayedStartTime.epoch2 + EPOCH2_OFFSET : 0);
         doc["settings"]["stoptime"] = (DelayedStopTime.epoch2 ? DelayedStopTime.epoch2 + EPOCH2_OFFSET : 0);
         doc["settings"]["repeat"] = DelayedRepeat;
+#if MODEM
         if (Modem) {
             doc["settings"]["required_evccid"] = RequiredEVCCID;
             doc["ev_state"]["initial_soc"] = InitialSoC;
@@ -3910,6 +3912,7 @@ void StartwebServer(void) {
             doc["ev_state"]["evccid"] = EVCCID;
             doc["ev_state"]["time_until_full"] = TimeUntilFull;
         }
+#endif
 
 #if MQTT
         doc["mqtt"]["host"] = MQTTHost;
