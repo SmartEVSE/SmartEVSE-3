@@ -633,7 +633,6 @@ void setMode(uint8_t NewMode) {
     lastMqttUpdate = 10;
 #endif
 
-    _LOG_A("Newmode %u\n", NewMode);
     if (LoadBl == 1) ModbusWriteSingleRequest(BROADCAST_ADR, 0x0003, NewMode);
     if (NewMode == MODE_SMART) {
         ErrorFlags &= ~(NO_SUN | LESS_6A);                                      // Clear All errors
@@ -701,9 +700,9 @@ void setStatePowerUnavailable(void) {
 void setState(uint8_t NewState) {
     if (State != NewState) {
         char Str[50];
-        snprintf(Str, sizeof(Str), "#%02d:%02d:%02d STATE %s -> %s\n",timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec, getStateName(State), getStateName(NewState) );
+        snprintf(Str, sizeof(Str), "%02d:%02d:%02d STATE %s -> %s\n",timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec, getStateName(State), getStateName(NewState) );
 
-        _LOG_A("%s",Str+1);
+        _LOG_A("%s",Str);
     }
 
     switch (NewState) {
@@ -2049,7 +2048,7 @@ void EVSEStates(void * parameter) {
         if (LCDNav > MENU_ENTER && LCDNav < MENU_EXIT && (ScrollTimer + 5000 < millis() ) && (!SubMenu)) GLCDHelp();
 
         // Left button pressed, Loadbalancing is Master or Disabled, switch is set to "Sma-Sol B" and Mode is Smart or Solar?
-        if ((!LCDNav || LCDNav == MENU_OFF) && ButtonState == 0x6 && Mode && !leftbutton && (LoadBl < 2) && Switch == 3) {
+        if ((!LCDNav || LCDNav == MENU_OFF) && ButtonState == 0x6 && Mode && !leftbutton && Switch == 3) {
             setMode(~Mode & 0x3);                                           // Change from Solar to Smart mode and vice versa.
             ErrorFlags &= ~(NO_SUN | LESS_6A);                              // Clear All errors
             ChargeDelay = 0;                                                // Clear any Chargedelay
@@ -4057,7 +4056,6 @@ void StartwebServer(void) {
                 doc["starttime"] = (DelayedStartTime.epoch2 ? DelayedStartTime.epoch2 + EPOCH2_OFFSET : 0);
             }
 
-            _LOG_A("Mode set %lu\n",mode.toInt());
             switch(mode.toInt()) {
                 case 0: // OFF
                     ToModemWaitStateTimer = 0;
