@@ -27,7 +27,7 @@
 
 #ifndef DBG
 //the wifi-debugger is available by telnetting to your SmartEVSE device
-#define DBG 1  //comment or set to 0 for production release, 0 = no debug 1 = debug over telnet, 2 = debug over usb serial
+#define DBG 2  //comment or set to 0 for production release, 0 = no debug 1 = debug over telnet, 2 = debug over usb serial
 #endif
 
 #ifndef FAKE_RFID
@@ -114,11 +114,11 @@ extern RemoteDebug Debug;
 #define _LOG_D( ... ) log_d ( __VA_ARGS__ )
 #define _LOG_V( ... ) log_v ( __VA_ARGS__ )
 #define _LOG_A( ... ) log_n ( __VA_ARGS__ )
-#define _LOG_W_NO_FUNC( ... ) log_w ( __VA_ARGS__ )
-#define _LOG_I_NO_FUNC( ... ) log_i ( __VA_ARGS__ )
-#define _LOG_D_NO_FUNC( ... ) log_d ( __VA_ARGS__ )
-#define _LOG_V_NO_FUNC( ... ) log_v ( __VA_ARGS__ )
-#define _LOG_A_NO_FUNC( ... ) log_n ( __VA_ARGS__ )
+#define _LOG_W_NO_FUNC( ... ) Serial.printf ( __VA_ARGS__ )
+#define _LOG_I_NO_FUNC( ... ) Serial.printf ( __VA_ARGS__ )
+#define _LOG_D_NO_FUNC( ... ) Serial.printf ( __VA_ARGS__ )
+#define _LOG_V_NO_FUNC( ... ) Serial.printf ( __VA_ARGS__ )
+#define _LOG_A_NO_FUNC( ... ) Serial.printf ( __VA_ARGS__ )
 #endif
 
 // Pin definitions left side ESP32
