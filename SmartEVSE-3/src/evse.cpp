@@ -206,7 +206,8 @@ struct {
 
 uint8_t lock1 = 0, lock2 = 1;
 uint8_t UnlockCable = 0, LockCable = 0;
-uint8_t timeout = 5;                                                        // communication timeout (sec)
+uint8_t MainsMeterTimeout = COMM_TIMEOUT;                                   // MainsMeter communication timeout (sec)
+uint8_t EVMeterTimeout = COMM_TIMEOUT;                                      // EV Meter communication Timeout (sec)
 uint16_t BacklightTimer = 0;                                                // Backlight timer (sec)
 uint8_t BacklightSet = 0;
 uint8_t LCDTimer = 0;
@@ -1210,7 +1211,7 @@ void BroadcastCurrent(void) {
     for (uint16_t i=0; i<3; i++) {
         Msg.add(Irms[i]);
     }
-    Error err = MBclient.addBroadcastMessage(Msg.data(), Msg.size());
+/*    Error err = MBclient.addBroadcastMessage(Msg.data(), Msg.size());
     if (err!=SUCCESS) {
         ModbusError e(err);
         _LOG_A("Error creating request: %02X - %s\n", (int)e, (const char *)e);
@@ -1224,6 +1225,7 @@ void BroadcastCurrent(void) {
         _LOG_V_NO_FUNC(" %02x", b);
     _LOG_D_NO_FUNC("\n");
 #endif
+*/
     ModbusWriteMultipleRequest(BROADCAST_ADR, 0x0020, Balanced, NR_EVSES);
 }
 
@@ -1605,7 +1607,7 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
             break;
         case STATUS_CURRENT:
             OverrideCurrent = val;
-            timeout = COMM_TIMEOUT;                                             // reset timeout when register is written
+            MainsMeterTimeout = COMM_TIMEOUT;                                   // reset timeout when register is written
             break;
         case STATUS_SOLAR_TIMER:
             setSolarStopTimer(val);
@@ -2238,9 +2240,7 @@ void EVSEStates(void * parameter) {
             GLCD();
             LCDupdate = 0;
         }    
-
-        if ((ErrorFlags & CT_NOCOMM) && timeout >= COMM_TIMEOUT) ErrorFlags &= ~CT_NOCOMM; // Clear communication error, if present
-        
+      
         // Pause the task for 10ms
         vTaskDelay(10 / portTICK_PERIOD_MS);
     } // while(1) loop
@@ -2510,10 +2510,10 @@ void mqtt_receive_callback(const String &topic, const String &payload) {
 
         if (n == 3 && L1 < 1000 && L2 < 1000 && L3 < 1000) {
             if (LoadBl < 2)
-                timeout = COMM_TIMEOUT;
-            if ((ErrorFlags & CT_NOCOMM))
-                ErrorFlags &= ~CT_NOCOMM; // Clear communication error, if present
-
+                MainsMeterTimeout = COMM_TIMEOUT;
+//            if ((ErrorFlags & CT_NOCOMM))
+//                ErrorFlags &= ~CT_NOCOMM; // Clear communication error, if present 
+//          Cleared in 1000ms loop
             Irms[0] = L1;
             Irms[1] = L2;
             Irms[2] = L3;
@@ -2944,7 +2944,7 @@ void Timer1S(void * parameter) {
             if (BalancedState[x] == STATE_C) Node[x].Timer++;
         }
 
-        if ( (timeout == 0) && !(ErrorFlags & CT_NOCOMM) && (Mode != MODE_NORMAL)) { // timeout if current measurement takes > 10 secs
+        if ( (MainsMeterTimeout == 0 || (EVMeter && EVMeterTimeout == 0) ) && !(ErrorFlags & CT_NOCOMM) && (Mode != MODE_NORMAL)) { // timeout if current measurement takes > 10 secs
             // In Normal mode do not timeout; there might be MainsMeter/EVMeter configured that can be retrieved through the API,
             // but in Normal mode we just want to charge ChargeCurrent, irrespective of communication problems.
             ErrorFlags |= CT_NOCOMM;
@@ -2952,7 +2952,14 @@ void Timer1S(void * parameter) {
             _LOG_W("Error, communication error!\n");
             // Try to broadcast communication error to Nodes if we are Master
             if (LoadBl < 2) ModbusWriteSingleRequest(BROADCAST_ADR, 0x0001, ErrorFlags);         
-        } else if (timeout) timeout--;
+        } else {
+            if (MainsMeterTimeout) MainsMeterTimeout--;
+            if (EVMeter && EVMeterTimeout) EVMeterTimeout--;
+        }
+        
+        // Clear communication error, if present
+        if ((ErrorFlags & CT_NOCOMM) && MainsMeterTimeout && EVMeterTimeout) ErrorFlags &= ~CT_NOCOMM; 
+
 
         if (TempEVSE > maxTemp && !(ErrorFlags & TEMP_HIGH))                         // Temperature too High?
         {
@@ -3110,7 +3117,7 @@ ModbusMessage MBEVMeterResponse(ModbusMessage request) {
         } else if (MB.Register == EMConfig[EVMeter].IRegister) {
             // Current measurement
             x = receiveCurrentMeasurement(MB.Data, EVMeter, EV );
-            if (x && LoadBl <2) timeout = COMM_TIMEOUT;                     // only reset timeout when data is ok, and Master/Disabled
+            if (x && LoadBl <2) EVMeterTimeout = COMM_TIMEOUT;              // only reset timeout when data is ok, and Master/Disabled
             for (x = 0; x < 3; x++) {
                 // CurrentMeter and PV values are MILLI AMPERE
                 Irms_EV[x] = (signed int)(EV[x] / 100);            // Convert to AMPERE * 10
@@ -3137,7 +3144,7 @@ ModbusMessage MBMainsMeterResponse(ModbusMessage request) {
 
         //_LOG_A("Mains Meter Response\n");
             x = receiveCurrentMeasurement(MB.Data, MainsMeter, CM);
-            if (x && LoadBl <2) timeout = COMM_TIMEOUT;         // only reset timeout when data is ok, and Master/Disabled
+            if (x && LoadBl <2) MainsMeterTimeout = COMM_TIMEOUT;         // only reset timeout when data is ok, and Master/Disabled
 
             // Calculate Isum (for nodes and master)
             for (x = 0; x < 3; x++) {
@@ -3300,7 +3307,7 @@ ModbusMessage MBbroadcast(ModbusMessage request) {
                     if (Balanced[0] == 0 && State == STATE_C) setState(STATE_C1);               // tell EV to stop charging if charge current is zero
                     else if ((State == STATE_B) || (State == STATE_C)) SetCurrent(Balanced[0]); // Set charge current, and PWM output
                     _LOG_V("Broadcast received, Node %.1f A\n", (float) Balanced[0]/10);
-                    timeout = COMM_TIMEOUT;                     // reset 10 second timeout
+                    MainsMeterTimeout = COMM_TIMEOUT;                     // reset 10 second timeout
                 } else {
                     //WriteMultipleItemValueResponse();
                     if (ItemID) {
@@ -4246,7 +4253,7 @@ void StartwebServer(void) {
                     }
                     doc["TOTAL"] = Isum;
 
-                    timeout = COMM_TIMEOUT;
+                    MainsMeterTimeout = COMM_TIMEOUT;
 
                     UpdateCurrentData();
                 } else
@@ -4271,7 +4278,7 @@ void StartwebServer(void) {
                 Irms_EV[1] = request->getParam("L2")->value().toInt();
                 Irms_EV[2] = request->getParam("L3")->value().toInt();
 
-                if (LoadBl < 2) timeout = COMM_TIMEOUT;
+                if (LoadBl < 2) EVMeterTimeout = COMM_TIMEOUT;
 
                 UpdateCurrentData();
             }
