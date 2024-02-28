@@ -441,7 +441,7 @@ void GLCD(void) {
                     GLCD_write_buf_str(0,0, Str, GLCD_ALIGN_LEFT);                                        
                 } else {
                     // Show Access Point name
-                    sprintf(Str, "AP:%u", MacId() & 0xffff);                
+                    sprintf(Str, "AP:%u", serialnr);                
                     GLCD_write_buf_str(0,0, Str, GLCD_ALIGN_LEFT);
                     // and password
                     sprintf(Str, "PW:%s", APpassword.c_str());
