@@ -1,5 +1,6 @@
 # Improved starting/stopping through the LCD screen
 * When pressing o button longer then 2 seconds you will enter the Menu screen
+* When pressing < button shorter then 2 seconds, you will toggle between Smart/Solar mode
 * When pressing < button longer then 2 seconds the access will be denied, i.e. the mode will be set to "Off" and charging will stop
 * When pressing > button longer then 2 seconds the access will be granted, i.e. the previously set mode will be activated and charging will start
 
@@ -18,7 +19,7 @@ After configuration of your Wifi parameters, your SmartEVSE will present itself 
     - after OK, wait 10-30 seconds and your new firmware including the webserver should be online!
 * Added wifi-debugging: if you flashed the debug version, telnet http://your-smartevse/ will bring you to a debugger that shows you whats going on!
 
-# Mode switching when MULTI SmartEVSE is configured
+# Mode switching when PWR SHARE is activated
 * If you switch mode on the Master, the Slaves will follow that mode switch
 * If you switch mode on one Slave, and your Master does not have a Smart/Solar toggle switch configured, the Master and all the other slaves will follow
 * If you have a Smart/Solar toggle switch you have to guard yourself that Master and Slaves are all in the same mode. We recommend replacing that toggle switch by a pushbutton switch.

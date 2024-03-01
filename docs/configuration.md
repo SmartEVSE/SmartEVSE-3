@@ -11,9 +11,9 @@
 
 # All menu options on the LCD screen:
 ```
-MODE    (only appears when a MAINSMET is configured):
-        Per default you are in Normal EVSE mode, but if a MAINSMET is configured you can
-        also choose Smart Mode or Solar Mode:
+MODE:
+        Per default you are in Normal EVSE mode; you can also choose Smart Mode or Solar Mode,
+        but you will have to configure a MAINSMETer to actually use these modes. 
   <Normal>	The EV will charge with the current set at MAX
   <Smart>	The EV will charge with a dynamic charge current, depending on MAINSMET
                 data, and MAINS, MAX, MIN settings
@@ -31,44 +31,14 @@ LOCK    (only appears when CONFIG is set to <Socket>)
   <Solenoid>	Dostar, DUOSIDA DSIEC-ELB or Ratio lock
   <Motor>	Signal wire reversed, DUOSIDA DSIEC-EL or Phoenix Contact
 
-MULTI   (only appears when a MAINSMET is configured); formerly known as LOADBALANCING.
+PWR SHARE  ; formerly known as LOADBALANCING.
         2 to 8 EVSE’s can be connected via modbus, and their load will be balanced
   <Disabled>	Single SmartEVSE
   <Master>	Set the first SmartEVSE to Master. Make sure there is only one Master.
   <Node1-7>	And the other SmartEVSE's to Node 1-7.
 
-MAINS	(only appears when a MAINSMET is configured):
-        Set Max Mains current: 10-200A (per phase)
-
-MIN     (only appears when a MAINSMET is configured):
-        Set MIN charge current for the EV: 6-16A (per phase)
-
-MAX	Set MAX charge current for the EV: 10-80A (per phase)
-        If CONFIG is set to <Fixed>, configure MAX lower or equal to the maximum current
-        that your fixed cable can carry.
-
-CIRCUIT	(only appears when MULTI set to <Master>, or when MULTI set to <Disabled>
-        and Mode is Smart or Solar):
-        Set the max current the EVSE circuit can handle (load balancing): 10-200A
-        (see also subpanel wiring)
-
-SWITCH  Set the function of an external switch connected to pin SW
-  <Disabled>    A push button on io pin SW can be used to STOP charging
-  <Access B>    A momentary push Button is used to enable/disable access to the charging station
-  <Access S>    A toggle switch is used to enable/disable access to the charging station
-  <Sma-Sol B>   A momentary push Button is used to switch between Smart and Solar modes
-  <Sma-Sol S>   A toggle switch is used to switch between Smart and Solar modes
-
-RCMON   RCM14-03 Residual Current Monitor is plugged into connector P1
-  <Disabled>    The RCD option is not used
-  <Enabled>     When a fault current is detected, the contactor will be opened
-
-RFID    use a RFID card reader to enable/disable access to the EVSE
-        A maximum of 20 RFID cards can be stored.
-                <Disabled> / <Enabled> / <Learn> / <Delete> / <Delete All>
-
 MAINSMET Set type of MAINS meter
-  <Disabled>    No MAINS meter connected; only Normal mode possible, no MULTIple SmartEVSE's possible
+  <Disabled>    No MAINS meter connected; only Normal mode possible
   <Sensorbox>   the Sensorbox will send measurement data to the SmartEVSE
   <API>         The MAINS meter data will be fed through the REST API or the MQTT API.
   <Phoenix C> / <Finder> / <...> / <Custom> a Modbus kWh meter is used
@@ -93,6 +63,36 @@ EV METER Set type of EV kWh meter (measures power and charged energy)
   If EV METER is not <Disabled> and not <API>, this setting appears:
   EV ADR   Set the Modbus address for the EV Meter
 
+MAINS	(only appears when a MAINSMET is configured):
+        Set Max Mains current: 10-200A (per phase)
+
+MIN     (only appears when a MAINSMET is configured):
+        Set MIN charge current for the EV: 6-16A (per phase)
+
+MAX	Set MAX charge current for the EV: 10-80A (per phase)
+        If CONFIG is set to <Fixed>, configure MAX lower or equal to the maximum current
+        that your fixed cable can carry.
+
+CIRCUIT	(only appears when PWR SHARE set to <Master>, or when PWR SHARE set to <Disabled>
+        and Mode is Smart or Solar):
+        Set the max current the EVSE circuit can handle (load balancing): 10-200A
+        (see also subpanel wiring)
+
+SWITCH  Set the function of an external switch connected to pin SW
+  <Disabled>    A push button on io pin SW can be used to STOP charging
+  <Access B>    A momentary push Button is used to enable/disable access to the charging station
+  <Access S>    A toggle switch is used to enable/disable access to the charging station
+  <Sma-Sol B>   A momentary push Button is used to switch between Smart and Solar modes
+  <Sma-Sol S>   A toggle switch is used to switch between Smart and Solar modes
+
+RCMON   RCM14-03 Residual Current Monitor is plugged into connector P1
+  <Disabled>    The RCD option is not used
+  <Enabled>     When a fault current is detected, the contactor will be opened
+
+RFID    use a RFID card reader to enable/disable access to the EVSE
+        A maximum of 20 RFID cards can be stored.
+                <Disabled> / <Enabled> / <Learn> / <Delete> / <Delete All>
+
 WIFI          Enable wifi connection to your LAN
   <Disabled>  No wifi connection
   <SetupWifi> The SmartEVSE presents itself as a Wifi Acces Point "smartevse-xxxx";
@@ -108,7 +108,7 @@ SUMMAINS      (only appears when a MAINSMET is configured):
               This is used for the EU Capacity rate limiting, currently only in Belgium
 
 The following options are only shown when Mode set to <Solar> and
-Multi set to <Disabled> or <Master>:
+PWR SHARE set to <Disabled> or <Master>:
 START         set the current on which the EV should start Solar charging:
               -0  -48A (sum of all phases)
 STOP          Stop charging when there is not enough solar power available:
@@ -139,7 +139,7 @@ CONTACT2      One can add a second contactor (C2) that switches off 2 of the 3 p
   <Solar Off>   C2 is always on except in Solar Mode where it is always off
   <Auto>        SmartEVSE starts charging at 3phase, but when in Solar mode and not enough
                 current available for 3 phases, switches off C2 so it will continue on 1 phase
-                Note: CONTACT2 will be set to ALWAYS_ON when MULTI is enabled.
+                Note: CONTACT2 will be set to ALWAYS_ON when PWR SHARE is enabled.
 
 
 ```
@@ -180,7 +180,7 @@ mosquitto_pub  -h ip-of-mosquitto-server -u username -P password -t 'SmartEVSE-x
 
 You can find test scripts in the test directory that feed EV and MainsMeter data to your MQTT server.
 
-# Multiple SmartEVSE controllers on one mains supply
+# Multiple SmartEVSE controllers on one mains supply (Power Share)
 Up to eight SmartEVSE modules can share one mains supply.
   - Hardware connections
     - Connect the A, B and GND connections from the Master to the Node(s).
@@ -188,7 +188,7 @@ Up to eight SmartEVSE modules can share one mains supply.
     - If you are using Smart/Solar mode, you should connect the A, B , +12V and GND wires from the sensorbox to the same screw terminals of the SmartEVSE! Make sure that the +12V  wire from the sensorbox is connected to only  -one– SmartEVSE.
 
   - Software configuration
-    - Set one SmartEVSE MULTI setting to MASTER, the others to NODE 1-7. Make sure there is only one Master, and the Node numbers are unique.
+    - Set one SmartEVSE PWR SHARE setting to MASTER, the others to NODE 1-7. Make sure there is only one Master, and the Node numbers are unique.
     - On the Master configure the following:
       - MODE	  Set this to Smart if a Sensorbox (or configured kWh meter) is used to measure the current draw on the mains supply.
       It will then dynamically vary the charge current for all connected EV’s.  If you are using a dedicated mains supply for the EV’s you can leave this set to Normal.

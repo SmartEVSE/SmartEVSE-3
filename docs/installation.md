@@ -58,7 +58,7 @@ One can add a second contactor (C2) that switches off 2 of the 3 phases of a thr
       By default C2 is switched OFF ("Not present"); if you want to keep on charging on 3 phases after installing C2, you should change the setting Contact2 in the
       Setup Menu.
 
-# Multiple SmartEVSE controllers on one mains supply
+# Multiple SmartEVSE controllers on one mains supply (Power Share)
 Up to eight SmartEVSE modules can share one mains supply.
 Hardware connections
 * Connect the A, B and GND connections from the Master to the Node(s).
