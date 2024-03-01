@@ -1205,32 +1205,13 @@ void CalcBalancedCurrent(char mod) {
  * Broadcast momentary currents to all Node EVSE's
  */
 void BroadcastCurrent(void) {
-
-    // We prepend the broadcastmessage with the 2 byte register number
-    uint16_t reg = 0x0030;
-    // Send message
-    ModbusMessage Msg;
-    Msg.clear();
-    Msg.add(reg);
-    for (uint16_t i=0; i<3; i++) {
-        Msg.add(Irms[i]);
-    }
-/*    Error err = MBclient.addBroadcastMessage(Msg.data(), Msg.size());
-    if (err!=SUCCESS) {
-        ModbusError e(err);
-        _LOG_A("Error creating request: %02X - %s\n", (int)e, (const char *)e);
-    }
-    else {
-        _LOG_D("Sent broadcast packet");
-    }
-#if DBG != 0
-    _LOG_V_NO_FUNC(" (%i bytes)", Msg.size());
-    for (auto b : Msg)
-        _LOG_V_NO_FUNC(" %02x", b);
-    _LOG_D_NO_FUNC("\n");
-#endif
-*/
-    ModbusWriteMultipleRequest(BROADCAST_ADR, 0x0020, Balanced, NR_EVSES);
+    //prepare registers 0x0020 thru 0x0030 (including) to be sent
+    uint8_t buf[sizeof(Balanced)+sizeof(Irms)];
+    uint8_t *p=buf;
+    memcpy(p, Balanced, sizeof(Balanced));
+    p = p + sizeof(Balanced);
+    memcpy(p, Irms, sizeof(Irms));
+    ModbusWriteMultipleRequest(BROADCAST_ADR, 0x0020, (uint16_t *) buf, sizeof(Balanced)+sizeof(Irms));
 }
 
 /**
@@ -1365,8 +1346,7 @@ Regist 	Access  Description 	        Unit 	Values
 0x0020 - 0x0027
         W 	Broadcast charge current. SmartEVSE uses only one value depending on the "Load Balancing" configuration
                                         0.1 A 	0:no current available
-//this data sent through actual addBroadcast function of emodbus library so we keep backwards compatibility
-0x0030 - 0x0032
+0x0028 - 0x0030
         W 	Broadcast MainsMeter currents L1 - L3.
                                         0.1 A 	0:no current available
 **/
@@ -3289,40 +3269,6 @@ ModbusMessage MBNodeRequest(ModbusMessage request) {
   return response;
 }
 
-// Worker function for broadcast requests
-void BroadcastWorker(ModbusMessage Msg) {
-    uint16_t Register;
-    //notice that the first byte is a leading 0x00 byte
-    uint16_t index = 1;
-    index=Msg.get(index, Register);
-#if DBG != 0
-    _LOG_D("Received broadcast packet, reg=%04x (%i bytes)", Register, Msg.size());
-    for (auto b : Msg)
-        _LOG_V_NO_FUNC(" %02x", b);
-    _LOG_V_NO_FUNC("\n");
-#endif
-    if (Register == 0x0030) {
-        if (Msg.size() == 15) {
-            Isum = 0;
-            _LOG_V("Irms from MainsMeter received: ");
-            for (int i=0; i<3; i++) {
-                index = Msg.get(index, Irms[i]);
-                Isum = Isum + Irms[i];
-                _LOG_V_NO_FUNC("Index=%u, L%i=%.1fA,", index, i+1, (float)Irms[i]/10);
-            }
-            _LOG_V_NO_FUNC("\n");
-        }
-        else {
-#if DBG != 0
-            _LOG_A("Received invalid broadcast packet, reg=%04x (%i bytes)", Register, Msg.size());
-            for (auto b : Msg)
-                _LOG_A_NO_FUNC(" %02x", b);
-            _LOG_A_NO_FUNC("\n");
-#endif
-        }
-    }
-}
-
 // The Node/Server receives a broadcast message from the Master
 // Does not send any data back.
 ModbusMessage MBbroadcast(ModbusMessage request) {
@@ -3351,12 +3297,30 @@ ModbusMessage MBbroadcast(ModbusMessage request) {
             case 0x10: // (Write multiple register))
                 // 0x0020: Balance currents
                 if (MB.Register == 0x0020 && LoadBl > 1) {      // Message for Node(s)
+                    //prepare registers 0x0020 thru 0x0030 (including) to be received
+                    //for some reason the modbus library swaps bytes, we've got to swap them back:
+                    uint8_t tmp;
+                    uint8_t *buf=MB.Data+sizeof(Balanced);
+                    for (int i=0; i<sizeof(Irms); i = i + 2 ) {
+                        tmp=buf[i];
+                        buf[i]=buf[i+1];
+                        buf[i+1]=tmp;
+                    }
+                    memcpy(Irms, buf, sizeof(Irms));
                     Balanced[0] = (MB.Data[(LoadBl - 1) * 2] <<8) | MB.Data[(LoadBl - 1) * 2 + 1];
                     if (Balanced[0] == 0 && State == STATE_C) setState(STATE_C1);               // tell EV to stop charging if charge current is zero
                     else if ((State == STATE_B) || (State == STATE_C)) SetCurrent(Balanced[0]); // Set charge current, and PWM output
-                    _LOG_V("Broadcast received, Node %.1f A\n", (float) Balanced[0]/10);
                     MainsMeterTimeout = COMM_TIMEOUT;                     // reset 10 second timeout
+                    _LOG_V("Broadcast received, Node %.1f A, MainsMeter Irms ", (float) Balanced[0]/10);
+                    //now decode registers 0x0028-0x0030
+                    Isum = 0;
+                    for (int i=0; i<3; i++) {
+                        Isum = Isum + Irms[i];
+                        _LOG_V_NO_FUNC("L%i=%.1fA,", i+1, (float)Irms[i]/10);
+                    }
+                    _LOG_V_NO_FUNC("\n");
                 } else {
+
                     //WriteMultipleItemValueResponse();
                     if (ItemID) {
                         for (i = 0; i < MB.RegisterCount; i++) {
@@ -3479,10 +3443,7 @@ void ConfigureModbusMode(uint8_t newmode) {
             MBserver.registerWorker(LoadBl, ANY_FUNCTION_CODE, &MBNodeRequest);      
             // Also add handler for all broadcast messages from Master.
             MBserver.registerWorker(BROADCAST_ADR, ANY_FUNCTION_CODE, &MBbroadcast);
-            MBserver.registerBroadcastWorker(BroadcastWorker);
 
-
-            if (MainsMeter && MainsMeter != EM_API) MBserver.registerWorker(MainsMeterAddress, ANY_FUNCTION_CODE, &MBMainsMeterResponse);
             if (EVMeter && EVMeter != EM_API) MBserver.registerWorker(EVMeterAddress, ANY_FUNCTION_CODE, &MBEVMeterResponse);
 
             // Start ModbusRTU Node background task
