@@ -906,8 +906,7 @@ uint8_t getMenuItems (void) {
     uint8_t m = 0;
 
     uint8_t MainsMeter = getItemValue(MENU_MAINSMETER);
-    if (MainsMeter)                                                             // only show Mode menu if we have a mainsmeter, otherwise we are in normal mode
-        MenuItems[m++] = MENU_MODE;                                             // EVSE mode (0:Normal / 1:Smart / 2: Solar)
+    MenuItems[m++] = MENU_MODE;                                                 // EVSE mode (0:Normal / 1:Smart / 2: Solar)
     MenuItems[m++] = MENU_CONFIG;                                               // Configuration (0:Socket / 1:Fixed Cable)
     if (!getItemValue(MENU_CONFIG)) {                                                              // ? Fixed Cable?
         MenuItems[m++] = MENU_LOCK;                                             // - Cable lock (0:Disable / 1:Solenoid / 2:Motor)
@@ -1058,12 +1057,6 @@ void GLCDMenu(uint8_t Buttons) {
                         do {
                             value = MenuNavInt(Buttons, value, MenuStr[LCDNav].Min, MenuStr[LCDNav].Max);
                         } while (value == EM_SENSORBOX || (value >= EM_UNUSED_SLOT1 && value <= EM_UNUSED_SLOT4));
-                        setItemValue(LCDNav, value);
-                        break;
-                    case MENU_MODE:                                          // do not display Smart or Solar mode if no mainsmeter configured
-                        do {
-                            value = MenuNavInt(Buttons, value, MenuStr[LCDNav].Min, MenuStr[LCDNav].Max);
-                        } while (!getItemValue(MENU_MAINSMETER) && value != MODE_NORMAL);
                         setItemValue(LCDNav, value);
                         break;
                     case MENU_WIFI:

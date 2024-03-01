@@ -3512,9 +3512,6 @@ void validate_settings(void) {
     if (RFIDReader == 5) {
        DeleteAllRFID();
     }
-    // If mainsmeter disabled we can only run in Normal Mode
-    if (!MainsMeter)
-        Mode = MODE_NORMAL;
 
     // We disabled CAL in the menu.
     // Make sure the stored CAL value is reset to the default value
