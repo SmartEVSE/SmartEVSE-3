@@ -419,38 +419,37 @@ void GLCD(void) {
             else if (RFIDstatus == 6) GLCD_print_buf(0, (const char*) "Card storage full!");
             else glcd_clrln(0, 0x00);                                           // Clear line
             LCDTimer = 0;                                                       // reset timer, so it will not exit the menu when learning/deleting cards
-        } else {
-
-            GLCD_buffer_clr();
-            // When connected to Wifi, display IP and time in top row
-            uint8_t WIFImode = getItemValue(MENU_WIFI);
-            if (WIFImode == 1 ) {   // Wifi Enabled
-
-                if (WiFi.status() == WL_CONNECTED) {
-                    sprintf(Str, "%s",WiFi.localIP().toString().c_str());
-                    GLCD_write_buf_str(0,0, Str, GLCD_ALIGN_LEFT);
-                    if (LocalTimeSet) sprintf(Str, "%02u:%02u",timeinfo.tm_hour, timeinfo.tm_min);
-                    else sprintf(Str, "--:--");
-                    GLCD_write_buf_str(127,0, Str, GLCD_ALIGN_RIGHT);
-                } else GLCD_write_buf_str(0,0, "Not connected to WiFi", GLCD_ALIGN_LEFT);
-
-            // When Wifi Setup is selected, show password and SSID of the Access Point
-            } else if (WIFImode == 2) {
-                if (SubMenu && WiFi.getMode() != WIFI_AP_STA) {           // Do not show if AP_STA mode is started 
-                    sprintf(Str, "O button starts portal");
-                    GLCD_write_buf_str(0,0, Str, GLCD_ALIGN_LEFT);                                        
-                } else {
-                    // Show Access Point name
-                    sprintf(Str, "AP:%u", serialnr);                
-                    GLCD_write_buf_str(0,0, Str, GLCD_ALIGN_LEFT);
-                    // and password
-                    sprintf(Str, "PW:%s", APpassword.c_str());
-                    GLCD_write_buf_str(127,0, Str, GLCD_ALIGN_RIGHT);
-                }
-            } 
-            // update LCD 
-            GLCD_sendbuf(0, 1);
         }
+
+        GLCD_buffer_clr();
+        // When connected to Wifi, display IP and time in top row
+        uint8_t WIFImode = getItemValue(MENU_WIFI);
+        if (WIFImode == 1 ) {   // Wifi Enabled
+
+            if (WiFi.status() == WL_CONNECTED) {
+                sprintf(Str, "%s",WiFi.localIP().toString().c_str());
+                GLCD_write_buf_str(0,0, Str, GLCD_ALIGN_LEFT);
+                if (LocalTimeSet) sprintf(Str, "%02u:%02u",timeinfo.tm_hour, timeinfo.tm_min);
+                else sprintf(Str, "--:--");
+                GLCD_write_buf_str(127,0, Str, GLCD_ALIGN_RIGHT);
+            } else GLCD_write_buf_str(0,0, "Not connected to WiFi", GLCD_ALIGN_LEFT);
+
+        // When Wifi Setup is selected, show password and SSID of the Access Point
+        } else if (WIFImode == 2) {
+            if (SubMenu && WiFi.getMode() != WIFI_AP_STA) {           // Do not show if AP_STA mode is started
+                sprintf(Str, "O button starts portal");
+                GLCD_write_buf_str(0,0, Str, GLCD_ALIGN_LEFT);
+            } else {
+                // Show Access Point name
+                sprintf(Str, "AP:%u", serialnr);
+                GLCD_write_buf_str(0,0, Str, GLCD_ALIGN_LEFT);
+                // and password
+                sprintf(Str, "PW:%s", APpassword.c_str());
+                GLCD_write_buf_str(127,0, Str, GLCD_ALIGN_RIGHT);
+            }
+        }
+        // update LCD
+        GLCD_sendbuf(0, 1);
 
         if (LCDTimer > 120) {
             LCDNav = 0;                                                         // Exit Setup menu after 120 seconds.
