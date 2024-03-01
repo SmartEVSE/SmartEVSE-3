@@ -159,7 +159,7 @@ You can feed the SmartEVSE data by publishing to a topic:
 ```
 mosquitto_pub  -h ip-of-mosquitto-server -u username -P password -t 'SmartEVSE-xxxxx/Set/CurrentOverride' -m 150
 ```
-...where xxxxx is a derivative of your SmartEVSE's MAC address, will set your Override Current to 15.0A.
+...where xxxxx your SmartEVSE's serial number, will set your Override Current to 15.0A.
 
 Valid topics you can publish to are:
 ```

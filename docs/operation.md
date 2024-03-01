@@ -8,7 +8,7 @@
 After configuration of your Wifi parameters, your SmartEVSE will present itself on your LAN via a webserver. This webserver can be accessed through:
 * http://ip-address/
 * http://smartevse-xxxx.local/ where xxxx is the serial number of your SmartEVSE. It can be found on a sticker on the bottom of your SmartEVSE. It might be necessary that mDNS is configured on your LAN.
-* http://smartevse-yyyy.lan/ where yyyy is a derivative of the MAC addresss, that was shown to you when you configured your Wifi parameters.
+* http://smartevse-xxxx.lan/ where xxxx is the serial number of your SmartEVSE. It can be found on a sticker on the bottom of your SmartEVSE. It might be necessary that mDNS is configured on your LAN.
 * OTA update of your firmware:
     - surf to http://your-smartevse/update
     - select the firmware.bin from this archive, OR if you want the debug version (via telnet over your wifi),

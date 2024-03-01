@@ -68,7 +68,7 @@ String APhostname = "SmartEVSE-" + String( MacId() & 0xffff, 10);           // S
 // MQTT connection info
 String MQTTuser;
 String MQTTpassword;
-String MQTTprefix = APhostname;
+String MQTTprefix;
 String MQTTHost = "";
 uint16_t MQTTPort;
 
@@ -4731,6 +4731,8 @@ void setup() {
         // overwrite APhostname if serialnr is programmed
         APhostname = "SmartEVSE-" + String( serialnr & 0xffff, 10);           // SmartEVSE access point Name = SmartEVSE-xxxxx
         _LOG_A("hwversion %04x serialnr:%u \n",hwversion, serialnr);
+        WiFi.setHostname(APhostname.c_str());
+        MQTTprefix = APhostname;
         //_LOG_A(ec_public);
 
     } else {
