@@ -1883,7 +1883,7 @@ void UpdateCurrentData(void) {
             // Display error message
             ErrorFlags |= LESS_6A; //NOCURRENT;
             // Broadcast Error code over RS485
-            ModbusWriteSingleRequest(BROADCAST_ADR, 0x0001, LESS_6A);
+            ModbusWriteSingleRequest(BROADCAST_ADR, 0x0001, ErrorFlags);
             NoCurrent = 0;
         } else if (LoadBl) BroadcastCurrent();                                  // Master sends current to all connected EVSE's
 
