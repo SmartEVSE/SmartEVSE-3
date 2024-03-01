@@ -28,8 +28,8 @@ DBG=1 #1 means debug mode on, 0 means debug mode off
 # please give values in deci-Ampère:
 MASTER_SOCKET_HARDWIRED=320
 SLAVE_SOCKET_HARDWIRED=130
-MASTER_MAC_ID=5700
-SLAVE_MAC_ID=45327
+MASTER_MAC_ID=$1
+SLAVE_MAC_ID=$2
 
 MASTER="smartevse-"$1".local"
 SLAVE="smartevse-"$2".local"
