@@ -610,6 +610,11 @@ void setMode(uint8_t NewMode) {
     if (!MainsMeter && NewMode != MODE_NORMAL)
         return;
 
+    // Clear guard of all outstanding requests
+    for (int i=0 ; i<248; i++)
+        for (int j=0; j<0x11; j++)
+            RequestOutstanding[i][j]=false;
+
     // Take care of extra conditionals/checks for custom features
     setAccess(!DelayedStartTime.epoch2); //if DelayedStartTime not zero then we are Delayed Charging
     if (NewMode == MODE_SOLAR) {
@@ -3457,10 +3462,12 @@ void ConfigureModbusMode(uint8_t newmode) {
             if (newmode != 255) MBserver.end();
             _LOG_A("ConfigureModbusMode2 task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
 
+            for (int i=0 ; i<248; i++)
+                for (int j=0; j<0x11; j++)
+                    RequestOutstanding[i][j]=false;
             MBclient.setTimeout(100);       // timeout 100ms
             MBclient.onDataHandler(&MBhandleData);
             MBclient.onErrorHandler(&MBhandleError);
-
             // Start ModbusRTU Master background task
             MBclient.begin(Serial1);
         } 
