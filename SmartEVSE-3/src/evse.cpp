@@ -3026,9 +3026,6 @@ void Timer1S(void * parameter) {
 
 
 #if MQTT
-        // Process MQTT data
-        MQTTclient.loop();
-
         if (lastMqttUpdate++ >= 10) {
             // Publish latest data, every 10 seconds
             // We will try to publish data faster if something has changed
@@ -4810,12 +4807,17 @@ void setup() {
 }
 
 void loop() {
-
+    //this loop is for non-time critical stuff that needs to run approx 1 / second
     delay(1000);
     getLocalTime(&timeinfo, 1000U);
     if (!LocalTimeSet) {
         _LOG_A("Time not synced with NTP yet.\n");
     }
+
+#if MQTT
+    // Process MQTT data
+    MQTTclient.loop();
+#endif
 
 #ifndef DEBUG_DISABLED
     // Remote debug over WiFi
