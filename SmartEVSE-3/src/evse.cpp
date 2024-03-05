@@ -2997,10 +2997,9 @@ void Timer1S(void * parameter) {
         }
 
         if (ErrorFlags & (NO_SUN | LESS_6A)) {
-            if (Mode == MODE_SOLAR) {
-                if (ChargeDelay == 0) { _LOG_I("Waiting for Solar power...\n"); }
-            } else {
-                if (ChargeDelay == 0) { _LOG_I("Not enough current available!\n"); }
+            if (ChargeDelay == 0) {
+                if (Mode == MODE_SOLAR) { _LOG_I("Waiting for Solar power...\n"); }
+                else { _LOG_I("Not enough current available!\n"); }
             }
             setStatePowerUnavailable();
             ChargeDelay = CHARGEDELAY;                                      // Set Chargedelay
