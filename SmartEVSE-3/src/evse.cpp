@@ -3101,6 +3101,7 @@ int StoreEnergyResponse(uint8_t Meter, int32_t& Import, int32_t& Export ) {
 }
 
 // Monitor EV Meter responses, and update Enery and Power and Current measurements
+// Both the Master and Nodes will receive their own EV meter measurements here.
 // Does not send any data back.
 //
 ModbusMessage MBEVMeterResponse(ModbusMessage request) {
@@ -3542,6 +3543,15 @@ void validate_settings(void) {
         EMConfig[EM_CUSTOM].PRegister = 0;
         EMConfig[EM_CUSTOM].ERegister = 0;
     }
+
+    // If the address of the MainsMeter or EVmeter on a Node has changed, we must re-register the Modbus workers.
+    if (LoadBl > 1) {
+        if (MainsMeter && MainsMeter != EM_API) MBserver.registerWorker(MainsMeterAddress, ANY_FUNCTION_CODE, &MBMainsMeterResponse);
+        if (EVMeter && EVMeter != EM_API) MBserver.registerWorker(EVMeterAddress, ANY_FUNCTION_CODE, &MBEVMeterResponse);
+    }
+    MainsMeterTimeout = COMM_TIMEOUT;
+    EVMeterTimeout = COMM_TIMEOUT;          // Short Delay, to clear the error message for ~10 seconds.
+
 }
 
 void read_settings() {
