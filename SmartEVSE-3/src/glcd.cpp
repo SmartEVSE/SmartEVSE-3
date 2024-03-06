@@ -469,11 +469,17 @@ void GLCD(void) {
     if (ErrorFlags) {                                                           // We switch backlight on, as we exit after displaying the error
         // BacklightTimer = BACKLIGHT;                                             // Backlight timer is set to 60 seconds
 
-        if (ErrorFlags & CT_NOCOMM) {                                           // No serial communication for 10 seconds
-            GLCD_print_buf2(0, (const char *) "ERROR NO");
-            GLCD_print_buf2(2, (const char *) "SERIAL COM");
-            GLCD_print_buf2(4, (const char *) "CHECK");
-            GLCD_print_buf2(6, (const char *) "WIRING");
+        if (ErrorFlags & (CT_NOCOMM | EV_NOCOMM)) {                             // No serial communication for 10 seconds
+            
+            if (ErrorFlags & EV_NOCOMM) {
+                GLCD_print_buf2(0, (const char *) "CAN'T READ");
+                GLCD_print_buf2(2, (const char *) "EV METER");
+            } else {
+                GLCD_print_buf2(0, (const char *) "ERROR NO");
+                GLCD_print_buf2(2, (const char *) "SERIAL COM");
+            }            
+            GLCD_print_buf2(4, (const char *) "CHECK CFG");
+            GLCD_print_buf2(6, (const char *) "OR WIRING");
             return;
         } else if (ErrorFlags & TEMP_HIGH) {                                    // Temperature reached 65C
             GLCD_print_buf2(0, (const char *) "HIGH TEMP");

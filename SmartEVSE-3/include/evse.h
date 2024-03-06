@@ -225,7 +225,8 @@ extern RemoteDebug Debug;
 #define ACK_TIMEOUT 1000                                                        // 1000ms timeout
 #define NR_EVSES 8
 #define BROADCAST_ADR 0x09
-#define COMM_TIMEOUT 11
+#define COMM_TIMEOUT 11                                                         // Timeout for MainsMeter
+#define COMM_EVTIMEOUT 8*NR_EVSES                                               // Timeout for EV Energy Meters
 
 #define STATE_A 0                                                               // A Vehicle not connected
 #define STATE_B 1                                                               // B Vehicle connected / not ready to accept energy
@@ -257,7 +258,7 @@ extern RemoteDebug Debug;
 #define LESS_6A 1
 #define CT_NOCOMM 2
 #define TEMP_HIGH 4
-#define UNUSED 8                                                                // Unused
+#define EV_NOCOMM 8
 #define RCM_TRIPPED 16                                                          // RCM tripped. >6mA DC residual current detected.
 #define NO_SUN 32
 #define Test_IO 64

@@ -400,7 +400,7 @@ void BlinkLed(void * parameter) {
         // RGB LED
         if (ErrorFlags || ChargeDelay) {
 
-            if (ErrorFlags & (RCM_TRIPPED | CT_NOCOMM) ) {
+            if (ErrorFlags & (RCM_TRIPPED | CT_NOCOMM | EV_NOCOMM) ) {
                 LedCount += 20;                                                 // Very rapid flashing, RCD tripped or no Serial Communication.
                 if (LedCount > 128) LedPwm = ERROR_LED_BRIGHTNESS;              // Red LED 50% of time on, full brightness
                 else LedPwm = 0;
@@ -1607,7 +1607,7 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
             break;
         case STATUS_CURRENT:
             OverrideCurrent = val;
-            MainsMeterTimeout = COMM_TIMEOUT;                                   // reset timeout when register is written
+            if (LoadBl < 2) MainsMeterTimeout = COMM_TIMEOUT;                   // reset timeout when register is written
             break;
         case STATUS_SOLAR_TIMER:
             setSolarStopTimer(val);
@@ -2511,9 +2511,6 @@ void mqtt_receive_callback(const String &topic, const String &payload) {
         if (n == 3 && L1 < 1000 && L2 < 1000 && L3 < 1000) {
             if (LoadBl < 2)
                 MainsMeterTimeout = COMM_TIMEOUT;
-//            if ((ErrorFlags & CT_NOCOMM))
-//                ErrorFlags &= ~CT_NOCOMM; // Clear communication error, if present 
-//          Cleared in 1000ms loop
             Irms[0] = L1;
             Irms[1] = L2;
             Irms[2] = L3;
@@ -2944,21 +2941,33 @@ void Timer1S(void * parameter) {
             if (BalancedState[x] == STATE_C) Node[x].Timer++;
         }
 
-        if ( (MainsMeterTimeout == 0 || (EVMeter && EVMeterTimeout == 0) ) && !(ErrorFlags & CT_NOCOMM) && (Mode != MODE_NORMAL)) { // timeout if current measurement takes > 10 secs
+        if ( (MainsMeterTimeout == 0) && !(ErrorFlags & CT_NOCOMM) && (Mode != MODE_NORMAL)) { // timeout if current measurement takes > 10 secs
             // In Normal mode do not timeout; there might be MainsMeter/EVMeter configured that can be retrieved through the API,
             // but in Normal mode we just want to charge ChargeCurrent, irrespective of communication problems.
             ErrorFlags |= CT_NOCOMM;
             setStatePowerUnavailable();
             _LOG_W("Error, communication error!\n");
             // Try to broadcast communication error to Nodes if we are Master
-            if (LoadBl < 2) ModbusWriteSingleRequest(BROADCAST_ADR, 0x0001, ErrorFlags);         
+            //if (LoadBl < 2) ModbusWriteSingleRequest(BROADCAST_ADR, 0x0001, ErrorFlags);         
         } else {
             if (MainsMeterTimeout) MainsMeterTimeout--;
-            if (EVMeter && EVMeterTimeout) EVMeterTimeout--;
         }
+
+        if ( (EVMeter && EVMeterTimeout == 0) && !(ErrorFlags & EV_NOCOMM) && (Mode != MODE_NORMAL)) {
+            ErrorFlags |= EV_NOCOMM;
+            setStatePowerUnavailable();
+            _LOG_W("Error, EV Meter communication error!\n");
+        } else {
+            if (EVMeter) {
+                if (EVMeterTimeout) EVMeterTimeout--;
+            } else EVMeterTimeout = COMM_EVTIMEOUT;
+        }
+
         
         // Clear communication error, if present
-        if ((ErrorFlags & CT_NOCOMM) && MainsMeterTimeout && EVMeterTimeout) ErrorFlags &= ~CT_NOCOMM; 
+        if ((ErrorFlags & CT_NOCOMM) && MainsMeterTimeout) ErrorFlags &= ~CT_NOCOMM; 
+
+        if ((ErrorFlags & EV_NOCOMM) && EVMeterTimeout) ErrorFlags &= ~EV_NOCOMM; 
 
 
         if (TempEVSE > maxTemp && !(ErrorFlags & TEMP_HIGH))                         // Temperature too High?
@@ -3117,7 +3126,8 @@ ModbusMessage MBEVMeterResponse(ModbusMessage request) {
         } else if (MB.Register == EMConfig[EVMeter].IRegister) {
             // Current measurement
             x = receiveCurrentMeasurement(MB.Data, EVMeter, EV );
-            if (x && LoadBl <2) EVMeterTimeout = COMM_TIMEOUT;              // only reset timeout when data is ok, and Master/Disabled
+
+            if (x) EVMeterTimeout = COMM_EVTIMEOUT;                 // only reset EVtimeout when data is ok
             for (x = 0; x < 3; x++) {
                 // CurrentMeter and PV values are MILLI AMPERE
                 Irms_EV[x] = (signed int)(EV[x] / 100);            // Convert to AMPERE * 10
@@ -4278,7 +4288,7 @@ void StartwebServer(void) {
                 Irms_EV[1] = request->getParam("L2")->value().toInt();
                 Irms_EV[2] = request->getParam("L3")->value().toInt();
 
-                if (LoadBl < 2) EVMeterTimeout = COMM_TIMEOUT;
+                if (LoadBl < 2) EVMeterTimeout = COMM_EVTIMEOUT;
 
                 UpdateCurrentData();
             }
