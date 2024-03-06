@@ -2805,15 +2805,8 @@ void Timer1S(void * parameter) {
     uint8_t Broadcast = 1;
     //uint8_t Timer5sec = 0;
     uint8_t x;
-    unsigned long loopstart;
 
     while(1) { // infinite loop
-
-        loopstart = millis();
-        if (homeBatteryLastUpdate != 0 && homeBatteryLastUpdate < (time(NULL) - 60)) {
-            homeBatteryCurrent = 0;
-            homeBatteryLastUpdate = 0;
-        }
 
         if (BacklightTimer) BacklightTimer--;                               // Decrease backlight counter every second.
 
@@ -3033,7 +3026,7 @@ void Timer1S(void * parameter) {
 #endif
 
         // Pause the task for 1 Sec
-        vTaskDelay((1000 - (millis() - loopstart)) / portTICK_PERIOD_MS);
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
 
     } // while(1)
 }
