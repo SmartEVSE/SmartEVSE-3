@@ -1611,7 +1611,7 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
 
         // Status writeable
         case STATUS_STATE:
-            setState(val);
+            if (val != State) setState(val);
             break;
         case STATUS_ERROR:
             ErrorFlags = val;
