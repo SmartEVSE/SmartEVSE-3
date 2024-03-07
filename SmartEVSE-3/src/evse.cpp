@@ -3550,7 +3550,7 @@ void validate_settings(void) {
 
 void read_settings() {
     
-    if (preferences.begin("settings", false) == true) {
+    if (preferences.begin("settings", true) == true) {                          //true = read only
         Initialized = preferences.getUChar("Initialized", INITIALIZED);
         Config = preferences.getUChar("Config", CONFIG); 
         Lock = preferences.getUChar("Lock", LOCK); 
@@ -4703,13 +4703,6 @@ void setup() {
     }
     _LOG_A("Total SPIFFS bytes: %u, Bytes used: %u\n",SPIFFS.totalBytes(),SPIFFS.usedBytes());
 
-
-   // Read all settings from non volatile memory
-    read_settings();                                                            // initialize with default data when starting for the first time
-    validate_settings();
-    ReadRFIDlist();                                                             // Read all stored RFID's from storage
-    _LOG_A("APpassword: %s\n",APpassword.c_str());
-
     // We might need some sort of authentication in the future.
     // SmartEVSE v3 have programmed ECDSA-256 keys stored in nvs
     // Unused for now.
@@ -4728,13 +4721,17 @@ void setup() {
         APhostname = "SmartEVSE-" + String( serialnr & 0xffff, 10);           // SmartEVSE access point Name = SmartEVSE-xxxxx
         _LOG_A("hwversion %04x serialnr:%u \n",hwversion, serialnr);
         WiFi.setHostname(APhostname.c_str());
-        MQTTprefix = APhostname;
         //_LOG_A(ec_public);
 
     } else {
         _LOG_A("No KeyStorage found in nvs!\n");
     }
 
+    // Read all settings from non volatile memory; MQTTprefix will be overwritten if stored in NVS
+    read_settings();                                                            // initialize with default data when starting for the first time
+    validate_settings();
+    ReadRFIDlist();                                                             // Read all stored RFID's from storage
+    _LOG_A("APpassword: %s\n",APpassword.c_str());
 
     // Create Task EVSEStates, that handles changes in the CP signal
     xTaskCreate(
