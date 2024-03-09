@@ -1465,7 +1465,7 @@ void processAllNodeStates(uint8_t NodeNr) {
     // Error Flags
     values[1] = BalancedError[NodeNr];
     // Charge Current
-    values[2] = Balanced[NodeNr];                                               // This does nothing for Nodes. Currently the Chargecurrent can only be written to the Master
+    values[2] = 0;                                                              // This does nothing for Nodes. Currently the Chargecurrent can only be written to the Master
     // Mode
     values[3] = Mode;
     
