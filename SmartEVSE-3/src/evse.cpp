@@ -3926,8 +3926,8 @@ void StartwebServer(void) {
             doc["ev_state"]["initial_soc"] = InitialSoC;
             doc["ev_state"]["remaining_soc"] = RemainingSoC;
             doc["ev_state"]["full_soc"] = FullSoC;
-            doc["ev_state"]["energy_capacity"] = EnergyCapacity > 0 ? round(EnergyCapacity / 100)/10 : -1; //in kWh, precision 1 decimal;
-            doc["ev_state"]["energy_request"] = EnergyRequest > 0 ? round(EnergyRequest / 100)/10 : -1; //in kWh, precision 1 decimal
+            doc["ev_state"]["energy_capacity"] = EnergyCapacity > 0 ? round((float)EnergyCapacity / 100)/10 : -1; //in kWh, precision 1 decimal;
+            doc["ev_state"]["energy_request"] = EnergyRequest > 0 ? round((float)EnergyRequest / 100)/10 : -1; //in kWh, precision 1 decimal
             doc["ev_state"]["computed_soc"] = ComputedSoC;
             doc["ev_state"]["evccid"] = EVCCID;
             doc["ev_state"]["time_until_full"] = TimeUntilFull;
@@ -3953,18 +3953,18 @@ void StartwebServer(void) {
 
         doc["ev_meter"]["description"] = EMConfig[EVMeter].Desc;
         doc["ev_meter"]["address"] = EVMeterAddress;
-        doc["ev_meter"]["import_active_power"] = round(PowerMeasured / 100)/10; //in kW, precision 1 decimal
-        doc["ev_meter"]["total_kwh"] = round(EnergyEV / 100)/10; //in kWh, precision 1 decimal
-        doc["ev_meter"]["charged_kwh"] = round(EnergyCharged / 100)/10; //in kWh, precision 1 decimal
+        doc["ev_meter"]["import_active_power"] = round((float)PowerMeasured / 100)/10; //in kW, precision 1 decimal
+        doc["ev_meter"]["total_kwh"] = round((float)EnergyEV / 100)/10; //in kWh, precision 1 decimal
+        doc["ev_meter"]["charged_kwh"] = round((float)EnergyCharged / 100)/10; //in kWh, precision 1 decimal
         doc["ev_meter"]["currents"]["TOTAL"] = Irms_EV[0] + Irms_EV[1] + Irms_EV[2];
         doc["ev_meter"]["currents"]["L1"] = Irms_EV[0];
         doc["ev_meter"]["currents"]["L2"] = Irms_EV[1];
         doc["ev_meter"]["currents"]["L3"] = Irms_EV[2];
-        doc["ev_meter"]["import_active_energy"] = round(EV_import_active_energy / 100)/10; //in kWh, precision 1 decimal
-        doc["ev_meter"]["export_active_energy"] = round(EV_export_active_energy / 100)/10; //in kWh, precision 1 decimal
+        doc["ev_meter"]["import_active_energy"] = round((float)EV_import_active_energy / 100)/10; //in kWh, precision 1 decimal
+        doc["ev_meter"]["export_active_energy"] = round((float)EV_export_active_energy / 100)/10; //in kWh, precision 1 decimal
 
-        doc["mains_meter"]["import_active_energy"] = round(Mains_import_active_energy / 100)/10; //in kWh, precision 1 decimal
-        doc["mains_meter"]["export_active_energy"] = round(Mains_export_active_energy / 100)/10; //in kWh, precision 1 decimal
+        doc["mains_meter"]["import_active_energy"] = round((float)Mains_import_active_energy / 100)/10; //in kWh, precision 1 decimal
+        doc["mains_meter"]["export_active_energy"] = round((float)Mains_export_active_energy / 100)/10; //in kWh, precision 1 decimal
 
         doc["phase_currents"]["TOTAL"] = Irms[0] + Irms[1] + Irms[2];
         doc["phase_currents"]["L1"] = Irms[0];
