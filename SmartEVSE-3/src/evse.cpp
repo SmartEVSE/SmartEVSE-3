@@ -98,7 +98,7 @@ bool RequestOutstanding[248][0x11];
 
 const char StrStateName[15][13] = {"A", "B", "C", "D", "COMM_B", "COMM_B_OK", "COMM_C", "COMM_C_OK", "Activate", "B1", "C1", "MODEM1", "MODEM2", "MODEM_OK", "MODEM_DENIED"};
 const char StrStateNameWeb[15][17] = {"Ready to Charge", "Connected to EV", "Charging", "D", "Request State B", "State B OK", "Request State C", "State C OK", "Activate", "Charging Stopped", "Stop Charging", "Modem Setup", "Modem Request", "Modem Done", "Modem Denied"};
-const char StrErrorNameWeb[9][20] = {"None", "No Power Available", "Communication Error", "Temperature High", "Unused", "RCM Tripped", "Waiting for Solar", "Test IO", "Flash Error"};
+const char StrErrorNameWeb[9][20] = {"None", "No Power Available", "Communication Error", "Temperature High", "EV Meter Comm Error", "RCM Tripped", "Waiting for Solar", "Test IO", "Flash Error"};
 const char StrMode[3][8] = {"Normal", "Smart", "Solar"};
 const char StrAccessBit[2][6] = {"Deny", "Allow"};
 const char StrRFIDStatusWeb[8][20] = {"Ready to read card","Present", "Card Stored", "Card Deleted", "Card already stored", "Card not in storage", "Card Storage full", "Invalid" };
@@ -2310,7 +2310,7 @@ void requestEnergyMeasurement(uint8_t Meter, uint8_t Address, bool Export) {
 void Timer100ms(void * parameter) {
 
 unsigned int locktimer = 0, unlocktimer = 0, energytimer = 0;
-uint8_t PollEVNode = NR_EVSES;
+uint8_t PollEVNode = NR_EVSES, Online = 0;
 
 
     while(1)  // infinite loop
@@ -2349,7 +2349,7 @@ uint8_t PollEVNode = NR_EVSES;
 
         // Every 2 seconds, request measurements from modbus meters
         if (ModbusRequest) {                                                    // Slaves all have ModbusRequest at 0 so they never enter here
-            switch (ModbusRequest++) {                                          // State
+            switch (ModbusRequest) {                                            // State
                 case 1:                                                         // PV kwh meter
                     ModbusRequest++;
                     // fall through
@@ -2401,10 +2401,10 @@ uint8_t PollEVNode = NR_EVSES;
                 case 11:
                 case 12:
                     if (LoadBl == 1) {
-                        requestNodeStatus(ModbusRequest - 6u);                   // Master, Request Node 1-8 status
+                        requestNodeStatus(ModbusRequest - 5u);                   // Master, Request Node 1-8 status
                         break;
                     }
-                    ModbusRequest = 12;
+                    ModbusRequest = 13;
                     // fall through
                 case 13:
                 case 14:
@@ -2414,18 +2414,19 @@ uint8_t PollEVNode = NR_EVSES;
                 case 18:
                 case 19:
                     // Here we write State, Error, Mode and SolarTimer to Online Nodes
+                    Online = 0;
                     if (LoadBl == 1) {
-                        while (ModbusRequest < 20) {       
-                            if ( Node[ModbusRequest - 13u].Online) {            // Skip if not online
-                                processAllNodeStates(ModbusRequest - 13u);
+                        do {       
+                            if (Node[ModbusRequest - 12u].Online) {             // Skip if not online
+                                processAllNodeStates(ModbusRequest - 12u);
+                                Online = 1;
                                 break;
-                            } 
-                            ModbusRequest++;    
-                        } 
-                        break;
-                    }
-                    ModbusRequest++;
-                    // fall through
+                            }
+                        } while (++ModbusRequest < 20);
+
+                    } else ModbusRequest = 20;
+                    if (Online) break;
+                    // fall through when Node not Online
                 case 20:                                                         // EV kWh meter, Current measurement
                     // Request Current if EV meter is configured
                     if (Node[PollEVNode].EVMeter && Node[PollEVNode].EVMeter != EM_API) {
@@ -2437,7 +2438,7 @@ uint8_t PollEVNode = NR_EVSES;
                     // fall through
                 case 21:
                     // Request active energy if Mainsmeter is configured
-                    if (MainsMeter && MainsMeter != EM_API) {                   // EM_API does not support energy postings
+                    if (MainsMeter && (MainsMeter != EM_API) && (MainsMeter != EM_SENSORBOX) ) {                   // EM_API and Sensorbox do not support energy postings
                         energytimer++; //this ticks approx every second?!?
                         if (energytimer == 30) {
                             _LOG_D("ModbusRequest %u: Request MainsMeter Import Active Energy Measurement\n", ModbusRequest);
@@ -2466,6 +2467,7 @@ uint8_t PollEVNode = NR_EVSES;
                     //_LOG_A("Timer100ms task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
                     break;
             } //switch
+            if (ModbusRequest) ModbusRequest++;
         }
 
 
@@ -3007,8 +3009,8 @@ void Timer1S(void * parameter) {
 
         // Every two seconds request measurement data from sensorbox/kwh meters.
         // and send broadcast to Node controllers.
-        if (LoadBl < 2 && !Broadcast--) {                // Load Balancing mode: Master or Disabled
-            ModbusRequest = 1;                                          // Start with state 1, also in Normal mode we want MainsMeter and EVmeter updated 
+        if (LoadBl < 2 && !Broadcast--) {                                   // Load Balancing mode: Master or Disabled
+            if (!ModbusRequest) ModbusRequest = 1;                          // Start with state 1, also in Normal mode we want MainsMeter and EVmeter updated 
             //timeout = COMM_TIMEOUT; not sure if necessary, statement was missing in original code    // reset timeout counter (not checked for Master)
             Broadcast = 1;                                                  // repeat every two seconds
         }
@@ -3458,6 +3460,7 @@ void ConfigureModbusMode(uint8_t newmode) {
             MBclient.onDataHandler(&MBhandleData);
             MBclient.onErrorHandler(&MBhandleError);
             // Start ModbusRTU Master background task
+            //MBclient.begin(static_cast<HardwareSerial&>(Serial1), -1, 25000u);  // Set quiet time from the default 3.5to 25ms
             MBclient.begin(Serial1);
         } 
     } else if (newmode > 1) {
