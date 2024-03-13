@@ -3443,7 +3443,7 @@ void ConfigureModbusMode(uint8_t newmode) {
             if (EVMeter && EVMeter != EM_API) MBserver.registerWorker(EVMeterAddress, ANY_FUNCTION_CODE, &MBEVMeterResponse);
 
             // Start ModbusRTU Node background task
-            MBserver.begin(Serial1);
+            MBserver.begin(Serial1, 1);                                         //pinning it to core1 reduces modbus problems
 
         } else if (LoadBl < 2 ) {
             // Setup Modbus workers as Master 
