@@ -3449,7 +3449,7 @@ void ConfigureModbusMode(uint8_t newmode) {
             if (EVMeter && EVMeter != EM_API) MBserver.registerWorker(EVMeterAddress, ANY_FUNCTION_CODE, &MBEVMeterResponse);
 
             // Start ModbusRTU Node background task
-            MBserver.begin(Serial1, 1);                                         //pinning it to core1 reduces modbus problems
+            MBserver.begin(Serial1);
 
         } else if (LoadBl < 2 ) {
             // Setup Modbus workers as Master 
@@ -3467,7 +3467,7 @@ void ConfigureModbusMode(uint8_t newmode) {
             MBclient.onErrorHandler(&MBhandleError);
             // Start ModbusRTU Master background task
             //MBclient.begin(static_cast<HardwareSerial&>(Serial1), -1, 25000u);  // Set quiet time from the default 3.5to 25ms
-            MBclient.begin(Serial1);
+            MBclient.begin(Serial1, 1);                                         //pinning it to core1 reduces modbus problems
         } 
     } else if (newmode > 1) {
         // Register worker. at serverID 'LoadBl', all function codes
