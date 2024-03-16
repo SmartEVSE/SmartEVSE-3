@@ -191,18 +191,18 @@ struct {
     uint8_t Phases;
     uint32_t Timer;         // 1s
     uint16_t SolarTimer;    // 1s
+    uint8_t Mode;
 } Node[NR_EVSES] = {                                                        // 0: Master / 1: Node 1 ...
-   /*         Config   EV     EV       Min      Used    Interval Solar *    // Interval Time   : last Charge time, reset when not charging
-    * Online, Changed, Meter, Address, Current, Phases, Timer    Timer */   // Min Current     : minimal measured current per phase the EV consumes when starting to charge @ 6A (can be lower then 6A)
-
-    {      1,       0,     0,       0,       0,      0,     0,     0 },     // Used Phases     : detected nr of phases when starting to charge (works with configured EVmeter meter, and might work with sensorbox)
-    {      0,       1,     0,       0,       0,      0,     0,     0 },
-    {      0,       1,     0,       0,       0,      0,     0,     0 },
-    {      0,       1,     0,       0,       0,      0,     0,     0 },
-    {      0,       1,     0,       0,       0,      0,     0,     0 },
-    {      0,       1,     0,       0,       0,      0,     0,     0 },
-    {      0,       1,     0,       0,       0,      0,     0,     0 },
-    {      0,       1,     0,       0,       0,      0,     0,     0 }
+   /*         Config   EV     EV       Min      Used    Interval Solar *           // Interval Time   : last Charge time, reset when not charging
+    * Online, Changed, Meter, Address, Current, Phases, Timer    Timer   Mode */   // Min Current     : minimal measured current per phase the EV consumes when starting to charge @ 6A (can be lower then 6A)
+    {      1,       0,     0,       0,       0,      0,     0,      0,      0 },   // Used Phases     : detected nr of phases when starting to charge (works with configured EVmeter meter, and might work with sensorbox)
+    {      0,       1,     0,       0,       0,      0,     0,      0,      0 },
+    {      0,       1,     0,       0,       0,      0,     0,      0,      0 },
+    {      0,       1,     0,       0,       0,      0,     0,      0,      0 },    
+    {      0,       1,     0,       0,       0,      0,     0,      0,      0 },
+    {      0,       1,     0,       0,       0,      0,     0,      0,      0 },
+    {      0,       1,     0,       0,       0,      0,     0,      0,      0 },
+    {      0,       1,     0,       0,       0,      0,     0,      0,      0 }            
 };
 
 uint8_t lock1 = 0, lock2 = 1;
@@ -1373,13 +1373,15 @@ void receiveNodeStatus(uint8_t *buf, uint8_t NodeNr) {
     BalancedError[NodeNr] = buf[3];                                             // Node Error status
     // Update Mode when changed on Node and not Smart/Solar Switch on the Master
     // Also make sure we are not in the menu.
-    if ((buf[7] != Mode) && Switch != 4 && !LCDNav && !NodeNewMode) {
-        NodeNewMode = buf[7] + 1;        // Store the new Mode in NodeNewMode, we'll update Mode in 'ProcessAllNodeStates'
+    Node[NodeNr].Mode = buf[7];
+
+    if ((Node[NodeNr].Mode != Mode) && Switch != 4 && !LCDNav && !NodeNewMode) {
+        NodeNewMode = Node[NodeNr].Mode + 1;        // Store the new Mode in NodeNewMode, we'll update Mode in 'ProcessAllNodeStates'
     }
     Node[NodeNr].SolarTimer = (buf[8] * 256) + buf[9];
     Node[NodeNr].ConfigChanged = buf[13] | Node[NodeNr].ConfigChanged;
     BalancedMax[NodeNr] = buf[15] * 10;                                         // Node Max ChargeCurrent (0.1A)
-    _LOG_D("ReceivedNode[%u]Status State:%u Error:%u, BalancedMax:%u, Mode:%u, ConfigChanged:%u.\n", NodeNr, BalancedState[NodeNr], BalancedError[NodeNr], BalancedMax[NodeNr], buf[7], Node[NodeNr].ConfigChanged);
+    _LOG_D("ReceivedNode[%u]Status State:%u Error:%u, BalancedMax:%u, Mode:%u, ConfigChanged:%u.\n", NodeNr, BalancedState[NodeNr], BalancedError[NodeNr], BalancedMax[NodeNr], Node[NodeNr].Mode, Node[NodeNr].ConfigChanged);
 }
 
 /**
@@ -1387,10 +1389,11 @@ void receiveNodeStatus(uint8_t *buf, uint8_t NodeNr) {
  * Master -> Node
  *
  * @param uint8_t NodeAdr (1-7)
+ * @return uint8_t success
  */
-void processAllNodeStates(uint8_t NodeNr) {
+uint8_t processAllNodeStates(uint8_t NodeNr) {
     uint16_t values[5];
-    uint8_t current, write = 1, regs = 4;                                       // 4 or 5 registers are written. TODO: write only changed registers
+    uint8_t current, write = 0, regs = 2;                                       // registers are written when Node needs updating.
 
     values[0] = BalancedState[NodeNr];
 
@@ -1467,19 +1470,25 @@ void processAllNodeStates(uint8_t NodeNr) {
     // Charge Current
     values[2] = 0;                                                              // This does nothing for Nodes. Currently the Chargecurrent can only be written to the Master
     // Mode
+    if (Node[NodeNr].Mode != Mode) {
+        regs = 4;
+        write = 1;
+    }    
     values[3] = Mode;
     
     // SolarStopTimer
     if (abs((int16_t)SolarStopTimer - (int16_t)Node[NodeNr].SolarTimer) > 3) {  // Write SolarStoptimer to Node if time is off by 3 seconds or more.
         regs = 5;
+        write = 1;
         values[4] = SolarStopTimer;
     }    
 
     if (write) {
-        _LOG_D("NodeAdr %u, BalancedError:%u\n",NodeNr, BalancedError[NodeNr]);
+        _LOG_D("processAllNode[%u]States State:%u, BalancedError:%u, Mode:%u, SolarStopTimer:%u\n",NodeNr, BalancedState[NodeNr], BalancedError[NodeNr], Mode, SolarStopTimer);
         ModbusWriteMultipleRequest(NodeNr+1 , 0x0000, values, regs);            // Write State, Error, Charge Current, Mode and Solar Timer to Node
     }
 
+    return write;
 }
 
 
@@ -1506,10 +1515,6 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
             Config = val;
             break;
         case STATUS_MODE:
-            if (NodeNewMode) {                                  // We just changed to a new Mode on this Node
-                if (val != Mode) break;                         // break if received Mode is not correct
-                NodeNewMode = 0;                                // Ok, clear flag
-            }
             // fall through
         case MENU_MODE:
             Mode = val;
@@ -2310,7 +2315,7 @@ void requestEnergyMeasurement(uint8_t Meter, uint8_t Address, bool Export) {
 void Timer100ms(void * parameter) {
 
 unsigned int locktimer = 0, unlocktimer = 0, energytimer = 0;
-uint8_t PollEVNode = NR_EVSES, Online = 0;
+uint8_t PollEVNode = NR_EVSES, updated = 0;
 
 
     while(1)  // infinite loop
@@ -2414,19 +2419,20 @@ uint8_t PollEVNode = NR_EVSES, Online = 0;
                 case 18:
                 case 19:
                     // Here we write State, Error, Mode and SolarTimer to Online Nodes
-                    Online = 0;
+                    updated = 0;
                     if (LoadBl == 1) {
                         do {       
                             if (Node[ModbusRequest - 12u].Online) {             // Skip if not online
-                                processAllNodeStates(ModbusRequest - 12u);
-                                Online = 1;
-                                break;
+                                if (processAllNodeStates(ModbusRequest - 12u) ) {
+                                    updated = 1;                                // Node updated 
+                                    break;
+                                }
                             }
                         } while (++ModbusRequest < 20);
 
                     } else ModbusRequest = 20;
-                    if (Online) break;
-                    // fall through when Node not Online
+                    if (updated) break;  // break when Node updated
+                    // fall through
                 case 20:                                                         // EV kWh meter, Current measurement
                     // Request Current if EV meter is configured
                     if (Node[PollEVNode].EVMeter && Node[PollEVNode].EVMeter != EM_API) {
