@@ -3462,11 +3462,10 @@ void ConfigureModbusMode(uint8_t newmode) {
             for (int i=0 ; i<248; i++)
                 for (int j=0; j<0x11; j++)
                     RequestOutstanding[i][j]=false;
-            MBclient.setTimeout(100);       // timeout 100ms
+            MBclient.setTimeout(85);                        // Set modbus timeout to 85ms. 15ms lower then modbusRequestloop time of 100ms.
             MBclient.onDataHandler(&MBhandleData);
             MBclient.onErrorHandler(&MBhandleError);
             // Start ModbusRTU Master background task
-            //MBclient.begin(static_cast<HardwareSerial&>(Serial1), -1, 25000u);  // Set quiet time from the default 3.5to 25ms
             MBclient.begin(Serial1, 1);                                         //pinning it to core1 reduces modbus problems
         } 
     } else if (newmode > 1) {
