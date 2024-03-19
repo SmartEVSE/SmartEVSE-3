@@ -8,7 +8,7 @@ fi
 echo "Enter your current in deci-Ampères:"
 OLD_CURRENT=20
 while true; do
-    read -t 8 CURRENT
+    read -t 5 CURRENT
     if [ $CURRENT"x" == "x" ]; then
         CURRENT=$OLD_CURRENT
     else

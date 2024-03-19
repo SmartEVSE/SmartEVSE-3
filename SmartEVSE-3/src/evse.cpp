@@ -2562,6 +2562,7 @@ void mqtt_receive_callback(const String &topic, const String &payload) {
                 Irms_EV[0] = L1;
                 Irms_EV[1] = L2;
                 Irms_EV[2] = L3;
+                EVMeterTimeout = COMM_EVTIMEOUT;
 
                 UpdateCurrentData();
             }
@@ -4300,7 +4301,7 @@ void StartwebServer(void) {
                 Irms_EV[1] = request->getParam("L2")->value().toInt();
                 Irms_EV[2] = request->getParam("L3")->value().toInt();
 
-                if (LoadBl < 2) EVMeterTimeout = COMM_EVTIMEOUT;
+                EVMeterTimeout = COMM_EVTIMEOUT;
 
                 UpdateCurrentData();
             }
