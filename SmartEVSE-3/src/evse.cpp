@@ -2644,8 +2644,8 @@ void SetupMQTTClient() {
     String entity_suffix, entity_name, optional_payload;
 
     //some self-updating variables here:
-#define entity_id MQTTprefix + "-" + entity_suffix
-#define entity_path MQTTprefix + "/" + entity_suffix
+#define entity_id String(MQTTprefix + "-" + entity_suffix)
+#define entity_path String(MQTTprefix + "/" + entity_suffix)
 #define entity_name(x) entity_name = x; entity_suffix = entity_name; entity_suffix.replace(" ", "");
 
     //create template to announce an entity in it's own domain:
