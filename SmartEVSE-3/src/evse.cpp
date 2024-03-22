@@ -2539,14 +2539,14 @@ void mqtt_receive_callback(const String &topic, const String &payload) {
         int32_t L1, L2, L3;
         int n = sscanf(payload.c_str(), "%d:%d:%d", &L1, &L2, &L3);
 
-        if (n == 3 && L1 < 1000 && L2 < 1000 && L3 < 1000) {
+        // MainsMeter can measure -200A to +200A per phase
+        if (n == 3 && (L1 > -2000 && L1 < 2000) && (L2 > -2000 && L2 < 2000) && (L3 > -2000 && L3 < 2000)) {
             if (LoadBl < 2)
                 MainsMeterTimeout = COMM_TIMEOUT;
             Irms[0] = L1;
             Irms[1] = L2;
             Irms[2] = L3;
             CalcIsum();
-            UpdateCurrentData();
         }
     } else if (topic == MQTTprefix + "/Set/EVMeter") {
         if (EVMeter != EM_API)
@@ -2563,8 +2563,6 @@ void mqtt_receive_callback(const String &topic, const String &payload) {
                 Irms_EV[1] = L2;
                 Irms_EV[2] = L3;
                 EVMeterTimeout = COMM_EVTIMEOUT;
-
-                UpdateCurrentData();
             }
 
             if (W > -1) {
@@ -4278,7 +4276,6 @@ void StartwebServer(void) {
 
                     MainsMeterTimeout = COMM_TIMEOUT;
 
-                    UpdateCurrentData();
                 } else
                     doc["TOTAL"] = "not allowed on slave";
             }
@@ -4303,7 +4300,6 @@ void StartwebServer(void) {
 
                 EVMeterTimeout = COMM_EVTIMEOUT;
 
-                UpdateCurrentData();
             }
 
             if(request->hasParam("import_active_energy") && request->hasParam("export_active_energy") && request->hasParam("import_active_power")) {
