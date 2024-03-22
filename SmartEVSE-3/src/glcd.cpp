@@ -466,7 +466,7 @@ void GLCD(void) {
     }
 
     if (ErrorFlags) {                                                           // We switch backlight on, as we exit after displaying the error
-        // BacklightTimer = BACKLIGHT;                                             // Backlight timer is set to 60 seconds
+        BacklightTimer = BACKLIGHT;                                             // Backlight timer is set to 120 seconds
 
         if (ErrorFlags & (CT_NOCOMM | EV_NOCOMM)) {                             // No serial communication for 10 seconds
             
