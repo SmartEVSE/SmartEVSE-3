@@ -1064,21 +1064,24 @@ void CalcBalancedCurrent(char mod) {
         {
             IsumImport = Isum - (10 * ImportCurrent);                           // Allow Import of power from the grid when solar charging
             if (Idifference > 0) {                                              // so we had some room for power as far as MaxCircuit and MaxMains are concerned
-                if (IsumImport < 0) {
-                    // negative, we have surplus (solar) power available
-                    if (IsumImport < -10 && Idifference > 10)
-                        IsetBalanced = IsetBalanced + 5;                        // more then 1A available, increase Balanced charge current with 0.5A
-                    else
-                        IsetBalanced = IsetBalanced + 1;                        // less then 1A available, increase with 0.1A
-                } else {
-                    // positive, we use more power then is generated
-                    if (IsumImport > 20)
-                        IsetBalanced = IsetBalanced - (IsumImport / 2);         // we use atleast 2A more then available, decrease Balanced charge current.
-                    else if (IsumImport > 10)
-                        IsetBalanced = IsetBalanced - 5;                        // we use 1A more then available, decrease with 0.5A
-                    else if (IsumImport > 3)
-                        IsetBalanced = IsetBalanced - 1;                        // we still use > 0.3A more then available, decrease with 0.1A
-                                                                                // if we use <= 0.3A we do nothing
+                _LOG_V("phaseLastUpdate=%i,processed=%i.\n", phasesLastUpdate ,phasesLastUpdate_processed);
+                if (phasesLastUpdate > phasesLastUpdate_processed) {        // only increase current if phases are updated; even in subpanel mode, if EVMeter says
+                    if (IsumImport < 0) {
+                        // negative, we have surplus (solar) power available
+                        if (IsumImport < -10 && Idifference > 10)
+                            IsetBalanced = IsetBalanced + 5;                        // more then 1A available, increase Balanced charge current with 0.5A
+                        else
+                            IsetBalanced = IsetBalanced + 1;                        // less then 1A available, increase with 0.1A
+                    } else {
+                        // positive, we use more power then is generated
+                        if (IsumImport > 20)
+                            IsetBalanced = IsetBalanced - (IsumImport / 2);         // we use atleast 2A more then available, decrease Balanced charge current.
+                        else if (IsumImport > 10)
+                            IsetBalanced = IsetBalanced - 5;                        // we use 1A more then available, decrease with 0.5A
+                        else if (IsumImport > 3)
+                            IsetBalanced = IsetBalanced - 1;                        // we still use > 0.3A more then available, decrease with 0.1A
+                                                                                    // if we use <= 0.3A we do nothing
+                    }
                 }
             }                                                                   // we already corrected Isetbalance in case of NOT enough power MaxCircuit/MaxMains
             _LOG_V("Checkpoint 3 Isetbalanced=%.1f A, IsumImport=%.1f, Isum=%.1f, ImportCurrent=%i.\n", (float)IsetBalanced/10, (float)IsumImport/10, (float)Isum/10, ImportCurrent);
