@@ -2488,7 +2488,7 @@ void mqtt_receive_callback(const String &topic, const String &payload) {
         uint16_t RequestedCurrent = payload.toInt();
         if (RequestedCurrent == 0) {
             MaxSumMains = 0;
-        } else if (RequestedCurrent >= (10 * 10) && RequestedCurrent <= (600 * 10)) {
+        } else if (RequestedCurrent >= 10 && RequestedCurrent <= 600) {
                 MaxSumMains = RequestedCurrent;
         }
     } else if (topic == MQTTprefix + "/Set/CPPWMOverride") {
