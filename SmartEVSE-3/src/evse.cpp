@@ -1529,7 +1529,8 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
             Config = val;
             break;
         case STATUS_MODE:
-            // fall through
+            setMode(val);
+            break;
         case MENU_MODE:
             Mode = val;
             break;
