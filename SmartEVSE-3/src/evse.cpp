@@ -269,7 +269,7 @@ char str[20];
 bool LocalTimeSet = false;
 
 int phasesLastUpdate = 0;
-int phasesLastUpdate_processed = 0;
+bool phasesLastUpdateFlag = false;
 int32_t IrmsOriginal[3]={0, 0, 0};   
 int homeBatteryCurrent = 0;
 int homeBatteryLastUpdate = 0; // Time in milliseconds
@@ -1046,21 +1046,19 @@ void CalcBalancedCurrent(char mod) {
         uint8_t Temp_Phases;
         Temp_Phases = (Nr_Of_Phases_Charging ? Nr_Of_Phases_Charging : 3);      // in case nr of phases not detected, assume 3
         Idifference = min((MaxMains * 10) - Imeasured, min((MaxCircuit * 10) - Imeasured_EV, ((MaxSumMains * 10) - Isum)/Temp_Phases));
+
         if (!mod) {                                                             // no new EVSE's charging
                                                                                 // For Smart mode, no new EVSE asking for current
                                                                                 // But for Solar mode we _also_ have to guard MaxCircuit and Maxmains!
+            if (phasesLastUpdateFlag) {                                         // only increase or decrease current if measurements are updated
+                _LOG_V("phaseLastUpdate=%i.\n", phasesLastUpdate);
             if (Idifference > 0) {
-                if (Mode == MODE_SMART) {
-                    _LOG_V("phaseLastUpdate=%i,processed=%i.\n", phasesLastUpdate ,phasesLastUpdate_processed);
-                    if (phasesLastUpdate > phasesLastUpdate_processed) {        // only increase current if phases are updated; even in subpanel mode, if EVMeter says
-                                                                                // there is current available, still wait until last phases update to increase
-                        IsetBalanced += (Idifference / 4);                      // increase with 1/4th of difference (slowly increase current)
-                        if ( LocalTimeSet ) phasesLastUpdate_processed = time(NULL); //only load phasesLastUpdate_processed with valid time
-                    }
-                }
-            }                                                                   // in Solar mode we compute increase of current later on!
+                    if (Mode == MODE_SMART) IsetBalanced += (Idifference / 4);  // increase with 1/4th of difference (slowly increase current)
+                }                                                               // in Solar mode we compute increase of current later on!
             else
-                IsetBalanced += Idifference;                                    // last PWM setting + difference (immediately decrease current)
+                    IsetBalanced += Idifference;                                // last PWM setting + difference (immediately decrease current) (Smart and Solar mode)
+            }
+
             if (IsetBalanced < 0) IsetBalanced = 0;
             if (IsetBalanced > 800) IsetBalanced = 800;                         // hard limit 80A (added 11-11-2017)
         }
@@ -1070,8 +1068,7 @@ void CalcBalancedCurrent(char mod) {
         {
             IsumImport = Isum - (10 * ImportCurrent);                           // Allow Import of power from the grid when solar charging
             if (Idifference > 0) {                                              // so we had some room for power as far as MaxCircuit and MaxMains are concerned
-                _LOG_V("phaseLastUpdate=%i,processed=%i.\n", phasesLastUpdate ,phasesLastUpdate_processed);
-                if (phasesLastUpdate > phasesLastUpdate_processed) {        // only increase current if phases are updated; even in subpanel mode, if EVMeter says
+                if (phasesLastUpdateFlag) {                                     // only increase or decrease current if measurements are updated.
                     if (IsumImport < 0) {
                         // negative, we have surplus (solar) power available
                         if (IsumImport < -10 && Idifference > 10)
@@ -1126,6 +1123,9 @@ void CalcBalancedCurrent(char mod) {
             }
         } //end MODE_SMART
     } // end MODE_SOLAR || MODE_SMART
+
+    // Reset flag that keeps track of new MainsMeter measurements
+    phasesLastUpdateFlag = false;
 
     // guard MaxCircuit in all modes; slave doesnt run CalcBalancedCurrent
     if (IsetBalanced > (MaxCircuit * 10) - Baseload_EV)
@@ -1851,6 +1851,7 @@ void DisconnectEvent(void){
 
 void CalcIsum(void) {
     phasesLastUpdate = time(NULL);
+    phasesLastUpdateFlag = true;                        // Set flag if a new Irms measurement is received.
     int batteryPerPhase = getBatteryCurrent() / 3;
     Isum = 0;
 #if FAKE_SUNNY_DAY
