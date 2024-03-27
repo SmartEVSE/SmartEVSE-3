@@ -1350,7 +1350,7 @@ void requestNodeStatus(uint8_t NodeNr) {
 Regist 	Access  Description 	        Unit 	Values
 0x0000 	R/W 	State 		                0:A / 1:B / 2:C / 3:D / 4:Node request B / 5:Master confirm B / 6:Node request C /
                                                 7:Master confirm C / 8:Activation mode / 9:B1 / 10:C1
-0x0001 	R/W 	Error 	                Bit 	1:LESS_6A / 2:NO_COMM / 4:TEMP_HIGH / 8:Unused / 16:RCD / 32:NO_SUN
+0x0001 	R/W 	Error 	                Bit 	1:LESS_6A / 2:NO_COMM / 4:TEMP_HIGH / 8:EV_NOCOMM / 16:RCD / 32:NO_SUN
 0x0002 	R/W 	Charging current        0.1 A 	0:no current available / 6-80
 0x0003 	R/W 	EVSE mode (without saving)      0:Normal / 1:Smart / 2:Solar
 0x0004 	R/W 	Solar Timer 	        s
@@ -1366,7 +1366,7 @@ Regist 	Access  Description 	        Unit 	Values
                                         0.1 A 	0:no current available
 0x0028 - 0x0030
         W 	Broadcast MainsMeter currents L1 - L3.
-                                        0.1 A 	0:no current available
+                                        0.1 A
 **/
 
 /**
@@ -2338,6 +2338,12 @@ uint8_t PollEVNode = NR_EVSES, updated = 0;
                     // Request Configuration if changed
                     if (Node[PollEVNode].ConfigChanged) {
                         _LOG_D("ModbusRequest %u: Request Configuration Node %u\n", ModbusRequest, PollEVNode);
+                        // This will do the following:
+                        // - Send a modbus request to the Node for it's EVmeter
+                        // - Node responds with the Type and Address of the EVmeter
+                        // - Master writes configuration flag reset value to Node
+                        // - Node acks with the exact same message
+                        // This takes around 50ms in total
                         requestNodeConfig(PollEVNode);
                         break;
                     }
@@ -3141,7 +3147,7 @@ ModbusMessage MBMainsMeterResponse(ModbusMessage request) {
             x = receiveCurrentMeasurement(MB.Data, MainsMeter, CM);
             if (x && LoadBl <2) MainsMeterTimeout = COMM_TIMEOUT;         // only reset timeout when data is ok, and Master/Disabled
 
-            // Calculate Isum (for nodes and master)
+            // Convert Irms from mA to (A * 10)
             for (x = 0; x < 3; x++) {
                 // Calculate difference of Mains and PV electric meter
                 Irms[x] = (signed int)(CM[x] / 100);            // Convert to AMPERE * 10
