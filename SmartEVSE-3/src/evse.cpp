@@ -641,7 +641,6 @@ void setMode(uint8_t NewMode) {
     lastMqttUpdate = 10;
 #endif
 
-    //if (LoadBl == 1) ModbusWriteSingleRequest(BROADCAST_ADR, 0x0003, NewMode);
     if (NewMode == MODE_SMART) {
         ErrorFlags &= ~(NO_SUN | LESS_6A);                                      // Clear All errors
         setSolarStopTimer(0);                                                   // Also make sure the SolarTimer is disabled.
@@ -668,9 +667,6 @@ void setMode(uint8_t NewMode) {
  * @param unsigned int Timer (seconds)
  */
 void setSolarStopTimer(uint16_t Timer) {
-//    if (LoadBl == 1 && SolarStopTimer != Timer) {
-//        //ModbusWriteSingleRequest(BROADCAST_ADR, 0x0004, Timer);
-//    }
     SolarStopTimer = Timer;
 }
 
@@ -1010,6 +1006,16 @@ void CalcBalancedCurrent(char mod) {
             ActiveMax += BalancedMax[n];                                        // Calculate total Max Amps for all active EVSEs
             TotalCurrent += Balanced[n];                                        // Calculate total of all set charge currents
     }
+
+    // Initialize Imeasured and Imeasured_EV (max power used) to first channel.
+    Imeasured = Irms[0];
+    Imeasured_EV = Irms_EV[0];
+    for (n=1; n<3; n++) {
+        // Imeasured holds highest Irms of all channels
+        if (Irms[n] > Imeasured) Imeasured = Irms[n];
+        if (Irms_EV[n] > Imeasured_EV) Imeasured_EV = Irms_EV[n];
+    }
+
     _LOG_V("Checkpoint 1 Isetbalanced=%.1f A Imeasured=%.1f A MaxCircuit=%i Imeasured_EV=%.1f A, Battery Current = %.1f A, mode=%i.\n", (float)IsetBalanced/10, (float)Imeasured/10, MaxCircuit, (float)Imeasured_EV/10, (float)homeBatteryCurrent/10, Mode);
 
     // When Load balancing = Master,  Limit total current of all EVSEs to MaxCircuit
@@ -1864,54 +1870,6 @@ void CalcIsum(void) {
     }
 }
 
-/**
- * Update current data after received current measurement
- */
-void UpdateCurrentData(void) {
-    uint8_t x;
-
-    // reset Imeasured value (grid power used)
-    Imeasured = (MaxMains) * -20;                                               // init to 0 is problematic with negative Irms values, so init to -2x Maxmains
-    Imeasured_EV = (MaxCircuit) * -20;
-    for (x=0; x<3; x++) {
-    // Imeasured holds highest Irms of all channels
-        if (Irms[x] > Imeasured) Imeasured = Irms[x];
-        if (Irms_EV[x] > Imeasured_EV) Imeasured_EV = Irms_EV[x];
-    }
-    //sanity check
-    if (Imeasured == (MaxMains) * -20) {                                        // if it equals the initialized value, something went wrong!
-        _LOG_A("UpdateCurrentData: Imeasured=%.1f, this looks wrong, correcting it to 0 for safety!", (float)Imeasured/10);
-        Imeasured = 0;
-    }
-    if (Imeasured_EV == (MaxCircuit) * -20) {                                        // if it equals the initialized value, something went wrong!
-        _LOG_A("UpdateCurrentData: Imeasured_EV=%.1f, this looks wrong, correcting it to 0 for safety!", (float)Imeasured_EV/10);
-        Imeasured_EV = 0;
-    }
-
-    // Load Balancing mode: Smart/Master or Disabled
-    // not needed for subpanel mode
-    if (Mode && LoadBl < 2) {
-        // Calculate dynamic charge current for connected EVSE's
-        CalcBalancedCurrent(0);
-
-        // No current left, or Overload (2x Maxmains)?
-        if (NoCurrent > 2 || (Imeasured > (MaxMains * 20))) {
-            // STOP charging for all EVSE's
-            // Display error message
-            ErrorFlags |= LESS_6A; //NOCURRENT;
-            // Broadcast Error code over RS485
-            ModbusWriteSingleRequest(BROADCAST_ADR, 0x0001, ErrorFlags);
-            NoCurrent = 0;
-        } else if (LoadBl) BroadcastCurrent();                                  // Master sends current to all connected EVSE's
-
-        if ((State == STATE_B) || (State == STATE_C)) {
-            // Set current for Master EVSE in Smart Mode
-            SetCurrent(Balanced[0]);
-        }
-        printStatus();  //for debug purposes
-    }
-}
-
 
 // CheckSwitch (SW input)
 //
@@ -2464,14 +2422,21 @@ uint8_t PollEVNode = NR_EVSES, updated = 0;
                     ModbusRequest++;
                     // fall through
                 default:
-                    if (Mode) {                                                 // Smart/Solar mode
-                        if ((ErrorFlags & CT_NOCOMM) == 0) UpdateCurrentData();      // No communication error with Sensorbox /Kwh meter?
-                                                                                // then update the data and send broadcast to all connected EVSE's
-                    } else {                                                    // Normal Mode
-                        CalcBalancedCurrent(0);                                 // Calculate charge current for connected EVSE's
-                        if (LoadBl == 1) BroadcastCurrent();                    // Send to all EVSE's (only in Master mode)
-                        if ((State == STATE_B || State == STATE_C) && !CPDutyOverride) SetCurrent(Balanced[0]); // set PWM output for Master
-                    }
+                    // slave never gets here
+                    // what about normal mode with no meters attached?
+                    CalcBalancedCurrent(0);
+                    // No current left, or Overload (2x Maxmains)?
+                    if (Mode && (NoCurrent > 2 || Imeasured > (MaxMains * 20))) { // I guess we don't want to set this flag in Normal mode, we just want to charge ChargeCurrent
+                        // STOP charging for all EVSE's
+                        // Display error message
+                        ErrorFlags |= LESS_6A; //NOCURRENT;
+                        // Broadcast Error code over RS485
+                        ModbusWriteSingleRequest(BROADCAST_ADR, 0x0001, ErrorFlags);
+                        NoCurrent = 0;
+                    } else if (LoadBl == 1 && !(ErrorFlags & CT_NOCOMM) ) BroadcastCurrent();               // When there is no Comm Error, Master sends current to all connected EVSE's
+
+                    if ((State == STATE_B || State == STATE_C) && !CPDutyOverride) SetCurrent(Balanced[0]); // set PWM output for Master //mind you, the !CPDutyOverride was not checked in Smart/Solar mode, but I think this was a bug!
+                    printStatus();  //for debug purposes
                     ModbusRequest = 0;
                     //_LOG_A("Timer100ms task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
                     break;
@@ -2958,7 +2923,6 @@ void Timer1S(void * parameter) {
             ErrorFlags &= ~LESS_6A;                                         // Clear Errors if there is enough current available, and Load Balancing is disabled or we are Master
             ErrorFlags &= ~NO_SUN;
             _LOG_I("No sun/current Errors Cleared.\n");
-            //ModbusWriteSingleRequest(BROADCAST_ADR, 0x0001, ErrorFlags);    // Broadcast
         }
 
 
@@ -2973,8 +2937,6 @@ void Timer1S(void * parameter) {
             ErrorFlags |= CT_NOCOMM;
             setStatePowerUnavailable();
             _LOG_W("Error, communication error!\n");
-            // Try to broadcast communication error to Nodes if we are Master
-            //if (LoadBl < 2) ModbusWriteSingleRequest(BROADCAST_ADR, 0x0001, ErrorFlags);         
         } else {
             if (MainsMeterTimeout) MainsMeterTimeout--;
         }
@@ -3023,9 +2985,8 @@ void Timer1S(void * parameter) {
             Broadcast = 1;                                                  // repeat every two seconds
         }
 
-        // in Normal mode UpdateCurrentData is never called, so we have to show debug info here...
-        // same for Slave
-        if (Mode == 0 || LoadBl > 1)
+        // for Slave modbusrequest loop is never called, so we have to show debug info here...
+        if (LoadBl > 1)
             printStatus();  //for debug purposes
 
         //_LOG_A("Timer1S task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
