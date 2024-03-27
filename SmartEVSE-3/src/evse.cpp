@@ -1414,6 +1414,11 @@ uint8_t processAllNodeStates(uint8_t NodeNr) {
         }
     }
 
+    if ((ErrorFlags & CT_NOCOMM) && !(BalancedError[NodeNr] & CT_NOCOMM)) {
+        BalancedError[NodeNr] |= CT_NOCOMM;                                     // Send Comm Error on Master to Node
+        write = 1;
+    }
+
     // Check EVSE for request to charge states
     switch (BalancedState[NodeNr]) {
         case STATE_A:
@@ -1630,6 +1635,7 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
         case STATUS_ERROR:
             ErrorFlags = val;
             if (ErrorFlags) {                                                   // Is there an actual Error? Maybe the error got cleared?
+                if (ErrorFlags & CT_NOCOMM) MainsMeterTimeout = 0;              // clear MainsMeterTimeout on a CT_NOCOMM error, so the error will be immediate.
                 setStatePowerUnavailable();
                 ChargeDelay = CHARGEDELAY;
                 _LOG_V("Error message received!\n");
