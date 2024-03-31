@@ -771,7 +771,6 @@ void setState(uint8_t NewState) {
             ActivationMode = 255;                                               // Disable ActivationMode
 
             if (Switching_To_Single_Phase == GOING_TO_SWITCH) {
-                    _LOG_A("Switching CONTACTOR C2 OFF.\n");
                     CONTACTOR2_OFF;
                     setSolarStopTimer(0); //TODO still needed? now we switched contactor2 off, review if we need to stop solar charging
                     //Nr_Of_Phases_Charging = 1; this will be detected automatically
@@ -781,7 +780,6 @@ void setState(uint8_t NewState) {
 
             CONTACTOR1_ON;
             if (!Force_Single_Phase_Charging() && Switching_To_Single_Phase != AFTER_SWITCH) {                               // in AUTO mode we start with 3phases
-                _LOG_I("Switching CONTACTOR C2 ON.\n");
                 CONTACTOR2_ON;                                                  // Contactor2 ON
             }
             LCDTimer = 0;

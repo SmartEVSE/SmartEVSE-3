@@ -277,11 +277,11 @@ extern RemoteDebug Debug;
 #define PILOT_CONNECTED digitalWrite(PIN_CPOFF, LOW);
 #define PILOT_DISCONNECTED digitalWrite(PIN_CPOFF, HIGH);
 
-#define CONTACTOR1_ON digitalWrite(PIN_SSR, HIGH);
-#define CONTACTOR1_OFF digitalWrite(PIN_SSR, LOW);
+#define CONTACTOR1_ON _LOG_A("Switching Contactor1 ON.\n"); digitalWrite(PIN_SSR, HIGH);
+#define CONTACTOR1_OFF _LOG_A("Switching Contactor1 OFF.\n"); digitalWrite(PIN_SSR, LOW);
 
-#define CONTACTOR2_ON digitalWrite(PIN_SSR2, HIGH);
-#define CONTACTOR2_OFF digitalWrite(PIN_SSR2, LOW);
+#define CONTACTOR2_ON _LOG_A("Switching Contactor2 ON.\n"); digitalWrite(PIN_SSR2, HIGH);
+#define CONTACTOR2_OFF _LOG_A("Switching Contactor2 OFF.\n"); digitalWrite(PIN_SSR2, LOW);
 
 #define BACKLIGHT_ON digitalWrite(PIN_LCD_LED, HIGH);
 #define BACKLIGHT_OFF digitalWrite(PIN_LCD_LED, LOW);
