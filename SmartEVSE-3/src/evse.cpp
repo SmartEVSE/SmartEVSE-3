@@ -679,8 +679,6 @@ void setSolarStopTimer(uint16_t Timer) {
  * 1f car will always charge 1f undetermined by CONTACTOR2
  */
 uint8_t Force_Single_Phase_Charging() {                                         // abbreviated to FSPC
-    if (LoadBl != 0)                                                            // No FSPC allowed when loadbalancing
-        return 0;       //3f
     switch (EnableC2) {
         case NOT_PRESENT:                                                       //no use trying to switch a contactor on that is not present
         case ALWAYS_OFF:
@@ -959,12 +957,6 @@ void Set_Nr_of_Phases_Charging(void) {
     }
 
     // sanity checks
-    // TODO test, this might work with slaves too!
-    if (LoadBl != 0) {
-        _LOG_A("ERROR: detecting phases while LoadBl=%i, this should never happen!\n", LoadBl);
-        Nr_Of_Phases_Charging = 0; //undetected
-    }
-
     if (EnableC2 != AUTO && EnableC2 != NOT_PRESENT) {                         // no further sanity checks possible when AUTO or NOT_PRESENT
         if (Nr_Of_Phases_Charging != 1 && (EnableC2 == ALWAYS_OFF || (EnableC2 == SOLAR_OFF && Mode == MODE_SOLAR))) {
             _LOG_A("Error in detecting phases: EnableC2=%s and Nr_Of_Phases_Charging=%i.\n", StrEnableC2[EnableC2], Nr_Of_Phases_Charging);
