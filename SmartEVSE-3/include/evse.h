@@ -170,7 +170,9 @@ extern RemoteDebug Debug;
 #define MAX_MAINS 25                                                            // max Current the Mains connection can supply
 #define MAX_SUMMAINS 600                                                        // only used for capacity rate limiting, max current over the sum of all phases
 #define MAX_CURRENT 13                                                          // max charging Current for the EV
+#ifndef MIN_CURRENT
 #define MIN_CURRENT 6                                                           // minimum Current the EV will accept
+#endif
 #define MODE 0                                                                  // Normal EVSE mode
 #define LOCK 0                                                                  // No Cable lock
 #define MAX_CIRCUIT 16                                                          // Max current of the EVSE circuit breaker
@@ -491,7 +493,7 @@ const struct {
     /* LCD,       Desc,                                                 Min, Max, Default */
     {"CONFIG",  "Fixed Cable or Type 2 Socket",                       0, 1, CONFIG},
     {"LOCK",    "Cable locking actuator type",                        0, 2, LOCK},
-    {"MIN",     "MIN Charge Current the EV will accept (per phase)",  6, 16, MIN_CURRENT},
+    {"MIN",     "MIN Charge Current the EV will accept (per phase)",  MIN_CURRENT, 16, MIN_CURRENT},
     {"MAX",     "MAX Charge Current for this EVSE (per phase)",       6, 80, MAX_CURRENT},
     {"PWR SHARE", "Share Power between multiple SmartEVSEs (2-8)",    0, NR_EVSES, LOADBL},
     {"SWITCH",  "Switch function control on pin SW",                  0, 4, SWITCH},

@@ -469,7 +469,7 @@ void BlinkLed(void * parameter) {
 void SetCurrent(uint16_t current) {
     uint32_t DutyCycle;
 
-    if ((current >= 60) && (current <= 510)) DutyCycle = current / 0.6;
+    if ((current >= (MIN_CURRENT * 10)) && (current <= 510)) DutyCycle = current / 0.6;
                                                                             // calculate DutyCycle from current
     else if ((current > 510) && (current <= 800)) DutyCycle = (current / 2.5) + 640;
     else DutyCycle = 100;                                                   // invalid, use 6A
@@ -3979,7 +3979,7 @@ void StartwebServer(void) {
 
         if(request->hasParam("current_min")) {
             int current = request->getParam("current_min")->value().toInt();
-            if(current >= 6 && current <= 16 && LoadBl < 2) {
+            if(current >= MIN_CURRENT && current <= 16 && LoadBl < 2) {
                 MinCurrent = current;
                 doc["current_min"] = MinCurrent;
                 write_settings();
