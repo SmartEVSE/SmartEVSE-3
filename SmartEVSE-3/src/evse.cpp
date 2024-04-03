@@ -1837,6 +1837,14 @@ void DisconnectEvent(void){
     strncpy(EVCCID, "", sizeof(EVCCID));
 }
 
+void CalcImeasured_EV(void) {
+    // Initialize Imeasured (max power used) to first channel.
+    Imeasured_EV = Irms_EV[0];
+    for (int x = 1; x < 3; x++) {
+        if (Irms_EV[x] > Imeasured_EV) Imeasured_EV = Irms_EV[x];
+    }
+}
+
 void CalcIsum(void) {
     phasesLastUpdate = time(NULL);
     phasesLastUpdateFlag = true;                        // Set flag if a new Irms measurement is received.
@@ -1849,9 +1857,8 @@ void CalcIsum(void) {
     temp[2] = INJECT_CURRENT_L3 * 10;
 #endif
 
-    // Initialize Imeasured and Imeasured_EV (max power used) to first channel.
+    // Initialize Imeasured (max power used) to first channel.
     Imeasured = Irms[0];
-    Imeasured_EV = Irms_EV[0];
     for (int x = 0; x < 3; x++) {
 #if FAKE_SUNNY_DAY
         Irms[x] = Irms[x] - temp[x];
@@ -1861,7 +1868,6 @@ void CalcIsum(void) {
         Isum = Isum + Irms[x];
         // Imeasured holds highest Irms of all channels
         if (Irms[x] > Imeasured) Imeasured = Irms[x];
-        if (Irms_EV[x] > Imeasured_EV) Imeasured_EV = Irms_EV[x];
     }
 }
 
@@ -2531,6 +2537,7 @@ void mqtt_receive_callback(const String &topic, const String &payload) {
                 Irms_EV[0] = L1;
                 Irms_EV[1] = L2;
                 Irms_EV[2] = L3;
+                CalcImeasured_EV();
                 EVMeterTimeout = COMM_EVTIMEOUT;
             }
 
@@ -3117,6 +3124,7 @@ ModbusMessage MBEVMeterResponse(ModbusMessage request) {
                 // CurrentMeter and PV values are MILLI AMPERE
                 Irms_EV[x] = (signed int)(EV[x] / 100);            // Convert to AMPERE * 10
             }
+            CalcImeasured_EV();
         }
     }
     // As this is a response to an earlier request, do not send response.
@@ -4262,9 +4270,8 @@ void StartwebServer(void) {
                 Irms_EV[0] = request->getParam("L1")->value().toInt();
                 Irms_EV[1] = request->getParam("L2")->value().toInt();
                 Irms_EV[2] = request->getParam("L3")->value().toInt();
-
+                CalcImeasured_EV();
                 EVMeterTimeout = COMM_EVTIMEOUT;
-
             }
 
             if(request->hasParam("import_active_energy") && request->hasParam("export_active_energy") && request->hasParam("import_active_power")) {
