@@ -997,15 +997,6 @@ void CalcBalancedCurrent(char mod) {
             TotalCurrent += Balanced[n];                                        // Calculate total of all set charge currents
     }
 
-    // Initialize Imeasured and Imeasured_EV (max power used) to first channel.
-    Imeasured = Irms[0];
-    Imeasured_EV = Irms_EV[0];
-    for (n=1; n<3; n++) {
-        // Imeasured holds highest Irms of all channels
-        if (Irms[n] > Imeasured) Imeasured = Irms[n];
-        if (Irms_EV[n] > Imeasured_EV) Imeasured_EV = Irms_EV[n];
-    }
-
     _LOG_V("Checkpoint 1 Isetbalanced=%.1f A Imeasured=%.1f A MaxCircuit=%i Imeasured_EV=%.1f A, Battery Current = %.1f A, mode=%i.\n", (float)IsetBalanced/10, (float)Imeasured/10, MaxCircuit, (float)Imeasured_EV/10, (float)homeBatteryCurrent/10, Mode);
 
     // When Load balancing = Master,  Limit total current of all EVSEs to MaxCircuit
@@ -1858,6 +1849,9 @@ void CalcIsum(void) {
     temp[2] = INJECT_CURRENT_L3 * 10;
 #endif
 
+    // Initialize Imeasured and Imeasured_EV (max power used) to first channel.
+    Imeasured = Irms[0];
+    Imeasured_EV = Irms_EV[0];
     for (int x = 0; x < 3; x++) {
 #if FAKE_SUNNY_DAY
         Irms[x] = Irms[x] - temp[x];
@@ -1865,6 +1859,9 @@ void CalcIsum(void) {
         IrmsOriginal[x] = Irms[x];
         Irms[x] -= batteryPerPhase;
         Isum = Isum + Irms[x];
+        // Imeasured holds highest Irms of all channels
+        if (Irms[x] > Imeasured) Imeasured = Irms[x];
+        if (Irms_EV[x] > Imeasured_EV) Imeasured_EV = Irms_EV[x];
     }
 }
 
