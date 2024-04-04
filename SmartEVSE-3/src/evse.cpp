@@ -208,7 +208,7 @@ struct {
 uint8_t lock1 = 0, lock2 = 1;
 uint8_t UnlockCable = 0, LockCable = 0;
 uint8_t MainsMeterTimeout = COMM_TIMEOUT;                                   // MainsMeter communication timeout (sec)
-uint8_t EVMeterTimeout = COMM_TIMEOUT;                                      // EV Meter communication Timeout (sec)
+uint8_t EVMeterTimeout = COMM_EVTIMEOUT;                                    // EV Meter communication Timeout (sec)
 uint16_t BacklightTimer = 0;                                                // Backlight timer (sec)
 uint8_t BacklightSet = 0;
 uint8_t LCDTimer = 0;
@@ -1758,10 +1758,7 @@ uint16_t getItemValue(uint8_t nav) {
 
 void printStatus(void)
 {
-    _LOG_I ("STATE: %s Error: %u StartCurrent: -%i ChargeDelay: %u SolarStopTimer: %u NoCurrent: %u Imeasured: %.1f A IsetBalanced: %.1f A\n", getStateName(State), ErrorFlags, StartCurrent,
-                                                                        ChargeDelay, SolarStopTimer,  NoCurrent,
-                                                                        (float)Imeasured/10,
-                                                                        (float)IsetBalanced/10);
+    _LOG_I ("STATE: %s Error: %u StartCurrent: -%i ChargeDelay: %u SolarStopTimer: %u NoCurrent: %u Imeasured: %.1f A IsetBalanced: %.1f A, MainsMeterTimeout=%u, EVMeterTimeout=%u.\n", getStateName(State), ErrorFlags, StartCurrent, ChargeDelay, SolarStopTimer,  NoCurrent, (float)Imeasured/10, (float)IsetBalanced/10, MainsMeterTimeout, EVMeterTimeout);
     _LOG_I("L1: %.1f A L2: %.1f A L3: %.1f A Isum: %.1f A\n", (float)Irms[0]/10, (float)Irms[1]/10, (float)Irms[2]/10, (float)Isum/10);
 }
 
@@ -2939,26 +2936,29 @@ void Timer1S(void * parameter) {
             if (BalancedState[x] == STATE_C) Node[x].Timer++;
         }
 
-        if ( (MainsMeterTimeout == 0) && !(ErrorFlags & CT_NOCOMM) && (Mode != MODE_NORMAL)) { // timeout if current measurement takes > 10 secs
-            // In Normal mode do not timeout; there might be MainsMeter/EVMeter configured that can be retrieved through the API,
-            // but in Normal mode we just want to charge ChargeCurrent, irrespective of communication problems.
-            ErrorFlags |= CT_NOCOMM;
-            setStatePowerUnavailable();
-            _LOG_W("Error, communication error!\n");
-        } else {
-            if (MainsMeterTimeout) MainsMeterTimeout--;
-        }
+        if (MainsMeter) {
+            if ( MainsMeterTimeout == 0 && !(ErrorFlags & CT_NOCOMM) && Mode != MODE_NORMAL) { // timeout if current measurement takes > 10 secs
+                // In Normal mode do not timeout; there might be MainsMeter/EVMeter configured that can be retrieved through the API,
+                // but in Normal mode we just want to charge ChargeCurrent, irrespective of communication problems.
+                ErrorFlags |= CT_NOCOMM;
+                setStatePowerUnavailable();
+                _LOG_W("Error, MainsMeter communication error!\n");
+            } else {
+                if (MainsMeterTimeout) MainsMeterTimeout--;
+            }
+        } else
+            MainsMeterTimeout = COMM_TIMEOUT;
 
-        if ( (EVMeter && EVMeterTimeout == 0) && !(ErrorFlags & EV_NOCOMM) && (Mode != MODE_NORMAL)) {
-            ErrorFlags |= EV_NOCOMM;
-            setStatePowerUnavailable();
-            _LOG_W("Error, EV Meter communication error!\n");
-        } else {
-            if (EVMeter) {
+        if (EVMeter) {
+            if ( EVMeterTimeout == 0 && !(ErrorFlags & EV_NOCOMM) && Mode != MODE_NORMAL) {
+                ErrorFlags |= EV_NOCOMM;
+                setStatePowerUnavailable();
+                _LOG_W("Error, EV Meter communication error!\n");
+            } else {
                 if (EVMeterTimeout) EVMeterTimeout--;
-            } else EVMeterTimeout = COMM_EVTIMEOUT;
-        }
-
+            }
+        } else
+            EVMeterTimeout = COMM_EVTIMEOUT;
         
         // Clear communication error, if present
         if ((ErrorFlags & CT_NOCOMM) && MainsMeterTimeout) ErrorFlags &= ~CT_NOCOMM; 
