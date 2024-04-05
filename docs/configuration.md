@@ -74,7 +74,7 @@ MAX	Set MAX charge current for the EV: 10-80A (per phase)
         that your fixed cable can carry.
 
 CIRCUIT	(only appears when PWR SHARE set to <Master>, or when PWR SHARE set to <Disabled>
-        and Mode is Smart or Solar):
+        and Mode is Smart or Solar and EV METER not set to <Disabled>):
         Set the max current the EVSE circuit can handle (load balancing): 10-200A
         (see also subpanel wiring)
 

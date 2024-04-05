@@ -947,8 +947,8 @@ uint8_t getMenuItems (void) {
         }
     }
     MenuItems[m++] = MENU_MAX;                                                  // Max Charge current (A)
-    if (LoadBl == 1 || (LoadBl == 0 && Mode != MODE_NORMAL)) {                  // ? Load balancing Master?
-                                                                                // Also, when not in Normal Mode, MaxCircuit will limit
+    if (LoadBl == 1 || (LoadBl == 0 && Mode != MODE_NORMAL && EVMeter)) {       // ? Load balancing Master?
+                                                                                // Also, when not in Normal Mode and that EV meter is present, MaxCircuit will limit
                                                                                 // the total current (subpanel configuration)
         MenuItems[m++] = MENU_CIRCUIT;                                          // - Max current of the EVSE circuit (A)
     }
