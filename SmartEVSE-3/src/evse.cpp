@@ -4476,7 +4476,9 @@ void WiFiSetup(void) {
     WiFi.onEvent(onWifiEvent);
 
     // Init and get the time
-    sntp_servermode_dhcp(1);                                                    //try to get the ntp server from dhcp
+    // First option to get time from local ntp server blocks the second fallback option since 2021:
+    // See https://github.com/espressif/arduino-esp32/issues/4964
+    //sntp_servermode_dhcp(1);                                                    //try to get the ntp server from dhcp
     sntp_setservername(1, "europe.pool.ntp.org");                               //fallback server
     sntp_set_time_sync_notification_cb(timeSyncCallback);
     sntp_init();
