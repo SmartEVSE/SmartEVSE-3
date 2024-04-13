@@ -1009,7 +1009,7 @@ void GLCDMenu(uint8_t Buttons) {
         ButtonRelease = 0;
         GLCD();
     // stop charging if < button is pressed longer then 2 seconds
-    } else if ((State == STATE_C) && (LCDNav == 0) && (Buttons == 0x6) && (ButtonRelease == 0)) {     // Button 1 pressed ?
+    } else if ((LCDNav == 0) && (Buttons == 0x6) && (ButtonRelease == 0)) {     // Button 1 pressed ?
         LCDNav = MENU_OFF;                                                      // about to cancel charging
         ButtonTimer = millis();
     } else if (LCDNav == MENU_OFF && ((ButtonTimer + 2000) < millis() )) {
