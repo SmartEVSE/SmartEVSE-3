@@ -37,7 +37,7 @@ PWR SHARE  ; formerly known as LOADBALANCING.
   <Master>	Set the first SmartEVSE to Master. Make sure there is only one Master.
   <Node1-7>	And the other SmartEVSE's to Node 1-7.
 
-MAINSMET Set type of MAINS meter
+MAINSMET Set type of MAINS meter (only appears in Smart or Solar mode):
   <Disabled>    No MAINS meter connected; only Normal mode possible
   <Sensorbox>   the Sensorbox will send measurement data to the SmartEVSE
   <API>         The MAINS meter data will be fed through the REST API or the MQTT API.
