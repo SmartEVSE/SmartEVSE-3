@@ -9,7 +9,7 @@ Make sure to have read the original README.md (e.g. on howto connect to wifi).
 <br />
 <br />
 <span>
-<b>For an idea how you could build the entire charging infrastructure using Smart EVSE, check out this post <a href="https://crunchtech.io/EV-charging-station-(part-I)" target="_blank">https://crunchtech.io/EV-charging-station-(part-<I)</a></b>
+<b>For an idea how you could build the entire charging infrastructure using Smart EVSE, check out this post <a href="https://crunchtech.io/EV-charging-station-(part-I)" target="_blank">https://crunchtech.io/EV-charging-station-(part-I)</a></b>
 </span>
 <br />
 <br />
