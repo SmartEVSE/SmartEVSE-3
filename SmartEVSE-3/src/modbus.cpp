@@ -58,10 +58,9 @@ void ModbusSend8(uint8_t address, uint8_t function, uint16_t reg, uint16_t data)
         _LOG_A("Error creating request: 0x%02x - %s\n", (int)e, (const char *)e);
     }
     else {
-        _LOG_D("Sent packet");
+        _LOG_V("Sent packet");
     }
-    _LOG_V_NO_FUNC(" address: 0x%02x, function: 0x%02x, reg: 0x%04x, token:0x%08x, data: 0x%04x.", address, function, reg, token, data);
-    _LOG_D_NO_FUNC("\n");
+    _LOG_V_NO_FUNC(" address: 0x%02x, function: 0x%02x, reg: 0x%04x, token:0x%08x, data: 0x%04x.\n", address, function, reg, token, data);
 }
 
 /**
@@ -193,8 +192,7 @@ void ModbusWriteMultipleRequest(uint8_t address, uint16_t reg, uint16_t *values,
       ModbusError e(err);
       _LOG_A("Error creating request: 0x%02x - %s\n", (int)e, (const char *)e);
     }
-    _LOG_D("Sent packet");
-    _LOG_V_NO_FUNC(" address: 0x%02x, function: 0x10, reg: 0x%04x, token: 0x%08x count: %u, values:", address, reg, token, count);
+    _LOG_V("Sent packet address: 0x%02x, function: 0x10, reg: 0x%04x, token: 0x%08x count: %u, values:", address, reg, token, count);
     for (uint16_t i = 0; i < count; i++) {
         _LOG_V_NO_FUNC(" %04x", values[i]);
     }
@@ -231,7 +229,7 @@ void ModbusDecode(uint8_t * buf, uint8_t len) {
     MB.Type = MODBUS_INVALID;
     MB.Exception = 0;
 
-    _LOG_D("Received packet (%i bytes)", len);
+    _LOG_V("Received packet (%i bytes)", len);
     for (uint8_t x=0; x<len; x++) {
         _LOG_V_NO_FUNC(" %02x", buf[x]);
     }
@@ -364,10 +362,10 @@ void ModbusDecode(uint8_t * buf, uint8_t len) {
     }
     switch (MB.Type) {
         case MODBUS_REQUEST:
-            _LOG_D_NO_FUNC(" Request\n");
+            _LOG_V_NO_FUNC(" Request\n");
             break;
         case MODBUS_RESPONSE:
-            _LOG_D_NO_FUNC(" Response\n");
+            _LOG_V_NO_FUNC(" Response\n");
             break;
     }
 }

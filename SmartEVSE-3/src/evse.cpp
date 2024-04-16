@@ -3264,7 +3264,7 @@ ModbusMessage MBbroadcast(ModbusMessage request) {
                 }
 
                 if (OK && ItemID < STATUS_STATE) write_settings();
-                _LOG_D("Broadcast received FC06 Item:%u val:%u\n",ItemID, MB.Value);
+                _LOG_V("Broadcast received FC06 Item:%u val:%u\n",ItemID, MB.Value);
                 break;
             case 0x10: // (Write multiple register))
                 // 0x0020: Balance currents
@@ -3297,7 +3297,7 @@ ModbusMessage MBbroadcast(ModbusMessage request) {
                     }
 
                     if (OK && ItemID < STATUS_STATE) write_settings();
-                    _LOG_D("Other Broadcast received\n");
+                    _LOG_V("Other Broadcast received\n");
                 }    
                 break;
             default:
