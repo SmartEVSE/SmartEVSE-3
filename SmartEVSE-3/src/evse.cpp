@@ -94,7 +94,6 @@ static esp_adc_cal_characteristics_t * adc_chars_PP;
 static esp_adc_cal_characteristics_t * adc_chars_Temperature;
 
 struct ModBus MB;          // Used by SmartEVSE fuctions
-bool RequestOutstanding[248][0x11];
 
 const char StrStateName[15][13] = {"A", "B", "C", "D", "COMM_B", "COMM_B_OK", "COMM_C", "COMM_C_OK", "Activate", "B1", "C1", "MODEM1", "MODEM2", "MODEM_OK", "MODEM_DENIED"};
 const char StrStateNameWeb[15][17] = {"Ready to Charge", "Connected to EV", "Charging", "D", "Request State B", "State B OK", "Request State C", "State C OK", "Activate", "Charging Stopped", "Stop Charging", "Modem Setup", "Modem Request", "Modem Done", "Modem Denied"};
@@ -609,11 +608,6 @@ void setMode(uint8_t NewMode) {
     // If mainsmeter disabled we can only run in Normal Mode
     if (!MainsMeter && NewMode != MODE_NORMAL)
         return;
-
-    // Clear guard of all outstanding requests
-    for (int i=0 ; i<248; i++)
-        for (int j=0; j<0x11; j++)
-            RequestOutstanding[i][j]=false;
 
     // Take care of extra conditionals/checks for custom features
     setAccess(!DelayedStartTime.epoch2); //if DelayedStartTime not zero then we are Delayed Charging
@@ -3182,7 +3176,6 @@ ModbusMessage MBNodeRequest(ModbusMessage request) {
 
     ModbusDecode( (uint8_t*)request.data(), request.size());
     ItemID = mapModbusRegister2ItemID();
-    RequestOutstanding[MB.Address][MB.Function] = false;
 
     switch (MB.Function) {
         case 0x03: // (Read holding register)
@@ -3257,8 +3250,6 @@ ModbusMessage MBbroadcast(ModbusMessage request) {
     int16_t combined;
 
     ModbusDecode( (uint8_t*)request.data(), request.size());
-    RequestOutstanding[MB.Address][MB.Function] = false;
-
     ItemID = mapModbusRegister2ItemID();
 
     if (MB.Type == MODBUS_REQUEST) {
@@ -3323,7 +3314,6 @@ ModbusMessage MBbroadcast(ModbusMessage request) {
 void MBhandleData(ModbusMessage msg, uint32_t token) 
 {
     uint8_t Address = msg.getServerID();    // returns Server ID or 0 if MM_data is shorter than 3
-    RequestOutstanding[Address][msg.getFunctionCode()] = false;
     if (Address == MainsMeterAddress) {
         //_LOG_A("MainsMeter data\n");
         MBMainsMeterResponse(msg);
@@ -3386,7 +3376,6 @@ void MBhandleError(Error error, uint32_t token)
   address = token >> 24;
   function = (token >> 16);
   reg = token & 0xFFFF;
-  RequestOutstanding[address][function] = false;
 
   if (LoadBl == 1 && address>=2 && address <=8 && function == 4 && reg == 0) {  //master sends out messages to nodes 2-8, if no EVSE is connected with that address
                                                                                 //a timeout will be generated. This is legit!
@@ -3433,9 +3422,6 @@ void ConfigureModbusMode(uint8_t newmode) {
             if (newmode != 255) MBserver.end();
             _LOG_A("ConfigureModbusMode2 task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
 
-            for (int i=0 ; i<248; i++)
-                for (int j=0; j<0x11; j++)
-                    RequestOutstanding[i][j]=false;
             MBclient.setTimeout(85);                        // Set modbus timeout to 85ms. 15ms lower then modbusRequestloop time of 100ms.
             MBclient.onDataHandler(&MBhandleData);
             MBclient.onErrorHandler(&MBhandleError);
