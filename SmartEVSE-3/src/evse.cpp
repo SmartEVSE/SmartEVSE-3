@@ -1065,7 +1065,7 @@ void CalcBalancedCurrent(char mod) {
             _LOG_V("Checkpoint 3 Isetbalanced=%.1f A, IsumImport=%.1f, Isum=%.1f, ImportCurrent=%i.\n", (float)IsetBalanced/10, (float)IsumImport/10, (float)Isum/10, ImportCurrent);
 
             // If IsetBalanced is below MinCurrent or negative, make sure it's set to MinCurrent.
-            if ( (IsetBalanced < (ActiveEVSE * MinCurrent * 10)) || (IsetBalanced < 0) ) {
+            if ( (IsetBalanced <= (ActiveEVSE * MinCurrent * 10)) || (IsetBalanced < 0) ) {
                 IsetBalanced = ActiveEVSE * MinCurrent * 10;
                 // ----------- Check to see if we have to continue charging on solar power alone ----------
                 if (ActiveEVSE && StopTime && (IsumImport > 10)) {
