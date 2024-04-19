@@ -4778,9 +4778,9 @@ void setup() {
 
 void loop() {
     //this loop is for non-time critical stuff that needs to run approx 1 / second
-    delay(1000);
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
     getLocalTime(&timeinfo, 1000U);
-    if (!LocalTimeSet) {
+    if (!LocalTimeSet && WIFImode == 1) {
         _LOG_A("Time not synced with NTP yet.\n");
     }
 
