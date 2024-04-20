@@ -435,8 +435,8 @@ extern uint8_t EVMeterAddress;
 extern uint8_t Show_RFID;
 #endif
 
-extern int32_t Irms[3];                                                         // Momentary current per Phase (Amps *10) (23 = 2.3A)
-extern int32_t Irms_EV[3];                                                         // Momentary current per Phase (Amps *10) (23 = 2.3A)
+extern int16_t Irms[3];                                                         // Momentary current per Phase (Amps *10) (23 = 2.3A)
+extern int16_t Irms_EV[3];                                                         // Momentary current per Phase (Amps *10) (23 = 2.3A)
 
 extern uint8_t State;
 extern uint8_t ErrorFlags;
@@ -464,7 +464,7 @@ extern uint16_t Iuncal;
 extern uint16_t SolarStopTimer;
 extern int32_t EnergyCharged;
 extern int32_t EnergyCapacity;
-extern int32_t PowerMeasured;
+extern int16_t PowerMeasured;
 extern uint8_t RFIDstatus;
 extern bool LocalTimeSet;
 extern uint32_t serialnr;

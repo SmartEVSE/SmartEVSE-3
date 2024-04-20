@@ -140,8 +140,8 @@ EnableC2_t EnableC2 = ENABLE_C2;                                            // C
 Modem_t Modem = NOTPRESENT;                                                 // Is an ISO15118 modem installed (experimental)
 uint16_t maxTemp = MAX_TEMPERATURE;
 
-int32_t Irms[3]={0, 0, 0};                                                  // Momentary current per Phase (23 = 2.3A) (resolution 100mA)
-int32_t Irms_EV[3]={0, 0, 0};                                               // Momentary current per Phase (23 = 2.3A) (resolution 100mA)
+int16_t Irms[3]={0, 0, 0};                                                  // Momentary current per Phase (23 = 2.3A) (resolution 100mA)
+int16_t Irms_EV[3]={0, 0, 0};                                               // Momentary current per Phase (23 = 2.3A) (resolution 100mA)
 uint8_t Nr_Of_Phases_Charging = 0;                                          // 0 = Undetected, 1,2,3 = nr of phases that was detected at the start of this charging session
 Single_Phase_t Switching_To_Single_Phase = FALSE;
 
@@ -228,7 +228,7 @@ uint16_t Iuncal = 0;                                                        // U
 uint16_t SolarStopTimer = 0;
 int32_t EnergyCharged = 0;                                                  // kWh meter value energy charged. (Wh) (will reset if state changes from A->B)
 int32_t EnergyMeterStart = 0;                                               // kWh meter value is stored once EV is connected to EVSE (Wh)
-int32_t PowerMeasured = 0;                                                  // Measured Charge power in Watt by kWh meter
+int16_t PowerMeasured = 0;                                                  // Measured Charge power in Watt by kWh meter
 uint8_t RFIDstatus = 0;
 bool PilotDisconnected = false;
 uint8_t PilotDisconnectTime = 0;                                            // Time the Control Pilot line should be disconnected (Sec)
@@ -241,7 +241,6 @@ int32_t Mains_import_active_energy = 0;                                     // M
 int32_t EV_export_active_energy = 0;
 int32_t EV_import_active_energy = 0;
 int32_t CM[3]={0, 0, 0};
-int32_t PV[3]={0, 0, 0};
 uint8_t ResetKwh = 2;                                                       // if set, reset EV kwh meter at state transition B->C
                                                                             // cleared when charging, reset to 1 when disconnected (state A)
 uint8_t ActivationMode = 0, ActivationTimer = 0;
@@ -253,7 +252,7 @@ bool LocalTimeSet = false;
 
 int phasesLastUpdate = 0;
 bool phasesLastUpdateFlag = false;
-int32_t IrmsOriginal[3]={0, 0, 0};   
+int16_t IrmsOriginal[3]={0, 0, 0};
 int homeBatteryCurrent = 0;
 int homeBatteryLastUpdate = 0; // Time in milliseconds
 
@@ -1183,7 +1182,7 @@ void BroadcastCurrent(void) {
     uint8_t *p=buf;
     memcpy(p, Balanced, sizeof(Balanced));
     p = p + sizeof(Balanced);
-    // Irms values, we only send the 16 least significant bits (range -3276A to +3276A) per phase
+    // Irms values, we only send the 16 least significant bits (range -327.6A to +327.6A) per phase
     for ( i=0; i<3; i++) {
         p[i * 2] = Irms[i] & 0xff;
         p[(i * 2) + 1] = Irms[i] >> 8;    
