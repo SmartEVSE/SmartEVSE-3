@@ -36,6 +36,7 @@
             if(!initiated) {
               initiated = true;
               $('#version').append(data.version);
+              $('#serialnr').append(data.serialnr);
 
               let minCurrent=parseInt(data.settings.current_min.toFixed(1));
               let maxCurrent=parseInt(data.settings.current_max.toFixed(1));
@@ -276,7 +277,7 @@
                         <div class="card-body">
                           <h1 class="h3 mb-0 text-white-800">Smart EVSE V3</h1>
                           <h1 id="version" class="h5 mb-0 text-white-800">Version: </h1>
-                          <h1 id="Hostname" class="h5 mb-0 text-white-800">%APhostname%</h1>
+                          <h1 id="serialnr" class="h5 mb-0 text-white-800">SmartEVSE-</h1>
                         </div>
                     </div>
                 </div>

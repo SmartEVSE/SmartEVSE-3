@@ -4,7 +4,7 @@ The REST API can be accessed through any http tool, here as an example CURL will
 
 # GET: /settings
 
-curl --get http://ipaddress/settings
+curl -X GET http://ipaddress/settings
 
 will give output like:
 ```
@@ -13,13 +13,30 @@ will give output like:
 
 This output is often used to add to your bug report, so the developers can see your configuration.
 
+NOTE:
+In the http world, GET parameters are passed like this:
+curl -X GET http://ipaddress/endpoint?param1=value1&param2=value2
+and POST parameters are passed like this:
+curl -X POST http://ipaddress/endpoint -d 'param1=value1' -d 'param2=value2' -d ''
+
+Now in the ESP world, we all have picked up the habit of using the GET way of passing parameters also for POST commands. SmartEVSE development not excluded....
+From version v3.6.0 on, instead of using the Arduino Core webserver libraries, we are now using the Mongoose webserver, which is broadly used. This webserver however sticks to the "normal" http standards.
+
+This means that if you POST a request to SmartEVSE > 3.6.0, the webserver will be waiting for the -d data until it times out (or you ctrl-C your curl command). -d ''
+You can prevent this by adding
+'''
+-d ''
+'''
+
+to your curl POST command. -d ''
+
 # POST: /settings
 * backlight
 
 &emsp;&emsp;Turns backlight on (1) or off (0) for the duration of the backlighttimer.
 
 ```
-    curl -X POST http://ipaddress/settings?backlight=1
+    curl -X POST http://ipaddress/settings?backlight=1 -d ''
 ```
 
 * mode
@@ -48,7 +65,7 @@ This output is often used to add to your bug report, so the developers can see y
 <br>&emsp;&emsp;Examples:
 <br>&emsp;&emsp;If the desired current is 8.3A the value to be sent is 83
 ```
-    curl -X POST http://ipaddress/settings?override_current=83
+    curl -X POST http://ipaddress/settings?override_current=83 -d ''
 ```
 
 * enable_C2
@@ -79,7 +96,7 @@ This output is often used to add to your bug report, so the developers can see y
 <br>&emsp;&emsp;If you want the car to start charging at 23:31 on April 14th 2023, in Smart mode, the strings to be sent are:
 
 ```
-    curl -X POST 'http://ipaddress/settings?starttime="2023-04-14T23:31"&mode=3'
+    curl -X POST 'http://ipaddress/settings?starttime="2023-04-14T23:31"&mode=3' -d ''
 ```
 
 * solar_start_current
@@ -130,7 +147,7 @@ This output is often used to add to your bug report, so the developers can see y
 <br>&emsp;&emsp;L1, L2 and L3 must be send all together otherwise the data won't be registered.
 <br>&emsp;&emsp;Ampere must be multiplied by 10
 ```
-    curl -X POST "http://ipaddress/currents?L1=100&L2=50&L3=30"
+    curl -X POST "http://ipaddress/currents?L1=100&L2=50&L3=30" -d ''
 ```
 &emsp;&emsp;P.S.: If you want to send your currents through HomeAsistant, look at the scripts in the (integration)[integration] directory.
 
@@ -153,7 +170,7 @@ This output is often used to add to your bug report, so the developers can see y
 <br>&emsp;&emsp;L1, L2 and L3 must be send all together otherwise the data won't be registered.
 <br>&emsp;&emsp;Ampere must be multiplied by 10
 ```
-    curl -X POST "http://ipaddress/ev_meter?L1=100&L2=50&L3=30"
+    curl -X POST "http://ipaddress/ev_meter?L1=100&L2=50&L3=30" -d ''
 ```
 
 * import_active_energy, export_active_energy and import_active_power

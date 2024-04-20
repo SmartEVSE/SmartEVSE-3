@@ -7,21 +7,8 @@
 #include <SPIFFS.h>
 
 #include <WiFi.h>
-#include <AsyncTCP.h>
-#include <ESPAsyncWebServer.h>
 
-#define USE_ESP_WIFIMANAGER_NTP true
-#define USING_AFRICA        false
-#define USING_AMERICA       false
-#define USING_ANTARCTICA    false
-#define USING_ASIA          false
-#define USING_ATLANTIC      false
-#define USING_AUSTRALIA     false
-#define USING_EUROPE        true
-#define USING_INDIAN        false
-#define USING_PACIFIC       false
-#define USING_ETC_GMT       false
-#include <ESPAsync_WiFiManager.h>
+#include <WiFiManager.h>
 
 #include <ESPmDNS.h>
 #include <Update.h>
@@ -59,9 +46,12 @@ RemoteDebug Debug;
 
 struct tm timeinfo;
 
-AsyncWebServer webServer(80);
-//AsyncWebSocket ws("/ws");           // data to/from webpage
-AsyncDNSServer dnsServer;
+//mongoose stuff
+#include "mongoose.h"
+#include "esp_log.h"
+struct mg_mgr mgr;  // Mongoose event manager. Holds all connections
+// end of mongoose stuff
+
 String APhostname = "SmartEVSE-" + String( MacId() & 0xffff, 10);           // SmartEVSE access point Name = SmartEVSE-xxxxx
 
 #if MQTT
@@ -76,7 +66,7 @@ TaskHandle_t MqttTaskHandle = NULL;
 uint8_t lastMqttUpdate = 0;
 #endif
 
-ESPAsync_WiFiManager ESPAsync_wifiManager(&webServer, &dnsServer, APhostname.c_str());
+WiFiManager wifiManager;
 
 // SSID and PW for your Router
 String Router_SSID;
@@ -152,7 +142,7 @@ uint8_t Show_RFID = 0;
 uint8_t WIFImode = WIFI_MODE;                                               // WiFi Mode (0:Disabled / 1:Enabled / 2:Start Portal)
 String APpassword = "00000000";
 uint8_t Initialized = INITIALIZED;                                          // When first powered on, the settings need to be initialized.
-String TZname = "";
+String TZinfo = "";                                                         // contains POSIX time string
 
 EnableC2_t EnableC2 = ENABLE_C2;                                            // Contactor C2
 Modem_t Modem = NOTPRESENT;                                                 // Is an ISO15118 modem installed (experimental)
@@ -2275,6 +2265,10 @@ uint8_t PollEVNode = NR_EVSES, updated = 0;
 
     while(1)  // infinite loop
     {
+        //mongoose stuff
+        mg_mgr_poll(&mgr, 1000);  // Infinite event loop
+        //end of mongoose stuff
+
         // Check if the cable lock is used
         if (Lock) {                                                 // Cable lock enabled?
 
@@ -3574,7 +3568,12 @@ void read_settings() {
         APpassword = preferences.getString("APpassword",AP_PASSWORD);
         DelayedStartTime.epoch2 = preferences.getULong("DelayedStartTim", DELAYEDSTARTTIME); //epoch2 is 4 bytes long on arduino; NVS key has reached max size
         DelayedStopTime.epoch2 = preferences.getULong("DelayedStopTime", DELAYEDSTOPTIME);    //epoch2 is 4 bytes long on arduino
-        TZname = preferences.getString("Timezone","Europe/Berlin");
+        TZinfo = preferences.getString("TimezoneInfo","");
+        if (TZinfo != "") {
+            setenv("TZ",TZinfo.c_str(),1);
+            tzset();
+        }
+
 
         EnableC2 = (EnableC2_t) preferences.getUShort("EnableC2", ENABLE_C2);
 #if MODEM
@@ -3683,40 +3682,6 @@ void write_settings(void) {
     ConfigChanged = 1;
 }
 
-//
-// Replaces %variables% in html file with local variables
-//
-String processor(const String& var){
-  
-    if (var == "APhostname") return APhostname;
-    if (var == "TempEVSE") return String(TempEVSE);
-    if (var == "StateEVSE") return StrStateNameWeb[State];
-    if (var == "ErrorEVSE") return getErrorNameWeb(ErrorFlags);
-    if (var == "ChargeCurrent") return String((float)Balanced[0]/10, 1U);
-    if (var == "ResetReason") return String(esp_reset_reason() );
-    if (var == "IrmsL1") return String((float)Irms[0]/10, 1U);
-    if (var == "IrmsL2") return String((float)Irms[1]/10, 1U);
-    if (var == "IrmsL3") return String((float)Irms[2]/10, 1U);
-
-    return String("");
-}
-
-
-//
-// 404 (page not found) handler
-// 
-void onRequest(AsyncWebServerRequest *request){
-    //Handle Unknown Request
-    request->send(404);
-}
-
-
-
-void StopwebServer(void) {
-    // ws.closeAll();
-    webServer.end();
-}
-
 /* Takes TimeString in format
  * String = "2023-04-14T11:31"
  * and store it in the DelayedTimeStruct
@@ -3739,27 +3704,153 @@ int StoreTimeString(String DelayedTimeStr, DelayedTimeStruct *DelayedTime) {
     return 1;
 }
 
-void StartwebServer(void) {
+// takes TZname (format: Europe/Berlin) , gets TZ_INFO (posix string, format: CET-1CEST,M3.5.0,M10.5.0/3) and sets and stores timezonestring accordingly
+void setTimeZone(char *tzname) {
 
-    webServer.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-        _LOG_A("page / (root) requested and sent\n");
-        request->send(SPIFFS, "/index.html", String(), false, processor);
-    });
-    // handles compressed .js file from SPIFFS
-    // webServer.on("/required.js", HTTP_GET, [](AsyncWebServerRequest *request) {
-    //     AsyncWebServerResponse *response = request->beginResponse(SPIFFS, "/required.js", "text/javascript");
-    //     response->addHeader("Content-Encoding", "gzip");
-    //     request->send(response);
-    // });
-    // // handles compressed .css file from SPIFFS
-    // webServer.on("/required.css", HTTP_GET, [](AsyncWebServerRequest *request) {
-    //     AsyncWebServerResponse *response = request->beginResponse(SPIFFS, "/required.css", "text/css");
-    //     response->addHeader("Content-Encoding", "gzip");
-    //     request->send(response);
-    // });
+    struct mg_fs *fs = &mg_fs_packed;
+  //struct mg_str mg_file_read(struct mg_fs *fs, const char *path) {
+    void *fp;
+    size_t filelen, filepos = 0;
+    const char *path = "/data/zones.csv";
+    fs->st(path, &filelen, NULL);
+    if ((fp = fs->op(path, MG_FS_READ)) != NULL) {
+        bool found = false;
+        char line[80];
+        int pos = 0;
+        char c;
+        do {
+            pos = 0;
+            do {
+                fs->rd(fp, &c, 1);
+                if (filepos < filelen)
+                    line[pos]=c;
+                pos++;
+                filepos++;
+            } while (pos < sizeof(line) - 1 && c != '\n' && filepos < filelen);
+            //terminate with NULL character
+            line[pos]=0;
+            found = strstr(line, tzname);
+            if (found) {
+                char *pos = strstr(line, ",");
+                pos = strstr(pos, "\"");
+                char *tz_info = pos + 1;
+                pos = strstr(pos, "\"") - 1;
+                pos = NULL; //end string with null char
+                _LOG_A("Detected Timezone info: TZname = %s, tz_info=%s.\n", tzname, tz_info);
+                setenv("TZ",tz_info,1);
+                TZinfo = String(tz_info);
+                tzset();
+                if (preferences.begin("settings", false) ) {
+                    preferences.putString("TimezoneInfo", tz_info);
+                    preferences.end();
+                }
+                break;
+            }
+        } while (filepos < filelen && !found);
+        fs->cl(fp);
+    }
+}
 
-    webServer.on("/erasesettings", HTTP_DELETE, [](AsyncWebServerRequest *request) {
-        request->send(200, "text/plain", "Erasing settings, rebooting");
+// wrapper so hasParam and getParam still work
+class webServerRequest {
+private:
+    struct mg_http_message *hm_internal;
+    String _value;
+    char temp[64];
+
+public:
+    void setMessage(struct mg_http_message *hm);
+    bool hasParam(const char *param);
+    webServerRequest* getParam(const char *param); // Return pointer to self
+    const String& value(); // Return the string value
+};
+
+void webServerRequest::setMessage(struct mg_http_message *hm) {
+    hm_internal = hm;
+}
+
+bool webServerRequest::hasParam(const char *param) {
+    return (mg_http_get_var(&hm_internal->query, param, temp, sizeof(temp)) > 0);
+}
+
+webServerRequest* webServerRequest::getParam(const char *param) {
+    _value = ""; // Clear previous value
+    if (mg_http_get_var(&hm_internal->query, param, temp, sizeof(temp)) > 0) {
+        _value = temp;
+    }
+    return this; // Return pointer to self
+}
+
+const String& webServerRequest::value() {
+    return _value; // Return the string value
+}
+//end of wrapper
+
+//mongoose http_client for picking up the timezone
+//url to get current timezone in Europe/Berlin format:
+static const char *s_url = "http://worldtimeapi.org/api/ip";
+//urls for converting timezone to posix string:
+//static const char *s_url = "https://raw.githubusercontent.com/nayarsystems/posix_tz_db/master/zones.csv";
+static const char *s_post_data = NULL;      // POST data
+static const uint64_t s_timeout_ms = 1500;  // Connect timeout in milliseconds
+
+// Print HTTP response and signal that we're done
+static void fn_client(struct mg_connection *c, int ev, void *ev_data) {
+    if (ev == MG_EV_OPEN) {
+        // Connection created. Store connect expiration time in c->data
+        *(uint64_t *) c->data = mg_millis() + s_timeout_ms;
+    } else if (ev == MG_EV_POLL) {
+        if (mg_millis() > *(uint64_t *) c->data && (c->is_connecting || c->is_resolving)) {
+            mg_error(c, "Connect timeout");
+        }
+    } else if (ev == MG_EV_CONNECT) {
+        // Connected to server. Extract host name from URL
+        struct mg_str host = mg_url_host(s_url);
+
+        if (mg_url_is_ssl(s_url)) {
+            struct mg_str empty = { "", 0 };
+            struct mg_tls_opts opts = {.ca = empty, .cert = empty, .key = empty, .name = mg_url_host(s_url)};
+            mg_tls_init(c, &opts);
+        }
+
+        // Send request
+        int content_length = s_post_data ? strlen(s_post_data) : 0;
+        mg_printf(c,
+                  "%s %s HTTP/1.0\r\n"
+                  "Host: %.*s\r\n"
+                  "Content-Type: octet-stream\r\n"
+                  "Content-Length: %d\r\n"
+                  "\r\n",
+                  s_post_data ? "POST" : "GET", mg_url_uri(s_url), (int) host.len,
+                  host.ptr, content_length);
+        mg_send(c, s_post_data, content_length);
+    } else if (ev == MG_EV_HTTP_MSG) {
+        // Response is received. Print it
+        struct mg_http_message *hm = (struct mg_http_message *) ev_data;
+        if (hm->message.len > 1) {
+            struct mg_str json = hm->body;
+            char *tz = mg_json_get_str(json, "$.timezone");
+            _LOG_A("Timezone detected: tz=%s.\n", tz);
+            setTimeZone(tz);
+        } else {
+            _LOG_A("Could not detect Timezone.\n");
+        }
+        c->is_draining = 1;        // Tell mongoose to close this connection
+        *(bool *) c->fn_data = true;  // Tell event loop to stop
+    } else if (ev == MG_EV_ERROR) {
+        *(bool *) c->fn_data = true;  // Error, tell event loop to stop
+    }
+}
+
+// Connection event handler function
+// indenting lower level two spaces to stay compatible with old StartWebServer
+static void fn(struct mg_connection *c, int ev, void *ev_data) {
+  if (ev == MG_EV_HTTP_MSG) {  // New HTTP request received
+    struct mg_http_message *hm = (struct mg_http_message *) ev_data;            // Parsed HTTP request
+    webServerRequest* request = new webServerRequest();
+    request->setMessage(hm);
+    if (mg_http_match_uri(hm, "/erasesettings") && !memcmp("DELETE", hm->method.ptr, hm->method.len)) {
+        mg_http_reply(c, 200, "Content-Type: text/plain\r\n", "Erasing settings, rebooting");
         if ( preferences.begin("settings", false) ) {         // our own settings
           preferences.clear();
           preferences.end();
@@ -3769,49 +3860,62 @@ void StartwebServer(void) {
           preferences.end();       
         }
         ESP.restart();
-    });
-
-    webServer.on("/update", HTTP_GET, [](AsyncWebServerRequest *request) {
-        request->send(200, "text/html", "First flash firmware.bin to update the main firmware.<br>Then flash spiffs.bin to update the SPIFFS partition, which provides the webserver user interface.<br>You should only flash files with those exact names.<br>If you want to telnet to your SmartEVSE to see the debug messages you should rename firmware.debug.bin to firmware.bin and flash that file.<br><form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>");
-    });
-
-    webServer.on("/update", HTTP_POST, [](AsyncWebServerRequest *request) {
-       bool shouldReboot = !Update.hasError();
-        AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", shouldReboot?"OK":"FAIL");
-        response->addHeader("Connection", "close");
-        request->send(response);
-        delay(500);
-        if (shouldReboot) ESP.restart();
-    },[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
-        if(!index) {
-            _LOG_A("\nUpdate Start: %s\n", filename.c_str());
-                if (filename == "spiffs.bin" ) {
-                    _LOG_A("\nSPIFFS partition write\n");
-                    // Partition size is 0x90000
-                    if(!Update.begin(0x90000, U_SPIFFS)) {
+    } else if (mg_http_match_uri(hm, "/update")) {
+        //modified version of mg_http_upload
+        char buf[20] = "0", file[40];
+        size_t max_size = 1500000;
+        long res = 0, offset, size;
+        mg_http_get_var(&hm->query, "offset", buf, sizeof(buf));
+        mg_http_get_var(&hm->query, "file", file, sizeof(file));
+        offset = strtol(buf, NULL, 0);
+        buf[0] = '0';
+        mg_http_get_var(&hm->query, "size", buf, sizeof(buf));
+        size = strtol(buf, NULL, 0);
+        if (hm->body.len == 0) {
+          struct mg_http_serve_opts opts = {.root_dir = "/data", .ssi_pattern = NULL, .extra_headers = NULL, .mime_types = NULL, .page404 = NULL, .fs = &mg_fs_packed };
+          mg_http_serve_file(c, hm, "/data/update2.html", &opts);
+        } else if (file[0] == '\0') {
+          mg_http_reply(c, 400, "", "file required");
+          res = -1;
+        } else if (offset < 0) {
+          mg_http_reply(c, 400, "", "offset required");
+          res = -3;
+        } else if ((size_t) offset + hm->body.len > max_size) {
+          mg_http_reply(c, 400, "", "over max size of %lu", (unsigned long) max_size);
+          res = -4;
+        } else if (size <= 0) {
+          mg_http_reply(c, 400, "", "size required");
+          res = -5;
+        } else {
+            if (!memcmp(file,"firmware.bin", sizeof("firmware.bin"))) {
+                if(!offset) {
+                    _LOG_A("Update Start: %s\n", file);
+                    if(!Update.begin((ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000), U_FLASH) {
+                            Update.printError(Serial);
+                    }
+                }
+                if(!Update.hasError()) {
+                    if(Update.write((uint8_t*) hm->body.ptr, hm->body.len) != hm->body.len) {
                         Update.printError(Serial);
-                    }    
-                } else if(!Update.begin((ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000), U_FLASH) {
-                    Update.printError(Serial);
-                }    
+                    } else {
+                        _LOG_A("bytes written %lu\r", offset + hm->body.len);
+                    }
+                }
+                if (offset + hm->body.len >= size) {                                           //EOF
+                    if(Update.end(true)) {
+                        _LOG_A("\nUpdate Success\n");
+                        delay(1000);
+                        ESP.restart();
+                    } else {
+                        Update.printError(Serial);
+                    }
+                }
+            } else //end of firmware.bin
+                mg_http_reply(c, 400, "", "only allowed to flash firmware.bin or rfid.txt");
+          mg_http_reply(c, 200, "", "%ld", res);
         }
-        if(!Update.hasError()) {
-            if(Update.write(data, len) != len) {
-                Update.printError(Serial);
-            } else {
-                _LOG_A("bytes written %u\r", index+len);
-            }
-        }
-        if(final) {
-            if(Update.end(true)) {
-                _LOG_A("\nUpdate Success\n");
-            } else {
-                Update.printError(Serial);
-            }
-        }
-    });
-
-    webServer.on("/settings", HTTP_GET, [](AsyncWebServerRequest *request) {
+    } else if (mg_http_match_uri(hm, "/settings")) {                            // REST API call?
+      if (!memcmp("GET", hm->method.ptr, hm->method.len)) {                     // if GET
         String mode = "N/A";
         int modeId = -1;
         if(Access_bit == 0)  {
@@ -3963,14 +4067,8 @@ void StartwebServer(void) {
 
         String json;
         serializeJson(doc, json);
-
-        AsyncWebServerResponse *response = request->beginResponse(200, "application/json", json);
-        response->addHeader("Access-Control-Allow-Origin","*"); 
-        request->send(response);
-    });
-
-
-    webServer.on("/settings", HTTP_POST, [](AsyncWebServerRequest *request) {
+        mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\n", json.c_str());    // Yes. Respond JSON
+      } else if (!memcmp("POST", hm->method.ptr, hm->method.len)) {                     // if POST
         DynamicJsonDocument doc(512); // https://arduinojson.org/v6/assistant/
 
         if(request->hasParam("backlight")) {
@@ -4218,12 +4316,11 @@ void StartwebServer(void) {
 
         String json;
         serializeJson(doc, json);
-
-        request->send(200, "application/json", json);
-    },[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
-    });
-
-    webServer.on("/currents", HTTP_POST, [](AsyncWebServerRequest *request) {
+        mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\n", json.c_str());    // Yes. Respond JSON
+      } else {
+        mg_http_reply(c, 404, "", "Not Found\n");
+      }
+    } else if (mg_http_match_uri(hm, "/currents") && !memcmp("POST", hm->method.ptr, hm->method.len)) {
         DynamicJsonDocument doc(200);
 
         if(request->hasParam("battery_current")) {
@@ -4258,12 +4355,9 @@ void StartwebServer(void) {
 
         String json;
         serializeJson(doc, json);
-        request->send(200, "application/json", json);
+        mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", json.c_str());    // Yes. Respond JSON
 
-    },[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
-    });
-
-    webServer.on("/ev_meter", HTTP_POST, [](AsyncWebServerRequest *request) {
+    } else if (mg_http_match_uri(hm, "/ev_meter") && !memcmp("POST", hm->method.ptr, hm->method.len)) {
         DynamicJsonDocument doc(200);
 
         if(EVMeter == EM_API) {
@@ -4293,25 +4387,19 @@ void StartwebServer(void) {
 
         String json;
         serializeJson(doc, json);
-        request->send(200, "application/json", json);
+        mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", json.c_str());    // Yes. Respond JSON
 
-    },[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
-    });    
-
-    webServer.on("/reboot", HTTP_POST, [](AsyncWebServerRequest *request) {
-        DynamicJsonDocument doc(200);
+    } else if (mg_http_match_uri(hm, "/reboot") && !memcmp("POST", hm->method.ptr, hm->method.len)) {
+        DynamicJsonDocument doc(20);
 
         ESP.restart();
         doc["reboot"] = true;
 
         String json;
         serializeJson(doc, json);
-        request->send(200, "application/json", json);
+        mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", json.c_str());    // Yes. Respond JSON
 
-    },[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
-    });
-
-    webServer.on("/ev_state", HTTP_POST, [](AsyncWebServerRequest *request) {
+    } else if (mg_http_match_uri(hm, "/ev_state") && !memcmp("POST", hm->method.ptr, hm->method.len)) {
         DynamicJsonDocument doc(200);
 
         //State of charge posting
@@ -4364,19 +4452,16 @@ void StartwebServer(void) {
 
         String json;
         serializeJson(doc, json);
-        request->send(200, "application/json", json);
-    },[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
-    });
+        mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", json.c_str());    // Yes. Respond JSON
 
 #if FAKE_RFID
     //this can be activated by: http://smartevse-xxx.lan/debug?showrfid=1
-    webServer.on("/debug", HTTP_GET, [](AsyncWebServerRequest *request) {
+    } else if (mg_http_match_uri(hm, "/debug") && !memcmp("GET", hm->method.ptr, hm->method.len)) {
         if(request->hasParam("showrfid")) {
             Show_RFID = strtol(request->getParam("showrfid")->value().c_str(),NULL,0);
         }
         _LOG_A("DEBUG: Show_RFID=%u.\n",Show_RFID);
-        request->send(200, "text/html", "Finished request");
-    });
+        mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", ""); //json request needs json response
 #endif
 
 #if AUTOMATED_TESTING
@@ -4384,7 +4469,7 @@ void StartwebServer(void) {
     //WARNING: because of automated testing, no limitations here!
     //THAT IS DANGEROUS WHEN USED IN PRODUCTION ENVIRONMENT
     //FOR SMARTEVSE's IN A TESTING BENCH ONLY!!!!
-    webServer.on("/automated_testing", HTTP_POST, [](AsyncWebServerRequest *request) {
+    } else if (mg_http_match_uri(hm, "/automated_testing") && !memcmp("POST", hm->method.ptr, hm->method.len)) {
         if(request->hasParam("current_max")) {
             MaxCurrent = strtol(request->getParam("current_max")->value().c_str(),NULL,0);
         }
@@ -4409,21 +4494,15 @@ void StartwebServer(void) {
             ConfigureModbusMode(LBL);
             LoadBl = LBL;
         }
-        request->send(200, "text/html", "Finished request");
-    },[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
-    });
+        mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", ""); //json request needs json response
 #endif
-
-    // attach filesystem root at URL /
-    webServer.serveStatic("/", SPIFFS, "/");
-
-    // setup 404 handler 'onRequest'
-    webServer.onNotFound(onRequest);
-
-    // Setup async webserver
-    webServer.begin();
-    _LOG_A("HTTP server started\n");
-
+    } else {                                                                    // if everything else fails, serve static page
+        struct mg_http_serve_opts opts = {.root_dir = "/data", .ssi_pattern = NULL, .extra_headers = NULL, .mime_types = NULL, .page404 = NULL, .fs = &mg_fs_packed };
+        //opts.fs = NULL;
+        mg_http_serve_dir(c, hm, &opts);
+    }
+    delete request;
+  }
 }
 
 void onWifiEvent(WiFiEvent_t event) {
@@ -4433,9 +4512,31 @@ void onWifiEvent(WiFiEvent_t event) {
             break;
         case WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_CONNECTED:
             _LOG_A("Connected or reconnected to WiFi\n");
+            delay(1000);
+            //mongoose
+            mg_mgr_init(&mgr);  // Initialise event manager
+            mg_log_set(MG_LL_NONE);
+            //mg_log_set(MG_LL_VERBOSE);
+
+            if (TZinfo == "") {
+                bool done = false;              // Event handler flips it to true
+                mg_http_connect(&mgr, s_url, fn_client, &done);  // Create client connection
+            }
+            //end mongoose
+            mg_http_listen(&mgr, "http://0.0.0.0:80", fn, NULL);  // Setup listener
+            _LOG_A("HTTP server started\n");
+
+#if DBG == 1
+            // if we start RemoteDebug with no wifi credentials installed we get in a bootloop
+            // so we start it here
+            // Initialize the server (telnet or web socket) of RemoteDebug
+            Debug.begin(APhostname, 23, 1);
+            Debug.showColors(true); // Colors
+#endif
             break;
         case WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
             if (WIFImode == 1) {
+                mg_mgr_free(&mgr);
                 _LOG_A("WiFi Disconnected. Reconnecting...\n");
                 //WiFi.setAutoReconnect(true);  //I know this is very counter-intuitive, you would expect this line in WiFiSetup but this is according to docs
                                                 //look at: https://github.com/alanswx/ESPAsyncWiFiManager/issues/92
@@ -4455,13 +4556,15 @@ void timeSyncCallback(struct timeval *tv)
     _LOG_A("Synced clock to NTP server!");    // somehow adding a \n here hangs the device after printing this message ?!?
 }
 
-
 // Setup Wifi 
 void WiFiSetup(void) {
 
-    //ESPAsync_wifiManager.resetSettings();   //reset saved settings
-    //ESPAsync_wifiManager.setDebugOutput(true);
-    ESPAsync_wifiManager.setMinimumSignalQuality(-1);
+    //wifiManager.setDebugOutput(true);
+    wifiManager.setMinimumSignalQuality(-1);
+    //WiFi.setAutoReconnect(true);
+    //WiFi.persistent(true);
+    WiFi.onEvent(onWifiEvent);
+    handleWIFImode();                                                           //go into the mode that was saved in nonvolatile memory
 
     // Start the mDNS responder so that the SmartEVSE can be accessed using a local hostame: http://SmartEVSE-xxxxxx.local
     if (!MDNS.begin(APhostname.c_str())) {                
@@ -4471,10 +4574,6 @@ void WiFiSetup(void) {
         MDNS.addService("http", "tcp", 80);   // announce Web server
     }
 
-    //WiFi.setAutoReconnect(true);
-    //WiFi.persistent(true);
-    WiFi.onEvent(onWifiEvent);
-
     // Init and get the time
     // First option to get time from local ntp server blocks the second fallback option since 2021:
     // See https://github.com/espressif/arduino-esp32/issues/4964
@@ -4482,45 +4581,29 @@ void WiFiSetup(void) {
     sntp_setservername(1, "europe.pool.ntp.org");                               //fallback server
     sntp_set_time_sync_notification_cb(timeSyncCallback);
     sntp_init();
-    String TZ_INFO = ESPAsync_wifiManager.getTZ(TZname.c_str());
-    setenv("TZ",TZ_INFO.c_str(),1);
-    tzset();
-
-#if DBG == 1
-    // Initialize the server (telnet or web socket) of RemoteDebug
-    Debug.begin(APhostname, 23, 1);
-    Debug.showColors(true); // Colors
-#endif
-    handleWIFImode();                                                           //go into the mode that was saved in nonvolatile memory
-    StartwebServer();
 }
 
 void SetupPortalTask(void * parameter) {
     _LOG_A("Start Portal...\n");
-    StopwebServer();
     WiFi.disconnect(true);
-    // Set config portal channel, default = 1. Use 0 => random channel from 1-13
-    ESPAsync_wifiManager.setConfigPortalChannel(0);
-    ESPAsync_wifiManager.setAPStaticIPConfig(IPAddress(192,168,4,1), IPAddress(192,168,4,1), IPAddress(255,255,255,0));
+    wifiManager.setAPStaticIPConfig(IPAddress(192,168,4,1), IPAddress(192,168,4,1), IPAddress(255,255,255,0));
+    //wifiManager.setTitle(String title);
 
-    ESPAsync_wifiManager.setConfigPortalTimeout(120);   // Portal will be available 2 minutes to connect to, then close. (if connected within this time, it will remain active)
+    //don't show firmware update buttons in portal
+    std::vector<const char*> wmMenuItems = { "wifi", "info", "erase", "exit" };
+    wifiManager.setMenu(wmMenuItems);
+    wifiManager.setShowInfoUpdate(false);
+
+    wifiManager.setConfigPortalTimeout(120);  // Portal will be available 2 minutes to connect to, then close. (if connected within this time, it will remain active)
     delay(1000);
-    ESPAsync_wifiManager.startConfigPortal(APhostname.c_str(), APpassword.c_str());         // blocking until connected or timeout.
+    wifiManager.startConfigPortal(APhostname.c_str(), APpassword.c_str());
     //_LOG_A("SetupPortalTask free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
     WiFi.disconnect(true);
-
-    // this function only works in portal mode, so we have to save the timezone:
-    TZname = ESPAsync_wifiManager.getTimezoneName();
-    if (preferences.begin("settings", false) ) {
-        preferences.putString("Timezone",TZname);
-        preferences.end();
-    }
 
     WIFImode = 1;
     handleWIFImode();
     write_settings();
     LCDNav = 0;
-    StartwebServer();                                                           //restart webserver
     vTaskDelete(NULL);                                                          //end this task so it will not take up resources
 }
 
