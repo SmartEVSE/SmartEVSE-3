@@ -4,7 +4,6 @@
 #include <Preferences.h>
 
 #include <FS.h>
-#include <SPIFFS.h>
 
 #include <WiFi.h>
 
@@ -4758,15 +4757,6 @@ void setup() {
         _LOG_A("not programmed!!!\n");
     }
     
-    // Initialize SPIFFS
-    if (!SPIFFS.begin(true)) {
-        _LOG_A("SPIFFS failed! Already tried formatting. HALT\n");
-        while (true) {
-          delay(1);
-        }
-    }
-    _LOG_A("Total SPIFFS bytes: %u, Bytes used: %u\n",SPIFFS.totalBytes(),SPIFFS.usedBytes());
-
     // We might need some sort of authentication in the future.
     // SmartEVSE v3 have programmed ECDSA-256 keys stored in nvs
     // Unused for now.
