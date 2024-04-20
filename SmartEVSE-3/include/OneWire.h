@@ -31,5 +31,6 @@ extern Preferences preferences;
 void ReadRFIDlist(void);
 void DeleteAllRFID(void);
 void CheckRFID(void);
+void LoadandStoreRFID(unsigned char *RFIDparam);
 
-#endif // #ifndef __ONEWIRE_H 
+#endif // #ifndef __ONEWIRE_H

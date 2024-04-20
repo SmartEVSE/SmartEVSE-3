@@ -3474,7 +3474,8 @@ void validate_settings(void) {
     else if (Lock == 2) { lock1 = HIGH; lock2 = LOW; }                          // Motor
     // Erase all RFID cards from ram + eeprom if set to EraseAll
     if (RFIDReader == 5) {
-       DeleteAllRFID();
+        DeleteAllRFID();
+        setItemValue(MENU_RFIDREADER, 0);                                       // RFID Reader Disabled
     }
 
     // We disabled CAL in the menu.
@@ -3972,6 +3973,37 @@ static void fn(struct mg_connection *c, int ev, void *ev_data) {
                     }
                 }
             } else //end of firmware.bin
+            if (!memcmp(file,"rfid.txt", sizeof("rfid.txt"))) {
+                if (offset != 0) {
+                    mg_http_reply(c, 400, "", "rfid.txt too big, only 120 rfid's allowed!");
+                }
+                else {
+                    //we are overwriting all stored RFID's with the ones uploaded
+                    DeleteAllRFID();
+                    res = offset + hm->body.len;
+                    unsigned int RFID[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+                    char RFIDtxtstring[18];                                     // 17 characters + NULL terminator
+                    int r, pos = 0;
+                    int beginpos = 0;
+                    while (pos <= hm->body.len) {
+                        char c;
+                        c = *(hm->body.ptr + pos);
+                        //_LOG_A_NO_FUNC("%c", c);
+                        if (c == '\n') {
+                            strncpy(RFIDtxtstring, hm->body.ptr + beginpos, 17);         // in case of DOS the 0x0D is stripped off here
+                            RFIDtxtstring[17] = '\0';
+                            //_LOG_A("DINGO: RFIDtxtstring=%s.\n", RFIDtxtstring);
+                            r = sscanf(RFIDtxtstring,"%02x:%02x:%02x:%02x:%02x:%02x", &RFID[1], &RFID[2], &RFID[3], &RFID[4], &RFID[5], &RFID[6]);
+                            if (r == 6) {
+                                _LOG_A("Store RFID %02x:%02x:%02x:%02x:%02x:%02x.\n", RFID[1], RFID[2], RFID[3], RFID[4], RFID[5], RFID[6]);
+                                LoadandStoreRFID((unsigned char *) RFID);
+                            }
+                            beginpos = pos + 1;
+                        }
+                        pos++;
+                    }
+                }
+            } else //end of rfid.txt
                 mg_http_reply(c, 400, "", "only allowed to flash firmware.bin or rfid.txt");
           mg_http_reply(c, 200, "", "%ld", res);
         }

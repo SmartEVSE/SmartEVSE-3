@@ -165,7 +165,10 @@ void ReadRFIDlist(void) {
         if (initialized) preferences.getBytes("RFID", RFIDlist, 120);     // read 120 bytes from storage
         preferences.end();
 
-        if (initialized == 0 ) DeleteAllRFID();           // when unitialized, delete all cardIDs 
+        if (initialized == 0 ) {
+            DeleteAllRFID();                                                    // when unitialized, delete all cardIDs
+            setItemValue(MENU_RFIDREADER, 0);                                   // RFID Reader Disabled
+        }
 
     } else {
         _LOG_A("Error opening preferences!\n") ;
@@ -230,6 +233,13 @@ unsigned char StoreRFID(void) {
     return 1;
 }
 
+//load and store parameter RFIDparm into global variable RFID
+void LoadandStoreRFID(unsigned char *RFIDparam) {
+    for (int i = 0; i < 8; i++)
+        RFID[i]=RFIDparam[i];
+    StoreRFID();
+}
+
 // Delete RFID card in memory and eeprom
 // returns 1 when successful, 0 when RFID was not found
 unsigned char DeleteRFID(void) {
@@ -254,7 +264,6 @@ void DeleteAllRFID(void) {
     for (i = 0; i < 120; i++) RFIDlist[i] = 0xff;
     WriteRFIDlist();
     _LOG_I("All RFID cards erased!\n");
-    setItemValue(MENU_RFIDREADER, 0);                                           // RFID Reader Disabled
 }
 
 void CheckRFID(void) {

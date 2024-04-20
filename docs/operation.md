@@ -10,12 +10,21 @@ After configuration of your Wifi parameters, your SmartEVSE will present itself 
 * http://smartevse-xxxx.local/ where xxxx is the serial number of your SmartEVSE. It can be found on a sticker on the bottom of your SmartEVSE. It might be necessary that mDNS is configured on your LAN.
 * http://smartevse-xxxx.lan/ where xxxx is the serial number of your SmartEVSE. It can be found on a sticker on the bottom of your SmartEVSE. It might be necessary that mDNS is configured on your LAN.
 * OTA update of your firmware:
-    - surf to http://your-smartevse/update
+    - surf to http://your-smartevse/update or press the UPDATE button on the webserver
     - select the firmware.bin from this archive, OR if you want the debug version (via telnet over your wifi),
  rename firmware.debug.bin to firmware.bin and select that. YOU CANNOT FLASH A FILE WITH ANOTHER NAME!
     - if you get FAIL, check your wifi connection and try again;
     - after OK, wait 10-30 seconds and your new firmware including the webserver should be online!
 * Added wifi-debugging: if you flashed the debug version, telnet http://your-smartevse/ will bring you to a debugger that shows you whats going on!
+* OTA upload of rfid lists:
+    - via the "update" button or the /update endpoint you can upload a file called rfid.txt;
+    - file layout: every line is supposed to contain one RFID (=NFC) TAG UID of size bytes in hex format:
+'''
+112233445566
+0A3B123FFFA0
+'''
+    - before upload all existing RFID's are deleted in the SmartEVSE you are uploading to
+    - if you have PWR SHARE enabled (master/slave configuration), you must upload to every single SmartEVSE; this enables you to maintain different lists for different SmartEVSEs.
 
 # Mode switching when PWR SHARE is activated
 * If you switch mode on the Master, the Slaves will follow that mode switch
