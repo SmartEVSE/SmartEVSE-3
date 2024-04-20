@@ -30,12 +30,6 @@
 #include "OneWire.h"
 #include "modbus.h"
 
-#if MQTT
-#include <MQTT.h>
-WiFiClient client;
-MQTTClient MQTTclient;
-#endif
-
 #ifndef DEBUG_DISABLED
 RemoteDebug Debug;
 #endif
@@ -61,7 +55,6 @@ String MQTTprefix;
 String MQTTHost = "";
 uint16_t MQTTPort;
 
-TaskHandle_t MqttTaskHandle = NULL;
 uint8_t lastMqttUpdate = 0;
 #endif
 
@@ -2446,7 +2439,7 @@ uint8_t PollEVNode = NR_EVSES, updated = 0;
 }
 
 #if MQTT
-void mqtt_receive_callback(const String &topic, const String &payload) {
+void mqtt_receive_callback(const String topic, const String payload) {
     if (topic == MQTTprefix + "/Set/Mode") {
         if (payload == "Off") {
             ToModemWaitStateTimer = 0;
@@ -2558,38 +2551,51 @@ void mqtt_receive_callback(const String &topic, const String &payload) {
     lastMqttUpdate = 10;
 }
 
+//wrapper so MQTTClient::Publish works
+static struct mg_connection *s_conn;              // Client connection
+class MQTTclient_t {
+private:
+    struct mg_mqtt_opts default_opts;
+public:
+    //constructor
+    MQTTclient_t () {
+        memset(&default_opts, 0, sizeof(default_opts));
+        default_opts.qos = 0;
+        default_opts.retain = false;
+    }
+
+    void publish(const String &topic, const String &payload, bool retained, int qos);
+    void subscribe(const String &topic, int qos);
+    bool connected;
+    void disconnect(void) { mg_mqtt_disconnect(s_conn, &default_opts); };
+};
+
+void MQTTclient_t::publish(const String &topic, const String &payload, bool retained, int qos) {
+  if (s_conn) {
+    struct mg_mqtt_opts opts = default_opts;
+    opts.topic = mg_str(topic.c_str());
+    opts.message = mg_str(payload.c_str());
+    opts.qos = qos;
+    opts.retain = retained;
+    mg_mqtt_pub(s_conn, &opts);
+  }
+}
+
+void MQTTclient_t::subscribe(const String &topic, int qos) {
+  if (s_conn) {
+    struct mg_mqtt_opts opts = default_opts;
+    opts.topic = mg_str(topic.c_str());
+    opts.qos = qos;
+    mg_mqtt_sub(s_conn, &opts);
+  }
+}
+
+MQTTclient_t MQTTclient;
+
 void SetupMQTTClient() {
-    // Disconnect existing connection if connected
-    if (MQTTclient.connected())
-        MQTTclient.disconnect();
-
-    // No need to attempt connections if we aren't configured
-    if (MQTTHost == "")
-        return;
-
-    // Setup and connect MQTT client instance
-    MQTTclient.setHost(MQTTHost.c_str(), MQTTPort);
-
-    MQTTclient.setWill(String(MQTTprefix + "/connected").c_str(), "offline", true, 0);
-
-    if (MQTTuser != "" && MQTTpassword != "") {
-        MQTTclient.connect(APhostname.c_str(), MQTTuser.c_str(), MQTTpassword.c_str());
-    } else {
-        MQTTclient.connect(APhostname.c_str());
-    }
-
-    // Keepalive every 15s
-    MQTTclient.setKeepAlive(15);
-
-    if (MQTTclient.connected()) {
-        // Set up global subscribe callback
-        MQTTclient.onMessage(mqtt_receive_callback);
-
-        // Set up subscriptions
-        MQTTclient.subscribe(String(MQTTprefix + "/Set/#"));
-
-        MQTTclient.publish(MQTTprefix+"/connected", "online", true, 0);
-    }
+    // Set up subscriptions
+    MQTTclient.subscribe(MQTTprefix + "/Set/#",1);
+    MQTTclient.publish(MQTTprefix+"/connected", "online", true, 0);
 
     //publish MQTT discovery topics
     //we need something to make all this JSON stuff readable, without doing all this assign and serialize stuff
@@ -2717,7 +2723,6 @@ void SetupMQTTClient() {
 void mqttPublishData() {
     lastMqttUpdate = 0;
 
-    if (MQTTclient.connected()) {
         if (MainsMeter) {
             MQTTclient.publish(MQTTprefix + "/MainsCurrentL1", String(Irms[0]), false, 0);
             MQTTclient.publish(MQTTprefix + "/MainsCurrentL2", String(Irms[1]), false, 0);
@@ -2769,12 +2774,6 @@ void mqttPublishData() {
         }
         if (homeBatteryLastUpdate)
             MQTTclient.publish(MQTTprefix + "/HomeBatteryCurrent", String(homeBatteryCurrent), false, 0);
-    } else {
-        if (WiFi.status() == WL_CONNECTED) {
-            // Setup MQTT client again so we can reconnect
-            SetupMQTTClient();
-        }
-    }
 }
 #endif
 
@@ -3785,6 +3784,69 @@ const String& webServerRequest::value() {
 }
 //end of wrapper
 
+#if MQTT
+char s_mqtt_url[80];
+//TODO perhaps integrate multiple fn callback functions?
+static void fn_mqtt(struct mg_connection *c, int ev, void *ev_data) {
+    if (ev == MG_EV_OPEN) {
+        _LOG_V("%lu CREATED", c->id);
+        // c->is_hexdumping = 1;
+    } else if (ev == MG_EV_ERROR) {
+        // On error, log error message
+        _LOG_A("%lu ERROR %s", c->id, (char *) ev_data);
+    } else if (ev == MG_EV_CONNECT) {
+        // If target URL is SSL/TLS, command client connection to use TLS
+        if (mg_url_is_ssl(s_mqtt_url)) {
+            struct mg_str empty = { "", 0 };
+            struct mg_tls_opts opts = {.ca = empty, .cert = empty, .key = empty, .name = mg_url_host(s_mqtt_url)};
+            //struct mg_tls_opts opts = {.ca = empty};
+            mg_tls_init(c, &opts);
+        }
+    } else if (ev == MG_EV_MQTT_OPEN) {
+        // MQTT connect is successful
+        _LOG_V("%lu CONNECTED to %s", c->id, s_mqtt_url);
+        MQTTclient.connected = true;
+        SetupMQTTClient();
+    } else if (ev == MG_EV_MQTT_MSG) {
+        // When we get echo response, print it
+        struct mg_mqtt_message *mm = (struct mg_mqtt_message *) ev_data;
+        _LOG_V("%lu RECEIVED %.*s <- %.*s", c->id, (int) mm->data.len, mm->data.ptr, (int) mm->topic.len, mm->topic.ptr);
+        //somehow topic is not null terminated
+        String topic2 = String(mm->topic.ptr).substring(0,mm->topic.len);
+        mqtt_receive_callback(topic2, mm->data.ptr);
+    } else if (ev == MG_EV_CLOSE) {
+        _LOG_V("%lu CLOSED", c->id);
+        MQTTclient.connected = false;
+        s_conn = NULL;  // Mark that we're closed
+    }
+}
+
+// Timer function - recreate client connection if it is closed
+static void timer_fn(void *arg) {
+    struct mg_mgr *mgr = (struct mg_mgr *) arg;
+    struct mg_mqtt_opts opts;
+    memset(&opts, 0, sizeof(opts));
+    opts.clean = false;
+    // set will topic
+    String temp = MQTTprefix + "/connected";
+    opts.topic = mg_str(temp.c_str());
+    opts.message = mg_str("offline");
+    opts.retain = true;
+    opts.keepalive = 15;                                                          // so we will timeout after 15s
+    opts.version = 4;
+    opts.client_id=mg_str(MQTTprefix.c_str());
+    opts.user=mg_str(MQTTuser.c_str());
+    opts.pass=mg_str(MQTTpassword.c_str());
+
+    //prepare MQTT url
+    //mqtt[s]://[username][:password]@host.domain[:port]
+    String MQTTUri = "mqtt://" + MQTTHost + ":" + String(MQTTPort);
+    strncpy(s_mqtt_url, MQTTUri.c_str(), sizeof(s_mqtt_url)-1);
+
+    if (s_conn == NULL) s_conn = mg_mqtt_connect(mgr, s_mqtt_url, &opts, fn_mqtt, NULL);
+}
+#endif
+
 //mongoose http_client for picking up the timezone
 //url to get current timezone in Europe/Berlin format:
 static const char *s_url = "http://worldtimeapi.org/api/ip";
@@ -4026,7 +4088,7 @@ static void fn(struct mg_connection *c, int ev, void *ev_data) {
         doc["mqtt"]["username"] = MQTTuser;
         doc["mqtt"]["password_set"] = MQTTpassword != "";
 
-        if (MQTTclient.connected()) {
+        if (MQTTclient.connected) {
             doc["mqtt"]["status"] = "Connected";
         } else {
             doc["mqtt"]["status"] = "Disconnected";
@@ -4306,8 +4368,8 @@ static void fn(struct mg_connection *c, int ev, void *ev_data) {
                     }
                     doc["mqtt_password_set"] = (MQTTpassword != "");
                 }
-
-                SetupMQTTClient();
+                // disconnect mqtt so it will automatically reconnect with then new params
+                MQTTclient.disconnect();
                 write_settings();
             }
         }
@@ -4514,6 +4576,9 @@ void onWifiEvent(WiFiEvent_t event) {
             delay(1000);
             //mongoose
             mg_mgr_init(&mgr);  // Initialise event manager
+#if MQTT
+            mg_timer_add(&mgr, 3000, MG_TIMER_REPEAT | MG_TIMER_RUN_NOW, timer_fn, &mgr);
+#endif
             mg_log_set(MG_LL_NONE);
             //mg_log_set(MG_LL_VERBOSE);
 
@@ -4536,6 +4601,9 @@ void onWifiEvent(WiFiEvent_t event) {
         case WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
             if (WIFImode == 1) {
                 mg_mgr_free(&mgr);
+#if MQTT
+                //mg_timer_free(&mgr);
+#endif
                 _LOG_A("WiFi Disconnected. Reconnecting...\n");
                 //WiFi.setAutoReconnect(true);  //I know this is very counter-intuitive, you would expect this line in WiFiSetup but this is according to docs
                                                 //look at: https://github.com/alanswx/ESPAsyncWiFiManager/issues/92
@@ -4841,11 +4909,6 @@ void setup() {
 
     CP_ON;           // CP signal ACTIVE
 
-#if MQTT
-    // Setup MQTT client
-    MQTTclient.begin(client);
-    SetupMQTTClient();
-#endif
 
 }
 
@@ -4856,11 +4919,6 @@ void loop() {
     if (!LocalTimeSet && WIFImode == 1) {
         _LOG_A("Time not synced with NTP yet.\n");
     }
-
-#if MQTT
-    // Process MQTT data
-    MQTTclient.loop();
-#endif
 
 #ifndef DEBUG_DISABLED
     // Remote debug over WiFi
