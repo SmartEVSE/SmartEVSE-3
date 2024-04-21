@@ -3840,8 +3840,7 @@ static void timer_fn(void *arg) {
 
     //prepare MQTT url
     //mqtt[s]://[username][:password]@host.domain[:port]
-    String MQTTUri = "mqtt://" + MQTTHost + ":" + String(MQTTPort);
-    strncpy(s_mqtt_url, MQTTUri.c_str(), sizeof(s_mqtt_url)-1);
+    snprintf(s_mqtt_url, sizeof(s_mqtt_url), "mqtt://%s:%i", MQTTHost.c_str(), MQTTPort);
 
     if (s_conn == NULL) s_conn = mg_mqtt_connect(mgr, s_mqtt_url, &opts, fn_mqtt, NULL);
 }
