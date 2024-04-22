@@ -288,9 +288,10 @@ extern RemoteDebug Debug;
 #define BACKLIGHT_ON digitalWrite(PIN_LCD_LED, HIGH);
 #define BACKLIGHT_OFF digitalWrite(PIN_LCD_LED, LOW);
 
-#define ACTUATOR_LOCK { digitalWrite(PIN_ACTB, HIGH); digitalWrite(PIN_ACTA, LOW); }
-#define ACTUATOR_UNLOCK { digitalWrite(PIN_ACTB, LOW); digitalWrite(PIN_ACTA, HIGH); }
-#define ACTUATOR_OFF { digitalWrite(PIN_ACTB, HIGH); digitalWrite(PIN_ACTA, HIGH); }
+#define ACTUATOR_LOCK { _LOG_A("Locking Actuator.\n"); digitalWrite(PIN_ACTB, HIGH); digitalWrite(PIN_ACTA, LOW); }
+#define ACTUATOR_UNLOCK { _LOG_A("Unlocking Actuator.\n"); digitalWrite(PIN_ACTB, LOW); digitalWrite(PIN_ACTA, HIGH); }
+//#define ACTUATOR_OFF { digitalWrite(PIN_ACTB, HIGH); digitalWrite(PIN_ACTA, HIGH); }
+#define ACTUATOR_OFF { _LOG_A("Switch Actuator Off.\n"); digitalWrite(PIN_ACTB, HIGH); digitalWrite(PIN_ACTA, HIGH); }
 
 #define ONEWIRE_LOW { digitalWrite(PIN_SW_IN, LOW); pinMode(PIN_SW_IN, OUTPUT); }   // SW set to 0, set to output (driven low)
 #define ONEWIRE_HIGH { digitalWrite(PIN_SW_IN, HIGH); pinMode(PIN_SW_IN, OUTPUT); } // SW set to 1, set to output (driven high)
