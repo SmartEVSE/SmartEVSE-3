@@ -189,7 +189,6 @@ struct {
 };
 
 uint8_t lock1 = 0, lock2 = 1;
-uint8_t UnlockCable = 0, LockCable = 0;
 uint8_t MainsMeterTimeout = COMM_TIMEOUT;                                   // MainsMeter communication timeout (sec)
 uint8_t EVMeterTimeout = COMM_EVTIMEOUT;                                    // EV Meter communication Timeout (sec)
 uint16_t BacklightTimer = 0;                                                // Backlight timer (sec)
@@ -1948,20 +1947,6 @@ void CheckSwitch(void)
     }
 
 
-    // One RFID card can Lock/Unlock the charging socket (like a public charging station)
-    if (RFIDReader == 2) {
-        if (Access_bit == 0) UnlockCable = 1; 
-        else UnlockCable = 0;
-    // The charging socket is unlocked when charging stops.
-    } else {
-        if (State != STATE_C) UnlockCable = 1;
-        else UnlockCable = 0;
-    } 
-    // If the cable is connected to the EV, the cable will be locked.
-   if (State == STATE_B || State == STATE_C) LockCable = 1;
-   else LockCable = 0;
-    
-
 }
 
 
@@ -2264,7 +2249,8 @@ uint8_t PollEVNode = NR_EVSES, updated = 0;
         if (Lock) {                                                 // Cable lock enabled?
 
             // UnlockCable takes precedence over LockCable
-            if (UnlockCable) {
+            if ((RFIDReader == 2 && Access_bit == 0) ||             // One RFID card can Lock/Unlock the charging socket (like a public charging station)
+                (RFIDReader !=2 && State != STATE_C)) {             // The charging socket is unlocked when charging stops.
                 if (unlocktimer < 6) {                              // 600ms pulse
                     ACTUATOR_UNLOCK;
                 } else ACTUATOR_OFF;
@@ -2276,7 +2262,7 @@ uint8_t PollEVNode = NR_EVSES, updated = 0;
                 }
                 locktimer = 0;
             // Lock Cable    
-            } else if (LockCable) { 
+            } else if (State == STATE_B || State == STATE_C) { 
                 if (locktimer < 6) {                                // 600ms pulse
                     ACTUATOR_LOCK;
                 } else ACTUATOR_OFF;
