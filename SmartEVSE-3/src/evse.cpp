@@ -2084,6 +2084,7 @@ void EVSEStates(void * parameter) {
                 if ((DiodeCheck == 1) && (ErrorFlags == NO_ERROR) && (ChargeDelay == 0)) {
                     if (EVMeter && ResetKwh) {
                         EnergyMeterStart = EnergyEV;                            // store kwh measurement at start of charging.
+                        EnergyCharged = EnergyEV - EnergyMeterStart;            // Calculate Energy
                         ResetKwh = 0;                                           // clear flag, will be set when disconnected from EVSE (State A)
                     }
 
