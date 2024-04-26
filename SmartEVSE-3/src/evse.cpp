@@ -3990,10 +3990,11 @@ static void fn(struct mg_connection *c, int ev, void *ev_data) {
                         if (c == '\n') {
                             strncpy(RFIDtxtstring, hm->body.ptr + beginpos, 17);         // in case of DOS the 0x0D is stripped off here
                             RFIDtxtstring[17] = '\0';
-                            //_LOG_A("DINGO: RFIDtxtstring=%s.\n", RFIDtxtstring);
-                            r = sscanf(RFIDtxtstring,"%02x:%02x:%02x:%02x:%02x:%02x", &RFID[1], &RFID[2], &RFID[3], &RFID[4], &RFID[5], &RFID[6]);
+                            _LOG_A("DINGO: RFIDtxtstring=%s.\n", RFIDtxtstring);
+                            r = sscanf(RFIDtxtstring,"%02x%02x%02x%02x%02x%02x", &RFID[1], &RFID[2], &RFID[3], &RFID[4], &RFID[5], &RFID[6]);
+                            _LOG_A("DINGO: r=%i.\n", r);
                             if (r == 6) {
-                                _LOG_A("Store RFID %02x:%02x:%02x:%02x:%02x:%02x.\n", RFID[1], RFID[2], RFID[3], RFID[4], RFID[5], RFID[6]);
+                                _LOG_A("Store RFID %02x%02x%02x%02x%02x%02x.\n", RFID[1], RFID[2], RFID[3], RFID[4], RFID[5], RFID[6]);
                                 LoadandStoreRFID((unsigned char *) RFID);
                             }
                             beginpos = pos + 1;

@@ -227,7 +227,7 @@ unsigned char StoreRFID(void) {
     memcpy(RFIDlist + offset, RFID+1, 6);
 
     _LOG_I("\nRFIDlist:");
-    for (r=0; r<120; r++) _LOG_I("%02x",RFIDlist[r]);
+    for (r=0; r<120; r++) _LOG_I_NO_FUNC("%02x",RFIDlist[r]);
 
     WriteRFIDlist();
     return 1;
