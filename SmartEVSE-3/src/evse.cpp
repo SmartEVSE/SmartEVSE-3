@@ -3909,7 +3909,7 @@ static void fn(struct mg_connection *c, int ev, void *ev_data) {
     struct mg_http_message *hm = (struct mg_http_message *) ev_data;            // Parsed HTTP request
     webServerRequest* request = new webServerRequest();
     request->setMessage(hm);
-    if (mg_http_match_uri(hm, "/erasesettings") && !memcmp("DELETE", hm->method.ptr, hm->method.len)) {
+    if (mg_http_match_uri(hm, "/erasesettings")) {
         mg_http_reply(c, 200, "Content-Type: text/plain\r\n", "Erasing settings, rebooting");
         if ( preferences.begin("settings", false) ) {         // our own settings
           preferences.clear();
