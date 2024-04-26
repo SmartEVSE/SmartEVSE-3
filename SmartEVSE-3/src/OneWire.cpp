@@ -234,7 +234,7 @@ unsigned char StoreRFID(void) {
 }
 
 //load and store parameter RFIDparm into global variable RFID
-void LoadandStoreRFID(unsigned char *RFIDparam) {
+void LoadandStoreRFID(unsigned int *RFIDparam) {
     for (int i = 0; i < 8; i++)
         RFID[i]=RFIDparam[i];
     StoreRFID();
