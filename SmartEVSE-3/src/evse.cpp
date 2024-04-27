@@ -3973,7 +3973,7 @@ static void fn(struct mg_connection *c, int ev, void *ev_data) {
                         char c;
                         c = *(hm->body.ptr + pos);
                         //_LOG_A_NO_FUNC("%c", c);
-                        if (c == '\n') {
+                        if (c == '\n' || pos == hm->body.len) {
                             strncpy(RFIDtxtstring, hm->body.ptr + beginpos, 17);         // in case of DOS the 0x0D is stripped off here
                             RFIDtxtstring[17] = '\0';
                             r = sscanf(RFIDtxtstring,"%02x%02x%02x%02x%02x%02x", &RFID_UID[1], &RFID_UID[2], &RFID_UID[3], &RFID_UID[4], &RFID_UID[5], &RFID_UID[6]);
