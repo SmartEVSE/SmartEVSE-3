@@ -11,6 +11,7 @@ if not os.path.isfile("data/app.js"):
 if os.path.isdir("pack.tmp"):
     shutil.rmtree('pack.tmp')
 try:
+    filelist = []
     shutil.copytree('data', 'pack.tmp/data')
     # now gzip the stuff except zones.csv since this file is not served by mongoose but directly accessed:
     for file in os.listdir("pack.tmp/data"):
@@ -18,12 +19,16 @@ try:
         if not filename == "zones.csv":
             with open('pack.tmp/data/' + filename, 'rb') as f_in, gzip.open('pack.tmp/data/' + filename + '.gz', 'wb') as f_out:
                 f_out.writelines(f_in)
+            filelist.append('data/' + filename + '.gz')
             os.remove('pack.tmp/data/' + filename)
             continue
         else:
+            filelist.append('data/' + filename)
             continue
-
-    os.system('cd pack.tmp; python ../pack.py data/* >../src/packed_fs.c')
+    os.chdir('pack.tmp')
+    cmdstring = ' '.join(filelist)
+    cmdstring = 'python ../pack.py ' + cmdstring
+    os.system(cmdstring + '>../src/packed_fs.c')
 except Exception as e:
     print(f"An error occurred: {str(e)}")
     sys.exit(100)
