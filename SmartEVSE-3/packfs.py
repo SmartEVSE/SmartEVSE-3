@@ -18,7 +18,7 @@ try:
         if not filename == "zones.csv":
             with open('pack.tmp/data/' + filename, 'rb') as f_in, gzip.open('pack.tmp/data/' + filename + '.gz', 'wb') as f_out:
                 f_out.writelines(f_in)
-                os.remove('pack.tmp/data/' + filename)
+            os.remove('pack.tmp/data/' + filename)
             continue
         else:
             continue
