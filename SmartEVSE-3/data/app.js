@@ -19,9 +19,10 @@ var sendFileData = function(name, data, chunkSize) {
     var opts = {method: 'POST', body: chunk};
     var url = '/update?offset=' + offset + '&file=' + encodeURIComponent(name) + '&size=' + data.length;
     var ok;
-    setStatus(
-        'Uploading ' + name + ', bytes ' + offset + '..' +
-        (offset + chunk.length) + ' of ' + data.length);
+    if (offset + chunk.length == data.length)
+        setStatus('Upload of ' + name + ' finished, you can close this page.');
+    else
+        setStatus('Uploading ' + name + ', bytes ' + offset + '..' + (offset + chunk.length) + ' of ' + data.length);
     fetch(url, opts)
         .then(function(res) {
           if (res.ok && chunk.length > 0) sendChunk(offset + chunk.length);
