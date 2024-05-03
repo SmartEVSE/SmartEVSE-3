@@ -4691,6 +4691,8 @@ void SetupPortalTask(void * parameter) {
     std::vector<const char*> wmMenuItems = { "wifi", "info", "erase", "exit" };
     wifiManager.setMenu(wmMenuItems);
     wifiManager.setShowInfoUpdate(false);
+    wifiManager.setShowStaticFields(true); // force show static ip fields
+    wifiManager.setShowDnsFields(true);    // force show dns field always
 
     wifiManager.setConfigPortalTimeout(120);  // Portal will be available 2 minutes to connect to, then close. (if connected within this time, it will remain active)
     delay(1000);
