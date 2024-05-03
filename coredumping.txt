@@ -1,0 +1,26 @@
+How to analyze your coredump partition on SmartEVSE; advanced developers only!
+
+First you have to install esp32-arduino-lib-builder:
+-cd /usr/local/src/coredump
+-git clone https://github.com/espressif/esp32-arduino-lib-builder
+-cd esp32-arduino-lib-builder
+-vi configs/defconfig.esp32, add to bottom of file: CONFIG_ESP32_ENABLE_COREDUMP_TO_FLASH=y
+-./build.sh -t esp32
+-cp -r tools/* ~/.platformio/packages/framework-arduinoespressif32/
+
+Then, every time you want to analyze the coredump partition, you need to add esp-coredump to your path:
+cd /usr/local/src/coredump/esp32-arduino-lib-builder/esp-idf; . export.sh; cd -
+
+Read coredump partition on the fly:
+esp-coredump --chip esp32 -p /dev/ttyUSB0 -b 2000000 info_corefile release/firmware.elf 
+
+Store coredump partition in a file:
+esptool.py --chip esp32 --port "/dev/ttyUSB0" --baud 2000000 read_flash 0x3F0000 65536 coredump.bin
+
+Analyze the coredump file:
+esp-coredump info_corefile --core coredump.bin --core-format raw release/firmware.elf
+
+Reminder to myself, the command line for flashing is currently:
+esptool.py --chip esp32 --port "/dev/ttyUSB0" --baud 2000000 --before default_reset --after hard_reset write_flash -z --flash_mode dio --flash_freq 80m --flash_size 4MB 0x1000 /usr/local/src/SmartEVSE-3.5/SmartEVSE-3/.pio/build/release/bootloader.bin 0x8000 /usr/local/src/SmartEVSE-3.5/SmartEVSE-3/.pio/build/release/partitions.bin 0xe000 /home/hans/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin 0x10000 .pio/build/release/firmware.bin
+
+REMEMBER this will only work if you rename the alternative partitions_custom.csv.coredump to partitions_custom.csv before compiling!
