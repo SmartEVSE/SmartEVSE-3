@@ -4232,7 +4232,9 @@ static void fn(struct mg_connection *c, int ev, void *ev_data) {
 
                 }
                 doc["starttime"] = (DelayedStartTime.epoch2 ? DelayedStartTime.epoch2 + EPOCH2_OFFSET : 0);
-            }
+            } else
+                DelayedStartTime.epoch2 = DELAYEDSTARTTIME;
+
 
             switch(mode.toInt()) {
                 case 0: // OFF
