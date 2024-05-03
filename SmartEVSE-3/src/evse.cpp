@@ -4602,6 +4602,11 @@ void onWifiEvent(WiFiEvent_t event) {
             delay(1000);
             //mongoose
             mg_mgr_init(&mgr);  // Initialise event manager
+            //load dhcp dns ip4 address into mongoose
+            static char dns4url[]="udp://123.123.123.123:53";
+            sprintf(dns4url, "udp://%s:53", WiFi.dnsIP().toString().c_str());
+            mgr.dns4.url = dns4url;
+
 #if MQTT
             mg_timer_add(&mgr, 3000, MG_TIMER_REPEAT | MG_TIMER_RUN_NOW, timer_fn, &mgr);
 #endif
