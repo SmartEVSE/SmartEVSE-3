@@ -77,8 +77,6 @@ jobs:
           pio lib install
       - name: Build normal version
         run: PLATFORMIO_BUILD_FLAGS='-DVERSION=\"v${{ steps.version.outputs.version }}\" -DDBG=0' pio run -d SmartEVSE-3/
-      - name: Build spiffs
-        run: PLATFORMIO_BUILD_FLAGS='-DVERSION=\"v${{ steps.version.outputs.version }}\" -DDBG=0' pio run -d SmartEVSE-3/ -t buildfs
       - id: artifact
         run: echo "value=dist-${{ steps.branch.outputs.branch }}-${{ steps.datetime.outputs.datetime }}" >> $GITHUB_OUTPUT
       - name: Upload Artifact
