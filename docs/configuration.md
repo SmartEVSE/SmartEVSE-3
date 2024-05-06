@@ -139,7 +139,6 @@ CONTACT2      One can add a second contactor (C2) that switches off 2 of the 3 p
   <Solar Off>   C2 is always on except in Solar Mode where it is always off
   <Auto>        SmartEVSE starts charging at 3phase, but when in Solar mode and not enough
                 current available for 3 phases, switches off C2 so it will continue on 1 phase
-                Note: CONTACT2 will be set to ALWAYS_ON when PWR SHARE is enabled.
 
 
 ```
