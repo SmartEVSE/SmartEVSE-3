@@ -2262,7 +2262,7 @@ uint8_t PollEVNode = NR_EVSES, updated = 0;
                 }
                 locktimer = 0;
             // Lock Cable    
-            } else if (State == STATE_B || State == STATE_C || (LocalTimeSet && DelayedStartTime.epoch2)) {
+            } else if (State == STATE_B || State == STATE_C || (LocalTimeSet && DelayedStartTime.epoch2 && State != STATE_A)) {
                 if (locktimer < 6) {                                // 600ms pulse
                     ACTUATOR_LOCK;
                 } else ACTUATOR_OFF;
