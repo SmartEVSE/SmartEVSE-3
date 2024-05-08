@@ -2242,10 +2242,6 @@ uint8_t PollEVNode = NR_EVSES, updated = 0;
 
     while(1)  // infinite loop
     {
-        //mongoose stuff
-        mg_mgr_poll(&mgr, 1000);  // Infinite event loop
-        //end of mongoose stuff
-
         // Check if the cable lock is used
         if (Lock) {                                                 // Cable lock enabled?
             // UnlockCable takes precedence over LockCable
@@ -2993,6 +2989,9 @@ void Timer1S(void * parameter) {
     } // while(1)
 }
 
+void Mongoose_Poll(void * parameter) {
+    while (true) mg_mgr_poll(&mgr, 1000);  // Infinite event loop
+}
 
 /**
  * Read energy measurement from modbus
@@ -4923,6 +4922,16 @@ void setup() {
         Timer1S,        // Function that should be called
         "Timer1S",      // Name of the task (for debugging)
         4096,           // Stack size (bytes)                              
+        NULL,           // Parameter to pass
+        3,              // Task priority - medium
+        NULL            // Task handle
+    );
+
+    // Create Task for mongoose loop
+    xTaskCreate(
+        Mongoose_Poll,        // Function that should be called
+        "Mongoose_Poll",      // Name of the task (for debugging)
+        4096,           // Stack size (bytes)
         NULL,           // Parameter to pass
         3,              // Task priority - medium
         NULL            // Task handle
