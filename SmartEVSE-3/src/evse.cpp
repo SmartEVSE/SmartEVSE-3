@@ -2990,7 +2990,7 @@ void Timer1S(void * parameter) {
 }
 
 void Mongoose_Poll(void * parameter) {
-    while (true) mg_mgr_poll(&mgr, 1000);  // Infinite event loop
+    while (true) mg_mgr_poll(&mgr, 2000);  // Infinite event loop
 }
 
 /**
@@ -4933,7 +4933,7 @@ void setup() {
         "Mongoose_Poll",      // Name of the task (for debugging)
         4096,           // Stack size (bytes)
         NULL,           // Parameter to pass
-        3,              // Task priority - medium
+        2,              // Task priority - medium/low
         NULL            // Task handle
     );
 
