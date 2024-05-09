@@ -3116,6 +3116,7 @@ ModbusMessage MBEVMeterResponse(ModbusMessage request) {
 //
 // Monitor Mains Meter responses, and update Irms values
 // Does not send any data back.
+// Only runs on master, slave gets the MainsMeter currents via MBbroadcast
 ModbusMessage MBMainsMeterResponse(ModbusMessage request) {
     uint8_t x;
     ModbusMessage response;     // response message to be sent back
@@ -3126,9 +3127,9 @@ ModbusMessage MBMainsMeterResponse(ModbusMessage request) {
     if (MB.Type == MODBUS_RESPONSE) {
         if (MB.Register == EMConfig[MainsMeter].IRegister) {
 
-        //_LOG_A("Mains Meter Response\n");
+            //_LOG_A("Mains Meter Response\n");
             x = receiveCurrentMeasurement(MB.Data, MainsMeter, CM);
-            if (x && LoadBl <2) MainsMeterTimeout = COMM_TIMEOUT;         // only reset timeout when data is ok, and Master/Disabled
+            if (x) MainsMeterTimeout = COMM_TIMEOUT;         // only reset timeout when data is ok
 
             // Convert Irms from mA to (A * 10)
             for (x = 0; x < 3; x++) {
@@ -3494,7 +3495,6 @@ void validate_settings(void) {
 
     // If the address of the MainsMeter or EVmeter on a Node has changed, we must re-register the Modbus workers.
     if (LoadBl > 1) {
-        if (MainsMeter && MainsMeter != EM_API) MBserver.registerWorker(MainsMeterAddress, ANY_FUNCTION_CODE, &MBMainsMeterResponse);
         if (EVMeter && EVMeter != EM_API) MBserver.registerWorker(EVMeterAddress, ANY_FUNCTION_CODE, &MBEVMeterResponse);
     }
     MainsMeterTimeout = COMM_TIMEOUT;
