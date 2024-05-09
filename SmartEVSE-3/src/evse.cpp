@@ -2400,7 +2400,8 @@ uint8_t PollEVNode = NR_EVSES, updated = 0;
                         // Broadcast Error code over RS485
                         ModbusWriteSingleRequest(BROADCAST_ADR, 0x0001, ErrorFlags);
                         NoCurrent = 0;
-                    } else if (LoadBl == 1 && !(ErrorFlags & CT_NOCOMM) ) BroadcastCurrent();               // When there is no Comm Error, Master sends current to all connected EVSE's
+                    }
+                    if (LoadBl == 1 && !(ErrorFlags & CT_NOCOMM) ) BroadcastCurrent();               // When there is no Comm Error, Master sends current to all connected EVSE's
 
                     if ((State == STATE_B || State == STATE_C) && !CPDutyOverride) SetCurrent(Balanced[0]); // set PWM output for Master //mind you, the !CPDutyOverride was not checked in Smart/Solar mode, but I think this was a bug!
                     printStatus();  //for debug purposes
