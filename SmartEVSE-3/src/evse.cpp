@@ -3932,7 +3932,7 @@ static void fn(struct mg_connection *c, int ev, void *ev_data) {
           mg_http_reply(c, 400, "", "size required");
           res = -5;
         } else {
-            if (!memcmp(file,"firmware.bin", sizeof("firmware.bin"))) {
+            if (!memcmp(file,"firmware.bin", sizeof("firmware.bin")) || !memcmp(file,"firmware.debug.bin", sizeof("firmware.debug.bin"))) {
                 if(!offset) {
                     _LOG_A("Update Start: %s\n", file);
                     if(!Update.begin((ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000), U_FLASH) {
@@ -3987,7 +3987,7 @@ static void fn(struct mg_connection *c, int ev, void *ev_data) {
                     }
                 }
             } else //end of rfid.txt
-                mg_http_reply(c, 400, "", "only allowed to flash firmware.bin or rfid.txt");
+                mg_http_reply(c, 400, "", "only allowed to flash firmware.bin, firmware.debug.bin or rfid.txt");
           mg_http_reply(c, 200, "", "%ld", res);
         }
     } else if (mg_http_match_uri(hm, "/settings")) {                            // REST API call?
