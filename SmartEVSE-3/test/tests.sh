@@ -48,7 +48,7 @@ trap control_c SIGINT
 
 
 #curl suppress data
-CURLPOST="curl -s -o /dev/null -X POST"
+CURLPOST="curl -s -o /dev/null -X POST -d''"
 
 # Colors for echo
 # Reset
