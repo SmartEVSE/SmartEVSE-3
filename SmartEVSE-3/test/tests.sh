@@ -17,6 +17,13 @@ if [ "$#" -ne 3 ]; then
     exit 1
 fi
 
+COUNT=`pgrep tests | wc -l`
+if [ $COUNT -ne 2 ]; then
+    echo "Tests are already running in the background, exiting"
+    killall tests.sh
+    exit 1
+fi
+
 if [ $3 -eq 0 ]; then #all tests selected
     SEL=$((0xFFFF))
 else
