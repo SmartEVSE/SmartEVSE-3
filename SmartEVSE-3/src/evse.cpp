@@ -2991,7 +2991,12 @@ void Timer1S(void * parameter) {
 }
 
 void Mongoose_Poll(void * parameter) {
-    while (true) mg_mgr_poll(&mgr, 3000);  // Infinite event loop
+    while (true) {
+        if (WiFi.isConnected())
+            mg_mgr_poll(&mgr, 1000);
+        else
+            vTaskDelay(500 / portTICK_PERIOD_MS);
+    }
 }
 
 /**
@@ -4631,6 +4636,7 @@ void onWifiEvent(WiFiEvent_t event) {
             break;
         case WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
             if (WIFImode == 1) {
+                delay(1500);                                                    // so mg_mgr_poll has timed out
                 mg_mgr_free(&mgr);
 #if MQTT
                 //mg_timer_free(&mgr);
