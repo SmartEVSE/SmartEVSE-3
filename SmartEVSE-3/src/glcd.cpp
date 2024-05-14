@@ -992,7 +992,7 @@ void GLCDMenu(uint8_t Buttons) {
     BacklightTimer = BACKLIGHT;                                                 // delay before LCD backlight turns off.
 
     // Disable buttons when access switch is configured and access is denied
-    if ((getItemValue(MENU_SWITCH) == 1 || getItemValue(MENU_SWITCH) == 2) && Access_bit == 0)
+    if ((getItemValue(MENU_SWITCH) == 1 || getItemValue(MENU_SWITCH) == 2) && Access_bit == 0 && LCDNav == 0)
         return;
 
     if (getItemValue(MENU_RCMON) == 1 && (ErrorFlags & RCM_TRIPPED) && RCMFAULT == LOW) {          // RCM was tripped, but RCM level is back to normal
