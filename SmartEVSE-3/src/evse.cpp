@@ -3776,6 +3776,8 @@ const String& webServerRequest::value() {
 }
 //end of wrapper
 
+struct mg_str empty = mg_str_n("", 0UL);
+
 #if MQTT
 char s_mqtt_url[80];
 //TODO perhaps integrate multiple fn callback functions?
@@ -3789,7 +3791,6 @@ static void fn_mqtt(struct mg_connection *c, int ev, void *ev_data) {
     } else if (ev == MG_EV_CONNECT) {
         // If target URL is SSL/TLS, command client connection to use TLS
         if (mg_url_is_ssl(s_mqtt_url)) {
-            struct mg_str empty = { "", 0 };
             struct mg_tls_opts opts = {.ca = empty, .cert = empty, .key = empty, .name = mg_url_host(s_mqtt_url)};
             //struct mg_tls_opts opts = {.ca = empty};
             mg_tls_init(c, &opts);
@@ -3860,7 +3861,6 @@ static void fn_client(struct mg_connection *c, int ev, void *ev_data) {
         struct mg_str host = mg_url_host(s_url);
 
         if (mg_url_is_ssl(s_url)) {
-            struct mg_str empty = { "", 0 };
             struct mg_tls_opts opts = {.ca = empty, .cert = empty, .key = empty, .name = mg_url_host(s_url)};
             mg_tls_init(c, &opts);
         }
@@ -3898,7 +3898,13 @@ static crypto_sha512_ctx sha;
 unsigned char signature[64] = "";
 // Connection event handler function
 // indenting lower level two spaces to stay compatible with old StartWebServer
-static void fn(struct mg_connection *c, int ev, void *ev_data) {
+// We use the same event handler function for HTTP and HTTPS connections
+// fn_data is NULL for plain HTTP, and non-NULL for HTTPS
+static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
+  if (ev == MG_EV_ACCEPT && c->fn_data != NULL) {
+    struct mg_tls_opts opts = { .ca = empty, .cert = mg_unpacked("/data/cert.pem"), .key = mg_unpacked("/data/key.pem"), .name = empty};
+    mg_tls_init(c, &opts);
+  }
   if (ev == MG_EV_HTTP_MSG) {  // New HTTP request received
     struct mg_http_message *hm = (struct mg_http_message *) ev_data;            // Parsed HTTP request
     webServerRequest* request = new webServerRequest();
@@ -4685,7 +4691,8 @@ void onWifiEvent(WiFiEvent_t event) {
                 mg_http_connect(&mgr, s_url, fn_client, &done);  // Create client connection
             }
             //end mongoose
-            mg_http_listen(&mgr, "http://0.0.0.0:80", fn, NULL);  // Setup listener
+            mg_http_listen(&mgr, "http://0.0.0.0:80", fn_http_server, NULL);  // Setup listener
+            mg_http_listen(&mgr, "http://0.0.0.0:443", fn_http_server, (void *) 1);  // Setup listener
             _LOG_A("HTTP server started\n");
 
 #if DBG == 1
