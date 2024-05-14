@@ -76,31 +76,39 @@ jobs:
           cd SmartEVSE-3
           pio lib install
       - name: Build normal version
-        run: PLATFORMIO_BUILD_FLAGS='-DVERSION=\"v${{ steps.version.outputs.version }}\" -DDBG=0' pio run -d SmartEVSE-3/
-      - id: artifact
-        run: echo "value=dist-${{ steps.branch.outputs.branch }}-${{ steps.datetime.outputs.datetime }}" >> $GITHUB_OUTPUT
-      - name: Upload Artifact
+        run: |
+          PLATFORMIO_BUILD_FLAGS='-DVERSION=\"v${{ steps.version.outputs.version }}\" -DDBG=0' pio run -d SmartEVSE-3/
+          cd sign_firmware
+          make sign
+          ./sign "${{ secrets.secret_key }}"
+          cd ..
+      - name: Upload firmware.bin
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ steps.artifact.outputs.value }}
+          name: dists_zip
           path: ./SmartEVSE-3/.pio/build/release/*.bin
           retention-days: 10
       - name: Upload HowToFlash.txt
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ steps.artifact.outputs.value }}
+          name: dists_zip
           path: ./SmartEVSE-3/HowToFlash.txt
           retention-days: 10
       - name: Build debug version
         run: |
           PLATFORMIO_BUILD_FLAGS='-DVERSION=\"v${{ steps.version.outputs.version }}\" -DDBG=1' pio run -d SmartEVSE-3/
+          cd sign_firmware
+          make sign
+          ./sign "${{ secrets.secret_key }}"
+          cd ..
           mv ./SmartEVSE-3/.pio/build/release/firmware.bin ./SmartEVSE-3/.pio/build/release/firmware.debug.bin
+          mv ./SmartEVSE-3/.pio/build/release/firmware.signed.bin ./SmartEVSE-3/.pio/build/release/firmware.debug.signed.bin
       - name: Upload Artifact debug firmware
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ steps.artifact.outputs.value }}
-          path: ./SmartEVSE-3/.pio/build/release/firmware.debug.bin
+          name: dists_zip
+          path: ./SmartEVSE-3/.pio/build/release/*.bin
           retention-days: 10
 
     outputs:
-      artifact: ${{ steps.artifact.outputs.value }}
+      artifact: dists_zip
