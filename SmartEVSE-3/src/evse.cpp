@@ -29,6 +29,7 @@
 #include "utils.h"
 #include "OneWire.h"
 #include "modbus.h"
+#include <monocypher-ed25519.h>
 
 #ifndef DEBUG_DISABLED
 RemoteDebug Debug;
@@ -3893,6 +3894,8 @@ static void fn_client(struct mg_connection *c, int ev, void *ev_data) {
     }
 }
 
+static crypto_sha512_ctx sha;
+unsigned char signature[64] = "";
 // Connection event handler function
 // indenting lower level two spaces to stay compatible with old StartWebServer
 static void fn(struct mg_connection *c, int ev, void *ev_data) {
@@ -3962,6 +3965,65 @@ static void fn(struct mg_connection *c, int ev, void *ev_data) {
                     }
                 }
             } else //end of firmware.bin
+            if (!memcmp(file,"firmware.signed.bin", sizeof("firmware.signed.bin")) || !memcmp(file,"firmware.debug.signed.bin", sizeof("firmware.debug.signed.bin"))) {
+#define dump(X)   for (int i= 0; i< sizeof(X); i++) _LOG_A_NO_FUNC("%02x",X[i]); _LOG_A_NO_FUNC(".\n");
+                if(!offset) {
+                    _LOG_A("Update Start: %s\n", file);
+                    crypto_sha512_init(&sha);
+                    memcpy(signature, hm->body.ptr, sizeof(signature));         //signature is prepended to firmware.bin
+                    hm->body.ptr = hm->body.ptr + sizeof(signature);
+                    hm->body.len = hm->body.len - sizeof(signature);
+                    _LOG_A("Firmware signature:");
+                    dump(signature);
+                    if(!Update.begin((ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000), U_FLASH) {
+                            Update.printError(Serial);
+                    }
+                }
+                if(!Update.hasError()) {
+                    if(Update.write((uint8_t*) hm->body.ptr, hm->body.len) != hm->body.len) {
+                        Update.printError(Serial);
+                    } else {
+                        crypto_sha512_update(&sha, (const unsigned char *) hm->body.ptr, hm->body.len);
+                        _LOG_A("bytes written %lu\r", offset + hm->body.len);
+                    }
+                }
+                if (offset + hm->body.len >= size) {                                           //EOF
+                    //get hash
+                    unsigned char hash[64];
+                    crypto_sha512_final(&sha, hash);
+                    _LOG_A("HASH info: hash = ");
+                    dump(hash);
+
+                    //get public key
+                    unsigned char public_key[32];
+                    char buffer[] = "39c1e2a1486e0f668433128d9050ee56a21bf86e9ffc80d3f4fab65553f3e781\0";
+                    int result = 1;
+                    for (int i=0; i<sizeof(public_key) || result != 1; i++) {
+                        result = sscanf(buffer + i*2, "%02x", (unsigned int *) &public_key[i]);
+                    }
+                    printf("Public key: ");
+                    dump(public_key);
+
+                    // Verify the signature
+                    int verification_result = crypto_ed25519_ph_check(signature, public_key, hash);
+
+                    if (verification_result == 0) {
+                        _LOG_A("Signature is valid!\n");
+                        if(Update.end(true)) {
+                            _LOG_A("\nUpdate Success\n");
+                            delay(1000);
+                            ESP.restart();
+                        } else {
+                            Update.printError(Serial);
+                        }
+                    } else {
+                        _LOG_A("Signature is invalid!\n");
+                        Update.abort(); //not sure this does anything in this stage
+                        Update.rollBack();
+                        mg_http_reply(c, 400, "", "firmware.signed.bin signature verification failed!");
+                    }
+                }
+            } else //end of firmware.signed.bin
             if (!memcmp(file,"rfid.txt", sizeof("rfid.txt"))) {
                 if (offset != 0) {
                     mg_http_reply(c, 400, "", "rfid.txt too big, only 120 rfid's allowed!");
@@ -3993,7 +4055,7 @@ static void fn(struct mg_connection *c, int ev, void *ev_data) {
                     }
                 }
             } else //end of rfid.txt
-                mg_http_reply(c, 400, "", "only allowed to flash firmware.bin, firmware.debug.bin or rfid.txt");
+                mg_http_reply(c, 400, "", "only allowed to flash firmware.bin, firmware.debug.bin, firmware.signed.bin, firmware.debug.signed.bin or rfid.txt");
           mg_http_reply(c, 200, "", "%ld", res);
         }
     } else if (mg_http_match_uri(hm, "/settings")) {                            // REST API call?
