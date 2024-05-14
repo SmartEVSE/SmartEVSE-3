@@ -3996,7 +3996,7 @@ static void fn(struct mg_connection *c, int ev, void *ev_data) {
 
                     //get public key
                     unsigned char public_key[32];
-                    char buffer[] = "39c1e2a1486e0f668433128d9050ee56a21bf86e9ffc80d3f4fab65553f3e781\0";
+                    char buffer[] = PUBLIC_KEY;
                     int result = 1;
                     for (int i=0; i<sizeof(public_key) || result != 1; i++) {
                         result = sscanf(buffer + i*2, "%02x", (unsigned int *) &public_key[i]);

@@ -215,6 +215,7 @@ extern RemoteDebug Debug;
 #define MAX_TEMPERATURE 65
 #define DELAYEDSTARTTIME 0                                                             // The default StartTime for delayed charged, 0 = not delaying
 #define DELAYEDSTOPTIME 0                                                       // The default StopTime for delayed charged, 0 = not stopping
+#define PUBLIC_KEY "5c7a848c3445793002487608a65fa259cefb16790f7c2f4a1d10af702393f7db\0";
 
 
 // Mode settings
