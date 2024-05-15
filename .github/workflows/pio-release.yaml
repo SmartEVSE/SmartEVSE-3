@@ -23,6 +23,7 @@ jobs:
       minor: ${{ needs.version.outputs.minor }}
       patch: ${{ needs.version.outputs.patch }}
       prerelease: ${{ needs.version.outputs.prerelease }}
+    secrets: inherit
   release:
     permissions: write-all
     needs: build

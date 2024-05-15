@@ -76,11 +76,20 @@ jobs:
           cd SmartEVSE-3
           pio lib install
       - name: Build normal version
+        env:
+          super_secret: ${{ secrets.SECRET_KEY }}
         run: |
           PLATFORMIO_BUILD_FLAGS='-DVERSION=\"v${{ steps.version.outputs.version }}\" -DDBG=0' pio run -d SmartEVSE-3/
           cd sign_firmware
           make sign
-          ./sign "${{ secrets.secret_key }}"
+          # Create a temporary file
+          secret_file=$(mktemp)
+          # Write the secret to the temporary file, because passing it as command line argument might reveal it for users using ps -a
+          echo "$super_secret" > "$secret_file"
+          # Pass the secret to the command via stdin
+          cat "$secret_file" | ./sign
+          # Remove the temporary file
+          rm -f "$secret_file"
           cd ..
       - name: Upload firmware.bin
         uses: actions/upload-artifact@v3
@@ -95,11 +104,20 @@ jobs:
           path: ./SmartEVSE-3/HowToFlash.txt
           retention-days: 10
       - name: Build debug version
+        env:
+          super_secret: ${{ secrets.SECRET_KEY }}
         run: |
           PLATFORMIO_BUILD_FLAGS='-DVERSION=\"v${{ steps.version.outputs.version }}\" -DDBG=1' pio run -d SmartEVSE-3/
           cd sign_firmware
           make sign
-          ./sign "${{ secrets.secret_key }}"
+          # Create a temporary file
+          secret_file=$(mktemp)
+          # Write the secret to the temporary file, because passing it as command line argument might reveal it for users using ps -a
+          echo "$super_secret" > "$secret_file"
+          # Pass the secret to the command via stdin
+          cat "$secret_file" | ./sign
+          # Remove the temporary file
+          rm -f "$secret_file"
           cd ..
           mv ./SmartEVSE-3/.pio/build/release/firmware.bin ./SmartEVSE-3/.pio/build/release/firmware.debug.bin
           mv ./SmartEVSE-3/.pio/build/release/firmware.signed.bin ./SmartEVSE-3/.pio/build/release/firmware.debug.signed.bin
