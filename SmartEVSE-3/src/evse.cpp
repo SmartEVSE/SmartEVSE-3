@@ -86,7 +86,7 @@ const char StrErrorNameWeb[9][20] = {"None", "No Power Available", "Communicatio
 const char StrMode[3][8] = {"Normal", "Smart", "Solar"};
 const char StrAccessBit[2][6] = {"Deny", "Allow"};
 const char StrRFIDStatusWeb[8][20] = {"Ready to read card","Present", "Card Stored", "Card Deleted", "Card already stored", "Card not in storage", "Card Storage full", "Invalid" };
-
+bool shouldReboot = false;
 // Global data
 
 
@@ -4017,10 +4017,12 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
                         _LOG_A("Signature is valid!\n");
                         if(Update.end(true)) {
                             _LOG_A("\nUpdate Success\n");
-                            delay(1000);
-                            ESP.restart();
+                            shouldReboot = true;
+                            //ESP.restart(); does not finish the call to fn_http_server, so the last POST of apps.js gets no response....
+                            //which results in a "verify failed" message on the /update screen AFTER the reboot :-)
                         } else {
                             Update.printError(Serial);
+                            mg_http_reply(c, 400, "", "firmware.signed.bin update failed!");
                         }
                     } else {
                         _LOG_A("Signature is invalid!\n");
@@ -5036,6 +5038,11 @@ void loop() {
     getLocalTime(&timeinfo, 1000U);
     if (!LocalTimeSet && WIFImode == 1) {
         _LOG_A("Time not synced with NTP yet.\n");
+    }
+
+    if (shouldReboot) {
+        delay(1000);
+        ESP.restart();
     }
 
 #ifndef DEBUG_DISABLED
