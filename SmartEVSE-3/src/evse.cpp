@@ -30,6 +30,7 @@
 #include "OneWire.h"
 #include "modbus.h"
 #include <monocypher-ed25519.h>
+#include <mbedtls/sha512.h>
 
 #ifndef DEBUG_DISABLED
 RemoteDebug Debug;
@@ -3894,7 +3895,7 @@ static void fn_client(struct mg_connection *c, int ev, void *ev_data) {
     }
 }
 
-static crypto_sha512_ctx sha;
+static mbedtls_sha512_context sha;
 unsigned char signature[64] = "";
 // Connection event handler function
 // indenting lower level two spaces to stay compatible with old StartWebServer
@@ -3975,7 +3976,8 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
 #define dump(X)   for (int i= 0; i< sizeof(X); i++) _LOG_A_NO_FUNC("%02x",X[i]); _LOG_A_NO_FUNC(".\n");
                 if(!offset) {
                     _LOG_A("Update Start: %s\n", file);
-                    crypto_sha512_init(&sha);
+                    mbedtls_sha512_init(&sha);
+                    mbedtls_sha512_starts_ret(&sha, 0);
                     memcpy(signature, hm->body.ptr, sizeof(signature));         //signature is prepended to firmware.bin
                     hm->body.ptr = hm->body.ptr + sizeof(signature);
                     hm->body.len = hm->body.len - sizeof(signature);
@@ -3989,14 +3991,14 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
                     if(Update.write((uint8_t*) hm->body.ptr, hm->body.len) != hm->body.len) {
                         Update.printError(Serial);
                     } else {
-                        crypto_sha512_update(&sha, (const unsigned char *) hm->body.ptr, hm->body.len);
+                        mbedtls_sha512_update_ret(&sha, (const unsigned char *) hm->body.ptr, hm->body.len);
                         _LOG_A("bytes written %lu\r", offset + hm->body.len);
                     }
                 }
                 if (offset + hm->body.len >= size) {                                           //EOF
                     //get hash
                     unsigned char hash[64];
-                    crypto_sha512_final(&sha, hash);
+                    mbedtls_sha512_finish_ret(&sha, hash);
                     _LOG_A("HASH info: hash = ");
                     dump(hash);
 
