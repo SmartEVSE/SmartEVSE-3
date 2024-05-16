@@ -3923,7 +3923,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
     } else if (mg_http_match_uri(hm, "/update")) {
         //modified version of mg_http_upload
         char buf[20] = "0", file[40];
-        size_t max_size = 1500000;
+        size_t max_size = 0x1B0000;                                             //from partition_custom.csv
         long res = 0, offset, size;
         mg_http_get_var(&hm->query, "offset", buf, sizeof(buf));
         mg_http_get_var(&hm->query, "file", file, sizeof(file));
@@ -4064,7 +4064,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
                 }
             } else //end of rfid.txt
                 mg_http_reply(c, 400, "", "only allowed to flash firmware.bin, firmware.debug.bin, firmware.signed.bin, firmware.debug.signed.bin or rfid.txt");
-          mg_http_reply(c, 200, "", "%ld", res);
+            mg_http_reply(c, 200, "", "%ld", res);
         }
     } else if (mg_http_match_uri(hm, "/settings")) {                            // REST API call?
       if (!memcmp("GET", hm->method.ptr, hm->method.len)) {                     // if GET
