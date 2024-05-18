@@ -2249,9 +2249,11 @@ uint8_t PollEVNode = NR_EVSES, updated = 0;
             // UnlockCable takes precedence over LockCable
             if ((RFIDReader == 2 && Access_bit == 0) ||             // One RFID card can Lock/Unlock the charging socket (like a public charging station)
                 (RFIDReader !=2 && State != STATE_C && !(LocalTimeSet && DelayedStartTime.epoch2))) { // The charging socket is unlocked when charging stops, unless we are delayedcharging
-                if (unlocktimer < 6) {                              // 600ms pulse
+                if (unlocktimer == 0) {                             // 600ms pulse
                     ACTUATOR_UNLOCK;
-                } else ACTUATOR_OFF;
+                } else if (unlocktimer == 6) {
+                    ACTUATOR_OFF;
+                }
                 if (unlocktimer++ > 7) {
                     if (digitalRead(PIN_LOCK_IN) == lock1 )         // still locked...
                     {
@@ -2261,9 +2263,11 @@ uint8_t PollEVNode = NR_EVSES, updated = 0;
                 locktimer = 0;
             // Lock Cable    
             } else if (State == STATE_B || State == STATE_C || (LocalTimeSet && DelayedStartTime.epoch2 && State != STATE_A)) {
-                if (locktimer < 6) {                                // 600ms pulse
+                if (locktimer == 0) {                               // 600ms pulse
                     ACTUATOR_LOCK;
-                } else ACTUATOR_OFF;
+                } else if (locktimer == 6) {
+                    ACTUATOR_OFF;
+                }
                 if (locktimer++ > 7) {
                     if (digitalRead(PIN_LOCK_IN) == lock2 )         // still unlocked...
                     {
