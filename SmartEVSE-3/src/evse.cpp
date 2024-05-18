@@ -2265,7 +2265,7 @@ uint8_t PollEVNode = NR_EVSES, updated = 0;
                 }
                 locktimer = 0;
             // Lock Cable    
-            } else if (State == STATE_B || State == STATE_C ) {     // Lock cable when connected to the EV
+            } else if (State != STATE_A) {                          // Lock cable when connected to the EV
                 if (locktimer == 0) {                               // 600ms pulse
                     ACTUATOR_LOCK;
                 } else if (locktimer == 6) {
