@@ -672,6 +672,8 @@ uint8_t Force_Single_Phase_Charging() {                                         
 }
 
 void setStatePowerUnavailable(void) {
+    if (State == STATE_A)
+       return;
     //State changes between A,B,C,D are caused by EV or by the user
     //State changes between x1 and x2 are created by the EVSE
     //State changes between x1 and x2 indicate availability (x2) of unavailability (x1) of power supply to the EV
