@@ -3520,14 +3520,7 @@ void read_settings() {
         Config = preferences.getUChar("Config", CONFIG); 
         Lock = preferences.getUChar("Lock", LOCK); 
         Mode = preferences.getUChar("Mode", MODE); 
-        //first determine default value for Access_bit:
-        uint8_t Default_Access_bit = 0;
-        // RFID reader set to Enable One card, the EVSE is disabled by default
-        if (RFIDReader == 2) Default_Access_bit = 0;
-        // Enable access if no access switch used
-        else if (Switch != 1 && Switch != 2) Default_Access_bit = 1;
-        // Now we know default value, lets read if from memory:
-        Access_bit = preferences.getUChar("Access", Default_Access_bit);
+        Access_bit = preferences.getUChar("Access", 1);
         CardOffset = preferences.getUChar("CardOffset", CARD_OFFSET);
         LoadBl = preferences.getUChar("LoadBl", LOADBL); 
         MaxMains = preferences.getUShort("MaxMains", MAX_MAINS); 
