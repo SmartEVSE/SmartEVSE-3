@@ -218,7 +218,7 @@ uint8_t ModbusRequest = 0;                                                  // F
 uint8_t NodeNewMode = 0;
 uint8_t MenuItems[MENU_EXIT];
 uint8_t Access_bit = 0;                                                     // 0:No Access 1:Access to SmartEVSE
-uint8_t CardOffset = CARD_OFFSET;                                           // RFID card used in Enable One mode
+uint16_t CardOffset = CARD_OFFSET;                                          // RFID card used in Enable One mode
 
 uint8_t ConfigChanged = 0;
 uint32_t serialnr = 0;
