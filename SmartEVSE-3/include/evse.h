@@ -27,7 +27,7 @@
 
 #ifndef DBG
 //the wifi-debugger is available by telnetting to your SmartEVSE device
-#define DBG 2  //comment or set to 0 for production release, 0 = no debug 1 = debug over telnet, 2 = debug over usb serial
+#define DBG 0  //comment or set to 0 for production release, 0 = no debug 1 = debug over telnet, 2 = debug over usb serial
 #endif
 
 #ifndef FAKE_RFID
@@ -207,6 +207,7 @@ extern RemoteDebug Debug;
 #define EMCUSTOM_EREGISTER 0
 #define EMCUSTOM_EDIVISOR 8
 #define RFID_READER 0
+#define ACCESS_BIT 1
 #define WIFI_MODE 0
 #define AP_PASSWORD "00000000"
 #define CARD_OFFSET 0

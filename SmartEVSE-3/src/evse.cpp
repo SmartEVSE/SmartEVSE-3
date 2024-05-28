@@ -3518,12 +3518,12 @@ void validate_settings(void) {
 
 void read_settings() {
     
-    if (preferences.begin("settings", true) == true) {                          //true = read only
+    if (preferences.begin("settings", false) == true) {                          //true = read only
         Initialized = preferences.getUChar("Initialized", INITIALIZED);
         Config = preferences.getUChar("Config", CONFIG); 
         Lock = preferences.getUChar("Lock", LOCK); 
         Mode = preferences.getUChar("Mode", MODE); 
-        Access_bit = preferences.getUChar("Access", 1);
+        Access_bit = preferences.getUChar("Access", ACCESS_BIT);
         CardOffset = preferences.getUChar("CardOffset", CARD_OFFSET);
         LoadBl = preferences.getUChar("LoadBl", LOADBL); 
         MaxMains = preferences.getUShort("MaxMains", MAX_MAINS); 
