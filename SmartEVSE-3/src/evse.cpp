@@ -2016,9 +2016,7 @@ void EVSEStates(void * parameter) {
 
         // ############### EVSE State A #################
 
-        if (State == STATE_A || State == STATE_COMM_B || State == STATE_B1)
-        {
-
+        if (State == STATE_A || State == STATE_COMM_B || State == STATE_B1) {
             // When the pilot line is disconnected, wait for PilotDisconnectTime, then reconnect
             if (PilotDisconnected) {
                 if (PilotDisconnectTime == 0 && pilot == PILOT_NOK ) {          // Pilot should be ~ 0V when disconnected
@@ -2036,14 +2034,12 @@ void EVSEStates(void * parameter) {
 
                 if (!ResetKwh) ResetKwh = 1;                                    // when set, reset EV kWh meter on state B->C change.
             } else if ( pilot == PILOT_9V && ErrorFlags == NO_ERROR 
-                && ChargeDelay == 0 && Access_bit
+                && ChargeDelay == 0 && Access_bit && State != STATE_COMM_B
 #if MODEM
-                && State != STATE_COMM_B && State != STATE_MODEM_REQUEST && State != STATE_MODEM_WAIT && State != STATE_MODEM_DONE) {                                     // switch to State B ?
-
-#else
-                && State != STATE_COMM_B) {                                     // switch to State B ?
+                && State != STATE_MODEM_REQUEST && State != STATE_MODEM_WAIT && State != STATE_MODEM_DONE   // switch to State B ?
 #endif
-                                                                                // Allow to switch to state C directly if STATE_A_TO_C is set to PILOT_6V (see EVSE.h)
+                    )
+            {                                                                    // Allow to switch to state C directly if STATE_A_TO_C is set to PILOT_6V (see EVSE.h)
                 DiodeCheck = 0;
 
                 ProximityPin();                                                 // Sample Proximity Pin
