@@ -3904,6 +3904,11 @@ unsigned char signature[64] = "";
 // We use the same event handler function for HTTP and HTTPS connections
 // fn_data is NULL for plain HTTP, and non-NULL for HTTPS
 static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
+  // close this listener if the portal is active
+  if (WIFImode == 2) {
+      _LOG_A("Closing mongoose http listener!!\n");
+      c->is_closing = 1;
+  }
   if (ev == MG_EV_ACCEPT && c->fn_data != NULL) {
     struct mg_tls_opts opts = { .ca = empty, .cert = mg_unpacked("/data/cert.pem"), .key = mg_unpacked("/data/key.pem"), .name = empty};
     mg_tls_init(c, &opts);
@@ -4776,6 +4781,7 @@ void SetupPortalTask(void * parameter) {
     wifiManager.setShowDnsFields(true);    // force show dns field always
 
     wifiManager.setConfigPortalTimeout(120);  // Portal will be available 2 minutes to connect to, then close. (if connected within this time, it will remain active)
+    mg_mgr_free(&mgr);
     delay(1000);
     wifiManager.startConfigPortal(APhostname.c_str(), APpassword.c_str());
     //_LOG_A("SetupPortalTask free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
