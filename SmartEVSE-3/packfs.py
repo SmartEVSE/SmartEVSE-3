@@ -5,6 +5,9 @@ import os, sys, gzip, shutil
 if not os.path.isfile("data/update2.html"):
     print("Missing file: data/update2.html")
     sys.exit(1)
+if not os.path.isfile("data/app.js"):
+    print("Missing file: data/app.js")
+    sys.exit(2)
 if os.path.isdir("pack.tmp"):
     shutil.rmtree('pack.tmp')
 try:

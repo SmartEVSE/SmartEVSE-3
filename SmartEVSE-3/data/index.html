@@ -36,7 +36,6 @@
             if(!initiated) {
               initiated = true;
               $('#version').append(data.version);
-              sessionStorage.setItem("version",JSON.stringify(data.version));
               $('#serialnr').append(data.serialnr);
 
               let minCurrent=parseInt(data.settings.current_min.toFixed(1));
