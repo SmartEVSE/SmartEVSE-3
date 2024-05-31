@@ -2070,8 +2070,10 @@ void EVSEStates(void * parameter) {
                 } else if (Mode == MODE_SOLAR) {                                // Not enough power:
                     ErrorFlags |= NO_SUN;                                       // Not enough solar power
                 } else ErrorFlags |= LESS_6A;                                   // Not enough power available
+            } else if (pilot == PILOT_9V && State != STATE_B1 && Access_bit) {
+                setState(STATE_B1);
             }
-        }
+        } // State == STATE_A || State == STATE_COMM_B || State == STATE_B1
 
         if (State == STATE_COMM_B_OK) {
             setState(STATE_B);
