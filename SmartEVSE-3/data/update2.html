@@ -10,16 +10,62 @@
       #info { background: #e0f0f0; border-radius: .5em; padding: 2em;  }
       #wrapper { margin-top: 1em; }
     </style>
+    <script>
+        let OWNER_FACT="SmartEVSE";
+        let REPO_FACT="SmartEVSE-3";
+        let OWNER_COMM="dingo35";
+        let REPO_COMM="SmartEVSE-3.5";
+    </script>
   </head>
-  <body>
+  <body onload="loadData()">
     <div id="container">
       <div id="info">
+          Current version: <span id="version"></span>
+          =======================================================
+          DOWNLOADING
+          <br><br>
+          <table style='text-align: left'>
+            <tr>
+              <th>Distribution:</th>
+              <th>Status:</th>
+              <th>Github repo:</th>
+              <th>Latest version:</th>
+              <th>Download:</th>
+            </tr>
+            <tr>
+              <td>Factory</td>
+              <td>stable</td>
+              <td><a href="https://github.com/"
+                     onclick="location.href=this.href + OWNER_FACT + '/' + REPO_FACT + '/releases';return false;"><script>document.write(OWNER_FACT)</script></a></td>
+              <td><div id="latest_fact"></div></td>
+              <td><a href="https://github.com/"
+                     onclick="location.href=this.href + OWNER_FACT + '/' + REPO_FACT + '/releases/download/' + document.getElementById('latest_fact').innerHTML + '/firmware.signed.bin';return false;">standard</a></td>
+              <td><a href="https://github.com/"
+                     onclick="location.href=this.href + OWNER_FACT + '/' + REPO_FACT + '/releases/download/' + document.getElementById('latest_fact').innerHTML + '/firmware.debug.signed.bin';return false;">debug</a></td>
+            </tr>
+            <tr>
+                <td>Community&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp</td>
+              <td>bleeding edge&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp</td>
+              <td><a href="https://github.com/"
+                     onclick="location.href=this.href + OWNER_COMM + '/' + REPO_COMM + '/releases';return false;"><script>document.write(OWNER_COMM)</script></a></td>
+              <td><div id="latest_comm"></div></td>
+              <td><a href="https://github.com/"
+                     onclick="location.href=this.href + OWNER_COMM + '/' + REPO_COMM + '/releases/download/' + document.getElementById('latest_comm').innerHTML + '/firmware.signed.bin';return false;">standard</a></td>
+              <td><a href="https://github.com/"
+                     onclick="location.href=this.href + OWNER_COMM + '/' + REPO_COMM + '/releases/download/' + document.getElementById('latest_comm').innerHTML + '/firmware.debug.signed.bin';return false;">debug</a></td>
+            </tr>
+          </table>
+          <br>
+          =======================================================
+          <br>
+          FLASHING
+          <br><br>
           Flash one of:<ul>
-              <li>firmware.bin (to update the firmware);</li>
-              <li>firmware.debug.bin (if you want to telnet to your SmartEVSE to see debug messages);</li>
+              <li>firmware.bin or firmware.signed.bin (to update the firmware);</li>
+              <li>firmware.debug.bin or firmware.debug.signed.bin (if you want to telnet to your SmartEVSE to see debug messages);</li>
               <li>rfix.txt (if you want to bulk upload allowed NFC tags for the RFID reader);</li>
           </ul>
-          <br>You should only flash files with those exact names.<br>No need to flash spiffs.bin anymore!<br>No need to rename firmware.debug.bin anymore!
+          You should only flash files with those exact names.<br>No need to flash spiffs.bin for versions 3.6.0-RC1 and newer!<br>No need to rename firmware.debug.bin anymore for versions 3.6.0-RC2 and newer!<br>Signed firmware is verified to be original and can be handled by versions 3.6.1 and newer.
       </div>
       <div id="wrapper">
         <input type="file" id="el1" style="display: none"/>
@@ -28,5 +74,91 @@
       </div>
     </div>
   </body>
-  <script src="app.js"></script>
+
+  <script type="module">
+// Octokit.js
+// https://github.com/octokit/core.js#readme
+import { Octokit } from "https://esm.sh/@octokit/core";
+window.loadData=loadData;
+
+function loadData() {
+    document.getElementById("version").innerHTML = sessionStorage.getItem("version");
+    getLatestVersion(OWNER_FACT, REPO_FACT, 'latest_fact');
+    getLatestVersion(OWNER_COMM, REPO_COMM, 'latest_comm');
+}
+
+async function getLatestVersion(owner, repo, element) {
+    const octokit = new Octokit({
+    })
+
+    try {
+        const result = await octokit.request('GET /repos/{owner}/{repo}/releases/latest', {
+          owner: owner,
+          repo: repo,
+          headers: {
+            'X-GitHub-Api-Version': '2022-11-28'
+          }
+        })
+
+        //asset_id=result.data.assets.filter(function(entry){ return entry.name==="firmware.signed.bin";})[0].id;
+        //console.log(asset_id);
+        //console.log(JSON.stringify(result.data.assets));
+        document.getElementById(element).innerHTML = result.data.tag_name;
+    } catch (error) {
+        console.error(error.message);
+    }
+}
+
+// Copyright (c) 2020 Cesanta Software Limited
+// All rights reserved
+
+// Helper function to display upload status
+var setStatus = function(text) {
+  document.getElementById('el3').innerText = text;
+};
+
+// When user clicks on a button, trigger file selection dialog
+var button = document.getElementById('el2');
+button.onclick = function(ev) {
+  input.click();
+};
+
+// Send a large blob of data chunk by chunk
+var sendFileData = function(name, data, chunkSize) {
+  var sendChunk = function(offset) {
+    var chunk = data.subarray(offset, offset + chunkSize) || '';
+    var opts = {method: 'POST', body: chunk};
+    var url = '/update?offset=' + offset + '&file=' + encodeURIComponent(name) + '&size=' + data.length;
+    var ok;
+    if (offset + chunk.length == data.length) {
+        setStatus('Upload of ' + name + ' finished, you can close this page.');
+        window.location.href = "/";
+    }
+    else
+        setStatus('Uploading ' + name + ', bytes ' + offset + '..' + (offset + chunk.length) + ' of ' + data.length);
+    fetch(url, opts)
+        .then(function(res) {
+          if (res.ok && chunk.length > 0) sendChunk(offset + chunk.length);
+          ok = res.ok;
+          return res.text();
+        })
+        .then(function(text) {
+          if (!ok) setStatus('Error: ' + text);
+        });
+  };
+  sendChunk(0);
+};
+
+// If user selected a file, read it into memory and trigger sendFileData()
+var input = document.getElementById('el1');
+input.onchange = function(ev) {
+  if (!ev.target.files[0]) return;
+  var f = ev.target.files[0], r = new FileReader();
+  r.readAsArrayBuffer(f);
+  r.onload = function() {
+    ev.target.value = '';
+    sendFileData(f.name, new Uint8Array(r.result), 20480);
+  };
+};
+    </script>
 </html>
