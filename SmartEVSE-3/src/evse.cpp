@@ -3518,7 +3518,9 @@ void validate_settings(void) {
 
 void read_settings() {
     
-    if (preferences.begin("settings", false) == true) {                          //true = read only
+    // Open preferences. true = read only,  false = read/write
+    // If "settings" does not exist, it will be created, and initialized with the default values
+    if (preferences.begin("settings", false) ) {                                
         Initialized = preferences.getUChar("Initialized", INITIALIZED);
         Config = preferences.getUChar("Config", CONFIG); 
         Lock = preferences.getUChar("Lock", LOCK); 
