@@ -1967,7 +1967,7 @@ void EVSEStates(void * parameter) {
   //uint8_t n;
     uint8_t leftbutton = 5;
     uint8_t DiodeCheck = 0; 
-   
+    uint16_t StateTimer = 0;                                                 // When switching from State B to C, make sure pilot is at 6v for 100ms 
 
     // infinite loop
     while(1) { 
@@ -2084,8 +2084,8 @@ void EVSEStates(void * parameter) {
             if (pilot == PILOT_12V) {                                           // Disconnected?
                 setState(STATE_A);                                              // switch to STATE_A
 
-            } else if (pilot == PILOT_6V) {
-
+            } else if (pilot == PILOT_6V && ++StateTimer > 50) {                // When switching from State B to C, make sure pilot is at 6V for at least 500ms 
+                                                                                // Fixes https://github.com/dingo35/SmartEVSE-3.5/issues/40
                 if ((DiodeCheck == 1) && (ErrorFlags == NO_ERROR) && (ChargeDelay == 0)) {
                     if (EVMeter && ResetKwh) {
                         EnergyMeterStart = EnergyEV;                            // store kwh measurement at start of charging.
@@ -2117,8 +2117,9 @@ void EVSEStates(void * parameter) {
                 }
 
             // PILOT_9V
-            } else {
+            } else if (pilot == PILOT_9V) {
 
+                StateTimer = 0;                                                 // Reset State B->C transition timer
                 if (ActivationMode == 0) {
                     setState(STATE_ACTSTART);
                     ActivationTimer = 3;
