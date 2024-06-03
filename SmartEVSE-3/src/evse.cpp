@@ -4946,26 +4946,25 @@ void setup() {
     // We might need some sort of authentication in the future.
     // SmartEVSE v3 have programmed ECDSA-256 keys stored in nvs
     // Unused for now.
-    if (preferences.begin("KeyStorage", true) == true) {                        // readonly
+    if (preferences.begin("KeyStorage", true) ) {                               // true = readonly
 //prevent compiler warning
 #if DBG != 0
         uint16_t hwversion = preferences.getUShort("hwversion");                // 0x0101 (01 = SmartEVSE,  01 = hwver 01)
 #endif
         serialnr = preferences.getUInt("serialnr");      
-        if (!serialnr) serialnr = MacId() & 0xffff;                             // when serialnr is not programmed (anymore), we use the Mac address
         String ec_private = preferences.getString("ec_private");
         String ec_public = preferences.getString("ec_public");
         preferences.end(); 
 
-        // overwrite APhostname if serialnr is programmed
-        APhostname = "SmartEVSE-" + String( serialnr & 0xffff, 10);           // SmartEVSE access point Name = SmartEVSE-xxxxx
         _LOG_A("hwversion %04x serialnr:%u \n",hwversion, serialnr);
-        WiFi.setHostname(APhostname.c_str());
         //_LOG_A(ec_public);
-
     } else {
         _LOG_A("No KeyStorage found in nvs!\n");
+        if (!serialnr) serialnr = MacId() & 0xffff;                             // when serialnr is not programmed (anymore), we use the Mac address
     }
+    // overwrite APhostname if serialnr is programmed
+    APhostname = "SmartEVSE-" + String( serialnr & 0xffff, 10);                 // SmartEVSE access point Name = SmartEVSE-xxxxx
+    WiFi.setHostname(APhostname.c_str());
 
     // Read all settings from non volatile memory; MQTTprefix will be overwritten if stored in NVS
     read_settings();                                                            // initialize with default data when starting for the first time
