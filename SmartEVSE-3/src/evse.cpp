@@ -3334,10 +3334,12 @@ void MBhandleData(ModbusMessage msg, uint32_t token)
         // token: first byte address, second byte function, third and fourth reg
         uint8_t token_function = (token & 0x00FF0000) >> 16;
         uint8_t token_address = token >> 24;
-        if (token_address != MB.Address)
+        if (token_address != MB.Address) {
             _LOG_A("ERROR: Address=%u, MB.Address=%u, token_address=%u.\n", Address, MB.Address, token_address);
-        if (token_function != MB.Function)
+        }    
+        if (token_function != MB.Function) {
             _LOG_A("ERROR: MB.Function=%u, token_function=%u.\n", MB.Function, token_function);
+        }    
         uint16_t reg = (token & 0x0000FFFF);
         MB.Register = reg;
 
