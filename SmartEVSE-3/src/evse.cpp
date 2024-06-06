@@ -175,19 +175,20 @@ struct {
     uint8_t MinCurrent;     // 0.1A
     uint8_t Phases;
     uint32_t Timer;         // 1s
+    uint32_t IntTimer;      // 1s
     uint16_t SolarTimer;    // 1s
     uint8_t Mode;
 } Node[NR_EVSES] = {                                                        // 0: Master / 1: Node 1 ...
-   /*         Config   EV     EV       Min      Used    Interval Solar *           // Interval Time   : last Charge time, reset when not charging
-    * Online, Changed, Meter, Address, Current, Phases, Timer    Timer   Mode */   // Min Current     : minimal measured current per phase the EV consumes when starting to charge @ 6A (can be lower then 6A)
-    {      1,       0,     0,       0,       0,      0,     0,      0,      0 },   // Used Phases     : detected nr of phases when starting to charge (works with configured EVmeter meter, and might work with sensorbox)
-    {      0,       1,     0,       0,       0,      0,     0,      0,      0 },
-    {      0,       1,     0,       0,       0,      0,     0,      0,      0 },
-    {      0,       1,     0,       0,       0,      0,     0,      0,      0 },    
-    {      0,       1,     0,       0,       0,      0,     0,      0,      0 },
-    {      0,       1,     0,       0,       0,      0,     0,      0,      0 },
-    {      0,       1,     0,       0,       0,      0,     0,      0,      0 },
-    {      0,       1,     0,       0,       0,      0,     0,      0,      0 }            
+   /*         Config   EV     EV       Min      Used    Charge Interval Solar *          // Interval Time   : last Charge time, reset when not charging
+    * Online, Changed, Meter, Address, Current, Phases,  Timer,  Timer, Timer, Mode */   // Min Current     : minimal measured current per phase the EV consumes when starting to charge @ 6A (can be lower then 6A)
+    {      1,       0,     0,       0,       0,      0,      0,      0,     0,    0 },   // Used Phases     : detected nr of phases when starting to charge (works with configured EVmeter meter, and might work with sensorbox)
+    {      0,       1,     0,       0,       0,      0,      0,      0,     0,    0 },
+    {      0,       1,     0,       0,       0,      0,      0,      0,     0,    0 },
+    {      0,       1,     0,       0,       0,      0,      0,      0,     0,    0 },    
+    {      0,       1,     0,       0,       0,      0,      0,      0,     0,    0 },
+    {      0,       1,     0,       0,       0,      0,      0,      0,     0,    0 },
+    {      0,       1,     0,       0,       0,      0,      0,      0,     0,    0 },
+    {      0,       1,     0,       0,       0,      0,      0,      0,     0,    0 }            
 };
 
 uint8_t lock1 = 0, lock2 = 1;
@@ -711,6 +712,7 @@ void setState(uint8_t NewState) {
                 ChargeDelay = 0;
                 // Reset Node
                 Node[0].Timer = 0;
+                Node[0].IntTimer = 0;
                 Node[0].Phases = 0;
                 Node[0].MinCurrent = 0;                                         // Clear ChargeDelay when disconnected.
             }
@@ -1111,32 +1113,50 @@ void CalcBalancedCurrent(char mod) {
 
         // Calculate average current per EVSE
         n = 0;
-        do {
+        while (n < NR_EVSES && ActiveEVSE) {
             Average = MaxBalanced / ActiveEVSE;                                 // Average current for all active EVSE's
 
-            // Check for EVSE's that have a lower MAX current
-            if ((BalancedState[n] == STATE_C) && (!CurrentSet[n]) && (Average >= BalancedMax[n])) // Active EVSE, and current not yet calculated?
-            {
-                Balanced[n] = BalancedMax[n];                                   // Set current to Maximum allowed for this EVSE
-                CurrentSet[n] = 1;                                              // mark this EVSE as set.
-                ActiveEVSE--;                                                   // decrease counter of active EVSE's
-                MaxBalanced -= Balanced[n];                                     // Update total current to new (lower) value
-                n = 0;                                                          // check all EVSE's again
-            } else n++;
-        } while (n < NR_EVSES && ActiveEVSE);
+            // Active EVSE, and current not yet calculated?
+            if ((BalancedState[n] == STATE_C) && (!CurrentSet[n])) {            
+
+                // Check for EVSE's that are starting with Solar charging
+                if ((Mode == MODE_SOLAR) && (Node[n].IntTimer < SOLARSTARTTIME)) {
+                    Balanced[n] = MinCurrent * 10;                              // Set to MinCurrent
+                    _LOG_V("[S]Node %u = %u.%u A", n, Balanced[n]/10, Balanced[n]%10);
+                    CurrentSet[n] = 1;                                          // mark this EVSE as set.
+                    ActiveEVSE--;                                               // decrease counter of active EVSE's
+                    MaxBalanced -= Balanced[n];                                 // Update total current to new (lower) value
+                    IsetBalanced = TotalCurrent;
+                    n = 0;                                                      // reset to recheck all EVSE's
+                    continue;                                                   // ensure the loop restarts from the beginning
+                
+                // Check for EVSE's that have a Max Current that is lower then the average
+                } else if (Average >= BalancedMax[n]) {
+                    Balanced[n] = BalancedMax[n];                               // Set current to Maximum allowed for this EVSE
+                    _LOG_V("[L]Node %u = %u.%u A", n, Balanced[n]/10, Balanced[n]%10);
+                    CurrentSet[n] = 1;                                          // mark this EVSE as set.
+                    ActiveEVSE--;                                               // decrease counter of active EVSE's
+                    MaxBalanced -= Balanced[n];                                 // Update total current to new (lower) value
+                    n = 0;                                                      // reset to recheck all EVSE's
+                    continue;                                                   // ensure the loop restarts from the beginning
+                }
+
+            }
+            n++;
+        }
 
         // All EVSE's which had a Max current lower then the average are set.
         // Now calculate the current for the EVSE's which had a higher Max current
         n = 0;
-        if (ActiveEVSE) {                                                     // Any Active EVSE's left?
-            do {                                                                // Check for EVSE's that are not set yet
-                if ((BalancedState[n] == STATE_C) && (!CurrentSet[n])) {        // Active EVSE, and current not yet calculated?
-                    Balanced[n] = MaxBalanced / ActiveEVSE;                   // Set current to Average
-                    CurrentSet[n] = 1;                                          // mark this EVSE as set.
-                    ActiveEVSE--;                                             // decrease counter of active EVSE's
-                    MaxBalanced -= Balanced[n];                                 // Update total current to new (lower) value
-                }                                                               //TODO since the average has risen the other EVSE's should be checked for exceeding their MAX's too!
-            } while (++n < NR_EVSES && ActiveEVSE);
+        while (n < NR_EVSES && ActiveEVSE) {                                    // Check for EVSE's that are not set yet
+            if ((BalancedState[n] == STATE_C) && (!CurrentSet[n])) {            // Active EVSE, and current not yet calculated?
+                Balanced[n] = MaxBalanced / ActiveEVSE;                         // Set current to Average
+                _LOG_V("[H]Node %u = %u.%u A", n, Balanced[n]/10, Balanced[n]%10);
+                CurrentSet[n] = 1;                                              // mark this EVSE as set.
+                ActiveEVSE--;                                                   // decrease counter of active EVSE's
+                MaxBalanced -= Balanced[n];                                     // Update total current to new (lower) value
+            }                                                                   //TODO since the average has risen the other EVSE's should be checked for exceeding their MAX's too!
+            n++;
         }
 
 
@@ -1387,6 +1407,7 @@ uint8_t processAllNodeStates(uint8_t NodeNr) {
     switch (BalancedState[NodeNr]) {
         case STATE_A:
             // Reset Node
+            Node[NodeNr].IntTimer = 0;
             Node[NodeNr].Timer = 0;
             Node[NodeNr].Phases = 0;
             Node[NodeNr].MinCurrent = 0;
@@ -2919,7 +2940,10 @@ void Timer1S(void * parameter) {
 
         // Charge timer
         for (x = 0; x < NR_EVSES; x++) {
-            if (BalancedState[x] == STATE_C) Node[x].Timer++;
+            if (BalancedState[x] == STATE_C) {
+                Node[x].IntTimer++;
+                Node[x].Timer++;
+             } else Node[x].IntTimer = 0;                                    // Reset IntervalTime when not charging
         }
 
         if (MainsMeter) {
