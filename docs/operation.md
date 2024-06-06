@@ -40,18 +40,16 @@ Once the temperature has dropped below 55ºC charging is started again.
 * RESIDUAL FAULT CURRENT DETECTED<br>An optional DC Residual Current Monitor has detected a fault current, the Contactor is switched off.
 The error condition can be reset by pressing any button on the SmartEVSE.
 
-
-
 # Changes with regards to the original firmware
 * Endpoint to send L1/2/3 data, this removed the need for a SensorBox
   * Note: Set MainsMeter to the new 'API' option in the config menu when sending L1/2/3
 * Endpoint to send EvMeter L1/2/3 data (and energy/power)
   * Note: Set EvMeter to the new 'API' option in the config menu when sending L1/2/3
-* Callable API endpoints for easy integration (see [API Overview](#API-Overview) and [Home Assistant Integration](#Integration-with-Home-Assistant))
+* Callable API endpoints for easy integration (see [REST_API](REST_API.md) and [Home Assistant Integration](configuration.md#integration-with-home-assistant))
   * Change charging mode
   * Override charge current
-  * Pass in current measurements (p1, battery, ...) - this eliminates having to use additionalhard
-  * Switch between single- and three phase power (requires extra 2P relais on the 2nd output)
+  * Pass in current measurements (p1, battery, ...) - this eliminates having to use additional hardware
+  * Switch between single- and three phase power (requires extra 2P relais on the c2 connecor, see [Second Contactor](installation.md#second-contactor-c2))
 
 # Simple Timer
 
