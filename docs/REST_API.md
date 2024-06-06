@@ -166,7 +166,7 @@ to your curl POST command. -d ''
 
 * L1, L2, L3
 
-&emsp;&emsp;Note: Only works when MainsMeter == API
+&emsp;&emsp;Note: Only works when EVMeter == API
 <br>&emsp;&emsp;L1, L2 and L3 must be send all together otherwise the data won't be registered.
 <br>&emsp;&emsp;Ampere must be multiplied by 10
 ```
