@@ -15,6 +15,19 @@
         let REPO_FACT="SmartEVSE-3";
         let OWNER_COMM="dingo35";
         let REPO_COMM="SmartEVSE-3.5";
+        function update_comm() {
+            window.location.href = "/autoupdate?url=community&debug=0";
+        }
+        function update_fact() {
+            window.location.href = "/autoupdate?url=factory&debug=0";
+        }
+        function update_comm_debug() {
+            window.location.href = "/autoupdate?url=community&debug=1";
+        }
+        function update_fact_debug() {
+            window.location.href = "/autoupdate?url=factory&debug=1";
+        }
+
     </script>
   </head>
   <body onload="loadData()">
@@ -30,7 +43,7 @@
               <th>Status:</th>
               <th>Github repo:</th>
               <th>Latest version:</th>
-              <th>Download:</th>
+              <th>Flash:</th>
             </tr>
             <tr>
               <td>Factory</td>
@@ -38,10 +51,8 @@
               <td><a href="https://github.com/"
                      onclick="location.href=this.href + OWNER_FACT + '/' + REPO_FACT + '/releases';return false;"><script>document.write(OWNER_FACT)</script></a></td>
               <td><div id="latest_fact"></div></td>
-              <td><a href="https://github.com/"
-                     onclick="location.href=this.href + OWNER_FACT + '/' + REPO_FACT + '/releases/download/' + document.getElementById('latest_fact').innerHTML + '/firmware.signed.bin';return false;">standard</a></td>
-              <td><a href="https://github.com/"
-                     onclick="location.href=this.href + OWNER_FACT + '/' + REPO_FACT + '/releases/download/' + document.getElementById('latest_fact').innerHTML + '/firmware.debug.signed.bin';return false;">debug</a></td>
+              <td><button onclick="update_fact()" style="width: 100px; display:inline-block;">Standard</button>
+              <td><button onclick="update_fact_debug()" style="width: 100px; display:inline-block;">Debug</button>
             </tr>
             <tr>
                 <td>Community&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp</td>
@@ -49,10 +60,8 @@
               <td><a href="https://github.com/"
                      onclick="location.href=this.href + OWNER_COMM + '/' + REPO_COMM + '/releases';return false;"><script>document.write(OWNER_COMM)</script></a></td>
               <td><div id="latest_comm"></div></td>
-              <td><a href="https://github.com/"
-                     onclick="location.href=this.href + OWNER_COMM + '/' + REPO_COMM + '/releases/download/' + document.getElementById('latest_comm').innerHTML + '/firmware.signed.bin';return false;">standard</a></td>
-              <td><a href="https://github.com/"
-                     onclick="location.href=this.href + OWNER_COMM + '/' + REPO_COMM + '/releases/download/' + document.getElementById('latest_comm').innerHTML + '/firmware.debug.signed.bin';return false;">debug</a></td>
+              <td><button onclick="update_comm()" style="width: 100px; display:inline-block;">Standard</button>
+              <td><button onclick="update_comm_debug()" style="width: 100px; display:inline-block;">Debug</button>
             </tr>
           </table>
           <br>
@@ -65,7 +74,7 @@
               <li>firmware.debug.bin or firmware.debug.signed.bin (if you want to telnet to your SmartEVSE to see debug messages);</li>
               <li>rfix.txt (if you want to bulk upload allowed NFC tags for the RFID reader);</li>
           </ul>
-          You should only flash files with those exact names.<br>No need to flash spiffs.bin for versions 3.6.0-RC1 and newer!<br>No need to rename firmware.debug.bin anymore for versions 3.6.0-RC2 and newer!<br>Signed firmware is verified to be original and can be handled by versions 3.6.1 and newer.
+          You should only flash files with those exact names.<br>No need to flash spiffs.bin for versions 3.6.0-RC1 and newer!<br>No need to rename firmware.debug.bin anymore for versions 3.6.0-RC2 and newer!<br>Signed firmware is verified to be original and can be handled by versions 3.6.2 and newer.
       </div>
       <div id="wrapper">
         <input type="file" id="el1" style="display: none"/>

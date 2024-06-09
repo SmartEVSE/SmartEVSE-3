@@ -7,6 +7,8 @@
 
 #include <WiFi.h>
 
+#include <esp32fota.h>
+#include <HTTPClient.h>
 #include <WiFiManager.h>
 
 #include <ESPmDNS.h>
@@ -88,6 +90,7 @@ const char StrMode[3][8] = {"Normal", "Smart", "Solar"};
 const char StrAccessBit[2][6] = {"Deny", "Allow"};
 const char StrRFIDStatusWeb[8][20] = {"Ready to read card","Present", "Card Stored", "Card Deleted", "Card already stored", "Card not in storage", "Card Storage full", "Invalid" };
 bool shouldReboot = false;
+
 // Global data
 
 
@@ -3693,6 +3696,148 @@ void write_settings(void) {
     ConfigChanged = 1;
 }
 
+//github.com L1
+    const char* root_ca_github = R"ROOT_CA(
+-----BEGIN CERTIFICATE-----
+MIID0zCCArugAwIBAgIQVmcdBOpPmUxvEIFHWdJ1lDANBgkqhkiG9w0BAQwFADB7
+MQswCQYDVQQGEwJHQjEbMBkGA1UECAwSR3JlYXRlciBNYW5jaGVzdGVyMRAwDgYD
+VQQHDAdTYWxmb3JkMRowGAYDVQQKDBFDb21vZG8gQ0EgTGltaXRlZDEhMB8GA1UE
+AwwYQUFBIENlcnRpZmljYXRlIFNlcnZpY2VzMB4XDTE5MDMxMjAwMDAwMFoXDTI4
+MTIzMTIzNTk1OVowgYgxCzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpOZXcgSmVyc2V5
+MRQwEgYDVQQHEwtKZXJzZXkgQ2l0eTEeMBwGA1UEChMVVGhlIFVTRVJUUlVTVCBO
+ZXR3b3JrMS4wLAYDVQQDEyVVU0VSVHJ1c3QgRUNDIENlcnRpZmljYXRpb24gQXV0
+aG9yaXR5MHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEGqxUWqn5aCPnetUkb1PGWthL
+q8bVttHmc3Gu3ZzWDGH926CJA7gFFOxXzu5dP+Ihs8731Ip54KODfi2X0GHE8Znc
+JZFjq38wo7Rw4sehM5zzvy5cU7Ffs30yf4o043l5o4HyMIHvMB8GA1UdIwQYMBaA
+FKARCiM+lvEH7OKvKe+CpX/QMKS0MB0GA1UdDgQWBBQ64QmG1M8ZwpZ2dEl23OA1
+xmNjmjAOBgNVHQ8BAf8EBAMCAYYwDwYDVR0TAQH/BAUwAwEB/zARBgNVHSAECjAI
+MAYGBFUdIAAwQwYDVR0fBDwwOjA4oDagNIYyaHR0cDovL2NybC5jb21vZG9jYS5j
+b20vQUFBQ2VydGlmaWNhdGVTZXJ2aWNlcy5jcmwwNAYIKwYBBQUHAQEEKDAmMCQG
+CCsGAQUFBzABhhhodHRwOi8vb2NzcC5jb21vZG9jYS5jb20wDQYJKoZIhvcNAQEM
+BQADggEBABns652JLCALBIAdGN5CmXKZFjK9Dpx1WywV4ilAbe7/ctvbq5AfjJXy
+ij0IckKJUAfiORVsAYfZFhr1wHUrxeZWEQff2Ji8fJ8ZOd+LygBkc7xGEJuTI42+
+FsMuCIKchjN0djsoTI0DQoWz4rIjQtUfenVqGtF8qmchxDM6OW1TyaLtYiKou+JV
+bJlsQ2uRl9EMC5MCHdK8aXdJ5htN978UeAOwproLtOGFfy/cQjutdAFI3tZs4RmY
+CV4Ks2dH/hzg1cEo70qLRDEmBDeNiXQ2Lu+lIg+DdEmSx/cQwgwp+7e9un/jX9Wf
+8qn0dNW44bOwgeThpWOjzOoEeJBuv/c=
+-----END CERTIFICATE-----
+)ROOT_CA";
+
+HTTPClient _http;
+WiFiClientSecure _client;
+
+// get version nr. of latest release of off github
+// input:
+// owner_repo format: dingo35/SmartEVSE-3.5
+// asset name format: one of firmware.bin, firmware.debug.bin, firmware.signed.bin, firmware.debug.signed.bin
+// output:
+// version -- null terminated string with latest version of this repo
+// download_url -- null terminated string with the url where this version can be downloaded
+bool getLatestVersion(String owner_repo, String asset_name, char *version, char *download_url) {
+    String useURL = "https://api.github.com/repos/" + owner_repo + "/releases/latest";
+    _http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+
+    const char* url = useURL.c_str();
+    _LOG_A("Connecting to: %s.\n", url );
+    if( String(url).startsWith("https") ) {
+        _client.setCACert(root_ca_github); // OR
+        //_client.setInsecure();
+        _http.begin( _client, url );
+    } else {
+        _http.begin( url );
+    }
+    _http.addHeader("User-Agent", "SmartEVSE-v3");
+    _http.addHeader("Accept", "application/vnd.github+json");
+    _http.addHeader("X-GitHub-Api-Version", "2022-11-28" );
+    const char* get_headers[] = { "Content-Length", "Content-type", "Accept-Ranges" };
+    _http.collectHeaders( get_headers, sizeof(get_headers)/sizeof(const char*) );
+    int httpCode = _http.GET();  //Make the request
+
+    // only handle 200/301, fail on everything else
+    if( httpCode != HTTP_CODE_OK && httpCode != HTTP_CODE_MOVED_PERMANENTLY ) {
+        // This error may be a false positive or a consequence of the network being disconnected.
+        // Since the network is controlled from outside this class, only significant error messages are reported.
+        if( httpCode > 0 ) {
+            _LOG_A("Error on HTTP request (httpCode=%i)\n", httpCode);
+        } else {
+            _LOG_A("Unknown HTTP response");
+        }
+        _http.end();
+        return false;
+    }
+    // The filter: it contains "true" for each value we want to keep
+    DynamicJsonDocument  filter(100);
+    filter["tag_name"] = true;
+    filter["assets"][0]["browser_download_url"] = true;
+    filter["assets"][0]["name"] = true;
+
+    // Deserialize the document
+    DynamicJsonDocument doc2(1500);
+    DeserializationError error = deserializeJson(doc2, _http.getStream(), DeserializationOption::Filter(filter));
+
+    if (error) {
+        _LOG_A("deserializeJson() failed: %s\n", error.c_str());
+        _http.end();  // We're done with HTTP - free the resources
+        return false;
+    }
+    const char* tag_name = doc2["tag_name"]; // "v3.6.1"
+    if (!tag_name) {
+        //no version found
+        _LOG_A("ERROR: LatestVersion of repo %s not found.\n", owner_repo.c_str());
+        _http.end();  // We're done with HTTP - free the resources
+        return false;
+    }
+    else
+        //duplicate value so it won't get lost out of scope
+        strlcpy(version, tag_name, 32);
+        //strlcpy(version, tag_name, sizeof(version));
+    _LOG_V("Found latest version:%s.\n", version);
+    for (JsonObject asset : doc2["assets"].as<JsonArray>()) {
+        /*char name[32];
+        strlcpy(name, asset["name"] | "\0", sizeof(name));*/
+        String name = asset["name"] | "";
+        if (name == asset_name) {
+            const char* asset_browser_download_url = asset["browser_download_url"];
+            if (!asset_browser_download_url) {
+                // no download url found
+                _LOG_A("ERROR: Downloadurl of asset %s in repo %s not found.\n", asset_name.c_str(), owner_repo.c_str());
+                _http.end();  // We're done with HTTP - free the resources
+                return false;
+            } else {
+                strlcpy(download_url, asset_browser_download_url, 256);
+                //strlcpy(download_url, asset_browser_download_url, sizeof(download_url));
+                _LOG_V("Found asset: name=%s, url=%s.\n", name.c_str(), download_url);
+                _http.end();  // We're done with HTTP - free the resources
+                return true;
+            }
+        }
+    }
+    _LOG_A("ERROR: could not find asset %s in repo %s at version %s.\n", asset_name.c_str(), owner_repo.c_str(), version);
+    _http.end();  // We're done with HTTP - free the resources
+    return false;
+}
+
+// esp32fota esp32fota("<Type of Firmware for this device>", <this version>, <validate signature>, <allow insecure https>);
+esp32FOTA FOTA("esp32-fota-http", 1, false, true);
+
+// Downloads firmware, flashes it, and reboot
+bool AutoUpdate(String owner, String repo, int debug) {
+    // not expiring github auth for minimal rate limiting on github
+    char version[32] = "";
+    char download_url[256] = "";
+    char asset_name[32] = "";
+    if (debug == 1)
+        strlcpy(asset_name, "firmware.debug.bin", sizeof(asset_name));
+    else
+        strlcpy(asset_name, "firmware.bin", sizeof(asset_name));
+    int ret = getLatestVersion(owner + "/" + repo, asset_name, version, download_url);
+    if (ret) {
+        _LOG_V("Autoupdate version=%s, download_url=%s.\n", version, download_url);
+        ret = FOTA.forceUpdate(download_url, FOTA.getConfig().check_sig);
+    }
+    return ret;
+}
+
 /* Takes TimeString in format
  * String = "2023-04-14T11:31"
  * and store it in the DelayedTimeStruct
@@ -3946,6 +4091,25 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
           preferences.end();       
         }
         ESP.restart();
+    } else if (mg_http_match_uri(hm, "/autoupdate")) {
+        char url[40];
+        char buf[8];
+        int debug;
+        mg_http_get_var(&hm->query, "url", url, sizeof(url));
+        mg_http_get_var(&hm->query, "debug", buf, sizeof(buf));
+        debug = strtol(buf, NULL, 0);
+        if (!memcmp(url, "factory", sizeof("factory"))) {
+            if (AutoUpdate(OWNER_FACT, REPO_FACT, debug))
+                mg_http_reply(c, 200, "Content-Type: text/plain\r\n", "Starting autoupdate.");
+            else
+                mg_http_reply(c, 400, "Content-Type: text/plain\r\n", "Autoupdate failed.");
+        } else if (!memcmp(url, "community", sizeof("community"))) {
+            if (AutoUpdate(OWNER_COMM, REPO_COMM, debug))
+                mg_http_reply(c, 200, "Content-Type: text/plain\r\n", "Starting autoupdate.");
+            else
+                mg_http_reply(c, 400, "Content-Type: text/plain\r\n", "Autoupdate failed.");
+        } else
+            mg_http_reply(c, 400, "Content-Type: text/plain\r\n", "Autoupdate wrong parameter.");
     } else if (mg_http_match_uri(hm, "/update")) {
         //modified version of mg_http_upload
         char buf[20] = "0", file[40];
@@ -4754,6 +4918,36 @@ void timeSyncCallback(struct timeval *tv)
 // Setup Wifi 
 void WiFiSetup(void) {
     mg_mgr_init(&mgr);  // Initialise event manager
+
+    const char* rsa_key_pub = mg_unpacked("/data/rsa_key.pub").ptr;
+    CryptoMemAsset  *MyRSAKey = new CryptoMemAsset("RSA Key", rsa_key_pub, strlen(rsa_key_pub)+1 );
+    auto cfg = FOTA.getConfig();
+    //cfg.name          = fota_name;
+    //cfg.manifest_url  = "https://api.github.com/repos/dingo35/SmartEVSE-3.5/releases/latest";
+    //cfg.sem           = SemverClass( 1, 0, 0 ); // major, minor, patch
+    //cfg.check_sig     = false; // verify signed firmware with rsa public key
+    cfg.check_sig     = true; // verify signed firmware with rsa public key
+    cfg.unsafe        = true; // disable certificate check when using TLS
+    //cfg.root_ca       = MyRootCA;
+    cfg.pub_key       = MyRSAKey;
+    //cfg.use_device_id = false;
+    FOTA.setConfig( cfg );
+    //FOTA.printConfig();
+
+    // callback function prevents serial comm error
+    FOTA.setProgressCb( [](size_t progress, size_t size) {
+      if( progress == size || progress == 0 ) Serial.println();
+      _LOG_V("Firmware update progress %i/%i.\n", progress, size);
+      //give background tasks some air
+      vTaskDelay(100 / portTICK_PERIOD_MS);
+    });
+
+    //FOTA.setExtraHTTPHeader("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.8; rv:21.0) Gecko/20100101 Firefox/21.0");
+    FOTA.setExtraHTTPHeader("User-Agent", "SmartEVSE-v3");
+    FOTA.setExtraHTTPHeader("Accept", "application/vnd.github+json");
+    FOTA.setExtraHTTPHeader("X-GitHub-Api-Version", "2022-11-28" );
+    //FOTA.setRootCA( MyRootCA );
+
     //wifiManager.setDebugOutput(true);
     wifiManager.setMinimumSignalQuality(-1);
     WiFi.setAutoReconnect(true);
