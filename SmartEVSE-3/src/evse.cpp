@@ -3822,18 +3822,27 @@ esp32FOTA FOTA("esp32-fota-http", 1, false, true);
 
 // Downloads firmware, flashes it, and reboot
 bool AutoUpdate(String owner, String repo, int debug) {
-    // not expiring github auth for minimal rate limiting on github
-    char version[32] = "";
-    char download_url[256] = "";
-    char asset_name[32] = "";
-    if (debug == 1)
-        strlcpy(asset_name, "firmware.debug.bin", sizeof(asset_name));
-    else
-        strlcpy(asset_name, "firmware.bin", sizeof(asset_name));
-    int ret = getLatestVersion(owner + "/" + repo, asset_name, version, download_url);
-    if (ret) {
-        _LOG_V("Autoupdate version=%s, download_url=%s.\n", version, download_url);
-        ret = FOTA.forceUpdate(download_url, FOTA.getConfig().check_sig);
+    int ret;
+    if (owner == OWNER_FACT) {
+        if (debug)
+            ret = FOTA.forceUpdate("https://smartevse-3.s3.eu-west-2.amazonaws.com/fact_firmware.debug.signed.bin", true );
+        else
+            ret = FOTA.forceUpdate("https://smartevse-3.s3.eu-west-2.amazonaws.com/fact_firmware.signed.bin", true );
+    }
+    else {
+        // not expiring github auth for minimal rate limiting on github
+        char version[32] = "";
+        char download_url[256] = "";
+        char asset_name[32] = "";
+        if (debug == 1)
+            strlcpy(asset_name, "firmware.debug.bin", sizeof(asset_name));
+        else
+            strlcpy(asset_name, "firmware.bin", sizeof(asset_name));
+        int ret = getLatestVersion(owner + "/" + repo, asset_name, version, download_url);
+        if (ret) {
+            _LOG_V("Autoupdate version=%s, download_url=%s.\n", version, download_url);
+            ret = FOTA.forceUpdate(download_url, FOTA.getConfig().check_sig);
+        }
     }
     return ret;
 }
