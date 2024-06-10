@@ -260,6 +260,7 @@ bool phasesLastUpdateFlag = false;
 int16_t IrmsOriginal[3]={0, 0, 0};
 int homeBatteryCurrent = 0;
 int homeBatteryLastUpdate = 0; // Time in milliseconds
+char *downloadUrl = NULL;
 
 struct EMstruct EMConfig[EM_CUSTOM + 1] = {
     /* DESC,      ENDIANNESS,      FCT, DATATYPE,            U_REG,DIV, I_REG,DIV, P_REG,DIV, E_REG_IMP,DIV, E_REG_EXP, DIV */
@@ -3732,8 +3733,8 @@ WiFiClientSecure _client;
 // asset name format: one of firmware.bin, firmware.debug.bin, firmware.signed.bin, firmware.debug.signed.bin
 // output:
 // version -- null terminated string with latest version of this repo
-// download_url -- null terminated string with the url where this version can be downloaded
-bool getLatestVersion(String owner_repo, String asset_name, char *version, char *download_url) {
+// downloadUrl -- global pointer to null terminated string with the url where this version can be downloaded
+bool getLatestVersion(String owner_repo, String asset_name, char *version) {
     String useURL = "https://api.github.com/repos/" + owner_repo + "/releases/latest";
     _http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
 
@@ -3804,9 +3805,8 @@ bool getLatestVersion(String owner_repo, String asset_name, char *version, char 
                 _http.end();  // We're done with HTTP - free the resources
                 return false;
             } else {
-                strlcpy(download_url, asset_browser_download_url, 256);
-                //strlcpy(download_url, asset_browser_download_url, sizeof(download_url));
-                _LOG_V("Found asset: name=%s, url=%s.\n", name.c_str(), download_url);
+                asprintf(&downloadUrl, "%s", asset_browser_download_url);        //will be freed in FirmwareUpdate()
+                _LOG_V("Found asset: name=%s, url=%s.\n", name.c_str(), downloadUrl);
                 _http.end();  // We're done with HTTP - free the resources
                 return true;
             }
@@ -3820,28 +3820,51 @@ bool getLatestVersion(String owner_repo, String asset_name, char *version, char 
 // esp32fota esp32fota("<Type of Firmware for this device>", <this version>, <validate signature>, <allow insecure https>);
 esp32FOTA FOTA("esp32-fota-http", 1, false, true);
 
+// put firmware update in separate task so we can feed progress to the html page
+void FirmwareUpdate(void *parameter) {
+    _LOG_A("DINGO: url=%s.\n", downloadUrl);
+    if (FOTA.forceUpdate(downloadUrl, 1)) {
+        _LOG_A("Firmware update succesfull.\n");
+    } else {
+        _LOG_A("Firmware update failed.\n");
+    }
+    if (downloadUrl) free(downloadUrl);
+    vTaskDelete(NULL);                                                          //end this task so it will not take up resources
+}
+
+void RunFirmwareUpdate(void) {
+    _LOG_V("Starting firmware update from downloadUrl=%s.\n", downloadUrl);
+    xTaskCreate(
+        FirmwareUpdate, // Function that should be called
+        "FirmwareUpdate",// Name of the task (for debugging)
+        4096,           // Stack size (bytes)
+        NULL,           // Parameter to pass
+        3,              // Task priority - high
+        NULL            // Task handle
+    );
+}
+
 // Downloads firmware, flashes it, and reboot
 bool AutoUpdate(String owner, String repo, int debug) {
-    int ret;
+    bool ret = true;
     if (owner == OWNER_FACT) {
         if (debug)
-            ret = FOTA.forceUpdate("https://smartevse-3.s3.eu-west-2.amazonaws.com/fact_firmware.debug.signed.bin", true );
+            asprintf(&downloadUrl, "%s", "https://smartevse-3.s3.eu-west-2.amazonaws.com/fact_firmware.debug.signed.bin"); //will be freed in FirmwareUpdate()
         else
-            ret = FOTA.forceUpdate("https://smartevse-3.s3.eu-west-2.amazonaws.com/fact_firmware.signed.bin", true );
+            asprintf(&downloadUrl, "%s", "https://smartevse-3.s3.eu-west-2.amazonaws.com/fact_firmware.signed.bin"); //will be freed in FirmwareUpdate()
+        RunFirmwareUpdate();
     }
     else {
         // not expiring github auth for minimal rate limiting on github
         char version[32] = "";
-        char download_url[256] = "";
         char asset_name[32] = "";
         if (debug == 1)
             strlcpy(asset_name, "firmware.debug.bin", sizeof(asset_name));
         else
             strlcpy(asset_name, "firmware.bin", sizeof(asset_name));
-        int ret = getLatestVersion(owner + "/" + repo, asset_name, version, download_url);
+        ret = getLatestVersion(owner + "/" + repo, asset_name, version);
         if (ret) {
-            _LOG_V("Autoupdate version=%s, download_url=%s.\n", version, download_url);
-            ret = FOTA.forceUpdate(download_url, FOTA.getConfig().check_sig);
+            RunFirmwareUpdate();
         }
     }
     return ret;
@@ -4109,12 +4132,12 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         debug = strtol(buf, NULL, 0);
         if (!memcmp(url, "factory", sizeof("factory"))) {
             if (AutoUpdate(OWNER_FACT, REPO_FACT, debug))
-                mg_http_reply(c, 200, "Content-Type: text/plain\r\n", "Starting autoupdate.");
+                mg_http_reply(c, 200, "Content-Type: text/plain\r\n", "Starting autoupdate, this can take 2-5 min, have patience.");
             else
                 mg_http_reply(c, 400, "Content-Type: text/plain\r\n", "Autoupdate failed.");
         } else if (!memcmp(url, "community", sizeof("community"))) {
             if (AutoUpdate(OWNER_COMM, REPO_COMM, debug))
-                mg_http_reply(c, 200, "Content-Type: text/plain\r\n", "Starting autoupdate.");
+                mg_http_reply(c, 200, "Content-Type: text/plain\r\n", "Starting autoupdate, this can take 2-5 min, have patience.");
             else
                 mg_http_reply(c, 400, "Content-Type: text/plain\r\n", "Autoupdate failed.");
         } else
