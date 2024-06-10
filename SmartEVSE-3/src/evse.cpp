@@ -261,6 +261,9 @@ int16_t IrmsOriginal[3]={0, 0, 0};
 int homeBatteryCurrent = 0;
 int homeBatteryLastUpdate = 0; // Time in milliseconds
 char *downloadUrl = NULL;
+int downloadProgress = 0;
+int downloadSize = 0;
+
 
 struct EMstruct EMConfig[EM_CUSTOM + 1] = {
     /* DESC,      ENDIANNESS,      FCT, DATATYPE,            U_REG,DIV, I_REG,DIV, P_REG,DIV, E_REG_IMP,DIV, E_REG_EXP, DIV */
@@ -3825,8 +3828,12 @@ void FirmwareUpdate(void *parameter) {
     _LOG_A("DINGO: url=%s.\n", downloadUrl);
     if (FOTA.forceUpdate(downloadUrl, 1)) {
         _LOG_A("Firmware update succesfull.\n");
+        downloadProgress = -1;
     } else {
-        _LOG_A("Firmware update failed.\n");
+        _LOG_A("ERROR: Firmware update failed; rebooting.\n");
+        downloadProgress = -2;
+        delay(5000);
+        ESP.restart();
     }
     if (downloadUrl) free(downloadUrl);
     vTaskDelete(NULL);                                                          //end this task so it will not take up resources
@@ -4131,8 +4138,11 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         mg_http_get_var(&hm->query, "debug", buf, sizeof(buf));
         debug = strtol(buf, NULL, 0);
         if (!memcmp(url, "factory", sizeof("factory"))) {
-            if (AutoUpdate(OWNER_FACT, REPO_FACT, debug))
-                mg_http_reply(c, 200, "Content-Type: text/plain\r\n", "Starting autoupdate, this can take 2-5 min, have patience.");
+            if (AutoUpdate(OWNER_FACT, REPO_FACT, debug)) {
+                struct mg_http_serve_opts opts = {.root_dir = "/data", .ssi_pattern = NULL, .extra_headers = NULL, .mime_types = NULL, .page404 = NULL, .fs = &mg_fs_packed };
+                mg_http_serve_file(c, hm, "/data/update3.html", &opts);
+                //mg_http_reply(c, 200, "Content-Type: text/plain\r\n", "Starting autoupdate, this can take 2-5 min, have patience.");
+            }
             else
                 mg_http_reply(c, 400, "Content-Type: text/plain\r\n", "Autoupdate failed.");
         } else if (!memcmp(url, "community", sizeof("community"))) {
@@ -4142,6 +4152,18 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
                 mg_http_reply(c, 400, "Content-Type: text/plain\r\n", "Autoupdate failed.");
         } else
             mg_http_reply(c, 400, "Content-Type: text/plain\r\n", "Autoupdate wrong parameter.");
+    } else if (mg_http_match_uri(hm, "/autoupdate_progress")) {
+/*        char *Str;
+        asprintf(&Str,"Autoupdating %i / %i.\n", downloadProgress, downloadSize);
+        mg_http_reply(c, 200, "Content-Type: text/plain\r\n", Str);
+        free(Str);
+*/
+        DynamicJsonDocument doc(64); // https://arduinojson.org/v6/assistant/
+        doc["progress"] = downloadProgress;
+        doc["size"] = downloadSize;
+        String json;
+        serializeJson(doc, json);
+        mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\n", json.c_str());    // Yes. Respond JSON
     } else if (mg_http_match_uri(hm, "/update")) {
         //modified version of mg_http_upload
         char buf[20] = "0", file[40];
@@ -4968,10 +4990,25 @@ void WiFiSetup(void) {
 
     // callback function prevents serial comm error
     FOTA.setProgressCb( [](size_t progress, size_t size) {
-      if( progress == size || progress == 0 ) Serial.println();
       _LOG_V("Firmware update progress %i/%i.\n", progress, size);
+      //move this data to global var
+      downloadProgress = progress;
+      downloadSize = size;
       //give background tasks some air
       vTaskDelay(100 / portTICK_PERIOD_MS);
+    });
+
+    // we abuse the downloadProgress indicator for status info:
+    // downloadProgress = -1 : success
+    // downloadProgress = -2 : fail
+    FOTA.setUpdateFinishedCb( [](int partition, bool restart_after) {
+        _LOG_V("Update succesfully completed at %s partition\n", partition==U_SPIFFS ? "spiffs" : "firmware" );
+        downloadProgress = -1;
+    });
+
+    FOTA.setUpdateBeginFailCb( [](int partition) {
+        _LOG_A("ERROR: Update failed at %s partition\n", partition==U_SPIFFS ? "spiffs" : "firmware" );
+        downloadProgress = -2;
     });
 
     //FOTA.setExtraHTTPHeader("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.8; rv:21.0) Gecko/20100101 Firefox/21.0");
