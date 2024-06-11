@@ -4245,10 +4245,12 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
                         mg_http_reply(c, 400, "", "firmware.signed.bin update failed!");
                     }
                     const esp_partition_t* running_partition = esp_ota_get_running_partition();
+                    _LOG_V("Running off of partition %s, trying to update partition %s.\n", running_partition->label, target_partition->label);
                     esp_ota_set_boot_partition( running_partition );            // make sure we have not switched boot partitions
 
+                    bool verification_result = false;
                     if(Update.end(true)) {
-                        bool verification_result = FOTA.validate_sig( target_partition, signature, size - SIGNATURE_LENGTH);
+                        verification_result = FOTA.validate_sig( target_partition, signature, size - SIGNATURE_LENGTH);
                         FREE(signature);
                         if (verification_result) {
                             _LOG_A("Signature is valid!\n");
@@ -4257,16 +4259,20 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
                             shouldReboot = true;
                             //ESP.restart(); does not finish the call to fn_http_server, so the last POST of apps.js gets no response....
                             //which results in a "verify failed" message on the /update screen AFTER the reboot :-)
-                        } else {
-                            Update.printError(Serial);
-                            esp_partition_erase_range( target_partition, target_partition->address, target_partition->size );
-                            mg_http_reply(c, 400, "", "firmware.signed.bin update failed!");
                         }
-                    } else {
+                    }
+_LOG_A("DINGO: boot partition=%s.\n", esp_ota_get_boot_partition()->label);
+                    if (!verification_result) {
                         _LOG_A("Update failed!\n");
-                        Update.abort(); //not sure this does anything in this stage
-                        Update.rollBack();
-                        mg_http_reply(c, 400, "", "firmware.signed.bin signature verification failed!");
+                        Update.printError(Serial);
+                        //Update.abort(); //not sure this does anything in this stage
+                        //Update.rollBack();
+                        _LOG_V("Running off of partition %s, erasing partition %s.\n", running_partition->label, target_partition->label);
+_LOG_A("DINGO: checkpoint 1 boot partition=%s.\n", esp_ota_get_boot_partition()->label);
+                        esp_partition_erase_range( target_partition, target_partition->address, target_partition->size );
+                        esp_ota_set_boot_partition( running_partition );
+_LOG_A("DINGO: checkpoint 2 boot partition=%s.\n", esp_ota_get_boot_partition()->label);
+                        mg_http_reply(c, 400, "", "firmware.signed.bin update failed!");
                     }
                     FREE(signature);
                 }
