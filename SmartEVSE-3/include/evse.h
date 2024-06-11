@@ -300,6 +300,7 @@ extern RemoteDebug Debug;
 #define ONEWIRE_FLOATHIGH pinMode(PIN_SW_IN, INPUT_PULLUP );                        // SW input (floating high)
 
 #define RCMFAULT digitalRead(PIN_RCM_FAULT)
+#define FREE(x) free(x); x = NULL;
 
 
 #define MODBUS_INVALID 0

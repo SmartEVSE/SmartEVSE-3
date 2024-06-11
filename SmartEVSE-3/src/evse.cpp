@@ -4099,7 +4099,8 @@ static void fn_client(struct mg_connection *c, int ev, void *ev_data) {
     }
 }
 
-unsigned char signature[512] = "";
+unsigned char *signature = NULL;
+#define SIGNATURE_LENGTH 512
 // Connection event handler function
 // indenting lower level two spaces to stay compatible with old StartWebServer
 // We use the same event handler function for HTTP and HTTPS connections
@@ -4215,12 +4216,13 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
                 }
             } else //end of firmware.bin
             if (!memcmp(file,"firmware.signed.bin", sizeof("firmware.signed.bin")) || !memcmp(file,"firmware.debug.signed.bin", sizeof("firmware.debug.signed.bin"))) {
-#define dump(X)   for (int i= 0; i< sizeof(X); i++) _LOG_A_NO_FUNC("%02x",X[i]); _LOG_A_NO_FUNC(".\n");
+#define dump(X)   for (int i= 0; i< SIGNATURE_LENGTH; i++) _LOG_A_NO_FUNC("%02x", X[i]); _LOG_A_NO_FUNC(".\n");
                 if(!offset) {
                     _LOG_A("Update Start: %s\n", file);
-                    memcpy(signature, hm->body.ptr, sizeof(signature));         //signature is prepended to firmware.bin
-                    hm->body.ptr = hm->body.ptr + sizeof(signature);
-                    hm->body.len = hm->body.len - sizeof(signature);
+                    signature = (unsigned char *) malloc(SIGNATURE_LENGTH);                       //tried to free in in all exit scenarios, RISK of leakage!!!
+                    memcpy(signature, hm->body.ptr, SIGNATURE_LENGTH);          //signature is prepended to firmware.bin
+                    hm->body.ptr = hm->body.ptr + SIGNATURE_LENGTH;
+                    hm->body.len = hm->body.len - SIGNATURE_LENGTH;
                     _LOG_A("Firmware signature:");
                     dump(signature);
                     if(!Update.begin((ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000), U_FLASH) {
@@ -4230,6 +4232,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
                 if(!Update.hasError()) {
                     if(Update.write((uint8_t*) hm->body.ptr, hm->body.len) != hm->body.len) {
                         Update.printError(Serial);
+                        FREE(signature);
                     } else {
                         _LOG_A("bytes written %lu\r", offset + hm->body.len);
                     }
@@ -4245,7 +4248,8 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
                     esp_ota_set_boot_partition( running_partition );            // make sure we have not switched boot partitions
 
                     if(Update.end(true)) {
-                        bool verification_result = FOTA.validate_sig( target_partition, signature, size - sizeof(signature));
+                        bool verification_result = FOTA.validate_sig( target_partition, signature, size - SIGNATURE_LENGTH);
+                        FREE(signature);
                         if (verification_result) {
                             _LOG_A("Signature is valid!\n");
                             esp_ota_set_boot_partition( target_partition );
@@ -4264,6 +4268,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
                         Update.rollBack();
                         mg_http_reply(c, 400, "", "firmware.signed.bin signature verification failed!");
                     }
+                    FREE(signature);
                 }
             } else //end of firmware.signed.bin
             if (!memcmp(file,"rfid.txt", sizeof("rfid.txt"))) {
