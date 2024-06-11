@@ -3856,9 +3856,9 @@ bool AutoUpdate(String owner, String repo, int debug) {
     bool ret = true;
     if (owner == OWNER_FACT) {
         if (debug)
-            asprintf(&downloadUrl, "%s", "https://smartevse-3.s3.eu-west-2.amazonaws.com/fact_firmware.debug.signed.bin"); //will be freed in FirmwareUpdate()
+            asprintf(&downloadUrl, "%s", "http://smartevse-3.s3.eu-west-2.amazonaws.com/fact_firmware.debug.signed.bin"); //will be freed in FirmwareUpdate()
         else
-            asprintf(&downloadUrl, "%s", "https://smartevse-3.s3.eu-west-2.amazonaws.com/fact_firmware.signed.bin"); //will be freed in FirmwareUpdate()
+            asprintf(&downloadUrl, "%s", "http://smartevse-3.s3.eu-west-2.amazonaws.com/fact_firmware.signed.bin"); //will be freed in FirmwareUpdate()
         RunFirmwareUpdate();
     }
     else {
