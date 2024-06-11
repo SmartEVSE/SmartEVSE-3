@@ -303,13 +303,14 @@ bool esp32FOTA::validate_sig( const esp_partition_t* partition, unsigned char *s
 
         if( ESP.partitionRead( partition, bytesread, (uint32_t*)_buffer, bytestoread ) ) {
             // Debug output for the purpose of comparing with file
-            for( int i = 0; i < bytestoread; i++ ) {
+            // DINGO disable this since it blocks  -DCORE_DEBUG_LEVEL=5 analysis of source app
+/*            for( int i = 0; i < bytestoread; i++ ) {
               if( ( i % 16 ) == 0 ) {
                 log_v( "\r\n0x%08x\t", i + bytesread );
               }
               log_v( "%02x ", (uint8_t*)_buffer[i] );
             }
-
+*/
             mbedtls_md_update( &rsa, (uint8_t*)_buffer, bytestoread );
 
             bytesread = bytesread + bytestoread;

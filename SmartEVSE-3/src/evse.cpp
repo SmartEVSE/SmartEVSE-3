@@ -8,6 +8,8 @@
 #include <WiFi.h>
 
 #include <esp32fota.h>
+#include "esp_ota_ops.h"
+
 #include <HTTPClient.h>
 #include <WiFiManager.h>
 
@@ -31,8 +33,6 @@
 #include "utils.h"
 #include "OneWire.h"
 #include "modbus.h"
-#include <monocypher-ed25519.h>
-#include <mbedtls/sha512.h>
 
 #ifndef DEBUG_DISABLED
 RemoteDebug Debug;
@@ -4099,8 +4099,7 @@ static void fn_client(struct mg_connection *c, int ev, void *ev_data) {
     }
 }
 
-static mbedtls_sha512_context sha;
-unsigned char signature[64] = "";
+unsigned char signature[512] = "";
 // Connection event handler function
 // indenting lower level two spaces to stay compatible with old StartWebServer
 // We use the same event handler function for HTTP and HTTPS connections
@@ -4219,8 +4218,6 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
 #define dump(X)   for (int i= 0; i< sizeof(X); i++) _LOG_A_NO_FUNC("%02x",X[i]); _LOG_A_NO_FUNC(".\n");
                 if(!offset) {
                     _LOG_A("Update Start: %s\n", file);
-                    mbedtls_sha512_init(&sha);
-                    mbedtls_sha512_starts_ret(&sha, 0);
                     memcpy(signature, hm->body.ptr, sizeof(signature));         //signature is prepended to firmware.bin
                     hm->body.ptr = hm->body.ptr + sizeof(signature);
                     hm->body.len = hm->body.len - sizeof(signature);
@@ -4234,43 +4231,35 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
                     if(Update.write((uint8_t*) hm->body.ptr, hm->body.len) != hm->body.len) {
                         Update.printError(Serial);
                     } else {
-                        mbedtls_sha512_update_ret(&sha, (const unsigned char *) hm->body.ptr, hm->body.len);
                         _LOG_A("bytes written %lu\r", offset + hm->body.len);
                     }
                 }
                 if (offset + hm->body.len >= size) {                                           //EOF
-                    //get hash
-                    unsigned char hash[64];
-                    mbedtls_sha512_finish_ret(&sha, hash);
-                    _LOG_A("HASH info: hash = ");
-                    dump(hash);
-
-                    //get public key
-                    unsigned char public_key[32];
-                    char buffer[] = PUBLIC_KEY;
-                    int result = 1;
-                    for (int i=0; i<sizeof(public_key) || result != 1; i++) {
-                        result = sscanf(buffer + i*2, "%02x", (unsigned int *) &public_key[i]);
+                    //esp_err_t err;
+                    const esp_partition_t* target_partition = esp_ota_get_next_update_partition(NULL);              // the newly updated partition
+                    if (!target_partition) {
+                        _LOG_A("ERROR: Can't access firmware partition to check signature!");
+                        mg_http_reply(c, 400, "", "firmware.signed.bin update failed!");
                     }
-                    printf("Public key: ");
-                    dump(public_key);
+                    const esp_partition_t* running_partition = esp_ota_get_running_partition();
+                    esp_ota_set_boot_partition( running_partition );            // make sure we have not switched boot partitions
 
-                    // Verify the signature
-                    int verification_result = crypto_ed25519_ph_check(signature, public_key, hash);
-
-                    if (verification_result == 0) {
-                        _LOG_A("Signature is valid!\n");
-                        if(Update.end(true)) {
+                    if(Update.end(true)) {
+                        bool verification_result = FOTA.validate_sig( target_partition, signature, size - sizeof(signature));
+                        if (verification_result) {
+                            _LOG_A("Signature is valid!\n");
+                            esp_ota_set_boot_partition( target_partition );
                             _LOG_A("\nUpdate Success\n");
                             shouldReboot = true;
                             //ESP.restart(); does not finish the call to fn_http_server, so the last POST of apps.js gets no response....
                             //which results in a "verify failed" message on the /update screen AFTER the reboot :-)
                         } else {
                             Update.printError(Serial);
+                            esp_partition_erase_range( target_partition, target_partition->address, target_partition->size );
                             mg_http_reply(c, 400, "", "firmware.signed.bin update failed!");
                         }
                     } else {
-                        _LOG_A("Signature is invalid!\n");
+                        _LOG_A("Update failed!\n");
                         Update.abort(); //not sure this does anything in this stage
                         Update.rollBack();
                         mg_http_reply(c, 400, "", "firmware.signed.bin signature verification failed!");

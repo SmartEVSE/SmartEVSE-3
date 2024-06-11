@@ -337,6 +337,7 @@ public:
   //[[deprecated("Use setManifestURL( String ) or cfg.manifest_url with setConfig( FOTAConfig_t )")]] String checkURL = "";
   //[[deprecated("Use cfg.use_device_id with setConfig( FOTAConfig_t )")]] bool useDeviceID = false;
 
+  bool validate_sig( const esp_partition_t* partition, unsigned char *signature, uint32_t firmware_size );
 
 private:
 
@@ -381,7 +382,6 @@ private:
   void debugSemVer( const char* label, semver_t* version );
   void getPartition( int update_partition );
 
-  bool validate_sig( const esp_partition_t* partition, unsigned char *signature, uint32_t firmware_size );
 
   // temporary partition holder for signature check operations
   const esp_partition_t* _target_partition = nullptr;
