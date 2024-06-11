@@ -3699,7 +3699,7 @@ void write_settings(void) {
 
     ConfigChanged = 1;
 }
-
+/*
 //github.com L1
     const char* root_ca_github = R"ROOT_CA(
 -----BEGIN CERTIFICATE-----
@@ -3726,10 +3726,11 @@ CV4Ks2dH/hzg1cEo70qLRDEmBDeNiXQ2Lu+lIg+DdEmSx/cQwgwp+7e9un/jX9Wf
 8qn0dNW44bOwgeThpWOjzOoEeJBuv/c=
 -----END CERTIFICATE-----
 )ROOT_CA";
-
+*/
 HTTPClient _http;
 WiFiClientSecure _client;
 
+/*
 // get version nr. of latest release of off github
 // input:
 // owner_repo format: dingo35/SmartEVSE-3.5
@@ -3797,8 +3798,6 @@ bool getLatestVersion(String owner_repo, String asset_name, char *version) {
         //strlcpy(version, tag_name, sizeof(version));
     _LOG_V("Found latest version:%s.\n", version);
     for (JsonObject asset : doc2["assets"].as<JsonArray>()) {
-        /*char name[32];
-        strlcpy(name, asset["name"] | "\0", sizeof(name));*/
         String name = asset["name"] | "";
         if (name == asset_name) {
             const char* asset_browser_download_url = asset["browser_download_url"];
@@ -3819,6 +3818,7 @@ bool getLatestVersion(String owner_repo, String asset_name, char *version) {
     _http.end();  // We're done with HTTP - free the resources
     return false;
 }
+*/
 
 // esp32fota esp32fota("<Type of Firmware for this device>", <this version>, <validate signature>, <allow insecure https>);
 esp32FOTA FOTA("esp32-fota-http", 1, false, true);
@@ -3854,14 +3854,9 @@ void RunFirmwareUpdate(void) {
 // Downloads firmware, flashes it, and reboot
 bool AutoUpdate(String owner, String repo, int debug) {
     bool ret = true;
-    if (owner == OWNER_FACT) {
-        if (debug)
-            asprintf(&downloadUrl, "%s", "http://smartevse-3.s3.eu-west-2.amazonaws.com/fact_firmware.debug.signed.bin"); //will be freed in FirmwareUpdate()
-        else
-            asprintf(&downloadUrl, "%s", "http://smartevse-3.s3.eu-west-2.amazonaws.com/fact_firmware.signed.bin"); //will be freed in FirmwareUpdate()
-        RunFirmwareUpdate();
-    }
-    else {
+    asprintf(&downloadUrl, "%s/%s_%s.%s", FW_DOWNLOAD_PATH, (owner == OWNER_FACT)? "fact":"comm", "firmware", debug ? "debug.signed.bin": "signed.bin"); //will be freed in FirmwareUpdate() ; format: http://s3.com/fact_firmware.debug.signed.bin
+/*
+    if () { //github routine
         // not expiring github auth for minimal rate limiting on github
         char version[32] = "";
         char asset_name[32] = "";
@@ -3870,9 +3865,10 @@ bool AutoUpdate(String owner, String repo, int debug) {
         else
             strlcpy(asset_name, "firmware.bin", sizeof(asset_name));
         ret = getLatestVersion(owner + "/" + repo, asset_name, version);
-        if (ret) {
-            RunFirmwareUpdate();
         }
+    }*/
+    if (ret) {
+        RunFirmwareUpdate();
     }
     return ret;
 }
@@ -4141,14 +4137,13 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
             if (AutoUpdate(OWNER_FACT, REPO_FACT, debug)) {
                 struct mg_http_serve_opts opts = {.root_dir = "/data", .ssi_pattern = NULL, .extra_headers = NULL, .mime_types = NULL, .page404 = NULL, .fs = &mg_fs_packed };
                 mg_http_serve_file(c, hm, "/data/update3.html", &opts);
-                //mg_http_reply(c, 200, "Content-Type: text/plain\r\n", "Starting autoupdate, this can take 2-5 min, have patience.");
-            }
-            else
+            } else
                 mg_http_reply(c, 400, "Content-Type: text/plain\r\n", "Autoupdate failed.");
         } else if (!memcmp(url, "community", sizeof("community"))) {
-            if (AutoUpdate(OWNER_COMM, REPO_COMM, debug))
-                mg_http_reply(c, 200, "Content-Type: text/plain\r\n", "Starting autoupdate, this can take 2-5 min, have patience.");
-            else
+            if (AutoUpdate(OWNER_COMM, REPO_COMM, debug)) {
+                struct mg_http_serve_opts opts = {.root_dir = "/data", .ssi_pattern = NULL, .extra_headers = NULL, .mime_types = NULL, .page404 = NULL, .fs = &mg_fs_packed };
+                mg_http_serve_file(c, hm, "/data/update3.html", &opts);
+            } else
                 mg_http_reply(c, 400, "Content-Type: text/plain\r\n", "Autoupdate failed.");
         } else
             mg_http_reply(c, 400, "Content-Type: text/plain\r\n", "Autoupdate wrong parameter.");

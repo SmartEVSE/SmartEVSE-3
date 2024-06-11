@@ -301,7 +301,7 @@ extern RemoteDebug Debug;
 
 #define RCMFAULT digitalRead(PIN_RCM_FAULT)
 #define FREE(x) free(x); x = NULL;
-
+#define FW_DOWNLOAD_PATH "http://smartevse-3.s3.eu-west-2.amazonaws.com"
 
 #define MODBUS_INVALID 0
 #define MODBUS_OK 1
