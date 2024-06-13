@@ -114,11 +114,31 @@ extern RemoteDebug Debug;
 #define _LOG_D( ... ) log_d ( __VA_ARGS__ )
 #define _LOG_V( ... ) log_v ( __VA_ARGS__ )
 #define _LOG_A( ... ) log_n ( __VA_ARGS__ )
+#if LOG_LEVEL >= 1
 #define _LOG_W_NO_FUNC( ... ) Serial.printf ( __VA_ARGS__ )
+#else 
+#define _LOG_W_NO_FUNC( ... )
+#endif
+#if LOG_LEVEL >= 2
 #define _LOG_I_NO_FUNC( ... ) Serial.printf ( __VA_ARGS__ )
+#else 
+#define _LOG_I_NO_FUNC( ... )
+#endif
+#if LOG_LEVEL >= 3
 #define _LOG_D_NO_FUNC( ... ) Serial.printf ( __VA_ARGS__ )
+#else 
+#define _LOG_D_NO_FUNC( ... )
+#endif
+#if LOG_LEVEL >= 4
 #define _LOG_V_NO_FUNC( ... ) Serial.printf ( __VA_ARGS__ )
+#else 
+#define _LOG_V_NO_FUNC( ... )
+#endif
+#if LOG_LEVEL >= 5
 #define _LOG_A_NO_FUNC( ... ) Serial.printf ( __VA_ARGS__ )
+#else
+#define _LOG_A_NO_FUNC( ... )
+#endif
 #endif
 
 // Pin definitions left side ESP32
