@@ -800,6 +800,9 @@ const char * getMenuItemOption(uint8_t nav) {
     const static char StrEnabled[] = "Enabled";
     const static char StrExitMenu[] = "MENU";
     const static char StrRFIDReader[6][10] = {"Disabled", "EnableAll", "EnableOne", "Learn", "Delete", "DeleteAll"};
+#if ENABLE_OCPP
+    const static char StrOcpp[2][10] = {"Disabled", "Enabled"};
+#endif
     const static char StrWiFi[3][10] = {"Disabled", "Enabled", "SetupWifi"};
 
     unsigned int value = getItemValue(nav);
@@ -887,6 +890,10 @@ const char * getMenuItemOption(uint8_t nav) {
             return Str;
         case MENU_RFIDREADER:
             return StrRFIDReader[value];
+#if ENABLE_OCPP
+        case MENU_OCPP:
+            return StrOcpp[value];
+#endif
         case MENU_WIFI:
             return StrWiFi[value];
         case MENU_EXIT:
@@ -963,6 +970,9 @@ uint8_t getMenuItems (void) {
     MenuItems[m++] = MENU_RCMON;                                                // Residual Current Monitor on RCM (0:Disable / 1:Enable)
     MenuItems[m++] = MENU_RFIDREADER;                                           // RFID Reader connected to SW (0:Disable / 1:Enable / 2:Learn / 3:Delete / 4:Delate All)
     MenuItems[m++] = MENU_WIFI;                                                 // Wifi Disabled / Enabled / Portal
+#if ENABLE_OCPP
+    MenuItems[m++] = MENU_OCPP;                                                 // OCPP (0:Disable / 1:Enable)
+#endif
     MenuItems[m++] = MENU_MAX_TEMP;
     if (MainsMeter && LoadBl < 2)
         MenuItems[m++] = MENU_SUMMAINS;

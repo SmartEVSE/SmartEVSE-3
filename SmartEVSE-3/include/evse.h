@@ -60,6 +60,10 @@
 #define MQTT 1  // Uncomment or set to 0 to disable MQTT support in code
 #endif
 
+#ifndef ENABLE_OCPP
+#define ENABLE_OCPP 0
+#endif
+
 #ifndef MODEM
 //the wifi-debugger is available by telnetting to your SmartEVSE device
 #define MODEM 0  //0 = no modem 1 = modem
@@ -237,6 +241,7 @@ extern RemoteDebug Debug;
 #define DELAYEDSTARTTIME 0                                                             // The default StartTime for delayed charged, 0 = not delaying
 #define DELAYEDSTOPTIME 0                                                       // The default StopTime for delayed charged, 0 = not stopping
 #define SOLARSTARTTIME 40                                                       // Seconds to keep chargecurrent at 6A
+#define OCPP_MODE 0
 #define PUBLIC_KEY "5c7a848c3445793002487608a65fa259cefb16790f7c2f4a1d10af702393f7db\0";
 
 
@@ -396,9 +401,16 @@ extern RemoteDebug Debug;
 #define MENU_C2 35
 #define MENU_MAX_TEMP 36
 #define MENU_SUMMAINS 37
+#if ENABLE_OCPP == 0
 #define MENU_OFF 38                                                             // so access bit is reset and charging stops when pressing < button 2 seconds
 #define MENU_ON 39                                                              // so access bit is set and charging starts when pressing > button 2 seconds
 #define MENU_EXIT 40
+#else
+#define MENU_OCPP 38                                                            // OCPP Disable / Enable / Further modes
+#define MENU_OFF 39                                                             // so access bit is reset and charging stops when pressing < button 2 seconds
+#define MENU_ON 40                                                              // so access bit is set and charging starts when pressing > button 2 seconds
+#define MENU_EXIT 41
+#endif
 
 #define MENU_STATE 50
 
@@ -558,6 +570,9 @@ const struct {
     {"CONTACT 2","Contactor2 (C2) behaviour",                          0, sizeof(StrEnableC2) / sizeof(StrEnableC2[0])-1, ENABLE_C2},
     {"MAX TEMP","Maximum temperature for the EVSE module",            40, 75, MAX_TEMPERATURE},
     {"SUM MAINS","Capacity Rate limit on sum of MAINS Current (A)",    10, 600, MAX_SUMMAINS},
+#if ENABLE_OCPP
+    {"OCPP",    "Select OCPP mode",                                   0, 1, OCPP_MODE},
+#endif
     {"", "Hold 2 sec to stop charging", 0, 0, 0},
     {"", "Hold 2 sec to start charging", 0, 0, 0},
 
@@ -608,5 +623,9 @@ uint16_t getItemValue(uint8_t nav);
 void ConfigureModbusMode(uint8_t newmode);
 
 void handleWIFImode(void);
+
+#if ENABLE_OCPP
+void ocppUpdateRfidReading(const unsigned char *uuid, size_t uuidLen);
+#endif //ENABLE_OCPP
 
 #endif

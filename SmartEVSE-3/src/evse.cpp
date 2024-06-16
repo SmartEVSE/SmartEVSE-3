@@ -49,6 +49,14 @@ struct tm timeinfo;
 struct mg_mgr mgr;  // Mongoose event manager. Holds all connections
 // end of mongoose stuff
 
+//OCPP includes
+#if ENABLE_OCPP
+#include <MicroOcpp.h>
+#include <MicroOcppMongooseClient.h>
+#include <MicroOcpp/Core/Configuration.h>
+#include <MicroOcpp/Core/Context.h>
+#endif //ENABLE_OCPP
+
 String APhostname = "SmartEVSE-" + String( MacId() & 0xffff, 10);           // SmartEVSE access point Name = SmartEVSE-xxxxx
 
 #if MQTT
@@ -288,6 +296,27 @@ struct EMstruct EMConfig[EM_CUSTOM + 1] = {
     {"Custom",    ENDIANESS_LBF_LWF, 4, MB_DATATYPE_INT32,        0, 0,      0, 0,      0, 0,      0, 0,     0, 0}  // Last entry!
 };
 
+#if ENABLE_OCPP
+uint8_t OcppMode = OCPP_MODE; //OCPP Client mode. 0:Disable / 1:Enable
+
+unsigned char OcppRfidUuid [7];
+size_t OcppRfidUuidLen;
+unsigned long OcppLastRfidUpdate;
+unsigned long OcppTrackLastRfidUpdate;
+
+bool OcppForcesLock = false;
+std::shared_ptr<MicroOcpp::Configuration> OcppUnlockConnectorOnEVSideDisconnect; // OCPP Config for RFID-based transactions: if false, demand same RFID card again to unlock connector
+std::shared_ptr<MicroOcpp::Transaction> OcppLockingTx; // Transaction which locks connector until same RFID card is presented again
+
+bool OcppTrackPermitsCharge = false;
+uint8_t OcppTrackCPvoltage = PILOT_NOK; //track positive part of CP signal for OCPP transaction logic
+MicroOcpp::MOcppMongooseClient *OcppWsClient;
+
+float OcppCurrentLimit = -1.f; // Negative value: no OCPP limit defined
+
+unsigned long OcppStopReadingSyncTime; // Stop value synchronization: delay StopTransaction by a few seconds so it reports an accurate energy reading
+#endif //ENABLE_OCPP
+
 
 // Some low level stuff here to setup the ADC, and perform the conversion.
 //
@@ -476,6 +505,24 @@ void SetCPDuty(uint32_t DutyCycle){
     ledcWrite(CP_CHANNEL, DutyCycle);                                       // update PWM signal
     CurrentPWM = DutyCycle;
 }
+
+
+#if ENABLE_OCPP
+// Inverse function of SetCurrent (for monitoring and debugging purposes)
+uint16_t GetCurrent() {
+    uint32_t DutyCycle = CurrentPWM;
+
+    if (DutyCycle < 102) {
+        return 0; //PWM off or ISO15118 modem enabled
+    } else if (DutyCycle < 870) {
+        return (DutyCycle * 1000 / 1024) * 0.6 + 1; // invert duty cycle formula + fixed rounding error correction
+    } else if (DutyCycle <= 983) {
+        return ((DutyCycle * 1000 / 1024)- 640) * 2.5 + 3; // invert duty cycle formula + fixed rounding error correction
+    } else {
+        return 0; //constant +12V
+    }
+}
+#endif //ENABLE_OCPP
 
 
 // Sample the Temperature sensor.
@@ -903,6 +950,17 @@ char IsCurrentAvailable(void) {
         return 0;                                                           // Not enough current available!, return with error
     }
 
+// Use OCPP Smart Charging if Load Balancing is turned off
+#if ENABLE_OCPP
+    if (OcppMode &&                            // OCPP enabled
+            !LoadBl &&                         // Internal LB disabled
+            OcppCurrentLimit >= 0.f &&         // OCPP limit defined
+            OcppCurrentLimit < MinCurrent) {  // OCPP suspends charging
+        _LOG_D("OCPP Smart Charging suspends EVSE\n");
+        return 0;
+    }
+#endif //ENABLE_OCPP
+
     _LOG_D("Current available checkpoint D. ActiveEVSE increased by one=%i, TotalCurrent=%.1fA, StartCurrent=%iA, Isum=%.1fA, ImportCurrent=%iA.\n", ActiveEVSE, (float) TotalCurrent/10, StartCurrent, (float)Isum/10, ImportCurrent);
     return 1;
 }
@@ -978,6 +1036,20 @@ void CalcBalancedCurrent(char mod) {
         ChargeCurrent = MaxCapacity * 10;
     else
         ChargeCurrent = MaxCurrent * 10;                                        // Instead use new variable ChargeCurrent.
+
+// Use OCPP Smart Charging if Load Balancing is turned off
+#if ENABLE_OCPP
+    if (OcppMode &&                      // OCPP enabled
+            !LoadBl &&                   // Internal LB disabled
+            OcppCurrentLimit >= 0.f) {   // OCPP limit defined
+
+        if (OcppCurrentLimit < MinCurrent) {
+            ChargeCurrent = 0;
+        } else {
+            ChargeCurrent = std::min(ChargeCurrent, (uint16_t) (10.f * OcppCurrentLimit));
+        }
+    }
+#endif //ENABLE_OCPP
 
     // Override current temporary if set
     if (OverrideCurrent)
@@ -1619,6 +1691,11 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
         case MENU_RFIDREADER:
             RFIDReader = val;
             break;
+#if ENABLE_OCPP
+        case MENU_OCPP:
+            OcppMode = val;
+            break;
+#endif //ENABLE_OCPP
         case MENU_WIFI:
             WIFImode = val;
             break;    
@@ -1738,6 +1815,10 @@ uint16_t getItemValue(uint8_t nav) {
             return EMConfig[EM_CUSTOM].EDivisor;
         case MENU_RFIDREADER:
             return RFIDReader;
+#if ENABLE_OCPP
+        case MENU_OCPP:
+            return OcppMode;
+#endif //ENABLE_OCPP
         case MENU_WIFI:
             return WIFImode;    
 
@@ -2282,6 +2363,9 @@ uint8_t PollEVNode = NR_EVSES, updated = 0;
         if (Lock) {                                                 // Cable lock enabled?
             // UnlockCable takes precedence over LockCable
             if ((RFIDReader == 2 && Access_bit == 0) ||             // One RFID card can Lock/Unlock the charging socket (like a public charging station)
+#if ENABLE_OCPP
+            (OcppMode &&!OcppForcesLock) ||
+#endif
                 State == STATE_A) {                                 // The charging socket is unlocked when unplugged from the EV
                 if (unlocktimer == 0) {                             // 600ms pulse
                     ACTUATOR_UNLOCK;
@@ -2296,7 +2380,11 @@ uint8_t PollEVNode = NR_EVSES, updated = 0;
                 }
                 locktimer = 0;
             // Lock Cable    
-            } else if (State != STATE_A) {                          // Lock cable when connected to the EV
+            } else if (State != STATE_A                            // Lock cable when connected to the EV
+#if ENABLE_OCPP
+            || (OcppMode && OcppForcesLock)
+#endif
+            ) {
                 if (locktimer == 0) {                               // 600ms pulse
                     ACTUATOR_LOCK;
                 } else if (locktimer == 6) {
@@ -2707,6 +2795,10 @@ void SetupMQTTClient() {
     announce("State", "sensor");
     announce("RFID", "sensor");
     announce("RFIDLastRead", "sensor");
+#if ENABLE_OCPP
+    announce("OCPP", "sensor");
+    announce("OCPPConnection", "sensor");
+#endif //ENABLE_OCPP
 
     //set the parameters for and announce diagnostic sensor entities:
     optional_payload = jsna("entity_category","diagnostic");
@@ -2796,6 +2888,10 @@ void mqttPublishData() {
         }
         if (homeBatteryLastUpdate)
             MQTTclient.publish(MQTTprefix + "/HomeBatteryCurrent", String(homeBatteryCurrent), false, 0);
+#if ENABLE_OCPP
+        MQTTclient.publish(MQTTprefix + "/OCPP", OcppMode ? "Enabled" : "Disabled", true, 0);
+        MQTTclient.publish(MQTTprefix + "/OCPPConnection", (OcppWsClient && OcppWsClient->isConnected()) ? "Connected" : "Disconnected", false, 0);
+#endif //ENABLE_OCPP
 }
 #endif
 
@@ -3612,6 +3708,10 @@ void read_settings() {
         MQTTPort = preferences.getUShort("MQTTPort", 1883);
 #endif
 
+#if ENABLE_OCPP
+        OcppMode = preferences.getUChar("OcppMode", OCPP_MODE);
+#endif //ENABLE_OCPP
+
         preferences.end();                                  
 
         // Store settings when not initialized
@@ -3680,6 +3780,10 @@ void write_settings(void) {
     preferences.putString("MQTTHost", MQTTHost);
     preferences.putUShort("MQTTPort", MQTTPort);
 #endif
+
+#if ENABLE_OCPP
+    preferences.putUChar("OcppMode", OcppMode);
+#endif //ENABLE_OCPP
 
     preferences.end();
 
@@ -4436,6 +4540,19 @@ _LOG_A("DINGO: checkpoint 2 boot partition=%s.\n", esp_ota_get_boot_partition()-
         }
 #endif
 
+#if ENABLE_OCPP
+        doc["ocpp"]["mode"] = OcppMode ? "Enabled" : "Disabled";
+        doc["ocpp"]["backend_url"] = OcppWsClient ? OcppWsClient->getBackendUrl() : "";
+        doc["ocpp"]["cb_id"] = OcppWsClient ? OcppWsClient->getChargeBoxId() : "";
+        doc["ocpp"]["auth_key"] = OcppWsClient ? OcppWsClient->getAuthKey() : "";
+
+        if (OcppWsClient && OcppWsClient->isConnected()) {
+            doc["ocpp"]["status"] = "Connected";
+        } else {
+            doc["ocpp"]["status"] = "Disconnected";
+        }
+#endif //ENABLE_OCPP
+
         doc["home_battery"]["current"] = homeBatteryCurrent;
         doc["home_battery"]["last_update"] = homeBatteryLastUpdate;
 
@@ -4717,6 +4834,51 @@ _LOG_A("DINGO: checkpoint 2 boot partition=%s.\n", esp_ota_get_boot_partition()-
             }
         }
 #endif
+
+#if ENABLE_OCPP
+        if(request->hasParam("ocpp_update")) {
+            if (request->getParam("ocpp_update")->value().toInt() == 1) {
+
+                if(request->hasParam("ocpp_mode")) {
+                    OcppMode = request->getParam("ocpp_mode")->value().toInt();
+                    doc["ocpp_mode"] = OcppMode;
+                }
+
+                if(request->hasParam("ocpp_backend_url")) {
+                    if (OcppWsClient) {
+                        OcppWsClient->setBackendUrl(request->getParam("ocpp_backend_url")->value().c_str());
+                        doc["ocpp_backend_url"] = OcppWsClient->getBackendUrl();
+                    } else {
+                        doc["ocpp_backend_url"] = "Can only update when OCPP enabled";
+                    }
+                }
+
+                if(request->hasParam("ocpp_cb_id")) {
+                    if (OcppWsClient) {
+                        OcppWsClient->setChargeBoxId(request->getParam("ocpp_cb_id")->value().c_str());
+                        doc["ocpp_cb_id"] = OcppWsClient->getChargeBoxId();
+                    } else {
+                        doc["ocpp_cb_id"] = "Can only update when OCPP enabled";
+                    }
+                }
+
+                if(request->hasParam("ocpp_auth_key")) {
+                    if (OcppWsClient) {
+                        OcppWsClient->setAuthKey(request->getParam("ocpp_auth_key")->value().c_str());
+                        doc["ocpp_auth_key"] = OcppWsClient->getAuthKey();
+                    } else {
+                        doc["ocpp_auth_key"] = "Can only update when OCPP enabled";
+                    }
+                }
+
+                // Apply changes in OcppWsClient
+                if (OcppWsClient) {
+                    OcppWsClient->reloadConfigs();
+                }
+                write_settings();
+            }
+        }
+#endif //ENABLE_OCPP
 
         String json;
         serializeJson(doc, json);
@@ -5118,6 +5280,317 @@ void handleWIFImode() {
         WiFi.disconnect(true);
     }    
 }
+
+/*
+ * OCPP-related function definitions
+ */
+#if ENABLE_OCPP
+
+void ocppUpdateRfidReading(const unsigned char *uuid, size_t uuidLen) {
+    if (!uuid || uuidLen >= sizeof(OcppRfidUuid)) {
+        _LOG_W("OCPP: invalid UUID\n");
+    }
+    memcpy(OcppRfidUuid, uuid, uuidLen);
+    OcppRfidUuidLen = uuidLen;
+    OcppLastRfidUpdate = millis();
+}
+
+void ocppInit() {
+
+    //load OCPP library modules: Mongoose WS adapter and Core OCPP library
+
+    auto filesystem = MicroOcpp::makeDefaultFilesystemAdapter(
+            MicroOcpp::FilesystemOpt::Use_Mount_FormatOnFail // Enable FS access, mount LittleFS here, format data partition if necessary
+            );
+
+    OcppWsClient = new MicroOcpp::MOcppMongooseClient(
+            &mgr,
+            nullptr,    // OCPP backend URL (factory default)
+            nullptr,    // ChargeBoxId (factory default)
+            nullptr,    // WebSocket Basic Auth token (factory default)
+            nullptr,    // CA cert (cert string must outlive WS client)
+            filesystem);
+
+    mocpp_initialize(
+            *OcppWsClient, //WebSocket adapter for MicroOcpp
+            ChargerCredentials("SmartEVSE", "Stegen Electronics", "3.5"),
+            filesystem);
+
+    //setup OCPP hardware bindings
+
+    setEnergyMeterInput([] () { //Input of the electricity meter register in Wh
+        return EV_import_active_energy;
+    });
+
+    setPowerMeterInput([] () { //Input of the power meter reading in W
+        return PowerMeasured;
+    });
+
+    setConnectorPluggedInput([] () { //Input about if an EV is plugged to this EVSE
+        return OcppTrackCPvoltage >= PILOT_9V && OcppTrackCPvoltage <= PILOT_3V;
+    });
+
+    setEvReadyInput([] () { //Input if EV is ready to charge (= J1772 State C)
+        return OcppTrackCPvoltage >= PILOT_6V && OcppTrackCPvoltage <= PILOT_3V;
+    });
+
+    setEvseReadyInput([] () { //Input if EVSE allows charge (= PWM signal on)
+        return GetCurrent() > 0; //PWM is enabled
+    });
+
+    addMeterValueInput([] () {
+            return (float) (Irms_EV[0] + Irms_EV[1] + Irms_EV[2]);
+        },
+        "Current.Import",
+        "A");
+
+    addMeterValueInput([] () {
+            return (float) Irms_EV[0];
+        },
+        "Current.Import",
+        "A",
+        nullptr, // Location defaults to "Outlet"
+        "L1");
+
+    addMeterValueInput([] () {
+            return (float) Irms_EV[1];
+        },
+        "Current.Import",
+        "A",
+        nullptr, // Location defaults to "Outlet"
+        "L2");
+
+    addMeterValueInput([] () {
+            return (float) Irms_EV[2];
+        },
+        "Current.Import",
+        "A",
+        nullptr, // Location defaults to "Outlet"
+        "L3");
+
+    addMeterValueInput([] () {
+            return (float)GetCurrent() * 0.1f;
+        },
+        "Current.Offered",
+        "A");
+
+    addMeterValueInput([] () {
+            return (float)TempEVSE;
+        },
+        "Temperature",
+        "Celsius");
+
+#if MODEM
+    if (Modem) {
+        addMeterValueInput([] () {
+                return (float)ComputedSoC;
+            },
+            "SoC",
+            "Percent");
+    }
+#endif
+
+    addErrorCodeInput([] () {
+        return (ErrorFlags & TEMP_HIGH) ? "HighTemperature" : (const char*)nullptr;
+    });
+
+    addErrorCodeInput([] () {
+        return (ErrorFlags & RCM_TRIPPED) ? "GroundFailure" : (const char*)nullptr;
+    });
+
+    addErrorDataInput([] () -> MicroOcpp::ErrorData {
+        if (ErrorFlags & CT_NOCOMM) {
+            MicroOcpp::ErrorData error = "PowerMeterFailure";
+            error.info = "Communication with mains meter lost";
+            return error;
+        }
+        return nullptr;
+    });
+
+    addErrorDataInput([] () -> MicroOcpp::ErrorData {
+        if (ErrorFlags & EV_NOCOMM) {
+            MicroOcpp::ErrorData error = "PowerMeterFailure";
+            error.info = "Communication with EV meter lost";
+            return error;
+        }
+        return nullptr;
+    });
+
+    // If SmartEVSE load balancer is turned off, then enable OCPP Smart Charging
+    // This means after toggling LB, OCPP must be disabled and enabled for changes to become effective
+    if (!LoadBl) {
+        setSmartChargingCurrentOutput([] (float currentLimit) {
+            OcppCurrentLimit = currentLimit; // Can be negative which means that no limit is defined
+
+            // Re-evaluate charge rate and apply
+            if (!LoadBl) { // Execute only if LB is still disabled
+
+                CalcBalancedCurrent(0);
+                if (IsCurrentAvailable()) {
+                    // OCPP is the exclusive LB, clear LESS_6A error if set
+                    ErrorFlags &= ~LESS_6A;
+                    ChargeDelay = 0;
+                }
+                if ((State == STATE_B || State == STATE_C) && !CPDutyOverride) {
+                    if (IsCurrentAvailable()) {
+                        SetCurrent(ChargeCurrent);
+                    } else {
+                        setStatePowerUnavailable();
+                    }
+                }
+            }
+        });
+    }
+
+    setOnUnlockConnectorInOut([] () -> UnlockConnectorResult {
+        // MO also stops transaction which should toggle OcppForcesLock false
+        OcppLockingTx.reset();
+        if (Lock == 0 || digitalRead(PIN_LOCK_IN) == lock2) {
+            // Success
+            return UnlockConnectorResult_Unlocked;
+        }
+
+        // No result yet, wait (MO eventually times out)
+        return UnlockConnectorResult_Pending;
+    });
+
+    setOccupiedInput([] () -> bool {
+        // Keep Finishing state while LockingTx effectively blocks new transactions
+        return OcppLockingTx != nullptr;
+    });
+
+    setStopTxReadyInput([] () {
+        // Stop value synchronization: block StopTransaction for 5 seconds to give the Modbus readings some time to come through
+        return millis() - OcppStopReadingSyncTime >= 5000;
+    });
+
+    OcppUnlockConnectorOnEVSideDisconnect = MicroOcpp::declareConfiguration<bool>("UnlockConnectorOnEVSideDisconnect", true);
+
+    endTransaction(nullptr, "PowerLoss"); // If a transaction from previous power cycle is still running, abort it here
+}
+
+void ocppDeinit() {
+
+    // Record stop value for transaction manually (normally MO would wait until `mocpp_loop()`, but that's too late here)
+    if (auto& tx = getTransaction()) {
+        if (tx->getMeterStop() < 0) {
+            // Stop value not defined yet
+            tx->setMeterStop(EV_import_active_energy); // Use same reading as in `setEnergyMeterInput()`
+            tx->setStopTimestamp(getOcppContext()->getModel().getClock().now());
+        }
+    }
+
+    endTransaction(nullptr, "Other"); // If a transaction is running, shut it down forcefully. The StopTx request will be sent when OCPP runs again.
+
+    OcppUnlockConnectorOnEVSideDisconnect.reset();
+    OcppLockingTx.reset();
+    OcppForcesLock = false;
+
+    if (OcppTrackPermitsCharge) {
+        _LOG_A("OCPP unset Access_bit\n");
+        setAccess(false);
+    }
+
+    OcppTrackPermitsCharge = false;
+    OcppTrackCPvoltage = PILOT_NOK;
+    OcppCurrentLimit = -1.f;
+
+    mocpp_deinitialize();
+
+    delete OcppWsClient;
+    OcppWsClient = nullptr;
+}
+
+void ocppLoop() {
+
+    // Update pilot tracking variable (last measured positive part)
+    auto pilot = Pilot();
+    if (pilot >= PILOT_12V && pilot <= PILOT_3V) {
+        OcppTrackCPvoltage = pilot;
+    }
+
+    mocpp_loop();
+
+    //handle RFID input
+
+    if (OcppTrackLastRfidUpdate != OcppLastRfidUpdate) {
+        // New RFID card swiped
+
+        char uuidHex [2 * sizeof(OcppRfidUuid) + 1];
+        uuidHex[0] = '\0';
+        for (size_t i = 0; i < OcppRfidUuidLen; i++) {
+            snprintf(uuidHex + 2*i, 3, "%02X", OcppRfidUuid[i]);
+        }
+
+        if (OcppLockingTx) {
+            // Connector is still locked by earlier transaction
+
+            if (!strcmp(uuidHex, OcppLockingTx->getIdTag())) {
+                // Connector can be unlocked again
+                OcppLockingTx.reset();
+                endTransaction(uuidHex, "Local");
+            } // else: Connector remains blocked for now
+        } else if (getTransaction()) {
+            //OCPP lib still has transaction (i.e. transaction running or authorization pending) --> swiping card again invalidates idTag
+            endTransaction(uuidHex, "Local");
+        } else {
+            //OCPP lib has no idTag --> swiped card is used for new transaction
+            OcppLockingTx = beginTransaction(uuidHex);
+        }
+    }
+    OcppTrackLastRfidUpdate = OcppLastRfidUpdate;
+
+    // Set / unset Access_bit
+    // Allow to set Access_bit only once per OCPP transaction because other modules may override the Access_bit
+    if (!OcppTrackPermitsCharge && ocppPermitsCharge()) {
+        _LOG_A("OCPP set Access_bit\n");
+        setAccess(true);
+    } else if (Access_bit && !ocppPermitsCharge()) {
+        _LOG_A("OCPP unset Access_bit\n");
+        setAccess(false);
+    }
+    OcppTrackPermitsCharge = ocppPermitsCharge();
+
+    // Check if OCPP charge permission has been revoked by other module
+    if (OcppTrackPermitsCharge && // OCPP has set Acess_bit and still allows charge
+            !Access_bit) { // Access_bit is not active anymore
+        endTransaction(nullptr, "Other");
+    }
+
+    // Stop value synchronization: block StopTransaction for a short period as long as charging is permitted
+    if (ocppPermitsCharge()) {
+        OcppStopReadingSyncTime = millis();
+    }
+
+    auto& transaction = getTransaction(); // Common tx which OCPP is currently processing (or nullptr if no tx is ongoing)
+
+    // Check if Locking Tx has been invalidated by something other than RFID swipe
+    if (OcppLockingTx) {
+        if (OcppUnlockConnectorOnEVSideDisconnect->getBool() && !OcppLockingTx->isActive()) {
+            // No LockingTx mode configured (still, keep LockingTx until end of transaction because the config could be changed in the middle of tx)
+            OcppLockingTx.reset();
+        } else if (transaction && transaction != OcppLockingTx) {
+            // Another Tx has already started
+            OcppLockingTx.reset();
+        } else if (digitalRead(PIN_LOCK_IN) == lock2 && !OcppLockingTx->isActive()) {
+            // Connector is has been unlocked and LockingTx has already run
+            OcppLockingTx.reset();
+        } // There may be further edge cases
+    }
+
+    OcppForcesLock = false;
+
+    if (transaction && transaction->isAuthorized() && (transaction->isActive() || transaction->isRunning()) && // Common tx ongoing
+            (OcppTrackCPvoltage >= PILOT_9V && OcppTrackCPvoltage <= PILOT_3V)) { // Connector plugged
+        OcppForcesLock = true;
+    }
+
+    if (OcppLockingTx && OcppLockingTx->getStartSync().isRequested()) { // LockingTx goes beyond tx completion
+        OcppForcesLock = true;
+    }
+
+}
+#endif //ENABLE_OCPP
 
 
 void setup() {

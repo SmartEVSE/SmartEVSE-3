@@ -25,6 +25,7 @@
       // let endpoint = 'http://10.0.0.36/settings';
       let initiated=false;
       let mqttEditMode = false;
+      let ocppEditMode = false;
 
       $(document).ready(loadData());
 
@@ -258,6 +259,30 @@
                 $('#mqtt_topic_prefix').val(data.mqtt.topic_prefix);
             }
 
+            if (data.ocpp) {
+              if (data.ocpp.mode == "Enabled") {
+                $('[id=ocpp_settings]').show();
+                document.getElementById("enable_ocpp").checked = true;
+                document.getElementById("enable_ocpp_label").classList.remove("ui-checkbox-off")
+                document.getElementById("enable_ocpp_label").classList.add("ui-checkbox-on")
+              } else {
+                $('[id=ocpp_settings]').hide();
+                document.getElementById("enable_ocpp").checked = false;
+                document.getElementById("enable_ocpp_label").classList.remove("ui-checkbox-on")
+                document.getElementById("enable_ocpp_label").classList.add("ui-checkbox-off")
+              }
+
+              if (!ocppEditMode) {
+                $('#ocpp_backend_url').val(data.ocpp.backend_url);
+                $('#ocpp_cb_id').val(data.ocpp.cb_id);
+                $('#ocpp_auth_key').val(data.ocpp.auth_key);
+              }
+
+              $('#ocpp_ws_status').text(data.ocpp.status);
+
+            } else {
+              $('[id=ocpp_config_outer]').hide();
+            }
 
             setTimeout("loadData()", 5000);
           });
@@ -857,6 +882,44 @@
 
                         event.preventDefault();
                     }
+                    function toggleEnableOcpp() {
+                      var enableOcppCheckbox = document.getElementById("enable_ocpp");
+                      // Get the output text
+                      var ocppSettingsDiv = document.getElementById("ocpp_settings");
+
+                      $.post( "/settings?ocpp_update=1&ocpp_mode=" + (enableOcppCheckbox.checked == true ? 1 : 0));
+                    }
+                    function toggleOcppEdit() {
+                        ocppEditMode = !ocppEditMode;
+                        if (ocppEditMode) {
+                            $('#ocpp_save_btn').text("Save");
+                            $('#ocpp_backend_url').prop("disabled",false);
+                            $('#ocpp_cb_id').prop("disabled",false);
+                            $('#ocpp_auth_key').prop("disabled",false);
+                            document.getElementById("ocpp_backend_url").classList.remove("ui-state-disabled");
+                            document.getElementById("ocpp_cb_id").classList.remove("ui-state-disabled");
+                            document.getElementById("ocpp_auth_key").classList.remove("ui-state-disabled");
+                        } else {
+                            configureOcpp();
+                            $('#ocpp_save_btn').text("Edit Settings");
+                            $('#ocpp_backend_url').prop("disabled",true);
+                            $('#ocpp_cb_id').prop("disabled",true);
+                            $('#ocpp_auth_key').prop("disabled",true);
+                            document.getElementById("ocpp_backend_url").classList.add("ui-state-disabled");
+                            document.getElementById("ocpp_cb_id").classList.add("ui-state-disabled");
+                            document.getElementById("ocpp_auth_key").classList.add("ui-state-disabled");
+                        }
+                    }
+                    function configureOcpp() {
+                        var ocpp_backend_url=$('#ocpp_backend_url').val();
+                        var ocpp_cb_id=$('#ocpp_cb_id').val();
+                        var ocpp_auth_key=$('#ocpp_auth_key').val();
+
+                        $.post( "/settings?ocpp_update=1&ocpp_backend_url=" + ocpp_backend_url +
+                            "&ocpp_cb_id=" + ocpp_cb_id + "&ocpp_auth_key=" + ocpp_auth_key);
+
+                        event.preventDefault();
+                    }
                     function reboot() {
                         $.post( "/reboot");
                     }
@@ -997,6 +1060,40 @@
                                                 <label>Topic Prefix: <input id="mqtt_topic_prefix"></label>
                                                 <button onclick="configureMqtt()" style="display:inline-block;">Save</button>
                                             </div>
+                                        </div>
+                                    </div>
+                                  </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="ocpp_config_outer" style="margin-bottom: 20px;" class="config">
+                      <div class="card border-left-primary shadow h-100 py-2">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text font-weight-bold text-primary text-uppercase mb-1">Config</div>
+                                    <div class="row no-gutters align-items-center" id="ocpp_config">
+                                        <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                            OCPP:
+                                        </div>
+                                        <div class="col">
+                                          <input type="checkbox" class="form-check-input" id="enable_ocpp" onclick="toggleEnableOcpp()">
+                                          <label class="form-check-label" for="enable_ocpp" id="enable_ocpp_label">Enable OCPP</label>
+                                          <div id="ocpp_settings" style="display: none;">
+                                              <div class="row no-gutters align-items-center" style="margin-top:20px;margin-bottom:10px">
+                                                <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 200px">
+                                                    WebSocket status:
+                                                </div>
+                                                <div class="col">
+                                                  <div class="h5 mb-0 mr-3 text-gray-800" id="ocpp_ws_status"></div>
+                                                </div>
+                                              </div>
+                                              <label>Backend URL: <input id="ocpp_backend_url" class="ui-state-disabled"></label>
+                                              <label>Charge Box Id: <input id="ocpp_cb_id" class="ui-state-disabled"></label>
+                                              <label>Authentication key: <input id="ocpp_auth_key" class="ui-state-disabled"></label>
+                                              <button id="ocpp_save_btn" onclick="toggleOcppEdit()" style="display:inline-block;">Edit Settings</button>
+                                          </div>
                                         </div>
                                     </div>
                                   </div>

@@ -283,58 +283,72 @@ void CheckRFID(void) {
     uint8_t RFIDReader = getItemValue(MENU_RFIDREADER);
     if (RFIDReader) {                                        // RFID Reader set to Enabled, Learn or Delete
         if (OneWireReadCardId() ) {                                             // Read card ID
-            switch (RFIDReader) {
-                case 1:                                                         // EnableAll. All learned cards accepted for locking /unlocking
-                    x = MatchRFID();
-                    if (x && !RFIDstatus) {
-                        _LOG_A("RFID card found!\n");
-                        if (Access_bit) {
-                            setAccess(false);                                   // Access Off, Switch back to state B1/C1
-                        } else setAccess(true);
+#if ENABLE_OCPP
+            uint8_t OcppMode = getItemValue(MENU_OCPP);
+            if (OcppMode &&                                                     // Remote authorization via OCPP?
+                    (RFIDReader == 1 || // EnableAll
+                     RFIDReader == 2)) { // EnableOne
+                // Use OCPP
 
-                        RFIDstatus = 1;
-                    }  else if (!x) RFIDstatus = 7;                             // invalid card
-                    BacklightTimer = BACKLIGHT;
-                    break;
-                case 2:                                                         // EnableOne. Only the card that unlocks, can re-lock the EVSE   
-                    x = MatchRFID();
-                    if (x && !RFIDstatus) {
-                        _LOG_A("RFID card found!\n");
-                        if (!Access_bit) {
-                            CardOffset = x;                                     // store cardoffset from current card
-                            setAccess(true);                                    // Access On
-                        } else if (CardOffset == x) {
-                            setAccess(false);                                   // Access Off, Switch back to state B1/C1
+                ocppUpdateRfidReading(RFID + 1, 7); // UUID starts at RFID+1; Assume 7-byte UUID for now
+            } else
+#endif
+            {
+                // Use local whitelist
+
+                switch (RFIDReader) {
+                    case 1:                                                         // EnableAll. All learned cards accepted for locking /unlocking
+                        x = MatchRFID();
+                        if (x && !RFIDstatus) {
+                            _LOG_A("RFID card found!\n");
+                            if (Access_bit) {
+                                setAccess(false);                                   // Access Off, Switch back to state B1/C1
+                            } else setAccess(true);
+
+                            RFIDstatus = 1;
+                        }  else if (!x) RFIDstatus = 7;                             // invalid card
+                        BacklightTimer = BACKLIGHT;
+                        break;
+                    case 2:                                                         // EnableOne. Only the card that unlocks, can re-lock the EVSE
+                        x = MatchRFID();
+                        if (x && !RFIDstatus) {
+                            _LOG_A("RFID card found!\n");
+                            if (!Access_bit) {
+                                CardOffset = x;                                     // store cardoffset from current card
+                                setAccess(true);                                    // Access On
+                            } else if (CardOffset == x) {
+                                setAccess(false);                                   // Access Off, Switch back to state B1/C1
+                            }
+                            RFIDstatus = 1;
+                        }  else if (!x) RFIDstatus = 7;                             // invalid card
+                        BacklightTimer = BACKLIGHT;
+                        break;
+                    case 3:                                                         // Learn Card
+                        x = StoreRFID();
+                        if (x == 1) {
+                            _LOG_A("RFID card stored!\n");
+                            RFIDstatus = 2;
+                        } else if (x == 2 && !RFIDstatus) {
+                            _LOG_A("RFID card was already stored!\n");
+                            RFIDstatus = 4;
+                        } else if (!RFIDstatus) {
+                            _LOG_A("RFID storage full! Delete card first\n");
+                            RFIDstatus = 6;
                         }
-                        RFIDstatus = 1;                            
-                    }  else if (!x) RFIDstatus = 7;                             // invalid card
-                    BacklightTimer = BACKLIGHT;
-                    break;
-                case 3:                                                         // Learn Card
-                    x = StoreRFID();
-                    if (x == 1) {
-                        _LOG_A("RFID card stored!\n");
-                        RFIDstatus = 2;
-                    } else if (x == 2 && !RFIDstatus) {
-                        _LOG_A("RFID card was already stored!\n");
-                        RFIDstatus = 4;
-                    } else if (!RFIDstatus) {
-                        _LOG_A("RFID storage full! Delete card first\n");
-                        RFIDstatus = 6;
-                    }
-                    break;
-                case 4:                                                         // Delete Card
-                    x = DeleteRFID();
-                    if (x) {
-                        _LOG_A("RFID card deleted!\n");
-                        RFIDstatus = 3;
-                    } else if (!RFIDstatus) {
-                        _LOG_A("RFID card not in list!\n");
-                        RFIDstatus = 5;
-                    }
-                    break;
-                default:
-                    break;
+                        break;
+                    case 4:                                                         // Delete Card
+                        x = DeleteRFID();
+                        if (x) {
+                            _LOG_A("RFID card deleted!\n");
+                            RFIDstatus = 3;
+                        } else if (!RFIDstatus) {
+                            _LOG_A("RFID card not in list!\n");
+                            RFIDstatus = 5;
+                        }
+                        break;
+                    default:
+                        break;
+                }
             }
         } else RFIDstatus = 0;
     }
