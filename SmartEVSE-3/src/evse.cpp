@@ -58,7 +58,7 @@ String MQTTpassword;
 String MQTTprefix;
 String MQTTHost = "";
 uint16_t MQTTPort;
-
+mg_timer *MQTTtimer;
 uint8_t lastMqttUpdate = 0;
 #endif
 
@@ -67,6 +67,8 @@ WiFiManager wifiManager;
 // SSID and PW for your Router
 String Router_SSID;
 String Router_Pass;
+
+mg_connection *HttpListener80, *HttpListener443;
 
 // Create a ModbusRTU server, client and bridge instance on Serial1
 ModbusServerRTU MBserver(2000, PIN_RS485_DIR);     // TCP timeout set to 2000 ms
@@ -4110,8 +4112,16 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
   if (ev == MG_EV_ACCEPT && c->fn_data != NULL) {
     struct mg_tls_opts opts = { .ca = empty, .cert = mg_unpacked("/data/cert.pem"), .key = mg_unpacked("/data/key.pem"), .name = empty};
     mg_tls_init(c, &opts);
-  }
-  if (ev == MG_EV_HTTP_MSG) {  // New HTTP request received
+  } else if (ev == MG_EV_CLOSE) {
+    if (c == HttpListener80) {
+        _LOG_A("Free HTTP port 80");
+        HttpListener80 = nullptr;
+    }
+    if (c == HttpListener443) {
+        _LOG_A("Free HTTP port 443");
+        HttpListener443 = nullptr;
+    }
+  } else if (ev == MG_EV_HTTP_MSG) {  // New HTTP request received
     struct mg_http_message *hm = (struct mg_http_message *) ev_data;            // Parsed HTTP request
     webServerRequest* request = new webServerRequest();
     request->setMessage(hm);
@@ -4914,13 +4924,12 @@ void onWifiEvent(WiFiEvent_t event) {
             break;
         case WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_CONNECTED:
             _LOG_A("Connected or reconnected to WiFi\n");
-            delay(1000);
-            //load dhcp dns ip4 address into mongoose
-            static char dns4url[]="udp://123.123.123.123:53";
-            sprintf(dns4url, "udp://%s:53", WiFi.dnsIP().toString().c_str());
-            mgr.dns4.url = dns4url;
 
 #if MQTT
+            if (!MQTTtimer) {
+               MQTTtimer = mg_timer_add(&mgr, 3000, MG_TIMER_REPEAT | MG_TIMER_RUN_NOW, timer_fn, &mgr);
+            }
+
             mg_timer_add(&mgr, 3000, MG_TIMER_REPEAT | MG_TIMER_RUN_NOW, timer_fn, &mgr);
 #endif
             mg_log_set(MG_LL_NONE);
@@ -4930,9 +4939,13 @@ void onWifiEvent(WiFiEvent_t event) {
                 bool done = false;              // Event handler flips it to true
                 mg_http_connect(&mgr, s_url, fn_client, &done);  // Create client connection
             }
-            //end mongoose
-            mg_http_listen(&mgr, "http://0.0.0.0:80", fn_http_server, NULL);  // Setup listener
-            mg_http_listen(&mgr, "http://0.0.0.0:443", fn_http_server, (void *) 1);  // Setup listener
+
+            if (!HttpListener80) {
+                HttpListener80 = mg_http_listen(&mgr, "http://0.0.0.0:80", fn_http_server, NULL);  // Setup listener
+            }
+            if (!HttpListener443) {
+                HttpListener443 = mg_http_listen(&mgr, "http://0.0.0.0:443", fn_http_server, (void *) 1);  // Setup listener
+            }
             _LOG_A("HTTP server started\n");
 
 #if DBG == 1
@@ -4967,6 +4980,10 @@ void timeSyncCallback(struct timeval *tv)
 // Setup Wifi 
 void WiFiSetup(void) {
     mg_mgr_init(&mgr);  // Initialise event manager
+    //load dhcp dns ip4 address into mongoose
+    static char dns4url[]="udp://123.123.123.123:53";
+    sprintf(dns4url, "udp://%s:53", WiFi.dnsIP().toString().c_str());
+    mgr.dns4.url = dns4url;
 
     const char* rsa_key_pub = mg_unpacked("/data/rsa_key.pub").ptr;
     CryptoMemAsset  *MyRSAKey = new CryptoMemAsset("RSA Key", rsa_key_pub, strlen(rsa_key_pub)+1 );
@@ -5039,6 +5056,20 @@ void WiFiSetup(void) {
 void SetupPortalTask(void * parameter) {
     _LOG_A("Start Portal...\n");
     WiFi.disconnect(true);
+
+    // Close Mongoose HTTP Server
+    if (HttpListener80) {
+        HttpListener80->is_closing = 1;
+    }
+    if (HttpListener443) {
+        HttpListener443->is_closing = 1;
+    }
+
+    while (HttpListener80 || HttpListener443) {
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        _LOG_A("Waiting for Mongoose Server to terminate\n");
+    }
+
     wifiManager.setAPStaticIPConfig(IPAddress(192,168,4,1), IPAddress(192,168,4,1), IPAddress(255,255,255,0));
     //wifiManager.setTitle(String title);
 
@@ -5050,7 +5081,6 @@ void SetupPortalTask(void * parameter) {
     wifiManager.setShowDnsFields(true);    // force show dns field always
 
     wifiManager.setConfigPortalTimeout(120);  // Portal will be available 2 minutes to connect to, then close. (if connected within this time, it will remain active)
-    mg_mgr_free(&mgr);
     delay(1000);
     wifiManager.startConfigPortal(APhostname.c_str(), APpassword.c_str());
     //_LOG_A("SetupPortalTask free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
@@ -5058,7 +5088,6 @@ void SetupPortalTask(void * parameter) {
 
     WIFImode = 1;
     //mongoose
-    mg_mgr_init(&mgr);  // Initialise event manager
     handleWIFImode();
     write_settings();
     LCDNav = 0;
@@ -5303,57 +5332,74 @@ void setup() {
 }
 
 void loop() {
-    //this loop is for non-time critical stuff that needs to run approx 1 / second
-    if (WiFi.isConnected())
-        mg_mgr_poll(&mgr, 1000);
-    else
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
 
-    getLocalTime(&timeinfo, 1000U);
-    if (!LocalTimeSet && WIFImode == 1) {
-        _LOG_A("Time not synced with NTP yet.\n");
+    static unsigned long lastCheck = 0;
+    if (millis() - lastCheck >= 1000) {
+        lastCheck = millis();
+        //this block is for non-time critical stuff that needs to run approx 1 / second
+        getLocalTime(&timeinfo, 1000U);
+        if (!LocalTimeSet && WIFImode == 1) {
+            _LOG_A("Time not synced with NTP yet.\n");
+        }
+
+        if (shouldReboot) {
+            delay(1000);
+            ESP.restart();
+        }
+
+        // TODO move this to a once a minute loop?
+        if (DelayedStartTime.epoch2 && LocalTimeSet) {
+            // Compare the times
+            time_t now = time(nullptr);             //get current local time
+            DelayedStartTime.diff = DelayedStartTime.epoch2 - (mktime(localtime(&now)) - EPOCH2_OFFSET);
+            if (DelayedStartTime.diff > 0) {
+                if (Access_bit != 0 && (DelayedStopTime.epoch2 == 0 || DelayedStopTime.epoch2 > DelayedStartTime.epoch2))
+                    setAccess(0);                         //switch to OFF, we are Delayed Charging
+            }
+            else {
+                //starttime is in the past so we are NOT Delayed Charging, or we are Delayed Charging but the starttime has passed!
+                if (DelayedRepeat == 1)
+                    DelayedStartTime.epoch2 += 24 * 3600;                           //add 24 hours so we now have a new starttime
+                else
+                    DelayedStartTime.epoch2 = DELAYEDSTARTTIME;
+                setAccess(1);
+            }
+        }
+        //only update StopTime.diff if starttime has already passed
+        if (DelayedStopTime.epoch2 && LocalTimeSet) {
+            // Compare the times
+            time_t now = time(nullptr);             //get current local time
+            DelayedStopTime.diff = DelayedStopTime.epoch2 - (mktime(localtime(&now)) - EPOCH2_OFFSET);
+            if (DelayedStopTime.diff <= 0) {
+                //DelayedStopTime has passed
+                if (DelayedRepeat == 1)                                         //we are on a daily repetition schedule
+                    DelayedStopTime.epoch2 += 24 * 3600;                        //add 24 hours so we now have a new starttime
+                else
+                    DelayedStopTime.epoch2 = DELAYEDSTOPTIME;
+                setAccess(0);                         //switch to OFF
+            }
+        }
+        /////end of non-time critical stuff
     }
 
-    if (shouldReboot) {
-        delay(1000);
-        ESP.restart();
+    mg_mgr_poll(&mgr, 10);
+
+    //OCPP lifecycle management
+#if ENABLE_OCPP
+    if (OcppMode && !getOcppContext()) {
+        ocppInit();
+    } else if (!OcppMode && getOcppContext()) {
+        ocppDeinit();
     }
+
+    if (OcppMode) {
+        ocppLoop();
+    }
+#endif //ENABLE_OCPP
 
 #ifndef DEBUG_DISABLED
     // Remote debug over WiFi
     Debug.handle();
 #endif
 
-    // TODO move this to a once a minute loop?
-    if (DelayedStartTime.epoch2 && LocalTimeSet) {
-        // Compare the times
-        time_t now = time(nullptr);             //get current local time
-        DelayedStartTime.diff = DelayedStartTime.epoch2 - (mktime(localtime(&now)) - EPOCH2_OFFSET);
-        if (DelayedStartTime.diff > 0) {
-            if (Access_bit != 0 && (DelayedStopTime.epoch2 == 0 || DelayedStopTime.epoch2 > DelayedStartTime.epoch2))
-                setAccess(0);                         //switch to OFF, we are Delayed Charging
-        }
-        else {
-            //starttime is in the past so we are NOT Delayed Charging, or we are Delayed Charging but the starttime has passed!
-            if (DelayedRepeat == 1)
-                DelayedStartTime.epoch2 += 24 * 3600;                           //add 24 hours so we now have a new starttime
-            else
-                DelayedStartTime.epoch2 = DELAYEDSTARTTIME;
-            setAccess(1);
-        }
-    }
-    //only update StopTime.diff if starttime has already passed
-    if (DelayedStopTime.epoch2 && LocalTimeSet) {
-        // Compare the times
-        time_t now = time(nullptr);             //get current local time
-        DelayedStopTime.diff = DelayedStopTime.epoch2 - (mktime(localtime(&now)) - EPOCH2_OFFSET);
-        if (DelayedStopTime.diff <= 0) {
-            //DelayedStopTime has passed
-            if (DelayedRepeat == 1)                                         //we are on a daily repetition schedule
-                DelayedStopTime.epoch2 += 24 * 3600;                        //add 24 hours so we now have a new starttime
-            else
-                DelayedStopTime.epoch2 = DELAYEDSTOPTIME;
-            setAccess(0);                         //switch to OFF
-        }
-    }
 }
