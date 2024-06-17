@@ -5147,7 +5147,23 @@ void WiFiSetup(void) {
     sprintf(dns4url, "udp://%s:53", WiFi.dnsIP().toString().c_str());
     mgr.dns4.url = dns4url;
 
-    const char* rsa_key_pub = mg_unpacked("/data/rsa_key.pub").ptr;
+    const char* rsa_key_pub = R"RSA_KEY_PUB(
+-----BEGIN PUBLIC KEY-----
+MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAtjEWhkfKPAUrtX1GueYq
+JmDp4qSHBG6ndwikAHvteKgWQABDpwaemZdxh7xVCuEdjEkaecinNOZ0LpSCF3QO
+qflnXkvpYVxjdTpKBxo7vP5QEa3I6keJfwpoMzGuT8XOK7id6FHJhtYEXcaufALi
+mR/NXT11ikHLtluATymPdoSscMiwry0qX03yIek91lDypBNl5uvD2jxn9smlijfq
+9j0lwtpLBWJPU8vsU0uzuj7Qq5pWZFKsjiNWfbvNJXuLsupOazf5sh0yeQzL1CBL
+RUsBlYVoChTmSOyvi6kO5vW/6GLOafJF0FTdOQ+Gf3/IB6M1ErSxlqxQhHq0pb7Y
+INl7+aFCmlRjyLlMjb8xdtuedlZKv8mLd37AyPAihrq9gV74xq6c7w2y+h9213p8
+jgcmo/HvOlGaXEIOVCUu102teOckXjTni2yhEtFISCaWuaIdb5P9e0uBIy1e+Bi6
+/7A3aut5MQP07DO99BFETXyFF6EixhTF8fpwVZ5vXeIDvKKEDUGuzAziUEGIZpic
+UQ2fmTzIaTBbNlCMeTQFIpZCosM947aGKNBp672wdf996SRwg9E2VWzW2Z1UuwWV
+BPVQkHb1Hsy7C9fg5JcLKB9zEfyUH0Tm9Iur1vsuA5++JNl2+T55192wqyF0R9sb
+YtSTUJNSiSwqWt1m0FLOJD0CAwEAAQ==
+-----END PUBLIC KEY-----
+)RSA_KEY_PUB";
+
     CryptoMemAsset  *MyRSAKey = new CryptoMemAsset("RSA Key", rsa_key_pub, strlen(rsa_key_pub)+1 );
     auto cfg = FOTA.getConfig();
     //cfg.name          = fota_name;
