@@ -242,7 +242,6 @@ extern RemoteDebug Debug;
 #define DELAYEDSTOPTIME 0                                                       // The default StopTime for delayed charged, 0 = not stopping
 #define SOLARSTARTTIME 40                                                       // Seconds to keep chargecurrent at 6A
 #define OCPP_MODE 0
-#define PUBLIC_KEY "5c7a848c3445793002487608a65fa259cefb16790f7c2f4a1d10af702393f7db\0";
 
 
 // Mode settings
