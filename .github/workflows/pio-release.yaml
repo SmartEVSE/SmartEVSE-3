@@ -60,3 +60,26 @@ jobs:
           asset_path: ./${{ steps.tag.outputs.tag }}-dist.zip
           asset_name: ${{ steps.tag.outputs.tag }}-dist.zip
           asset_content_type: application/zip
+
+      - name: Install AWS CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y awscli
+
+      - name: Configure AWS credentials
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: |
+          aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+          aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+          aws configure set default.region eu-west-2
+
+      - name: Upload file to S3
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: |
+          aws s3 cp ./dist/${{ needs.build.outputs.artifact }}/firmware.debug.signed.bin s3://smartevse-3/${{ github.repository_owner }}_firmware.debug.signed.bin
+          aws s3 cp ./dist/${{ needs.build.outputs.artifact }}/firmware.signed.bin s3://smartevse-3/${{ github.repository_owner }}_firmware.signed.bin
+

@@ -3933,16 +3933,16 @@ esp32FOTA FOTA("esp32-fota-http", 1, false, true);
 void FirmwareUpdate(void *parameter) {
     _LOG_A("DINGO: url=%s.\n", downloadUrl);
     if (FOTA.forceUpdate(downloadUrl, 1)) {
-        _LOG_A("Firmware update succesfull.\n");
+        _LOG_A("Firmware update succesfull; rebooting.\n");
         downloadProgress = -1;
     } else {
         _LOG_A("ERROR: Firmware update failed; rebooting.\n");
         downloadProgress = -2;
-        delay(5000);
-        ESP.restart();
     }
-    if (downloadUrl) free(downloadUrl);
-    vTaskDelete(NULL);                                                          //end this task so it will not take up resources
+    delay(5000);                                                                //give user some time to read the message on the webserver
+    ESP.restart();
+    //if (downloadUrl) free(downloadUrl);
+    //vTaskDelete(NULL);                                                        //end this task so it will not take up resources
 }
 
 void RunFirmwareUpdate(void) {
@@ -3958,9 +3958,9 @@ void RunFirmwareUpdate(void) {
 }
 
 // Downloads firmware, flashes it, and reboot
-bool AutoUpdate(String owner, String repo, int debug) {
+bool FWUpdate(char *distr, int debug) {
     bool ret = true;
-    asprintf(&downloadUrl, "%s/%s_%s.%s", FW_DOWNLOAD_PATH, (owner == OWNER_FACT)? "fact":"comm", "firmware", debug ? "debug.signed.bin": "signed.bin"); //will be freed in FirmwareUpdate() ; format: http://s3.com/fact_firmware.debug.signed.bin
+    asprintf(&downloadUrl, "%s/%s_firmware.%ssigned.bin", FW_DOWNLOAD_PATH, distr, debug ? "debug.": ""); //will be freed in FirmwareUpdate() ; format: http://s3.com/fact_firmware.debug.signed.bin
 /*
     if () { //github routine
         // not expiring github auth for minimal rate limiting on github
@@ -4241,20 +4241,14 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         }
         ESP.restart();
     } else if (mg_http_match_uri(hm, "/autoupdate")) {
-        char url[40];
+        char owner[40];
         char buf[8];
         int debug;
-        mg_http_get_var(&hm->query, "url", url, sizeof(url));
+        mg_http_get_var(&hm->query, "owner", owner, sizeof(owner));
         mg_http_get_var(&hm->query, "debug", buf, sizeof(buf));
         debug = strtol(buf, NULL, 0);
-        if (!memcmp(url, "factory", sizeof("factory"))) {
-            if (AutoUpdate(OWNER_FACT, REPO_FACT, debug)) {
-                struct mg_http_serve_opts opts = {.root_dir = "/data", .ssi_pattern = NULL, .extra_headers = NULL, .mime_types = NULL, .page404 = NULL, .fs = &mg_fs_packed };
-                mg_http_serve_file(c, hm, "/data/update3.html", &opts);
-            } else
-                mg_http_reply(c, 400, "Content-Type: text/plain\r\n", "Autoupdate failed.");
-        } else if (!memcmp(url, "community", sizeof("community"))) {
-            if (AutoUpdate(OWNER_COMM, REPO_COMM, debug)) {
+        if (!memcmp(owner, OWNER_FACT, sizeof(OWNER_FACT)) || (!memcmp(owner, OWNER_COMM, sizeof(OWNER_COMM)))) {
+            if (FWUpdate(owner, debug)) {
                 struct mg_http_serve_opts opts = {.root_dir = "/data", .ssi_pattern = NULL, .extra_headers = NULL, .mime_types = NULL, .page404 = NULL, .fs = &mg_fs_packed };
                 mg_http_serve_file(c, hm, "/data/update3.html", &opts);
             } else
@@ -4262,11 +4256,6 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         } else
             mg_http_reply(c, 400, "Content-Type: text/plain\r\n", "Autoupdate wrong parameter.");
     } else if (mg_http_match_uri(hm, "/autoupdate_progress")) {
-/*        char *Str;
-        asprintf(&Str,"Autoupdating %i / %i.\n", downloadProgress, downloadSize);
-        mg_http_reply(c, 200, "Content-Type: text/plain\r\n", Str);
-        free(Str);
-*/
         DynamicJsonDocument doc(64); // https://arduinojson.org/v6/assistant/
         doc["progress"] = downloadProgress;
         doc["size"] = downloadSize;

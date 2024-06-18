@@ -466,8 +466,8 @@ bool esp32FOTA::execOTA()
     } else {
         log_i("This update is for U_FLASH only");
     }
-    // handle the application partition and restart on success
-    bool ret = execOTA( U_FLASH, true );
+    // handle the application partition and DO NOT restart
+    bool ret = execOTA( U_FLASH, false );
 
     stopStream();
 

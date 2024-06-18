@@ -15,17 +15,8 @@
         let REPO_FACT="SmartEVSE-3";
         let OWNER_COMM="dingo35";
         let REPO_COMM="SmartEVSE-3.5";
-        function update_comm() {
-            window.location.href = "/autoupdate?url=community&debug=0";
-        }
-        function update_fact() {
-            window.location.href = "/autoupdate?url=factory&debug=0";
-        }
-        function update_comm_debug() {
-            window.location.href = "/autoupdate?url=community&debug=1";
-        }
-        function update_fact_debug() {
-            window.location.href = "/autoupdate?url=factory&debug=1";
+        function update_fw(owner, debug) {
+            window.location.href = "/autoupdate?owner=" + owner + "&debug=" + debug;
         }
 
     </script>
@@ -51,8 +42,8 @@
               <td><a href="https://github.com/"
                      onclick="location.href=this.href + OWNER_FACT + '/' + REPO_FACT + '/releases';return false;"><script>document.write(OWNER_FACT)</script></a></td>
               <td><div id="latest_fact"></div></td>
-              <td><button onclick="update_fact()" style="width: 100px; display:inline-block;">Standard</button>
-              <td><button onclick="update_fact_debug()" style="width: 100px; display:inline-block;">Debug</button>
+              <td><button onclick="update_fw(OWNER_FACT, 0)" style="width: 100px; display:inline-block;">Standard</button>
+              <td><button onclick="update_fw(OWNER_FACT, 1)" style="width: 100px; display:inline-block;">Debug</button>
             </tr>
             <tr>
                 <td>Community&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp</td>
@@ -60,8 +51,8 @@
               <td><a href="https://github.com/"
                      onclick="location.href=this.href + OWNER_COMM + '/' + REPO_COMM + '/releases';return false;"><script>document.write(OWNER_COMM)</script></a></td>
               <td><div id="latest_comm"></div></td>
-              <td><button onclick="update_comm()" style="width: 100px; display:inline-block;">Standard</button>
-              <td><button onclick="update_comm_debug()" style="width: 100px; display:inline-block;">Debug</button>
+              <td><button onclick="update_fw(OWNER_COMM, 0)" style="width: 100px; display:inline-block;">Standard</button>
+              <td><button onclick="update_fw(OWNER_COMM, 1)" style="width: 100px; display:inline-block;">Debug</button>
             </tr>
           </table>
           <br>
