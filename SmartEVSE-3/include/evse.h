@@ -511,9 +511,7 @@ extern uint32_t serialnr;
 extern uint8_t MenuItems[MENU_EXIT];
 
 enum EnableC2_t { NOT_PRESENT, ALWAYS_OFF, SOLAR_OFF, ALWAYS_ON, AUTO };
-enum Modem_t { NOTPRESENT, EXPERIMENT };
 const static char StrEnableC2[][12] = { "Not present", "Always Off", "Solar Off", "Always On", "Auto" };
-const static char StrModem[][12] = { "Not present", "Experiment" };
 enum Single_Phase_t { FALSE, GOING_TO_SWITCH, AFTER_SWITCH };
 extern Single_Phase_t Switching_To_Single_Phase;
 extern uint8_t Nr_Of_Phases_Charging;

@@ -152,7 +152,6 @@ uint8_t Initialized = INITIALIZED;                                          // W
 String TZinfo = "";                                                         // contains POSIX time string
 
 EnableC2_t EnableC2 = ENABLE_C2;                                            // Contactor C2
-Modem_t Modem = NOTPRESENT;                                                 // Is an ISO15118 modem installed (experimental)
 uint16_t maxTemp = MAX_TEMPERATURE;
 
 int16_t Irms[3]={0, 0, 0};                                                  // Momentary current per Phase (23 = 2.3A) (resolution 100mA)
@@ -796,12 +795,12 @@ void setState(uint8_t NewState) {
 #endif
             break;
         case STATE_B:
-            if (Modem)
-                CP_ON;
+#if MODEM
+            CP_ON;
+            DisconnectTimeCounter = -1;                                         // Disable Disconnect timer. Car is connected
+#endif
             CONTACTOR1_OFF;
             CONTACTOR2_OFF;
-            if (Modem)
-                DisconnectTimeCounter = -1;                                         // Disable Disconnect timer. Car is connected
             timerAlarmWrite(timerA, PWM_95, false);                             // Enable Timer alarm, set to diode test (95%)
             SetCurrent(ChargeCurrent);                                          // Enable PWM
             break;      
@@ -2167,11 +2166,12 @@ void EVSEStates(void * parameter) {
                 } else if (IsCurrentAvailable()) {                             
                     BalancedMax[0] = MaxCapacity * 10;
                     Balanced[0] = ChargeCurrent;                                // Set pilot duty cycle to ChargeCurrent (v2.15)
-                    if (Modem == EXPERIMENT && ModemStage == 0){
+#if MODEM
+                    if (ModemStage == 0)
                         setState(STATE_MODEM_REQUEST);
-                    }else{
+                    else
+#endif
                         setState(STATE_B);                                          // switch to State B
-                    }
                     ActivationMode = 30;                                        // Activation mode is triggered if state C is not entered in 30 seconds.
                     AccessTimer = 0;
                 } else if (Mode == MODE_SOLAR) {                                // Not enough power:
@@ -2757,7 +2757,7 @@ void SetupMQTTClient() {
         announce("Home Battery Current", "sensor");
     }
 
-    if (Modem) {
+#if MODEM
         //set the parameters for modem/SoC sensor entities:
         optional_payload = jsna("unit_of_measurement","%") + jsna("value_template", R"({{ none if (value | int == -1) else (value | int) }})");
         announce("EV Initial SoC", "sensor");
@@ -2776,7 +2776,7 @@ void SetupMQTTClient() {
         announce("EVCCID", "sensor");
         optional_payload = jsna("state_topic", String(MQTTprefix + "/RequiredEVCCID")) + jsna("command_topic", String(MQTTprefix + "/Set/RequiredEVCCID"));
         announce("Required EVCCID", "text");
-    }
+#endif
 
     if (EVMeter) {
         //set the parameters for and announce other sensor entities:
@@ -2813,7 +2813,6 @@ void SetupMQTTClient() {
     announce("ESP Uptime", "sensor");
 
 #if MODEM
-    if (Modem) {
         optional_payload = jsna("unit_of_measurement","%") + jsna("value_template", R"({{ (value | int / 1024 * 100) | round(0) }})");
         announce("CP PWM", "sensor");
 
@@ -2821,7 +2820,6 @@ void SetupMQTTClient() {
         optional_payload += jsna("command_topic", String(MQTTprefix + "/Set/CPPWMOverride")) + jsna("min", "-1") + jsna("max", "100") + jsna("mode","slider");
         optional_payload += jsna("command_template", R"({{ (value | int * 1024 / 100) | round }})");
         announce("CP PWM Override", "number");
-    }
 #endif
     //set the parameters for and announce select entities, overriding automatic state_topic:
     optional_payload = jsna("state_topic", String(MQTTprefix + "/Mode")) + jsna("command_topic", String(MQTTprefix + "/Set/Mode"));
@@ -2867,7 +2865,6 @@ void mqttPublishData() {
         MQTTclient.publish(MQTTprefix + "/WiFiBSSID", String(WiFi.BSSIDstr()), true, 0);
         MQTTclient.publish(MQTTprefix + "/WiFiRSSI", String(WiFi.RSSI()), false, 0);
 #if MODEM
-        if (Modem) {
             MQTTclient.publish(MQTTprefix + "/CPPWM", String(CurrentPWM), false, 0);
             MQTTclient.publish(MQTTprefix + "/CPPWMOverride", String(CPDutyOverride ? String(CurrentPWM) : "-1"), true, 0);
             MQTTclient.publish(MQTTprefix + "/EVInitialSoC", String(InitialSoC), true, 0);
@@ -2879,7 +2876,6 @@ void mqttPublishData() {
             MQTTclient.publish(MQTTprefix + "/EVEnergyRequest", String(EnergyRequest), true, 0);
             MQTTclient.publish(MQTTprefix + "/EVCCID", String(EVCCID), true, 0);
             MQTTclient.publish(MQTTprefix + "/RequiredEVCCID", String(RequiredEVCCID), true, 0);
-        }
 #endif
         if (EVMeter) {
             MQTTclient.publish(MQTTprefix + "/EVChargePower", String(PowerMeasured), false, 0);
@@ -3226,8 +3222,9 @@ ModbusMessage MBEVMeterResponse(ModbusMessage request) {
             EnergyEV = EV_import_active_energy - EV_export_active_energy;
             if (ResetKwh == 2) EnergyMeterStart = EnergyEV;                 // At powerup, set EnergyEV to kwh meter value
             EnergyCharged = EnergyEV - EnergyMeterStart;                    // Calculate Energy
-            if (Modem)
-                RecomputeSoC();
+#if MODEM
+            RecomputeSoC();
+#endif
         } else if (MB.Register == EMConfig[EVMeter].PRegister) {
             // Power measurement
             PowerMeasured = receivePowerMeasurement(MB.Data, EVMeter);
@@ -3692,11 +3689,6 @@ void read_settings() {
 
 
         EnableC2 = (EnableC2_t) preferences.getUShort("EnableC2", ENABLE_C2);
-#if MODEM
-        Modem = EXPERIMENT;
-#else
-        Modem = NOTPRESENT;
-#endif
         strncpy(RequiredEVCCID, preferences.getString("RequiredEVCCID", "").c_str(), sizeof(RequiredEVCCID));
         maxTemp = preferences.getUShort("maxTemp", MAX_TEMPERATURE);
 
@@ -4496,13 +4488,11 @@ _LOG_A("DINGO: checkpoint 2 boot partition=%s.\n", esp_ota_get_boot_partition()-
         doc["settings"]["solar_start_current"] = StartCurrent;
         doc["settings"]["solar_stop_time"] = StopTime;
         doc["settings"]["enable_C2"] = StrEnableC2[EnableC2];
-        doc["settings"]["modem"] = StrModem[Modem];
         doc["settings"]["mains_meter"] = EMConfig[MainsMeter].Desc;
         doc["settings"]["starttime"] = (DelayedStartTime.epoch2 ? DelayedStartTime.epoch2 + EPOCH2_OFFSET : 0);
         doc["settings"]["stoptime"] = (DelayedStopTime.epoch2 ? DelayedStopTime.epoch2 + EPOCH2_OFFSET : 0);
         doc["settings"]["repeat"] = DelayedRepeat;
 #if MODEM
-        if (Modem) {
             doc["settings"]["required_evccid"] = RequiredEVCCID;
             doc["ev_state"]["initial_soc"] = InitialSoC;
             doc["ev_state"]["remaining_soc"] = RemainingSoC;
@@ -4512,7 +4502,6 @@ _LOG_A("DINGO: checkpoint 2 boot partition=%s.\n", esp_ota_get_boot_partition()-
             doc["ev_state"]["computed_soc"] = ComputedSoC;
             doc["ev_state"]["evccid"] = EVCCID;
             doc["ev_state"]["time_until_full"] = TimeUntilFull;
-        }
 #endif
 
 #if MQTT
@@ -4694,11 +4683,6 @@ _LOG_A("DINGO: checkpoint 2 boot partition=%s.\n", esp_ota_get_boot_partition()-
             EnableC2 = (EnableC2_t) request->getParam("enable_C2")->value().toInt();
             write_settings();
             doc["settings"]["enable_C2"] = StrEnableC2[EnableC2];
-        }
-
-        if(request->hasParam("modem")) {
-            Modem = (Modem_t) request->getParam("modem")->value().toInt();
-            doc["settings"]["modem"] = StrModem[Modem];
         }
 
         if(request->hasParam("stop_timer")) {
@@ -4938,8 +4922,9 @@ _LOG_A("DINGO: checkpoint 2 boot partition=%s.\n", esp_ota_get_boot_partition()-
                 EnergyEV = EV_import_active_energy - EV_export_active_energy;
                 if (ResetKwh == 2) EnergyMeterStart = EnergyEV;                 // At powerup, set EnergyEV to kwh meter value
                 EnergyCharged = EnergyEV - EnergyMeterStart;                    // Calculate Energy
-                if (Modem)
-                    RecomputeSoC();
+#if MODEM
+                RecomputeSoC();
+#endif
                 doc["ev_meter"]["import_active_power"] = PowerMeasured;
                 doc["ev_meter"]["import_active_energy"] = EV_import_active_energy;
                 doc["ev_meter"]["export_active_energy"] = EV_export_active_energy;
@@ -5386,13 +5371,11 @@ void ocppInit() {
         "Celsius");
 
 #if MODEM
-    if (Modem) {
         addMeterValueInput([] () {
                 return (float)ComputedSoC;
             },
             "SoC",
             "Percent");
-    }
 #endif
 
     addErrorCodeInput([] () {
