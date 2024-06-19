@@ -5060,6 +5060,11 @@ void onWifiEvent(WiFiEvent_t event) {
             break;
         case WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_CONNECTED:
             _LOG_A("Connected or reconnected to WiFi\n");
+            //load dhcp dns ip4 address into mongoose
+            static char dns4url[]="udp://123.123.123.123:53";
+            sprintf(dns4url, "udp://%s:53", WiFi.dnsIP().toString().c_str());
+            mgr.dns4.url = dns4url;
+
 
 #if MQTT
             if (!MQTTtimer) {
@@ -5116,11 +5121,6 @@ void timeSyncCallback(struct timeval *tv)
 // Setup Wifi 
 void WiFiSetup(void) {
     mg_mgr_init(&mgr);  // Initialise event manager
-    //load dhcp dns ip4 address into mongoose
-    static char dns4url[]="udp://123.123.123.123:53";
-    sprintf(dns4url, "udp://%s:53", WiFi.dnsIP().toString().c_str());
-    mgr.dns4.url = dns4url;
-
     const char* rsa_key_pub = R"RSA_KEY_PUB(
 -----BEGIN PUBLIC KEY-----
 MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAtjEWhkfKPAUrtX1GueYq
