@@ -5860,7 +5860,7 @@ void loop() {
         /////end of non-time critical stuff
     }
 
-    mg_mgr_poll(&mgr, 10);
+    mg_mgr_poll(&mgr, 100);                                                     // TODO increase this parameter to up to 1000 to make loop() less greedy
 
     //OCPP lifecycle management
 #if ENABLE_OCPP
