@@ -5057,14 +5057,13 @@ void onWifiEvent(WiFiEvent_t event) {
     switch (event) {
         case WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP:
             _LOG_A("Connected to AP: %s\nLocal IP: %s\n", WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
-            break;
-        case WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_CONNECTED:
-            _LOG_A("Connected or reconnected to WiFi\n");
             //load dhcp dns ip4 address into mongoose
             static char dns4url[]="udp://123.123.123.123:53";
             sprintf(dns4url, "udp://%s:53", WiFi.dnsIP().toString().c_str());
             mgr.dns4.url = dns4url;
-
+            break;
+        case WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_CONNECTED:
+            _LOG_A("Connected or reconnected to WiFi\n");
 
 #if MQTT
             if (!MQTTtimer) {
