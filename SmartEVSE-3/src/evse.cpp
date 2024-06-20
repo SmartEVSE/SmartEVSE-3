@@ -4241,52 +4241,74 @@ int StoreTimeString(String DelayedTimeStr, DelayedTimeStruct *DelayedTime) {
     return 1;
 }
 
-// takes TZname (format: Europe/Berlin) , gets TZ_INFO (posix string, format: CET-1CEST,M3.5.0,M10.5.0/3) and sets and stores timezonestring accordingly
-void setTimeZone(char *tzname) {
+void setTimeZone(void) {
+    HTTPClient httpClient;
+    // lookup current timezone
+    httpClient.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+    httpClient.begin("http://worldtimeapi.org/api/ip");
+    int httpCode = httpClient.GET();  //Make the request
 
-    struct mg_fs *fs = &mg_fs_packed;
-  //struct mg_str mg_file_read(struct mg_fs *fs, const char *path) {
-    void *fp;
-    size_t filelen, filepos = 0;
-    const char *path = "/data/zones.csv";
-    fs->st(path, &filelen, NULL);
-    if ((fp = fs->op(path, MG_FS_READ)) != NULL) {
-        bool found = false;
-        char line[80];
-        int pos = 0;
-        char c;
-        do {
-            pos = 0;
-            do {
-                fs->rd(fp, &c, 1);
-                if (filepos < filelen)
-                    line[pos]=c;
-                pos++;
-                filepos++;
-            } while (pos < sizeof(line) - 1 && c != '\n' && filepos < filelen);
-            //terminate with NULL character
-            line[pos]=0;
-            found = strstr(line, tzname);
-            if (found) {
-                char *pos = strstr(line, ",");
-                pos = strstr(pos, "\"");
-                char *tz_info = pos + 1;
-                pos = strstr(pos, "\"") - 1;
-                pos = NULL; //end string with null char
-                _LOG_A("Detected Timezone info: TZname = %s, tz_info=%s.\n", tzname, tz_info);
-                setenv("TZ",tz_info,1);
-                TZinfo = String(tz_info);
-                tzset();
-                if (preferences.begin("settings", false) ) {
-                    preferences.putString("TimezoneInfo", tz_info);
-                    preferences.end();
-                }
-                break;
-            }
-        } while (filepos < filelen && !found);
-        fs->cl(fp);
+    // only handle 200/301, fail on everything else
+    if( httpCode != HTTP_CODE_OK && httpCode != HTTP_CODE_MOVED_PERMANENTLY ) {
+        _LOG_A("Error on HTTP request (httpCode=%i)\n", httpCode);
+        httpClient.end();
+        return;
     }
+
+    // The filter: it contains "true" for each value we want to keep
+    DynamicJsonDocument  filter(16);
+    filter["timezone"] = true;
+    DynamicJsonDocument doc2(80);
+    DeserializationError error = deserializeJson(doc2, httpClient.getStream(), DeserializationOption::Filter(filter));
+    httpClient.end();
+    if (error) {
+        _LOG_A("deserializeJson() failed: %s\n", error.c_str());
+        return;
+    }
+    String tzname = doc2["timezone"];
+    if (tzname == "") {
+        _LOG_A("Could not detect Timezone.\n");
+        return;
+    }
+    _LOG_A("Timezone detected: tz=%s.\n", tzname.c_str());
+
+    // takes TZname (format: Europe/Berlin) , gets TZ_INFO (posix string, format: CET-1CEST,M3.5.0,M10.5.0/3) and sets and stores timezonestring accordingly
+    //httpClient.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+    WiFiClient * stream = httpClient.getStreamPtr();
+    String l;
+    char *URL;
+    asprintf(&URL, "%s/zones.csv", FW_DOWNLOAD_PATH); //will be freed
+    httpClient.begin(URL);
+    httpCode = httpClient.GET();  //Make the request
+
+    // only handle 200/301, fail on everything else
+    if( httpCode != HTTP_CODE_OK && httpCode != HTTP_CODE_MOVED_PERMANENTLY ) {
+        _LOG_A("Error on HTTP request (httpCode=%i)\n", httpCode);
+        httpClient.end();
+        FREE(URL);
+        return;
+    }
+
+    stream = httpClient.getStreamPtr();
+    while(httpClient.connected() && stream->available()) {
+        l = stream->readStringUntil('\n');
+        if (l.indexOf(tzname) > 0) {
+            int from = l.indexOf("\",\"") + 3;
+            TZinfo = l.substring(from, l.length() - 1);
+            _LOG_A("Detected Timezone info: TZname = %s, tz_info=%s.\n", tzname.c_str(), TZinfo.c_str());
+            setenv("TZ",TZinfo.c_str(),1);
+            tzset();
+            if (preferences.begin("settings", false) ) {
+                preferences.putString("TimezoneInfo", TZinfo);
+                preferences.end();
+            }
+            break;
+        }
+    }
+    httpClient.end();
+    FREE(URL);
 }
+
 
 // wrapper so hasParam and getParam still work
 class webServerRequest {
@@ -4385,61 +4407,6 @@ static void timer_fn(void *arg) {
     if (s_conn == NULL) s_conn = mg_mqtt_connect(mgr, s_mqtt_url, &opts, fn_mqtt, NULL);
 }
 #endif
-
-//mongoose http_client for picking up the timezone
-//url to get current timezone in Europe/Berlin format:
-static const char *s_url = "http://worldtimeapi.org/api/ip";
-//urls for converting timezone to posix string:
-//static const char *s_url = "https://raw.githubusercontent.com/nayarsystems/posix_tz_db/master/zones.csv";
-static const char *s_post_data = NULL;      // POST data
-static const uint64_t s_timeout_ms = 1500;  // Connect timeout in milliseconds
-
-// Print HTTP response and signal that we're done
-static void fn_client(struct mg_connection *c, int ev, void *ev_data) {
-    if (ev == MG_EV_OPEN) {
-        // Connection created. Store connect expiration time in c->data
-        *(uint64_t *) c->data = mg_millis() + s_timeout_ms;
-    } else if (ev == MG_EV_POLL) {
-        if (mg_millis() > *(uint64_t *) c->data && (c->is_connecting || c->is_resolving)) {
-            mg_error(c, "Connect timeout");
-        }
-    } else if (ev == MG_EV_CONNECT) {
-        // Connected to server. Extract host name from URL
-        struct mg_str host = mg_url_host(s_url);
-
-        if (mg_url_is_ssl(s_url)) {
-            struct mg_tls_opts opts = {.ca = empty, .cert = empty, .key = empty, .name = mg_url_host(s_url)};
-            mg_tls_init(c, &opts);
-        }
-
-        // Send request
-        int content_length = s_post_data ? strlen(s_post_data) : 0;
-        mg_printf(c,
-                  "%s %s HTTP/1.0\r\n"
-                  "Host: %.*s\r\n"
-                  "Content-Type: octet-stream\r\n"
-                  "Content-Length: %d\r\n"
-                  "\r\n",
-                  s_post_data ? "POST" : "GET", mg_url_uri(s_url), (int) host.len,
-                  host.ptr, content_length);
-        mg_send(c, s_post_data, content_length);
-    } else if (ev == MG_EV_HTTP_MSG) {
-        // Response is received. Print it
-        struct mg_http_message *hm = (struct mg_http_message *) ev_data;
-        if (hm->message.len > 1) {
-            struct mg_str json = hm->body;
-            char *tz = mg_json_get_str(json, "$.timezone");
-            _LOG_A("Timezone detected: tz=%s.\n", tz);
-            setTimeZone(tz);
-        } else {
-            _LOG_A("Could not detect Timezone.\n");
-        }
-        c->is_draining = 1;        // Tell mongoose to close this connection
-        *(bool *) c->fn_data = true;  // Tell event loop to stop
-    } else if (ev == MG_EV_ERROR) {
-        *(bool *) c->fn_data = true;  // Error, tell event loop to stop
-    }
-}
 
 // Connection event handler function
 // indenting lower level two spaces to stay compatible with old StartWebServer
@@ -5299,6 +5266,10 @@ void onWifiEvent(WiFiEvent_t event) {
             static char dns4url[]="udp://123.123.123.123:53";
             sprintf(dns4url, "udp://%s:53", WiFi.dnsIP().toString().c_str());
             mgr.dns4.url = dns4url;
+            if (TZinfo == "") {
+                setTimeZone();
+            }
+
             break;
         case WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_CONNECTED:
             _LOG_A("Connected or reconnected to WiFi\n");
@@ -5312,11 +5283,6 @@ void onWifiEvent(WiFiEvent_t event) {
 #endif
             mg_log_set(MG_LL_NONE);
             //mg_log_set(MG_LL_VERBOSE);
-
-            if (TZinfo == "") {
-                bool done = false;              // Event handler flips it to true
-                mg_http_connect(&mgr, s_url, fn_client, &done);  // Create client connection
-            }
 
             if (!HttpListener80) {
                 HttpListener80 = mg_http_listen(&mgr, "http://0.0.0.0:80", fn_http_server, NULL);  // Setup listener
