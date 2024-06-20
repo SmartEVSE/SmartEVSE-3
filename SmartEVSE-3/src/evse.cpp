@@ -936,7 +936,7 @@ char IsCurrentAvailable(void) {
         _LOG_D("No current available MaxMains line %d. ActiveEVSE=%i, Baseload=%.1fA, MinCurrent=%iA, MaxMains=%iA.\n", __LINE__, ActiveEVSE, (float) Baseload/10, MinCurrent, MaxMains);
         return 0;                                                           // Not enough current available!, return with error
     }
-    if ((ActiveEVSE * (MinCurrent * 10) + Baseload_EV) > (MaxCircuit * 10)) {
+    if ((Mode != MODE_NORMAL || LoadBl != 0) && ((ActiveEVSE * (MinCurrent * 10) + Baseload_EV) > (MaxCircuit * 10))) { //ignore MaxCircuit in Mode == Normal && LoadBl == 0
         _LOG_D("No current available MaxCircuit line %d. ActiveEVSE=%i, Baseload_EV=%.1fA, MinCurrent=%iA, MaxCircuit=%iA.\n", __LINE__, ActiveEVSE, (float) Baseload_EV/10, MinCurrent, MaxCircuit);
         return 0;                                                           // Not enough current available!, return with error
     }
@@ -1082,7 +1082,10 @@ void CalcBalancedCurrent(char mod) {
             IsetBalanced = ChargeCurrent;                                       // No Load Balancing in Normal Mode. Set current to ChargeCurrent (fix: v2.05)
         if (ActiveEVSE && mod) {                                                // Only if we have active EVSE's and New EVSE charging
             // Set max combined charge current to MaxMains - Baseload, or MaxCircuit - Baseload_EV if that is less
-            IsetBalanced = min((MaxMains * 10) - Baseload, (MaxCircuit * 10 ) - Baseload_EV); //TODO: why are we checking MaxMains and MaxCircuit while we are in Normal mode?
+            if (LoadBl == 1)
+                IsetBalanced = min((MaxMains * 10) - Baseload, (MaxCircuit * 10 ) - Baseload_EV);
+            else
+                IsetBalanced = (MaxMains * 10) - Baseload;                      // ignore MaxCircuit in Normal Mode and LoadBl == 0
                                                                                               //TODO: capacity rate limiting here?
         }
     } //end MODE_NORMAL
@@ -1173,8 +1176,8 @@ void CalcBalancedCurrent(char mod) {
     // Reset flag that keeps track of new MainsMeter measurements
     phasesLastUpdateFlag = false;
 
-    // guard MaxCircuit in all modes; slave doesnt run CalcBalancedCurrent
-    if (IsetBalanced > (MaxCircuit * 10) - Baseload_EV)
+    // guard MaxCircuit in all modes, unless mode Normal and LoadBl == 0; slave doesnt run CalcBalancedCurrent
+    if ((Mode != MODE_NORMAL || LoadBl != 0) && IsetBalanced > (MaxCircuit * 10) - Baseload_EV)
         IsetBalanced = MaxCircuit * 10 - Baseload_EV; //limiting is per phase so no Nr_Of_Phases_Charging here!
 
     _LOG_V("Checkpoint 4 Isetbalanced=%.1f A.\n", (float)IsetBalanced/10);
