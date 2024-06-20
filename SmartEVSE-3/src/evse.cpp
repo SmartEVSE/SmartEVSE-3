@@ -6,9 +6,8 @@
 #include <FS.h>
 
 #include <WiFi.h>
-
-#include <esp32fota.h>
 #include "esp_ota_ops.h"
+#include "mbedtls/md_internal.h"
 
 #include <HTTPClient.h>
 #include <WiFiManager.h>
@@ -131,6 +130,7 @@ uint8_t LoadBl = LOADBL;                                                    // L
 uint8_t Switch = SWITCH;                                                    // External Switch (0:Disable / 1:Access B / 2:Access S / 3:Smart-Solar B / 4:Smart-Solar S)
                                                                             // B=momentary push <B>utton, S=toggle <S>witch
 uint8_t RCmon = RC_MON;                                                     // Residual Current Monitor (0:Disable / 1:Enable)
+uint8_t AutoUpdate = AUTOUPDATE;                                            // Automatic Firmware Update (0:Disable / 1:Enable)
 uint16_t StartCurrent = START_CURRENT;
 uint16_t StopTime = STOP_TIME;
 uint16_t ImportCurrent = IMPORT_CURRENT;
@@ -272,7 +272,13 @@ int homeBatteryLastUpdate = 0; // Time in milliseconds
 char *downloadUrl = NULL;
 int downloadProgress = 0;
 int downloadSize = 0;
-
+//#define FW_UPDATE_DELAY 30        //DINGO TODO                                            // time between detection of new version and actual update in seconds
+#define FW_UPDATE_DELAY 3600                                                    // time between detection of new version and actual update in seconds
+uint16_t firmwareUpdateTimer = 0;                                               // timer for firmware updates in seconds, max 0xffff = approx 18 hours
+                                                                                // 0 means timer inactive
+                                                                                // 0 < timer < FW_UPDATE_DELAY means we are in countdown for an actual update
+                                                                                // FW_UPDATE_DELAY <= timer <= 0xffff means we are in countdown for checking
+                                                                                //                                              whether an update is necessary
 
 struct EMstruct EMConfig[EM_CUSTOM + 1] = {
     /* DESC,      ENDIANNESS,      FCT, DATATYPE,            U_REG,DIV, I_REG,DIV, P_REG,DIV, E_REG_IMP,DIV, E_REG_EXP, DIV */
@@ -1701,6 +1707,9 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
         case MENU_WIFI:
             WIFImode = val;
             break;    
+        case MENU_AUTOUPDATE:
+            AutoUpdate = val;
+            break;
 
         // Status writeable
         case STATUS_STATE:
@@ -1823,6 +1832,8 @@ uint16_t getItemValue(uint8_t nav) {
 #endif //ENABLE_OCPP
         case MENU_WIFI:
             return WIFImode;    
+        case MENU_AUTOUPDATE:
+            return AutoUpdate;
 
         // Status writeable
         case STATUS_STATE:
@@ -3689,6 +3700,7 @@ void read_settings() {
             setenv("TZ",TZinfo.c_str(),1);
             tzset();
         }
+        AutoUpdate = preferences.getUChar("AutoUpdate", AUTOUPDATE);
 
 
         EnableC2 = (EnableC2_t) preferences.getUShort("EnableC2", ENABLE_C2);
@@ -3767,6 +3779,7 @@ void write_settings(void) {
     preferences.putUShort("EnableC2", EnableC2);
     preferences.putString("RequiredEVCCID", String(RequiredEVCCID));
     preferences.putUShort("maxTemp", maxTemp);
+    preferences.putUChar("AutoUpdate", AutoUpdate);
 
 #if MQTT
     preferences.putString("MQTTpassword", MQTTpassword);
@@ -3800,7 +3813,7 @@ void write_settings(void) {
 
     ConfigChanged = 1;
 }
-/*
+
 //github.com L1
     const char* root_ca_github = R"ROOT_CA(
 -----BEGIN CERTIFICATE-----
@@ -3827,11 +3840,8 @@ CV4Ks2dH/hzg1cEo70qLRDEmBDeNiXQ2Lu+lIg+DdEmSx/cQwgwp+7e9un/jX9Wf
 8qn0dNW44bOwgeThpWOjzOoEeJBuv/c=
 -----END CERTIFICATE-----
 )ROOT_CA";
-*/
-HTTPClient _http;
-WiFiClientSecure _client;
 
-/*
+
 // get version nr. of latest release of off github
 // input:
 // owner_repo format: dingo35/SmartEVSE-3.5
@@ -3840,35 +3850,30 @@ WiFiClientSecure _client;
 // version -- null terminated string with latest version of this repo
 // downloadUrl -- global pointer to null terminated string with the url where this version can be downloaded
 bool getLatestVersion(String owner_repo, String asset_name, char *version) {
+    HTTPClient httpClient;
     String useURL = "https://api.github.com/repos/" + owner_repo + "/releases/latest";
-    _http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+    httpClient.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
 
     const char* url = useURL.c_str();
     _LOG_A("Connecting to: %s.\n", url );
     if( String(url).startsWith("https") ) {
-        _client.setCACert(root_ca_github); // OR
-        //_client.setInsecure();
-        _http.begin( _client, url );
+        httpClient.begin(url, root_ca_github);
     } else {
-        _http.begin( url );
+        httpClient.begin(url);
     }
-    _http.addHeader("User-Agent", "SmartEVSE-v3");
-    _http.addHeader("Accept", "application/vnd.github+json");
-    _http.addHeader("X-GitHub-Api-Version", "2022-11-28" );
+    httpClient.addHeader("User-Agent", "SmartEVSE-v3");
+    httpClient.addHeader("Accept", "application/vnd.github+json");
+    httpClient.addHeader("X-GitHub-Api-Version", "2022-11-28" );
     const char* get_headers[] = { "Content-Length", "Content-type", "Accept-Ranges" };
-    _http.collectHeaders( get_headers, sizeof(get_headers)/sizeof(const char*) );
-    int httpCode = _http.GET();  //Make the request
+    httpClient.collectHeaders( get_headers, sizeof(get_headers)/sizeof(const char*) );
+    int httpCode = httpClient.GET();  //Make the request
 
     // only handle 200/301, fail on everything else
     if( httpCode != HTTP_CODE_OK && httpCode != HTTP_CODE_MOVED_PERMANENTLY ) {
         // This error may be a false positive or a consequence of the network being disconnected.
         // Since the network is controlled from outside this class, only significant error messages are reported.
-        if( httpCode > 0 ) {
-            _LOG_A("Error on HTTP request (httpCode=%i)\n", httpCode);
-        } else {
-            _LOG_A("Unknown HTTP response");
-        }
-        _http.end();
+        _LOG_A("Error on HTTP request (httpCode=%i)\n", httpCode);
+        httpClient.end();
         return false;
     }
     // The filter: it contains "true" for each value we want to keep
@@ -3879,18 +3884,18 @@ bool getLatestVersion(String owner_repo, String asset_name, char *version) {
 
     // Deserialize the document
     DynamicJsonDocument doc2(1500);
-    DeserializationError error = deserializeJson(doc2, _http.getStream(), DeserializationOption::Filter(filter));
+    DeserializationError error = deserializeJson(doc2, httpClient.getStream(), DeserializationOption::Filter(filter));
 
     if (error) {
         _LOG_A("deserializeJson() failed: %s\n", error.c_str());
-        _http.end();  // We're done with HTTP - free the resources
+        httpClient.end();  // We're done with HTTP - free the resources
         return false;
     }
     const char* tag_name = doc2["tag_name"]; // "v3.6.1"
     if (!tag_name) {
         //no version found
         _LOG_A("ERROR: LatestVersion of repo %s not found.\n", owner_repo.c_str());
-        _http.end();  // We're done with HTTP - free the resources
+        httpClient.end();  // We're done with HTTP - free the resources
         return false;
     }
     else
@@ -3898,50 +3903,310 @@ bool getLatestVersion(String owner_repo, String asset_name, char *version) {
         strlcpy(version, tag_name, 32);
         //strlcpy(version, tag_name, sizeof(version));
     _LOG_V("Found latest version:%s.\n", version);
-    for (JsonObject asset : doc2["assets"].as<JsonArray>()) {
+
+    httpClient.end();  // We're done with HTTP - free the resources
+    return true;
+/*    for (JsonObject asset : doc2["assets"].as<JsonArray>()) {
         String name = asset["name"] | "";
         if (name == asset_name) {
             const char* asset_browser_download_url = asset["browser_download_url"];
             if (!asset_browser_download_url) {
                 // no download url found
                 _LOG_A("ERROR: Downloadurl of asset %s in repo %s not found.\n", asset_name.c_str(), owner_repo.c_str());
-                _http.end();  // We're done with HTTP - free the resources
+                httpClient.end();  // We're done with HTTP - free the resources
                 return false;
             } else {
                 asprintf(&downloadUrl, "%s", asset_browser_download_url);        //will be freed in FirmwareUpdate()
                 _LOG_V("Found asset: name=%s, url=%s.\n", name.c_str(), downloadUrl);
-                _http.end();  // We're done with HTTP - free the resources
+                httpClient.end();  // We're done with HTTP - free the resources
                 return true;
             }
         }
     }
     _LOG_A("ERROR: could not find asset %s in repo %s at version %s.\n", asset_name.c_str(), owner_repo.c_str(), version);
-    _http.end();  // We're done with HTTP - free the resources
+    httpClient.end();  // We're done with HTTP - free the resources
+    return false;*/
+}
+
+
+unsigned char *signature = NULL;
+#define SIGNATURE_LENGTH 512
+
+// SHA-Verify the OTA partition after it's been written
+// https://techtutorialsx.com/2018/05/10/esp32-arduino-mbed-tls-using-the-sha-256-algorithm/
+// https://github.com/ARMmbed/mbedtls/blob/development/programs/pkey/rsa_verify.c
+bool validate_sig( const esp_partition_t* partition, unsigned char *signature, int size )
+{
+    const char* rsa_key_pub = R"RSA_KEY_PUB(
+-----BEGIN PUBLIC KEY-----
+MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAtjEWhkfKPAUrtX1GueYq
+JmDp4qSHBG6ndwikAHvteKgWQABDpwaemZdxh7xVCuEdjEkaecinNOZ0LpSCF3QO
+qflnXkvpYVxjdTpKBxo7vP5QEa3I6keJfwpoMzGuT8XOK7id6FHJhtYEXcaufALi
+mR/NXT11ikHLtluATymPdoSscMiwry0qX03yIek91lDypBNl5uvD2jxn9smlijfq
+9j0lwtpLBWJPU8vsU0uzuj7Qq5pWZFKsjiNWfbvNJXuLsupOazf5sh0yeQzL1CBL
+RUsBlYVoChTmSOyvi6kO5vW/6GLOafJF0FTdOQ+Gf3/IB6M1ErSxlqxQhHq0pb7Y
+INl7+aFCmlRjyLlMjb8xdtuedlZKv8mLd37AyPAihrq9gV74xq6c7w2y+h9213p8
+jgcmo/HvOlGaXEIOVCUu102teOckXjTni2yhEtFISCaWuaIdb5P9e0uBIy1e+Bi6
+/7A3aut5MQP07DO99BFETXyFF6EixhTF8fpwVZ5vXeIDvKKEDUGuzAziUEGIZpic
+UQ2fmTzIaTBbNlCMeTQFIpZCosM947aGKNBp672wdf996SRwg9E2VWzW2Z1UuwWV
+BPVQkHb1Hsy7C9fg5JcLKB9zEfyUH0Tm9Iur1vsuA5++JNl2+T55192wqyF0R9sb
+YtSTUJNSiSwqWt1m0FLOJD0CAwEAAQ==
+-----END PUBLIC KEY-----
+)RSA_KEY_PUB";
+
+    if( !partition ) {
+        _LOG_A( "Could not find update partition!.\n");
+        return false;
+    }
+    _LOG_D("Creating mbedtls context.\n");
+    mbedtls_pk_context pk;
+    mbedtls_md_context_t rsa;
+    mbedtls_pk_init( &pk );
+    _LOG_D("Parsing public key.\n");
+
+    int ret;
+    if( ( ret = mbedtls_pk_parse_public_key( &pk, (const unsigned char*)rsa_key_pub, strlen(rsa_key_pub)+1 ) ) != 0 ) {
+        _LOG_A( "Parsing public key failed! mbedtls_pk_parse_public_key %d (%d bytes)\n%s", ret, strlen(rsa_key_pub)+1, rsa_key_pub);
+        return false;
+    }
+    if( !mbedtls_pk_can_do( &pk, MBEDTLS_PK_RSA ) ) {
+        _LOG_A( "Public key is not an rsa key -0x%x", -ret );
+        return false;
+    }
+    _LOG_D("Initing mbedtls.\n");
+    const mbedtls_md_info_t *mdinfo = mbedtls_md_info_from_type( MBEDTLS_MD_SHA256 );
+    mbedtls_md_init( &rsa );
+    mbedtls_md_setup( &rsa, mdinfo, 0 );
+    mbedtls_md_starts( &rsa );
+    int bytestoread = SPI_FLASH_SEC_SIZE;
+    int bytesread = 0;
+    uint8_t *_buffer = (uint8_t*)malloc(SPI_FLASH_SEC_SIZE);
+    if(!_buffer){
+        _LOG_A( "malloc failed.\n");
+        return false;
+    }
+    _LOG_D("Parsing content.\n");
+    _LOG_V( "Reading partition (%i sectors, sec_size: %i)", size, bytestoread );
+    while( bytestoread > 0 ) {
+        _LOG_V( "Left: %i (%i)               \r", size, bytestoread );
+
+        if( ESP.partitionRead( partition, bytesread, (uint32_t*)_buffer, bytestoread ) ) {
+            mbedtls_md_update( &rsa, (uint8_t*)_buffer, bytestoread );
+            bytesread = bytesread + bytestoread;
+            size = size - bytestoread;
+            if( size <= SPI_FLASH_SEC_SIZE ) {
+                bytestoread = size;
+            }
+        } else {
+            _LOG_A( "partitionRead failed!.\n");
+            return false;
+        }
+    }
+    free( _buffer );
+
+    unsigned char *hash = (unsigned char*)malloc( mdinfo->size );
+    if(!hash){
+        _LOG_A( "malloc failed.\n");
+        return false;
+    }
+    mbedtls_md_finish( &rsa, hash );
+    ret = mbedtls_pk_verify( &pk, MBEDTLS_MD_SHA256, hash, mdinfo->size, (unsigned char*)signature, SIGNATURE_LENGTH );
+    free( hash );
+    mbedtls_md_free( &rsa );
+    mbedtls_pk_free( &pk );
+    if( ret == 0 ) {
+        return true;
+    }
+
+    // validation failed, overwrite the first few bytes so this partition won't boot!
+    log_w( "Validation failed, erasing the invalid partition.\n");
+    ESP.partitionEraseRange( partition, 0, ENCRYPTED_BLOCK_SIZE);
     return false;
 }
-*/
 
-// esp32fota esp32fota("<Type of Firmware for this device>", <this version>, <validate signature>, <allow insecure https>);
-esp32FOTA FOTA("esp32-fota-http", 1, false, true);
+
+bool forceUpdate(const char* firmwareURL, bool validate) {
+    HTTPClient httpClient;
+    //WiFiClientSecure _client;
+    int partition = U_FLASH;
+
+    httpClient.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+    _LOG_A("Connecting to: %s.\n", firmwareURL );
+    if( String(firmwareURL).startsWith("https") ) {
+        //_client.setCACert(root_ca_github); // OR
+        //_client.setInsecure(); //not working for github
+        httpClient.begin(firmwareURL, root_ca_github);
+    } else {
+        httpClient.begin(firmwareURL);
+    }
+    httpClient.addHeader("User-Agent", "SmartEVSE-v3");
+    httpClient.addHeader("Accept", "application/vnd.github+json");
+    httpClient.addHeader("X-GitHub-Api-Version", "2022-11-28" );
+    const char* get_headers[] = { "Content-Length", "Content-type", "Accept-Ranges" };
+    httpClient.collectHeaders( get_headers, sizeof(get_headers)/sizeof(const char*) );
+
+    int updateSize = 0;
+    int httpCode = httpClient.GET();
+    String contentType;
+
+    if( httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY ) {
+        updateSize = httpClient.getSize();
+        contentType = httpClient.header( "Content-type" );
+        String acceptRange = httpClient.header( "Accept-Ranges" );
+        if( acceptRange == "bytes" ) {
+            _LOG_V("This server supports resume!\n");
+        } else {
+            _LOG_V("This server does not support resume!\n");
+        }
+    } else {
+        _LOG_A("ERROR: Server responded with HTTP Status %i.\n", httpCode );
+        return false;
+    }
+
+    _LOG_D("updateSize : %i, contentType: %s.\n", updateSize, contentType.c_str());
+    Stream * stream = httpClient.getStreamPtr();
+    if( updateSize<=0 || stream == nullptr ) {
+        _LOG_A("HTTP Error.\n");
+        return false;
+    }
+
+    // some network streams (e.g. Ethernet) can be laggy and need to 'breathe'
+    if( ! stream->available() ) {
+        uint32_t timeout = millis() + 10000;
+        while( ! stream->available() ) {
+            if( millis()>timeout ) {
+                _LOG_A("Stream timed out.\n");
+                return false;
+            }
+            vTaskDelay(1);
+        }
+    }
+
+    if( validate ) {
+        if( updateSize == UPDATE_SIZE_UNKNOWN || updateSize <= SIGNATURE_LENGTH ) {
+            _LOG_A("Malformed signature+fw combo.\n");
+            return false;
+        }
+        updateSize -= SIGNATURE_LENGTH;
+    }
+
+    if( !Update.begin(updateSize, partition) ) {
+        _LOG_A("ERROR Not enough space to begin OTA, partition size mismatch? Update failed!\n");
+        Update.abort();
+        return false;
+    }
+
+    Update.onProgress( [](uint32_t progress, uint32_t size) {
+      _LOG_V("Firmware update progress %i/%i.\n", progress, size);
+      //move this data to global var
+      downloadProgress = progress;
+      downloadSize = size;
+      //give background tasks some air
+      //vTaskDelay(100 / portTICK_PERIOD_MS);
+    });
+
+    // read signature
+    if( validate ) {
+        signature = (unsigned char *) malloc(SIGNATURE_LENGTH);                       //tried to free in in all exit scenarios, RISK of leakage!!!
+        stream->readBytes( signature, SIGNATURE_LENGTH );
+    }
+
+    _LOG_I("Begin %s OTA. This may take 2 - 5 mins to complete. Things might be quiet for a while.. Patience!\n", partition==U_FLASH?"Firmware":"Filesystem");
+
+    // Some activity may appear in the Serial monitor during the update (depends on Update.onProgress)
+    int written = Update.writeStream(*stream);                                 // although writeStream returns size_t, we don't expect >2Gb
+
+    if ( written == updateSize ) {
+        _LOG_D("Written : %d successfully", written);
+        updateSize = written; // flatten value to prevent overflow when checking signature
+    } else {
+        _LOG_A("Written only : %u/%u Premature end of stream?", written, updateSize);
+        Update.abort();
+        FREE(signature);
+        return false;
+    }
+
+    if (!Update.end()) {
+        _LOG_A("An Update Error Occurred. Error #: %d", Update.getError());
+        FREE(signature);
+        return false;
+    }
+
+    if( validate ) { // check signature
+        _LOG_I("Checking partition %d to validate", partition);
+
+        //getPartition( partition ); // updated partition => '_target_partition' pointer
+        const esp_partition_t* _target_partition = esp_ota_get_next_update_partition(NULL);
+
+        #define CHECK_SIG_ERROR_PARTITION_NOT_FOUND -1
+        #define CHECK_SIG_ERROR_VALIDATION_FAILED   -2
+
+        if( !_target_partition ) {
+            _LOG_A("Can't access partition #%d to check signature!", partition);
+            FREE(signature);
+            return false;
+        }
+
+        _LOG_D("Checking signature for partition %d...", partition);
+
+        const esp_partition_t* running_partition = esp_ota_get_running_partition();
+
+        if( partition == U_FLASH ) {
+            // /!\ An OTA partition is automatically set as bootable after being successfully
+            // flashed by the Update library.
+            // Since we want to validate before enabling the partition, we need to cancel that
+            // by temporarily reassigning the bootable flag to the running-partition instead
+            // of the next-partition.
+            esp_ota_set_boot_partition( running_partition );
+            // By doing so the ESP will NOT boot any unvalidated partition should a reset occur
+            // during signature validation (crash, oom, power failure).
+        }
+
+        if( !validate_sig( _target_partition, signature, updateSize ) ) {
+            FREE(signature);
+            // erase partition
+            esp_partition_erase_range( _target_partition, _target_partition->address, _target_partition->size );
+            _LOG_A("Signature check failed!.\n");
+            return false;
+        } else {
+            FREE(signature);
+            _LOG_D("Signature check successful!.\n");
+            if( partition == U_FLASH ) {
+                // Set updated partition as bootable now that it's been verified
+                esp_ota_set_boot_partition( _target_partition );
+            }
+        }
+    }
+    _LOG_D("OTA Update complete!.\n");
+    if (Update.isFinished()) {
+        _LOG_V("Update succesfully completed at %s partition\n", partition==U_SPIFFS ? "spiffs" : "firmware" );
+        return true;
+    } else {
+        _LOG_A("ERROR: Update not finished! Something went wrong!.\n");
+    }
+    return false;
+}
+
 
 // put firmware update in separate task so we can feed progress to the html page
 void FirmwareUpdate(void *parameter) {
-    _LOG_A("DINGO: url=%s.\n", downloadUrl);
-    if (FOTA.forceUpdate(downloadUrl, 1)) {
-        _LOG_A("Firmware update succesfull; rebooting.\n");
+    //_LOG_A("DINGO: url=%s.\n", downloadUrl);
+    if (forceUpdate(downloadUrl, 1)) {
+        _LOG_A("Firmware update succesfull; rebooting as soon as no EV is connected.\n");
         downloadProgress = -1;
+        shouldReboot = true;
     } else {
-        _LOG_A("ERROR: Firmware update failed; rebooting.\n");
+        _LOG_A("ERROR: Firmware update failed.\n");
+        //_http.end();
         downloadProgress = -2;
     }
-    delay(5000);                                                                //give user some time to read the message on the webserver
-    ESP.restart();
-    //if (downloadUrl) free(downloadUrl);
-    //vTaskDelete(NULL);                                                        //end this task so it will not take up resources
+    if (downloadUrl) free(downloadUrl);
+    vTaskDelete(NULL);                                                        //end this task so it will not take up resources
 }
 
 void RunFirmwareUpdate(void) {
     _LOG_V("Starting firmware update from downloadUrl=%s.\n", downloadUrl);
+    downloadProgress = 0;                                                       // clear errors, if any
     xTaskCreate(
         FirmwareUpdate, // Function that should be called
         "FirmwareUpdate",// Name of the task (for debugging)
@@ -3952,27 +4217,6 @@ void RunFirmwareUpdate(void) {
     );
 }
 
-// Downloads firmware, flashes it, and reboot
-bool FWUpdate(char *distr, int debug) {
-    bool ret = true;
-    asprintf(&downloadUrl, "%s/%s_firmware.%ssigned.bin", FW_DOWNLOAD_PATH, distr, debug ? "debug.": ""); //will be freed in FirmwareUpdate() ; format: http://s3.com/fact_firmware.debug.signed.bin
-/*
-    if () { //github routine
-        // not expiring github auth for minimal rate limiting on github
-        char version[32] = "";
-        char asset_name[32] = "";
-        if (debug == 1)
-            strlcpy(asset_name, "firmware.debug.bin", sizeof(asset_name));
-        else
-            strlcpy(asset_name, "firmware.bin", sizeof(asset_name));
-        ret = getLatestVersion(owner + "/" + repo, asset_name, version);
-        }
-    }*/
-    if (ret) {
-        RunFirmwareUpdate();
-    }
-    return ret;
-}
 
 /* Takes TimeString in format
  * String = "2023-04-14T11:31"
@@ -4196,8 +4440,6 @@ static void fn_client(struct mg_connection *c, int ev, void *ev_data) {
     }
 }
 
-unsigned char *signature = NULL;
-#define SIGNATURE_LENGTH 512
 // Connection event handler function
 // indenting lower level two spaces to stay compatible with old StartWebServer
 // We use the same event handler function for HTTP and HTTPS connections
@@ -4243,14 +4485,9 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         mg_http_get_var(&hm->query, "debug", buf, sizeof(buf));
         debug = strtol(buf, NULL, 0);
         if (!memcmp(owner, OWNER_FACT, sizeof(OWNER_FACT)) || (!memcmp(owner, OWNER_COMM, sizeof(OWNER_COMM)))) {
-            if (FWUpdate(owner, debug)) {
-                struct mg_http_serve_opts opts = {.root_dir = "/data", .ssi_pattern = NULL, .extra_headers = NULL, .mime_types = NULL, .page404 = NULL, .fs = &mg_fs_packed };
-                mg_http_serve_file(c, hm, "/data/update3.html", &opts);
-            } else
-                mg_http_reply(c, 400, "Content-Type: text/plain\r\n", "Autoupdate failed.");
-        } else
-            mg_http_reply(c, 400, "Content-Type: text/plain\r\n", "Autoupdate wrong parameter.");
-    } else if (mg_http_match_uri(hm, "/autoupdate_progress")) {
+            asprintf(&downloadUrl, "%s/%s_firmware.%ssigned.bin", FW_DOWNLOAD_PATH, owner, debug ? "debug.": ""); //will be freed in FirmwareUpdate() ; format: http://s3.com/fact_firmware.debug.signed.bin
+            RunFirmwareUpdate();
+        }                                                                       // after the first call we just report progress
         DynamicJsonDocument doc(64); // https://arduinojson.org/v6/assistant/
         doc["progress"] = downloadProgress;
         doc["size"] = downloadSize;
@@ -4343,7 +4580,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
 
                     bool verification_result = false;
                     if(Update.end(true)) {
-                        verification_result = FOTA.validate_sig( target_partition, signature, size - SIGNATURE_LENGTH);
+                        verification_result = validate_sig( target_partition, signature, size - SIGNATURE_LENGTH);
                         FREE(signature);
                         if (verification_result) {
                             _LOG_A("Signature is valid!\n");
@@ -4354,17 +4591,14 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
                             //which results in a "verify failed" message on the /update screen AFTER the reboot :-)
                         }
                     }
-_LOG_A("DINGO: boot partition=%s.\n", esp_ota_get_boot_partition()->label);
                     if (!verification_result) {
                         _LOG_A("Update failed!\n");
                         Update.printError(Serial);
                         //Update.abort(); //not sure this does anything in this stage
                         //Update.rollBack();
                         _LOG_V("Running off of partition %s, erasing partition %s.\n", running_partition->label, target_partition->label);
-_LOG_A("DINGO: checkpoint 1 boot partition=%s.\n", esp_ota_get_boot_partition()->label);
                         esp_partition_erase_range( target_partition, target_partition->address, target_partition->size );
                         esp_ota_set_boot_partition( running_partition );
-_LOG_A("DINGO: checkpoint 2 boot partition=%s.\n", esp_ota_get_boot_partition()->label);
                         mg_http_reply(c, 400, "", "firmware.signed.bin update failed!");
                     }
                     FREE(signature);
@@ -5123,65 +5357,6 @@ void timeSyncCallback(struct timeval *tv)
 // Setup Wifi 
 void WiFiSetup(void) {
     mg_mgr_init(&mgr);  // Initialise event manager
-    const char* rsa_key_pub = R"RSA_KEY_PUB(
------BEGIN PUBLIC KEY-----
-MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAtjEWhkfKPAUrtX1GueYq
-JmDp4qSHBG6ndwikAHvteKgWQABDpwaemZdxh7xVCuEdjEkaecinNOZ0LpSCF3QO
-qflnXkvpYVxjdTpKBxo7vP5QEa3I6keJfwpoMzGuT8XOK7id6FHJhtYEXcaufALi
-mR/NXT11ikHLtluATymPdoSscMiwry0qX03yIek91lDypBNl5uvD2jxn9smlijfq
-9j0lwtpLBWJPU8vsU0uzuj7Qq5pWZFKsjiNWfbvNJXuLsupOazf5sh0yeQzL1CBL
-RUsBlYVoChTmSOyvi6kO5vW/6GLOafJF0FTdOQ+Gf3/IB6M1ErSxlqxQhHq0pb7Y
-INl7+aFCmlRjyLlMjb8xdtuedlZKv8mLd37AyPAihrq9gV74xq6c7w2y+h9213p8
-jgcmo/HvOlGaXEIOVCUu102teOckXjTni2yhEtFISCaWuaIdb5P9e0uBIy1e+Bi6
-/7A3aut5MQP07DO99BFETXyFF6EixhTF8fpwVZ5vXeIDvKKEDUGuzAziUEGIZpic
-UQ2fmTzIaTBbNlCMeTQFIpZCosM947aGKNBp672wdf996SRwg9E2VWzW2Z1UuwWV
-BPVQkHb1Hsy7C9fg5JcLKB9zEfyUH0Tm9Iur1vsuA5++JNl2+T55192wqyF0R9sb
-YtSTUJNSiSwqWt1m0FLOJD0CAwEAAQ==
------END PUBLIC KEY-----
-)RSA_KEY_PUB";
-
-    CryptoMemAsset  *MyRSAKey = new CryptoMemAsset("RSA Key", rsa_key_pub, strlen(rsa_key_pub)+1 );
-    auto cfg = FOTA.getConfig();
-    //cfg.name          = fota_name;
-    //cfg.manifest_url  = "https://api.github.com/repos/dingo35/SmartEVSE-3.5/releases/latest";
-    //cfg.sem           = SemverClass( 1, 0, 0 ); // major, minor, patch
-    //cfg.check_sig     = false; // verify signed firmware with rsa public key
-    cfg.check_sig     = true; // verify signed firmware with rsa public key
-    cfg.unsafe        = true; // disable certificate check when using TLS
-    //cfg.root_ca       = MyRootCA;
-    cfg.pub_key       = MyRSAKey;
-    //cfg.use_device_id = false;
-    FOTA.setConfig( cfg );
-    //FOTA.printConfig();
-
-    // callback function prevents serial comm error
-    FOTA.setProgressCb( [](size_t progress, size_t size) {
-      _LOG_V("Firmware update progress %i/%i.\n", progress, size);
-      //move this data to global var
-      downloadProgress = progress;
-      downloadSize = size;
-      //give background tasks some air
-      vTaskDelay(100 / portTICK_PERIOD_MS);
-    });
-
-    // we abuse the downloadProgress indicator for status info:
-    // downloadProgress = -1 : success
-    // downloadProgress = -2 : fail
-    FOTA.setUpdateFinishedCb( [](int partition, bool restart_after) {
-        _LOG_V("Update succesfully completed at %s partition\n", partition==U_SPIFFS ? "spiffs" : "firmware" );
-        downloadProgress = -1;
-    });
-
-    FOTA.setUpdateBeginFailCb( [](int partition) {
-        _LOG_A("ERROR: Update failed at %s partition\n", partition==U_SPIFFS ? "spiffs" : "firmware" );
-        downloadProgress = -2;
-    });
-
-    //FOTA.setExtraHTTPHeader("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.8; rv:21.0) Gecko/20100101 Firefox/21.0");
-    FOTA.setExtraHTTPHeader("User-Agent", "SmartEVSE-v3");
-    FOTA.setExtraHTTPHeader("Accept", "application/vnd.github+json");
-    FOTA.setExtraHTTPHeader("X-GitHub-Api-Version", "2022-11-28" );
-    //FOTA.setRootCA( MyRootCA );
 
     //wifiManager.setDebugOutput(true);
     wifiManager.setMinimumSignalQuality(-1);
@@ -5791,7 +5966,38 @@ void setup() {
 
     CP_ON;           // CP signal ACTIVE
 
+    firmwareUpdateTimer = random(FW_UPDATE_DELAY, 0xffff);
+    //firmwareUpdateTimer = random(FW_UPDATE_DELAY, 120); // DINGO TODO debug max 2 minutes
+}
 
+// returns true if current and latest version can be detected correctly and if the latest version is newer then current
+// this means that ANY home compiled version, which has version format "11:20:03@Jun 17 2024", will NEVER be automatically updated!!
+// same goes for current version with an -RC extension: this will NEVER be automatically updated!
+// same goes for latest version with an -RC extension: this will NEVER be automatically updated! This situation should never occur since
+// we only update from the "stable" repo !!
+bool fwNeedsUpdate(char * version) {
+    // version NEEDS to be in the format: vx.y.z[-RCa] where x, y, z, a are digits, multiple digits are allowed.
+    // valid versions are v3.6.10   v3.17.0-RC13
+    int latest_major, latest_minor, latest_patch, latest_rc, cur_major, cur_minor, cur_patch, cur_rc;
+    int hit = sscanf(version, "v%i.%i.%i-RC%i", &latest_major, &latest_minor, &latest_patch, &latest_rc);
+    _LOG_A("Firmware version detection hit=%i, LATEST version detected=v%i.%i.%i-RC%i.\n", hit, latest_major, latest_minor, latest_patch, latest_rc);
+    int hit2 = sscanf(VERSION, "v%i.%i.%i-RC%i", &cur_major, &cur_minor, &cur_patch, &cur_rc);
+    _LOG_A("Firmware version detection hit=%i, CURRENT version detected=v%i.%i.%i-RC%i.\n", hit2, cur_major, cur_minor, cur_patch, cur_rc);
+    if (hit != 3 || hit2 != 3)                                                  // we couldnt detect simple vx.y.z version nrs, either current or latest
+        return false;
+    if (cur_major > latest_major)
+        return false;
+    if (cur_major < latest_major)
+        return true;
+    if (cur_major == latest_major) {
+        if (cur_minor > latest_minor)
+            return false;
+        if (cur_minor < latest_minor)
+            return true;
+        if (cur_minor == latest_minor)
+            return (cur_patch < latest_patch);
+    }
+    return false;
 }
 
 void loop() {
@@ -5805,8 +6011,9 @@ void loop() {
             _LOG_A("Time not synced with NTP yet.\n");
         }
 
-        if (shouldReboot) {
-            delay(1000);
+        // a reboot is requested, but we kindly wait until no EV connected
+        if (shouldReboot && State == STATE_A) {                                 //slaves in STATE_C continue charging when Master reboots
+            delay(5000);                                                        //give user some time to read any message on the webserver
             ESP.restart();
         }
 
@@ -5842,6 +6049,34 @@ void loop() {
                 setAccess(0);                         //switch to OFF
             }
         }
+
+        //_LOG_A("DINGO: firmwareUpdateTimer just before decrement=%i.\n", firmwareUpdateTimer);
+        if (AutoUpdate && !shouldReboot) {                                      // we don't want to autoupdate if we are on the verge of rebooting
+            firmwareUpdateTimer--;
+            char version[32];
+            if (firmwareUpdateTimer == FW_UPDATE_DELAY) {                       // we now have to check for a new version
+                //timer is not reset, proceeds to 65535 which is approx 18h from now
+                if (getLatestVersion(String(String(OWNER_FACT) + "/" + String(REPO_FACT)), "", version)) {
+                    if (fwNeedsUpdate(version)) {
+                        _LOG_A("Firmware reports it needs updating, will update in %i seconds\n", FW_UPDATE_DELAY);
+                        asprintf(&downloadUrl, "%s/fact_firmware.signed.bin", FW_DOWNLOAD_PATH); //will be freed in FirmwareUpdate() ; format: http://s3.com/fact_firmware.debug.signed.bin
+                    } else {
+                        _LOG_A("Firmware reports it needs NO update!\n");
+                        firmwareUpdateTimer = random(FW_UPDATE_DELAY + 36000, 0xffff);  // at least 10 hours in between checks
+                    }
+                }
+            } else if (firmwareUpdateTimer == 0) {                              // time to download & flash!
+                if (getLatestVersion(String(String(OWNER_FACT) + "/" + String(REPO_FACT)), "", version)) { // recheck version info
+                    if (fwNeedsUpdate(version)) {
+                        _LOG_A("Firmware reports it needs updating, starting update NOW!\n");
+                        asprintf(&downloadUrl, "%s/fact_firmware.signed.bin", FW_DOWNLOAD_PATH); //will be freed in FirmwareUpdate() ; format: http://s3.com/fact_firmware.debug.signed.bin
+                        RunFirmwareUpdate();
+                    } else
+                        _LOG_A("Firmware changed its mind, NOW it reports it needs NO update!\n");
+                        firmwareUpdateTimer = random(FW_UPDATE_DELAY + 36000, 0xffff);  // at least 10 hours in between checks
+                }
+            }
+        } // AutoUpdate
         /////end of non-time critical stuff
     }
 

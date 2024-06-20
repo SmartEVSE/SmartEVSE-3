@@ -15,10 +15,46 @@
         let REPO_FACT="SmartEVSE-3";
         let OWNER_COMM="dingo35";
         let REPO_COMM="SmartEVSE-3.5";
-        function update_fw(owner, debug) {
-            window.location.href = "/autoupdate?owner=" + owner + "&debug=" + debug;
-        }
+        let update_url="";
+// Helper function to display upload status
+var setStatus = function(text) {
+  document.getElementById('el3').innerText = text;
+};
 
+        function fetchProgress() {
+          fetch('/autoupdate')
+            .then(res => res.json())
+            .then(data => {
+              // code to handle the response
+              if (data.progress == -1) { //sucess
+                setStatus('Firmware update succesfully completed, will reboot as soon as no EV is connected.');
+              }
+              else {
+                if (data.progress == -2) { //fail
+                    setStatus('ERROR: Firmware update fail.');
+                } else {
+                    setStatus('Firmware update progress: ' + data.progress + '/' + data.size);
+                }
+              }
+            })
+            .catch(err => {
+              console.error('Error: ', err)
+            })
+        }
+        function update_fw(owner, debug) {
+          fetch("/autoupdate?owner=" + owner + "&debug=" + debug)
+            .then(res => res.json())
+            .then(data => {
+              setStatus('Firmware update progress: ' + data.progress + '/' + data.size);
+              // code to handle the response
+              var fetchInterval = 1000; // 1 seconds.
+              // Invoke the request every 1 seconds.
+              setInterval(fetchProgress, fetchInterval);
+            })
+            .catch(err => {
+              console.error('Error: ', err)
+            })
+        }
     </script>
   </head>
   <body onload="loadData()">
@@ -112,11 +148,6 @@ async function getLatestVersion(owner, repo, element) {
 // Copyright (c) 2020 Cesanta Software Limited
 // All rights reserved
 
-// Helper function to display upload status
-var setStatus = function(text) {
-  document.getElementById('el3').innerText = text;
-};
-
 // When user clicks on a button, trigger file selection dialog
 var button = document.getElementById('el2');
 button.onclick = function(ev) {
@@ -131,7 +162,7 @@ var sendFileData = function(name, data, chunkSize) {
     var url = '/update?offset=' + offset + '&file=' + encodeURIComponent(name) + '&size=' + data.length;
     var ok;
     if (offset + chunk.length == data.length) {
-        setStatus('Upload of ' + name + ' finished, you can close this page.');
+        setStatus('Upload of ' + name + ' finished, will reboot. You can close this page.');
         window.location.href = "/";
     }
     else

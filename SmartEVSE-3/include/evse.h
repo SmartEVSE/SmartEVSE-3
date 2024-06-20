@@ -242,7 +242,7 @@ extern RemoteDebug Debug;
 #define DELAYEDSTOPTIME 0                                                       // The default StopTime for delayed charged, 0 = not stopping
 #define SOLARSTARTTIME 40                                                       // Seconds to keep chargecurrent at 6A
 #define OCPP_MODE 0
-
+#define AUTOUPDATE 0                                                            // default for Automatic Firmware Update: 0 = disabled, 1 = enabled
 
 // Mode settings
 #define MODE_NORMAL 0
@@ -397,18 +397,19 @@ extern RemoteDebug Debug;
 #define MENU_EMCUSTOM_EDIVISOR 32                                               // 0x0217: Divisor for Energy (kWh) of custom electric meter (10^x)
 #define MENU_EMCUSTOM_READMAX 33                                                // 0x0218: Maximum register read (ToDo)
 #define MENU_WIFI 34                                                            // 0x0219: WiFi mode
-#define MENU_C2 35
-#define MENU_MAX_TEMP 36
-#define MENU_SUMMAINS 37
+#define MENU_AUTOUPDATE 35
+#define MENU_C2 36
+#define MENU_MAX_TEMP 37
+#define MENU_SUMMAINS 38
 #if ENABLE_OCPP == 0
-#define MENU_OFF 38                                                             // so access bit is reset and charging stops when pressing < button 2 seconds
-#define MENU_ON 39                                                              // so access bit is set and charging starts when pressing > button 2 seconds
-#define MENU_EXIT 40
-#else
-#define MENU_OCPP 38                                                            // OCPP Disable / Enable / Further modes
 #define MENU_OFF 39                                                             // so access bit is reset and charging stops when pressing < button 2 seconds
 #define MENU_ON 40                                                              // so access bit is set and charging starts when pressing > button 2 seconds
 #define MENU_EXIT 41
+#else
+#define MENU_OCPP 39                                                            // OCPP Disable / Enable / Further modes
+#define MENU_OFF 40                                                             // so access bit is reset and charging stops when pressing < button 2 seconds
+#define MENU_ON 41                                                              // so access bit is set and charging starts when pressing > button 2 seconds
+#define MENU_EXIT 42
 #endif
 
 #define MENU_STATE 50
@@ -564,6 +565,7 @@ const struct {
     {"ENE DIVI","Divisor for Energy (kWh) of custom electric meter",  0, 7, EMCUSTOM_EDIVISOR},
     {"READ MAX","Max register read at once of custom electric meter", 3, 255, 3},
     {"WIFI",    "Connect to WiFi access point",                       0, 2, WIFI_MODE},
+    {"AUTOUPDAT","Automatic Firmware Update",                         0, 1, AUTOUPDATE},
     {"CONTACT 2","Contactor2 (C2) behaviour",                          0, sizeof(StrEnableC2) / sizeof(StrEnableC2[0])-1, ENABLE_C2},
     {"MAX TEMP","Maximum temperature for the EVSE module",            40, 75, MAX_TEMPERATURE},
     {"SUM MAINS","Capacity Rate limit on sum of MAINS Current (A)",    10, 600, MAX_SUMMAINS},
