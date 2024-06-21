@@ -245,10 +245,10 @@
               $('#evmeter_charged_kwh').text(data.ev_meter.charged_kwh.toFixed(1) + " kWh");
             }
 
-            if(data.settings.modem == "Not present") {
-              $('.with_modem').hide();
-            } else {
+            if(data.settings.modem == "Experiment") {
               $('.with_modem').show();
+            } else {
+              $('.with_modem').hide();
             }
 
             if (data.mqtt && !mqttEditMode) {

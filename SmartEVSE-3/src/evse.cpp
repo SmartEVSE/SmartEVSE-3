@@ -4699,6 +4699,8 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         doc["settings"]["repeat"] = DelayedRepeat;
 #if MODEM
             doc["settings"]["required_evccid"] = RequiredEVCCID;
+            doc["settings"]["modem"] = "Experiment";
+
             doc["ev_state"]["initial_soc"] = InitialSoC;
             doc["ev_state"]["remaining_soc"] = RemainingSoC;
             doc["ev_state"]["full_soc"] = FullSoC;
