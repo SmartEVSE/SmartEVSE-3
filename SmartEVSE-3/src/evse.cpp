@@ -5770,7 +5770,7 @@ void setup() {
     // Uart 0 debug/program port
     Serial.begin(115200);
     while (!Serial);
-    _LOG_A("\nSmartEVSE v3 powerup\n");
+    _LOG_A("SmartEVSE v3 powerup\n");
 
     // configure SPI connection to LCD
     // only the SPI_SCK and SPI_MOSI pins are used
@@ -5849,11 +5849,11 @@ void setup() {
     //Check type of calibration value used to characterize ADC
     _LOG_A("Checking eFuse Vref settings: ");
     if (val_type == ESP_ADC_CAL_VAL_EFUSE_VREF) {
-        _LOG_A("OK\n");
+        _LOG_A_NO_FUNC("OK\n");
     } else if (val_type == ESP_ADC_CAL_VAL_EFUSE_TP) {
-        _LOG_A("Two Point\n");
+        _LOG_A_NO_FUNC("Two Point\n");
     } else {
-        _LOG_A("not programmed!!!\n");
+        _LOG_A_NO_FUNC("not programmed!!!\n");
     }
     
     // We might need some sort of authentication in the future.
