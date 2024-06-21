@@ -5263,7 +5263,11 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
 void onWifiEvent(WiFiEvent_t event) {
     switch (event) {
         case WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP:
-            _LOG_A("Connected to AP: %s\nLocal IP: %s\n", WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
+#if LOG_LEVEL >= 1
+            _LOG_A("Connected to AP: %s Local IP: %s\n", WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
+#else
+            Serial.printf("Connected to AP: %s Local IP: %s\n", WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
+#endif            
             //load dhcp dns ip4 address into mongoose
             static char dns4url[]="udp://123.123.123.123:53";
             sprintf(dns4url, "udp://%s:53", WiFi.dnsIP().toString().c_str());
@@ -5879,8 +5883,12 @@ void setup() {
     read_settings();                                                            // initialize with default data when starting for the first time
     validate_settings();
     ReadRFIDlist();                                                             // Read all stored RFID's from storage
-    _LOG_A("APpassword: %s\n",APpassword.c_str());
 
+#if LOG_LEVEL >= 1
+    _LOG_A("APpassword: %s\n",APpassword.c_str());
+#else
+    Serial.printf("APpassword: %s\n",APpassword.c_str());
+#endif
     // Create Task EVSEStates, that handles changes in the CP signal
     xTaskCreate(
         EVSEStates,     // Function that should be called
