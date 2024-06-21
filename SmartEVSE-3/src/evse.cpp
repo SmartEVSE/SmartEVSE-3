@@ -3511,7 +3511,7 @@ void MBhandleError(Error error, uint32_t token)
   function = (token >> 16);
   reg = token & 0xFFFF;
 
-  if (LoadBl == 1 && address>=2 && address <=9 && function == 4 && reg == 0) {  //master sends out messages to nodes 2-8, if no EVSE is connected with that address
+  if (LoadBl == 1 && ((address>=2 && address <=8 && function == 4 && reg == 0) || address == 9)) {  //master sends out messages to nodes 2-8, if no EVSE is connected with that address
                                                                                 //a timeout will be generated. This is legit!
                                                                                 //same goes for broadcast address 9
     _LOG_V("Error response: %02X - %s, address: %02x, function: %02x, reg: %04x.\n", error, (const char *)me,  address, function, reg);
