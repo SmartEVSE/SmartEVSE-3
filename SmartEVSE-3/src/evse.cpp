@@ -5324,7 +5324,7 @@ void onWifiEvent(WiFiEvent_t event) {
 void timeSyncCallback(struct timeval *tv)
 {
     LocalTimeSet = true;
-    _LOG_A("Synced clock to NTP server!");    // somehow adding a \n here hangs the device after printing this message ?!?
+    _LOG_A("Synced clock to NTP server!");    // somehow adding a \n here hangs the telnet server after printing this message ?!?
 }
 
 // Setup Wifi 
