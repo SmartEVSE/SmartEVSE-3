@@ -5861,7 +5861,7 @@ void setup() {
     // Unused for now.
     if (preferences.begin("KeyStorage", true) ) {                               // true = readonly
 //prevent compiler warning
-#if DBG != 0
+#if DBG == 1 || (DBG == 2 && LOG_LEVEL != 0)
         uint16_t hwversion = preferences.getUShort("hwversion");                // 0x0101 (01 = SmartEVSE,  01 = hwver 01)
 #endif
         serialnr = preferences.getUInt("serialnr");      
@@ -6048,9 +6048,10 @@ void loop() {
                         _LOG_A("Firmware reports it needs updating, starting update NOW!\n");
                         asprintf(&downloadUrl, "%s/fact_firmware.signed.bin", FW_DOWNLOAD_PATH); //will be freed in FirmwareUpdate() ; format: http://s3.com/fact_firmware.debug.signed.bin
                         RunFirmwareUpdate();
-                    } else
+                    } else {
                         _LOG_A("Firmware changed its mind, NOW it reports it needs NO update!\n");
-                        firmwareUpdateTimer = random(FW_UPDATE_DELAY + 36000, 0xffff);  // at least 10 hours in between checks
+                    }
+                    //note: the firmwareUpdateTimer will decrement to 65535s so next check will be in 18hours or so....
                 }
             }
         } // AutoUpdate
