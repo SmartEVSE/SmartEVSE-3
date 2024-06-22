@@ -10,8 +10,6 @@
 #include "mbedtls/md_internal.h"
 
 #include <HTTPClient.h>
-#include <WiFiManager.h>
-
 #include <ESPmDNS.h>
 #include <Update.h>
 
@@ -68,8 +66,6 @@ uint16_t MQTTPort;
 mg_timer *MQTTtimer;
 uint8_t lastMqttUpdate = 0;
 #endif
-
-WiFiManager wifiManager;
 
 // SSID and PW for your Router
 String Router_SSID;
@@ -149,8 +145,7 @@ uint8_t RFIDReader = RFID_READER;                                           // R
 uint8_t Show_RFID = 0;
 #endif
 uint8_t WIFImode = WIFI_MODE;                                               // WiFi Mode (0:Disabled / 1:Enabled / 2:Start Portal)
-String APpassword = "00000000";
-uint8_t Initialized = INITIALIZED;                                          // When first powered on, the settings need to be initialized.
+char APpassword[] = "0000000000000000";
 String TZinfo = "";                                                         // contains POSIX time string
 
 EnableC2_t EnableC2 = ENABLE_C2;                                            // Contactor C2
@@ -3665,17 +3660,6 @@ void ConfigureModbusMode(uint8_t newmode) {
 }
 
 
-// Generate random password for AP
-void SetRandomAPpassword(void) {
-    uint8_t i, c;
-    // Set random password
-    for (i=0; i<8 ;i++) {
-            c = random(16) + '0';
-            if (c > '9') c += 'a'-'9'-1;
-            APpassword[i] = c;
-    }
-}
-
 /**
  * Validate setting ranges and dependencies
  */
@@ -3714,13 +3698,6 @@ void validate_settings(void) {
         Node[0].EVMeter = EVMeter;
         Node[0].EVAddress = EVMeterAddress;
     }
-
-    // Check if AP password is unitialized. 
-    // Create random AP password.
-    if (!Initialized) {
-        SetRandomAPpassword();
-        Initialized = 1;
-    }
           
     // Default to modbus input registers
     if (EMConfig[EM_CUSTOM].Function != 3) EMConfig[EM_CUSTOM].Function = 4;
@@ -3748,7 +3725,7 @@ void read_settings() {
     // Open preferences. true = read only,  false = read/write
     // If "settings" does not exist, it will be created, and initialized with the default values
     if (preferences.begin("settings", false) ) {                                
-        Initialized = preferences.getUChar("Initialized", INITIALIZED);
+        bool Initialized = preferences.isKey("Config");
         Config = preferences.getUChar("Config", CONFIG); 
         Lock = preferences.getUChar("Lock", LOCK); 
         Mode = preferences.getUChar("Mode", MODE); 
@@ -3786,7 +3763,6 @@ void read_settings() {
         EMConfig[EM_CUSTOM].DataType = (mb_datatype)preferences.getUChar("EMDataType",EMCUSTOM_DATATYPE);
         EMConfig[EM_CUSTOM].Function = preferences.getUChar("EMFunction",EMCUSTOM_FUNCTION);
         WIFImode = preferences.getUChar("WIFImode",WIFI_MODE);
-        APpassword = preferences.getString("APpassword",AP_PASSWORD);
         DelayedStartTime.epoch2 = preferences.getULong("DelayedStartTim", DELAYEDSTARTTIME); //epoch2 is 4 bytes long on arduino; NVS key has reached max size
         DelayedStopTime.epoch2 = preferences.getULong("DelayedStopTime", DELAYEDSTOPTIME);    //epoch2 is 4 bytes long on arduino
         TZinfo = preferences.getString("TimezoneInfo","");
@@ -3866,8 +3842,6 @@ void write_settings(void) {
     preferences.putUChar("EMDataType", EMConfig[EM_CUSTOM].DataType);
     preferences.putUChar("EMFunction", EMConfig[EM_CUSTOM].Function);
     preferences.putUChar("WIFImode", WIFImode);
-    preferences.putString("APpassword", APpassword);
-    preferences.putUChar("Initialized", Initialized);
     preferences.putULong("DelayedStartTim", DelayedStartTime.epoch2); //epoch2 only needs 4 bytes; NVS key has reached max size
     preferences.putULong("DelayedStopTime", DelayedStopTime.epoch2);   //epoch2 only needs 4 bytes
 
@@ -5445,8 +5419,6 @@ void timeSyncCallback(struct timeval *tv)
 void WiFiSetup(void) {
     mg_mgr_init(&mgr);  // Initialise event manager
 
-    //wifiManager.setDebugOutput(true);
-    wifiManager.setMinimumSignalQuality(-1);
     WiFi.setAutoReconnect(true);
     //WiFi.persistent(true);
     WiFi.onEvent(onWifiEvent);
@@ -5478,24 +5450,43 @@ void SetupPortalTask(void * parameter) {
         _LOG_A("Waiting for Mongoose Server to terminate\n");
     }
 
-    wifiManager.setAPStaticIPConfig(IPAddress(192,168,4,1), IPAddress(192,168,4,1), IPAddress(255,255,255,0));
-    //wifiManager.setTitle(String title);
 
-    //don't show firmware update buttons in portal
-    std::vector<const char*> wmMenuItems = { "wifi", "info", "erase", "exit" };
-    wifiManager.setMenu(wmMenuItems);
-    wifiManager.setShowInfoUpdate(false);
-    wifiManager.setShowStaticFields(true); // force show static ip fields
-    wifiManager.setShowDnsFields(true);    // force show dns field always
+  //Init WiFi as Station, start SmartConfig
+  WiFi.mode(WIFI_AP_STA);
+    uint8_t c;
+    // Set random password, first 8 positions are 0
+    for (uint8_t i=0; i<8 ;i++) {
+            c = random(16) + '0';
+            if (c > '9') c += 'a'-'9'-1;
+            APpassword[i+8] = c;
+    }
+  WiFi.beginSmartConfig(SC_TYPE_ESPTOUCH_V2, APpassword);
 
-    wifiManager.setConfigPortalTimeout(120);  // Portal will be available 2 minutes to connect to, then close. (if connected within this time, it will remain active)
-    delay(1000);
-    wifiManager.startConfigPortal(APhostname.c_str(), APpassword.c_str());
-    //_LOG_A("SetupPortalTask free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
-    WiFi.disconnect(true);
+  //Wait for SmartConfig packet from mobile
+  _LOG_A("Waiting for SmartConfig.\n");
+  while (!WiFi.smartConfigDone()) {
+    delay(500);
+    _LOG_A_NO_FUNC(".");
+  }
 
+  _LOG_A("\nSmartConfig received.\n");
+
+  //Wait for WiFi to connect to AP
+  _LOG_A("Waiting for WiFi\n");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    _LOG_A_NO_FUNC(".");
+  }
+
+  _LOG_A("\nWiFi Connected.\n");
+
+  _LOG_A("IP Address:%s.\n", WiFi.localIP().toString().c_str());
+
+  WiFi.stopSmartConfig(); // this makes sure repeated SmartConfig calls are succesfull
+    //for some reason the webserver is not accessible after this action, so we have to disable wifi before enabling it:
+    WIFImode = 0;
+    handleWIFImode();
     WIFImode = 1;
-    //mongoose
     handleWIFImode();
     write_settings();
     LCDNav = 0;
@@ -5990,11 +5981,6 @@ void setup() {
     validate_settings();
     ReadRFIDlist();                                                             // Read all stored RFID's from storage
 
-#if LOG_LEVEL >= 1
-    _LOG_A("APpassword: %s\n",APpassword.c_str());
-#else
-    Serial.printf("APpassword: %s\n",APpassword.c_str());
-#endif
     // Create Task EVSEStates, that handles changes in the CP signal
     xTaskCreate(
         EVSEStates,     // Function that should be called

@@ -434,18 +434,19 @@ void GLCD(void) {
                     GLCD_write_buf_str(127,0, Str, GLCD_ALIGN_RIGHT);
                 } else GLCD_write_buf_str(0,0, "Not connected to WiFi", GLCD_ALIGN_LEFT);
 
-            // When Wifi Setup is selected, show password and SSID of the Access Point
+            // When Wifi Setup is selected, show AES key for the ESPTouch app
             } else if (WIFImode == 2) {
                 if (SubMenu && WiFi.getMode() != WIFI_AP_STA) {           // Do not show if AP_STA mode is started
-                    sprintf(Str, "O button starts portal");
+                    sprintf(Str, "O button starts config");
                     GLCD_write_buf_str(0,0, Str, GLCD_ALIGN_LEFT);
                 } else {
-                    // Show Access Point name
-                    sprintf(Str, "AP:%u", serialnr);
-                    GLCD_write_buf_str(0,0, Str, GLCD_ALIGN_LEFT);
-                    // and password
-                    sprintf(Str, "PW:%s", APpassword.c_str());
-                    GLCD_write_buf_str(127,0, Str, GLCD_ALIGN_RIGHT);
+                    // Show ESPTouch key
+                    sprintf(Str, "Key:%s", APpassword);
+                    GLCD_write_buf_str(0, 0, Str, GLCD_ALIGN_LEFT);
+                    GLCD_sendbuf(7, 1);
+                    GLCD_buffer_clr();
+                    sprintf(Str, "Now use EspTouch app ");
+                    GLCD_write_buf_str(0, 0, Str, GLCD_ALIGN_LEFT);
                 }
             }
         }

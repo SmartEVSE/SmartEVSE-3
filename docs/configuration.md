@@ -95,9 +95,23 @@ RFID    use a RFID card reader to enable/disable access to the EVSE
 
 WIFI          Enable wifi connection to your LAN
   <Disabled>  No wifi connection
-  <SetupWifi> The SmartEVSE presents itself as a Wifi Acces Point "smartevse-xxxx";
+  <SetupWifi> v3.6.3 or older: The SmartEVSE presents itself as a Wifi Acces Point "smartevse-xxxx";
               connect with your phone to that access point, goto http://192.168.4.1/
               and configure your Wifi password
+              v.3.6.4 and newer: On your smartphone:
+              -connect your smartphone to the wifi network you want your SmartEVSE connected to
+              -download and run the ESPTouch app from your appstore (both Android and Apple),
+              -choose EspTouch V2,
+              -fill in the password of the wifi network,
+              -fill in "1" in device count for provisioning,
+              -on the SmartEVSE LCD screen, select "Wifi", select "SetupWifi",
+              -press the middle button to start the configuration procedure,
+              -once pressed, the bottom line shows you a 16 character key, first 8 zeros,
+              -fill in that key in the ESPTouch app, in the AES Key field
+              -leave Custom Data empty
+              -press "Confirm", within 30 seconds the app will confirm a MAC address and an IP address
+              You are connected now. If you want special stuff (static IP address, special DNS address),
+              configure them on your AP/router.
   <Enabled>   Connect to your LAN via Wifi.
 
 AUTOUPDAT     (only appears when WIFI is Enabled):
