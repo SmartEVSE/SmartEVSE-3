@@ -107,6 +107,8 @@ bool shouldReboot = false;
 uint16_t MaxMains = MAX_MAINS;                                              // Max Mains Amps (hard limit, limited by the MAINS connection) (A)
 uint16_t MaxSumMains = MAX_SUMMAINS;                                        // Max Mains Amps summed over all 3 phases, limit used by EU capacity rate
                                                                             // see https://github.com/serkri/SmartEVSE-3/issues/215
+uint8_t MaxSumMainsTime = MAX_SUMMAINSTIME;                                // Number of Minutes we wait when MaxSumMains is exceeded, before we stop charging
+uint16_t MaxSumMainsTimer = 0;
 uint16_t MaxCurrent = MAX_CURRENT;                                          // Max Charge current (A)
 uint16_t MinCurrent = MIN_CURRENT;                                          // Minimal current the EV is happy with (A)
 uint16_t ICal = ICAL;                                                       // CT calibration value
@@ -683,7 +685,8 @@ void setMode(uint8_t NewMode) {
 
     if (NewMode == MODE_SMART) {
         ErrorFlags &= ~(NO_SUN | LESS_6A);                                      // Clear All errors
-        setSolarStopTimer(0);                                                   // Also make sure the SolarTimer is disabled.
+        SolarStopTimer = 0;                                                     // Also make sure the SolarTimer is disabled.
+        MaxSumMainsTimer = 0;
     }
     ChargeDelay = 0;                                                            // Clear any Chargedelay
     BacklightTimer = BACKLIGHT;                                                 // Backlight ON
@@ -700,14 +703,6 @@ void setMode(uint8_t NewMode) {
         preferences.putULong("DelayedStopTime", DelayedStopTime.epoch2);   //epoch2 only needs 4 bytes
         preferences.end();
     }
-}
-/**
- * Set the solar stop timer
- * 
- * @param unsigned int Timer (seconds)
- */
-void setSolarStopTimer(uint16_t Timer) {
-    SolarStopTimer = Timer;
 }
 
 /**
@@ -815,7 +810,8 @@ void setState(uint8_t NewState) {
 
             if (Switching_To_Single_Phase == GOING_TO_SWITCH) {
                     CONTACTOR2_OFF;
-                    setSolarStopTimer(0); //TODO still needed? now we switched contactor2 off, review if we need to stop solar charging
+                    SolarStopTimer = 0; //TODO still needed? now we switched contactor2 off, review if we need to stop solar charging
+                    MaxSumMainsTimer = 0;
                     //Nr_Of_Phases_Charging = 1; this will be detected automatically
                     Switching_To_Single_Phase = AFTER_SWITCH;                   // we finished the switching process,
                                                                                 // BUT we don't know which is the single phase
@@ -1037,6 +1033,9 @@ void CalcBalancedCurrent(char mod) {
     int ActiveMax = 0, TotalCurrent = 0, Baseload;
     char CurrentSet[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};
     uint8_t n;
+    bool LimitedByMaxSumMains = false;
+
+    // ############### first calculate some basic variables #################
     if (BalancedState[0] == STATE_C && MaxCurrent > MaxCapacity && !Config)
         ChargeCurrent = MaxCapacity * 10;
     else
@@ -1079,6 +1078,8 @@ void CalcBalancedCurrent(char mod) {
     if (Baseload < 0)
         Baseload = 0;
 
+    // ############### now calculate IsetBalanced #################
+
     if (Mode == MODE_NORMAL)                                                    // Normal Mode
     {
         if (LoadBl == 1)                                                        // Load Balancing = Master? MaxCircuit is max current for all active EVSE's;
@@ -1100,17 +1101,22 @@ void CalcBalancedCurrent(char mod) {
 
         uint8_t Temp_Phases;
         Temp_Phases = (Nr_Of_Phases_Charging ? Nr_Of_Phases_Charging : 3);      // in case nr of phases not detected, assume 3
-        Idifference = min((MaxMains * 10) - Imeasured, min((MaxCircuit * 10) - Imeasured_EV, ((MaxSumMains * 10) - Isum)/Temp_Phases));
+        Idifference = min((MaxMains * 10) - Imeasured, (MaxCircuit * 10) - Imeasured_EV);
+        if (Idifference > ((MaxSumMains * 10) - Isum)/Temp_Phases) {
+            Idifference = ((MaxSumMains * 10) - Isum)/Temp_Phases;
+            LimitedByMaxSumMains = true;
+            _LOG_V("Current is limited by MaxSumMains: MaxSumMains=%iA, Isum=%.1fA, Temp_Phases=%i.\n", MaxSumMains, (float)Isum/10, Temp_Phases);
+        }
 
         if (!mod) {                                                             // no new EVSE's charging
                                                                                 // For Smart mode, no new EVSE asking for current
                                                                                 // But for Solar mode we _also_ have to guard MaxCircuit and Maxmains!
             if (phasesLastUpdateFlag) {                                         // only increase or decrease current if measurements are updated
                 _LOG_V("phaseLastUpdate=%i.\n", phasesLastUpdate);
-            if (Idifference > 0) {
+                if (Idifference > 0) {
                     if (Mode == MODE_SMART) IsetBalanced += (Idifference / 4);  // increase with 1/4th of difference (slowly increase current)
                 }                                                               // in Solar mode we compute increase of current later on!
-            else
+                else
                     IsetBalanced += Idifference;                                // last PWM setting + difference (immediately decrease current) (Smart and Solar mode)
             }
 
@@ -1143,10 +1149,39 @@ void CalcBalancedCurrent(char mod) {
                 }
             }                                                                   // we already corrected Isetbalance in case of NOT enough power MaxCircuit/MaxMains
             _LOG_V("Checkpoint 3 Isetbalanced=%.1f A, IsumImport=%.1f, Isum=%.1f, ImportCurrent=%i.\n", (float)IsetBalanced/10, (float)IsumImport/10, (float)Isum/10, ImportCurrent);
+        } //end MODE_SOLAR
+        else { // MODE_SMART
+        // New EVSE charging, and only if we have active EVSE's
+            if (mod && ActiveEVSE) {                                            // Set max combined charge current to MaxMains - Baseload
+                IsetBalanced = min((MaxMains * 10) - Baseload, min((MaxCircuit * 10 ) - Baseload_EV, ((MaxSumMains * 10) - Isum)/3)); //assume the current should be available on all 3 phases
+            }
+        } //end MODE_SMART
+    } // end MODE_SOLAR || MODE_SMART
 
-            // If IsetBalanced is below MinCurrent or negative, make sure it's set to MinCurrent.
-            if ( (IsetBalanced <= (ActiveEVSE * MinCurrent * 10)) || (IsetBalanced < 0) ) {
-                IsetBalanced = ActiveEVSE * MinCurrent * 10;
+    // ############### make sure the calculated IsetBalanced doesnt exceed any boundaries #################
+
+    // Reset flag that keeps track of new MainsMeter measurements
+    phasesLastUpdateFlag = false;
+
+    // guard MaxCircuit in all modes; slave doesnt run CalcBalancedCurrent
+    if (IsetBalanced > (MaxCircuit * 10) - Baseload_EV)
+        IsetBalanced = MaxCircuit * 10 - Baseload_EV; //limiting is per phase so no Nr_Of_Phases_Charging here!
+
+    _LOG_V("Checkpoint 4 Isetbalanced=%.1f A.\n", (float)IsetBalanced/10);
+
+    // ############### the rest of the work we only do if there are ActiveEVSEs #################
+
+    if (ActiveEVSE) {                                                           // Only if we have active EVSE's
+
+        // ############### we now check shortage of power  #################
+
+        if (IsetBalanced < (ActiveEVSE * MinCurrent * 10)) {
+
+            // ############### shortage of power  #################
+
+            IsetBalanced = ActiveEVSE * MinCurrent * 10;                        // retain old software behaviour: set minimal "MinCurrent" charge per active EVSE
+            //so now we have a shortage of power
+            if (Mode == MODE_SOLAR) {
                 // ----------- Check to see if we have to continue charging on solar power alone ----------
                 if (ActiveEVSE && StopTime && (IsumImport > 10)) {
                     //TODO maybe enable solar switching for loadbl = 1
@@ -1160,41 +1195,30 @@ void CalcBalancedCurrent(char mod) {
                         Switching_To_Single_Phase = GOING_TO_SWITCH;
                     }
                     else {
-                        if (SolarStopTimer == 0) setSolarStopTimer(StopTime * 60); // Convert minutes into seconds
+                        if (SolarStopTimer == 0) SolarStopTimer = StopTime * 60; // Convert minutes into seconds
                     }
                 } else {
                     _LOG_D("Checkpoint a: Resetting SolarStopTimer, IsetBalanced=%.1fA, ActiveEVSE=%i.\n", (float)IsetBalanced/10, ActiveEVSE);
-                    setSolarStopTimer(0);
+                    SolarStopTimer = 0;
                 }
+            }
+            if (LimitedByMaxSumMains && MaxSumMainsTime) {
+                if (MaxSumMainsTimer == 0)                                      // has expired, so set timer
+                    MaxSumMainsTimer = MaxSumMainsTime * 60;
             } else {
-                _LOG_D("Checkpoint b: Resetting SolarStopTimer, IsetBalanced=%.1fA, ActiveEVSE=%i.\n", (float)IsetBalanced/10, ActiveEVSE);
-                setSolarStopTimer(0);
+                NoCurrent++;                                                    // Flag NoCurrent left
+                _LOG_I("No Current!!\n");
             }
-        } //end MODE_SOLAR
-        else { // MODE_SMART
-        // New EVSE charging, and only if we have active EVSE's
-            if (mod && ActiveEVSE) {                                            // Set max combined charge current to MaxMains - Baseload
-                IsetBalanced = min((MaxMains * 10) - Baseload, min((MaxCircuit * 10 ) - Baseload_EV, ((MaxSumMains * 10) - Isum)/3)); //assume the current should be available on all 3 phases
-            }
-        } //end MODE_SMART
-    } // end MODE_SOLAR || MODE_SMART
+        } else {                                                                // we have enough current
+            // ############### no shortage of power  #################
 
-    // Reset flag that keeps track of new MainsMeter measurements
-    phasesLastUpdateFlag = false;
-
-    // guard MaxCircuit in all modes, unless mode Normal and LoadBl == 0; slave doesnt run CalcBalancedCurrent
-    if ((Mode != MODE_NORMAL || LoadBl != 0) && IsetBalanced > (MaxCircuit * 10) - Baseload_EV)
-        IsetBalanced = MaxCircuit * 10 - Baseload_EV; //limiting is per phase so no Nr_Of_Phases_Charging here!
-
-    _LOG_V("Checkpoint 4 Isetbalanced=%.1f A.\n", (float)IsetBalanced/10);
-
-    if (ActiveEVSE) {                                                           // Only if we have active EVSE's
-        if (IsetBalanced < 0 || IsetBalanced < (ActiveEVSE * MinCurrent * 10)) {
-            IsetBalanced = ActiveEVSE * MinCurrent * 10;                        // retain old software behaviour: set minimal "MinCurrent" charge per active EVSE
-            NoCurrent++;                                                        // Flag NoCurrent left
-            _LOG_I("No Current!!\n");
-        } else
+            LOG_D("Checkpoint b: Resetting SolarStopTimer, MaxSumMainsTimer, IsetBalanced=%.1fA, ActiveEVSE=%i.\n", (float)IsetBalanced/10, ActiveEVSE);
+            SolarStopTimer = 0;
+            MaxSumMainsTimer = 0;
             NoCurrent = 0;
+        }
+
+        // ############### we now distribute the calculated IsetBalanced over the EVSEs  #################
 
         if (IsetBalanced > ActiveMax) IsetBalanced = ActiveMax;                 // limit to total maximum Amps (of all active EVSE's)
                                                                                 // TODO not sure if Nr_Of_Phases_Charging should be involved here
@@ -1249,7 +1273,15 @@ void CalcBalancedCurrent(char mod) {
         }
 
 
-    } // ActiveEVSE
+    } else { // no ActiveEVSEs so reset all timers
+        LOG_D("Checkpoint c: Resetting SolarStopTimer, MaxSumMainsTimer, IsetBalanced=%.1fA, ActiveEVSE=%i.\n", (float)IsetBalanced/10, ActiveEVSE);
+        SolarStopTimer = 0;
+        MaxSumMainsTimer = 0;
+        NoCurrent = 0;
+    }
+
+    // ############### print all the distributed currents #################
+
     _LOG_V("Checkpoint 5 Isetbalanced=%.1f A.\n", (float)IsetBalanced/10);
     if (LoadBl == 1) {
         _LOG_D("Balance: ");
@@ -1627,6 +1659,9 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
         case MENU_SUMMAINS:
             MaxSumMains = val;
             break;
+        case MENU_SUMMAINSTIME:
+            MaxSumMainsTime = val;
+            break;
         case MENU_MIN:
             MinCurrent = val;
             break;
@@ -1731,7 +1766,7 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
             if (LoadBl < 2) MainsMeterTimeout = COMM_TIMEOUT;                   // reset timeout when register is written
             break;
         case STATUS_SOLAR_TIMER:
-            setSolarStopTimer(val);
+            SolarStopTimer = val;
             break;
         case STATUS_ACCESS:
             if (val == 0 || val == 1) {
@@ -1778,6 +1813,8 @@ uint16_t getItemValue(uint8_t nav) {
             return MaxMains;
         case MENU_SUMMAINS:
             return MaxSumMains;
+        case MENU_SUMMAINSTIME:
+            return MaxSumMainsTime;
         case MENU_MIN:
             return MinCurrent;
         case MENU_MAX:
@@ -2014,7 +2051,6 @@ void CheckSwitch(void)
                     case 4: // Smart-Solar Switch
                         if (Mode == MODE_SOLAR) {
                             setMode(MODE_SMART);
-                            setSolarStopTimer(0);                           // Also make sure the SolarTimer is disabled.
                         }
                         break;
                     default:
@@ -2049,7 +2085,8 @@ void CheckSwitch(void)
                             }
                             ErrorFlags &= ~(NO_SUN | LESS_6A);                   // Clear All errors
                             ChargeDelay = 0;                                // Clear any Chargedelay
-                            setSolarStopTimer(0);                           // Also make sure the SolarTimer is disabled.
+                            SolarStopTimer = 0;                             // Also make sure the SolarTimer is disabled.
+                            MaxSumMainsTimer = 0;
                             LCDTimer = 0;
                         }
                         RB2low = 0;
@@ -2127,7 +2164,8 @@ void EVSEStates(void * parameter) {
             setMode(~Mode & 0x3);                                           // Change from Solar to Smart mode and vice versa.
             ErrorFlags &= ~(NO_SUN | LESS_6A);                              // Clear All errors
             ChargeDelay = 0;                                                // Clear any Chargedelay
-            setSolarStopTimer(0);                                           // Also make sure the SolarTimer is disabled.
+            SolarStopTimer = 0;                                             // Also make sure the SolarTimer is disabled.
+            MaxSumMainsTimer = 0;
             LCDTimer = 0;
             leftbutton = 5;
         } else if (leftbutton && ButtonState == 0x7) leftbutton--;
@@ -3027,9 +3065,20 @@ void Timer1S(void * parameter) {
         if (SolarStopTimer) {
             SolarStopTimer--;
             if (SolarStopTimer == 0) {
-
                 if (State == STATE_C) setState(STATE_C1);                   // tell EV to stop charging
                 ErrorFlags |= NO_SUN;                                       // Set error: NO_SUN
+            }
+        }
+
+        // When Smart or Solar Charging, once MaxSumMains is exceeded, a timer is started
+        // Charging is stopped when the timer reaches the time set in 'MaxSumMainsTime' (in minutes)
+        // Except when MaxSumMainsTime =0, then charging will continue.
+
+        if (MaxSumMainsTimer) {
+            MaxSumMainsTimer--;                                             // Decrease MaxSumMains counter every second.
+            if (MaxSumMainsTimer == 0) {
+                if (State == STATE_C) setState(STATE_C1);                   // tell EV to stop charging
+                ErrorFlags |= LESS_6A;                                      // Set error: LESS_6A
             }
         }
 
@@ -3665,6 +3714,7 @@ void read_settings() {
         LoadBl = preferences.getUChar("LoadBl", LOADBL); 
         MaxMains = preferences.getUShort("MaxMains", MAX_MAINS); 
         MaxSumMains = preferences.getUShort("MaxSumMains", MAX_SUMMAINS);
+        MaxSumMainsTime = preferences.getUShort("MaxSumMainsTime", MAX_SUMMAINSTIME);
         MaxCurrent = preferences.getUShort("MaxCurrent", MAX_CURRENT); 
         MinCurrent = preferences.getUShort("MinCurrent", MIN_CURRENT); 
         MaxCircuit = preferences.getUShort("MaxCircuit", MAX_CIRCUIT); 
@@ -3744,6 +3794,7 @@ void write_settings(void) {
     preferences.putUChar("LoadBl", LoadBl); 
     preferences.putUShort("MaxMains", MaxMains); 
     preferences.putUShort("MaxSumMains", MaxSumMains);
+    preferences.putUShort("MaxSumMainsTime", MaxSumMainsTime);
     preferences.putUShort("MaxCurrent", MaxCurrent); 
     preferences.putUShort("MinCurrent", MinCurrent); 
     preferences.putUShort("MaxCircuit", MaxCircuit); 
@@ -4689,6 +4740,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         doc["settings"]["current_main"] = MaxMains;
         doc["settings"]["current_max_circuit"] = MaxCircuit;
         doc["settings"]["current_max_sum_mains"] = MaxSumMains;
+        doc["settings"]["max_sum_mains_time"] = MaxSumMainsTime;
         doc["settings"]["solar_max_import"] = ImportCurrent;
         doc["settings"]["solar_start_current"] = StartCurrent;
         doc["settings"]["solar_stop_time"] = StopTime;
@@ -4800,6 +4852,17 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
                 write_settings();
             } else {
                 doc["current_max_sum_mains"] = "Value not allowed!";
+            }
+        }
+
+        if(request->hasParam("max_sum_mains_timer")) {
+            int time = request->getParam("max_sum_mains_timer")->value().toInt();
+            if(time >= 0 && time <= 60 && LoadBl < 2) {
+                MaxSumMainsTime = time;
+                doc["max_sum_mains_time"] = MaxSumMainsTime;
+                write_settings();
+            } else {
+                doc["max_sum_mains_time"] = "Value not allowed!";
             }
         }
 

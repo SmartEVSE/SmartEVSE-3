@@ -823,6 +823,7 @@ const char * getMenuItemOption(uint8_t nav) {
         case MENU_START:
                 sprintf(Str, "-%2u A", value);
                 return Str;
+        case MENU_SUMMAINSTIME:
         case MENU_STOP:
             if (value) {
                 sprintf(Str, "%2u min", value);
@@ -978,8 +979,11 @@ uint8_t getMenuItems (void) {
 #endif
     }
     MenuItems[m++] = MENU_MAX_TEMP;
-    if (MainsMeter && LoadBl < 2)
+    if (MainsMeter && LoadBl < 2) {
         MenuItems[m++] = MENU_SUMMAINS;
+        if (getItemValue(MENU_SUMMAINS) != 600)
+            MenuItems[m++] = MENU_SUMMAINSTIME;
+    }
     MenuItems[m++] = MENU_EXIT;
 
     return m;
@@ -1121,7 +1125,7 @@ void GLCDMenu(uint8_t Buttons) {
                 ErrorFlags = NO_ERROR;                                          // Clear All Errors when exiting the Main Menu
                 TestState = 0;                                                  // Clear TestState
                 ChargeDelay = 0;                                                // Clear ChargeDelay
-                setSolarStopTimer(0);                                           // Disable Solar Timer
+                SolarStopTimer = 0;                                             // Disable Solar Timer
                 GLCD();
                 write_settings();                                               // Write to eeprom
                 ButtonRelease = 2;                                              // Skip updating of the LCD 

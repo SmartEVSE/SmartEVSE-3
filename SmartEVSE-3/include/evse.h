@@ -200,6 +200,7 @@ extern RemoteDebug Debug;
 #define ICAL 1024                                                               // Irms Calibration value (for Current transformers)
 #define MAX_MAINS 25                                                            // max Current the Mains connection can supply
 #define MAX_SUMMAINS 600                                                        // only used for capacity rate limiting, max current over the sum of all phases
+#define MAX_SUMMAINSTIME 0
 #define MAX_CURRENT 13                                                          // max charging Current for the EV
 #ifndef MIN_CURRENT
 #define MIN_CURRENT 6                                                           // minimum Current the EV will accept
@@ -408,15 +409,16 @@ extern RemoteDebug Debug;
 #define MENU_C2 36
 #define MENU_MAX_TEMP 37
 #define MENU_SUMMAINS 38
+#define MENU_SUMMAINSTIME 39
 #if ENABLE_OCPP == 0
-#define MENU_OFF 39                                                             // so access bit is reset and charging stops when pressing < button 2 seconds
-#define MENU_ON 40                                                              // so access bit is set and charging starts when pressing > button 2 seconds
-#define MENU_EXIT 41
-#else
-#define MENU_OCPP 39                                                            // OCPP Disable / Enable / Further modes
 #define MENU_OFF 40                                                             // so access bit is reset and charging stops when pressing < button 2 seconds
 #define MENU_ON 41                                                              // so access bit is set and charging starts when pressing > button 2 seconds
 #define MENU_EXIT 42
+#else
+#define MENU_OCPP 40                                                            // OCPP Disable / Enable / Further modes
+#define MENU_OFF 41                                                             // so access bit is reset and charging stops when pressing < button 2 seconds
+#define MENU_ON 42                                                              // so access bit is set and charging starts when pressing > button 2 seconds
+#define MENU_EXIT 43
 #endif
 
 #define MENU_STATE 50
@@ -576,6 +578,7 @@ const struct {
     {"CONTACT 2","Contactor2 (C2) behaviour",                          0, sizeof(StrEnableC2) / sizeof(StrEnableC2[0])-1, ENABLE_C2},
     {"MAX TEMP","Maximum temperature for the EVSE module",            40, 75, MAX_TEMPERATURE},
     {"SUM MAINS","Capacity Rate limit on sum of MAINS Current (A)",    10, 600, MAX_SUMMAINS},
+    {"SUM STOP","Stop Capacity Rate limit charging after X minutes",    0, 60, MAX_SUMMAINSTIME},
 #if ENABLE_OCPP
     {"OCPP",    "Select OCPP mode",                                   0, 1, OCPP_MODE},
 #endif
@@ -620,7 +623,6 @@ extern struct DelayedTimeStruct DelayedStartTime;
 void CheckAPpassword(void);
 void read_settings();
 void write_settings(void);
-void setSolarStopTimer(uint16_t Timer);
 void setState(uint8_t NewState);
 void setAccess(bool Access);
 void SetCPDuty(uint32_t DutyCycle);
