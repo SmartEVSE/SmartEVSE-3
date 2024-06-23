@@ -100,6 +100,14 @@ WIFI          Enable wifi connection to your LAN
               and configure your Wifi password
   <Enabled>   Connect to your LAN via Wifi.
 
+AUTOUPDAT     (only appears when WIFI is Enabled):
+              Automatic update of your firmware
+  <Disabled>  No automatic update
+  <Enabled>   Checks every 18 hours if there is a new stable firmware version available;
+              If so, downloads and flashes it, and reboots as soon as no EV is connected.
+              DOES NOT WORK if your current version is not one of the format vx.y.z, e.g. v3.6.1
+              So locally compiled versions, or RCx versions, will NOT Autoupdate!
+
 MAX TEMP      Maximum allowed temperature for your SmartEVSE; 40-75C, default 65.
               You can increase this if your SmartEVSE is in direct sunlight.
 
