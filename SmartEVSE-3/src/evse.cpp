@@ -934,7 +934,8 @@ char IsCurrentAvailable(void) {
         _LOG_D("No current available MaxMains line %d. ActiveEVSE=%i, Baseload=%.1fA, MinCurrent=%iA, MaxMains=%iA.\n", __LINE__, ActiveEVSE, (float) Baseload/10, MinCurrent, MaxMains);
         return 0;                                                           // Not enough current available!, return with error
     }
-    if ((Mode != MODE_NORMAL || LoadBl != 0) && ((ActiveEVSE * (MinCurrent * 10) + Baseload_EV) > (MaxCircuit * 10))) { //ignore MaxCircuit in Mode == Normal && LoadBl == 0
+    if (((LoadBl == 0 && EVMeter && Mode != MODE_NORMAL) || LoadBl == 1)    // Conditions in which MaxCircuit has to be considered
+        && ((ActiveEVSE * (MinCurrent * 10) + Baseload_EV) > (MaxCircuit * 10))) { // MaxCircuit is exceeded
         _LOG_D("No current available MaxCircuit line %d. ActiveEVSE=%i, Baseload_EV=%.1fA, MinCurrent=%iA, MaxCircuit=%iA.\n", __LINE__, ActiveEVSE, (float) Baseload_EV/10, MinCurrent, MaxCircuit);
         return 0;                                                           // Not enough current available!, return with error
     }
@@ -1065,8 +1066,6 @@ void CalcBalancedCurrent(char mod) {
 
     _LOG_V("Checkpoint 1 Isetbalanced=%.1f A Imeasured=%.1f A MaxCircuit=%i Imeasured_EV=%.1f A, Battery Current = %.1f A, mode=%i.\n", (float)IsetBalanced/10, (float)Imeasured/10, MaxCircuit, (float)Imeasured_EV/10, (float)homeBatteryCurrent/10, Mode);
 
-    // When Load balancing = Master,  Limit total current of all EVSEs to MaxCircuit
-    // Also, when not in Normal Mode, if MaxCircuit is set, it will limit the total current (subpanel configuration)
     Baseload_EV = Imeasured_EV - TotalCurrent;                                  // Calculate Baseload (load without any active EVSE)
     if (Baseload_EV < 0)
         Baseload_EV = 0;
@@ -1097,7 +1096,11 @@ void CalcBalancedCurrent(char mod) {
 
         uint8_t Temp_Phases;
         Temp_Phases = (Nr_Of_Phases_Charging ? Nr_Of_Phases_Charging : 3);      // in case nr of phases not detected, assume 3
-        Idifference = min((MaxMains * 10) - Imeasured, (MaxCircuit * 10) - Imeasured_EV);
+        if ((LoadBl == 0 && EVMeter) || LoadBl == 1)                            // Conditions in which MaxCircuit has to be considered;
+                                                                                // mode = Smart/Solar so don't test for that
+            Idifference = min((MaxMains * 10) - Imeasured, (MaxCircuit * 10) - Imeasured_EV);
+        else
+            Idifference = (MaxMains * 10) - Imeasured;
         if (Idifference > ((MaxSumMains * 10) - Isum)/Temp_Phases) {
             Idifference = ((MaxSumMains * 10) - Isum)/Temp_Phases;
             LimitedByMaxSumMains = true;
@@ -1106,7 +1109,6 @@ void CalcBalancedCurrent(char mod) {
 
         if (!mod) {                                                             // no new EVSE's charging
                                                                                 // For Smart mode, no new EVSE asking for current
-                                                                                // But for Solar mode we _also_ have to guard MaxCircuit and Maxmains!
             if (phasesLastUpdateFlag) {                                         // only increase or decrease current if measurements are updated
                 _LOG_V("phaseLastUpdate=%i.\n", phasesLastUpdate);
                 if (Idifference > 0) {
@@ -1149,7 +1151,11 @@ void CalcBalancedCurrent(char mod) {
         else { // MODE_SMART
         // New EVSE charging, and only if we have active EVSE's
             if (mod && ActiveEVSE) {                                            // Set max combined charge current to MaxMains - Baseload
-                IsetBalanced = min((MaxMains * 10) - Baseload, min((MaxCircuit * 10 ) - Baseload_EV, ((MaxSumMains * 10) - Isum)/3)); //assume the current should be available on all 3 phases
+                // Set max combined charge current to MaxMains - Baseload, or MaxCircuit - Baseload_EV if that is less
+                if ((LoadBl == 0 && EVMeter && Mode) || LoadBl == 1)    // Conditions in which MaxCircuit has to be considered
+                    IsetBalanced = min((MaxMains * 10) - Baseload, min((MaxCircuit * 10 ) - Baseload_EV, ((MaxSumMains * 10) - Isum)/3)); //assume the current should be available on all 3 phases
+                else
+                    IsetBalanced = ((MaxSumMains * 10) - Isum)/3;
             }
         } //end MODE_SMART
     } // end MODE_SOLAR || MODE_SMART
@@ -1159,8 +1165,9 @@ void CalcBalancedCurrent(char mod) {
     // Reset flag that keeps track of new MainsMeter measurements
     phasesLastUpdateFlag = false;
 
-    // guard MaxCircuit in all modes; slave doesnt run CalcBalancedCurrent
-    if (IsetBalanced > (MaxCircuit * 10) - Baseload_EV)
+    // guard MaxCircuit
+    if (((LoadBl == 0 && EVMeter && Mode != MODE_NORMAL) || LoadBl == 1)    // Conditions in which MaxCircuit has to be considered
+       && (IsetBalanced > (MaxCircuit * 10) - Baseload_EV))
         IsetBalanced = MaxCircuit * 10 - Baseload_EV; //limiting is per phase so no Nr_Of_Phases_Charging here!
 
     _LOG_V("Checkpoint 4 Isetbalanced=%.1f A.\n", (float)IsetBalanced/10);

@@ -73,10 +73,16 @@ MAX	Set MAX charge current for the EV: 10-80A (per phase)
         If CONFIG is set to <Fixed>, configure MAX lower or equal to the maximum current
         that your fixed cable can carry.
 
-CIRCUIT	(only appears when PWR SHARE set to <Master>, or when PWR SHARE set to <Disabled>
-        and Mode is Smart or Solar and EV METER not set to <Disabled>):
+CIRCUIT
+        If PWR SHARE set to <Disabled>:
+        Only appears when an EV METER is configured, in Smart or Solar mode.
         Set the max current the EVSE circuit can handle (load balancing): 10-200A
+        Not obeyed in Normal mode.
         (see also subpanel wiring)
+
+        If PWR SHARE set to <Master>:
+        Set the max current the EVSE circuit can handle (load balancing): 10-200A
+        Obeyed in all modes!
 
 SWITCH  Set the function of an external switch connected to pin SW
   <Disabled>    A push button on io pin SW can be used to STOP charging
