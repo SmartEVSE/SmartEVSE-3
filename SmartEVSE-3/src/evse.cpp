@@ -1202,12 +1202,16 @@ void CalcBalancedCurrent(char mod) {
                     SolarStopTimer = 0;
                 }
             }
+
+            //the expiring of both SolarStopTimer and MaxSumMinsTimer is handled in the Timer1s loop
             if (LimitedByMaxSumMains && MaxSumMainsTime) {
                 if (MaxSumMainsTimer == 0)                                      // has expired, so set timer
                     MaxSumMainsTimer = MaxSumMainsTime * 60;
             } else {
-                NoCurrent++;                                                    // Flag NoCurrent left
-                _LOG_I("No Current!!\n");
+                if (!(Mode == MODE_SOLAR && SolarStopTimer)) {                  // in that case the SolarStopTimer in Timer1s loop will take care of no power
+                    NoCurrent++;                                                    // Flag NoCurrent left
+                    _LOG_I("No Current!!\n");
+                }
             }
         } else {                                                                // we have enough current
             // ############### no shortage of power  #################
@@ -1264,7 +1268,7 @@ void CalcBalancedCurrent(char mod) {
         while (n < NR_EVSES && ActiveEVSE) {                                    // Check for EVSE's that are not set yet
             if ((BalancedState[n] == STATE_C) && (!CurrentSet[n])) {            // Active EVSE, and current not yet calculated?
                 Balanced[n] = MaxBalanced / ActiveEVSE;                         // Set current to Average
-                _LOG_V("[H]Node %u = %u.%u A", n, Balanced[n]/10, Balanced[n]%10);
+                _LOG_V("[H]Node %u = %u.%u A.\n", n, Balanced[n]/10, Balanced[n]%10);
                 CurrentSet[n] = 1;                                              // mark this EVSE as set.
                 ActiveEVSE--;                                                   // decrease counter of active EVSE's
                 MaxBalanced -= Balanced[n];                                     // Update total current to new (lower) value
