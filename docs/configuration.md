@@ -260,6 +260,7 @@ You can get the latest release off of https://github.com/dingo35/SmartEVSE-3.5/r
 * Install platformio-core https://docs.platformio.org/en/latest/core/installation/methods/index.html
 * Clone this github project, cd to the smartevse directory where platformio.ini is located
 * Compile firmware.bin: platformio run
+* If your want to give special compiler options, e.g. lower the minimum current to 5A:  PLATFORMIO_BUILD_FLAGS='-DDBG=1 -DMIN_CURRENT=5' pio run
 For versions older than v3.6.0:
 * Compile spiffs.bin: platformio run -t buildfs
 
