@@ -2423,6 +2423,96 @@ void requestPowerMeasurement(uint8_t Meter, uint8_t Address, uint8_t PRegister) 
    }
 }
 
+bool isValidInput(String input) {
+  // Check if the input contains only alphanumeric characters, underscores, and hyphens
+  for (char c : input) {
+    if (!isalnum(c) && c != '_' && c != '-') {
+      return false;
+    }
+  }
+  return true;
+}
+
+
+static uint8_t CliState = 0;
+void ProvisionCli() {
+
+    static char CliBuffer[64];
+    static uint8_t idx = 0;
+    static bool entered = false;
+    char ch;
+
+    if (CliState == 0) {
+        Serial.println("Enter WiFi access point name:");
+        CliState++;
+
+    } else if (CliState == 1 && entered) {
+        Router_SSID = String(CliBuffer);
+        Router_SSID.trim();
+        if (!isValidInput(Router_SSID)) {
+            Serial.println("Invalid characters in SSID.");
+            Router_SSID = "";
+            CliState = 0;
+        } else CliState++;              // All OK, now request password.
+        idx = 0;
+        entered = false;
+
+    } else if (CliState == 2) {
+        Serial.println("Enter WiFi password:");
+        CliState++;
+
+    } else if (CliState == 3 && entered) {
+        Router_Pass = String(CliBuffer);
+        Router_Pass.trim();
+        if (idx < 8) {
+            Serial.println("Password should be min 8 characters.");
+            Router_Pass = "";
+            CliState = 2;
+        } else CliState++;             // All OK
+        idx = 0;
+        entered = false;
+
+    } else if (CliState == 4) {
+        Serial.println("WiFi credentials stored.");
+        CliState++;
+
+    } else if (CliState == 5) {
+
+        //WiFi.stopSmartConfig();             // Stop SmartConfig //TODO necessary?
+        WiFi.mode(WIFI_STA);                // Set Station Mode
+        WiFi.begin(Router_SSID, Router_Pass);   // Configure Wifi with credentials
+        CliState++;
+    }
+
+
+    // read input, and store in buffer until we read a \n
+    while (Serial.available()) {
+        ch = Serial.read();
+
+        // When entering a password, replace last character with a *
+        if (CliState == 3 && idx) Serial.printf("\b*");
+        Serial.print(ch);
+
+        // check for CR/LF, and make sure the contents of the buffer is atleast 1 character
+        if (ch == '\n' || ch == '\r') {
+            if (idx) {
+                CliBuffer[idx] = 0;         // null terminate
+                entered = true;
+            } else if (CliState == 1 || CliState == 3) CliState--; // Reprint the last message
+        } else if (idx < 63) {              // Store in buffer
+            if (ch == '\b' && idx) {
+                idx--;
+                Serial.print(" \b");        // erase character from terminal
+            } else {
+                CliBuffer[idx++] = ch;
+            }
+        }
+    }
+}
+
+
+
+
 // Task that handles the Cable Lock and modbus
 // 
 // called every 100ms
@@ -5450,9 +5540,8 @@ void SetupPortalTask(void * parameter) {
         _LOG_A("Waiting for Mongoose Server to terminate\n");
     }
 
-
-  //Init WiFi as Station, start SmartConfig
-  WiFi.mode(WIFI_AP_STA);
+    //Init WiFi as Station, start SmartConfig
+    WiFi.mode(WIFI_AP_STA);
     uint8_t c;
     // Set random password, first 8 positions are 0
     for (uint8_t i=0; i<8 ;i++) {
@@ -5460,29 +5549,36 @@ void SetupPortalTask(void * parameter) {
             if (c > '9') c += 'a'-'9'-1;
             APpassword[i+8] = c;
     }
-  WiFi.beginSmartConfig(SC_TYPE_ESPTOUCH_V2, APpassword);
+#define SMARTCONFIG_TIMEOUT 120000                                              // SmartConfig has a built in timeout but it only starts halfway the process..
+                                                                                // we want to make sure our backup ProvisionCli will be called ...
+    unsigned long startSmartConfig = millis();
+    WiFi.beginSmartConfig(SC_TYPE_ESPTOUCH_V2, APpassword);
+    //Wait for SmartConfig packet from mobile
+    _LOG_V("Waiting for SmartConfig.\n");
+    while (!WiFi.smartConfigDone() && (millis() - startSmartConfig < SMARTCONFIG_TIMEOUT)) {
+        delay(500);
+        _LOG_V_NO_FUNC(".");
+    }
+    if (WiFi.smartConfigDone()) {
+        _LOG_V("\nSmartConfig received, Waiting for WiFi.\n");
+        //Wait for WiFi to connect to AP TODO is this necessary?
+        while (WiFi.status() != WL_CONNECTED) {
+            delay(500);
+            _LOG_V_NO_FUNC(".");
+        }
+        _LOG_V("\nWiFi Connected, IP Address:%s.\n", WiFi.localIP().toString().c_str());
+    }
+    else {
+        _LOG_A("\nSmartConfig failed, you can now enter WIFI credentials through the serial port !!!");
+        //TODO show this on the LCD screen?
+        while (CliState < 6) {
+            ProvisionCli();
+            delay(1000);
+        }
+        CliState = 0;
+    }
+    WiFi.stopSmartConfig(); // this makes sure repeated SmartConfig calls are succesfull
 
-  //Wait for SmartConfig packet from mobile
-  _LOG_A("Waiting for SmartConfig.\n");
-  while (!WiFi.smartConfigDone()) {
-    delay(500);
-    _LOG_A_NO_FUNC(".");
-  }
-
-  _LOG_A("\nSmartConfig received.\n");
-
-  //Wait for WiFi to connect to AP
-  _LOG_A("Waiting for WiFi\n");
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    _LOG_A_NO_FUNC(".");
-  }
-
-  _LOG_A("\nWiFi Connected.\n");
-
-  _LOG_A("IP Address:%s.\n", WiFi.localIP().toString().c_str());
-
-  WiFi.stopSmartConfig(); // this makes sure repeated SmartConfig calls are succesfull
     //for some reason the webserver is not accessible after this action, so we have to disable wifi before enabling it:
     WIFImode = 0;
     handleWIFImode();

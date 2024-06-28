@@ -112,6 +112,16 @@ WIFI          Enable wifi connection to your LAN
               -press "Confirm", within 30 seconds the app will confirm a MAC address and an IP address
               You are connected now. If you want special stuff (static IP address, special DNS address),
               configure them on your AP/router.
+
+              v3.6.4 and newer BACKUP PROCEDURE: if you don't get it to work with the ESPTouch app, there is
+              a backup procedure:
+              -connect your SmartEVSE with a USB cable to your PC
+              -install the USB driver (Windows) or not (linux) for ESP32 chipset
+              -connect your favorite serial terminal to the appropriate port
+              -on the SmartEVSE LCD screen, select "Wifi", select "SetupWifi",
+              -press the middle button to start the configuration procedure,
+              -wait for 120s ; then press enter on your serial terminal; you will be prompted for your WiFi
+               network name and password.
   <Enabled>   Connect to your LAN via Wifi.
 
 AUTOUPDAT     (only appears when WIFI is Enabled):
