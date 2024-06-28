@@ -5382,6 +5382,14 @@ void onWifiEvent(WiFiEvent_t event) {
                 setTimeZone();
             }
 
+            // Start the mDNS responder so that the SmartEVSE can be accessed using a local hostame: http://SmartEVSE-xxxxxx.local
+            if (!MDNS.begin(APhostname.c_str())) {
+                _LOG_A("Error setting up MDNS responder!\n");
+            } else {
+                _LOG_A("mDNS responder started. http://%s.local\n",APhostname.c_str());
+                MDNS.addService("http", "tcp", 80);   // announce Web server
+            }
+
             break;
         case WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_CONNECTED:
             _LOG_A("Connected or reconnected to WiFi\n");
@@ -5443,14 +5451,6 @@ void WiFiSetup(void) {
     //WiFi.persistent(true);
     WiFi.onEvent(onWifiEvent);
     handleWIFImode();                                                           //go into the mode that was saved in nonvolatile memory
-
-    // Start the mDNS responder so that the SmartEVSE can be accessed using a local hostame: http://SmartEVSE-xxxxxx.local
-    if (!MDNS.begin(APhostname.c_str())) {                
-        _LOG_A("Error setting up MDNS responder!\n");
-    } else {
-        _LOG_A("mDNS responder started. http://%s.local\n",APhostname.c_str());
-        MDNS.addService("http", "tcp", 80);   // announce Web server
-    }
 
     // Init and get the time
     // First option to get time from local ntp server blocks the second fallback option since 2021:
