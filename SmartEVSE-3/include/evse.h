@@ -439,11 +439,12 @@ extern RemoteDebug Debug;
 #define EM_API 9
 #define EM_EASTRON1P 10
 #define EM_FINDER_7M 11
-#define EM_UNUSED_SLOT1 12
-#define EM_UNUSED_SLOT2 13
-#define EM_UNUSED_SLOT3 14
-#define EM_UNUSED_SLOT4 15
-#define EM_CUSTOM 16
+#define EM_SINOTIMER 12
+#define EM_UNUSED_SLOT1 13
+#define EM_UNUSED_SLOT2 14
+#define EM_UNUSED_SLOT3 15
+#define EM_UNUSED_SLOT4 16
+#define EM_CUSTOM 17
 
 #define ENDIANESS_LBF_LWF 0
 #define ENDIANESS_LBF_HWF 1

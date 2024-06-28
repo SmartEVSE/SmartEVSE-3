@@ -296,6 +296,7 @@ struct EMstruct EMConfig[EM_CUSTOM + 1] = {
     {"API",       ENDIANESS_HBF_HWF, 3, MB_DATATYPE_FLOAT32, 0x5002, 0, 0x500C, 0, 0x5012, 3, 0x6000, 0,0x6018, 0}, // WAGO 879-30x0 (V / A / kW / kWh)
     {"Eastron1P", ENDIANESS_HBF_HWF, 4, MB_DATATYPE_FLOAT32,    0x0, 0,    0x6, 0,   0x0C, 0,  0x48 , 0,0x4A  , 0}, // Eastron SDM630 (V / A / W / kWh) max read count 80
     {"Finder 7M", ENDIANESS_HBF_HWF, 4, MB_DATATYPE_FLOAT32,   2500, 0,   2516, 0,   2536, 0,   2638, 3,     0, 0}, // Finder 7M.38.8.400.0212 (V / A / W / Wh) / Backlight 10173
+    {"Sinotimer", ENDIANESS_HBF_HWF, 4, MB_DATATYPE_INT16,      0x0, 1,    0x3, 2,    0x8, 0, 0x0027, 2,0x0031, 2}, // Sinotimer DTS6619 (0.1V (16bit) / 0.01A (16bit) / 1W  (16bit) / 1 Wh (32bit))
     {"Unused 1",  ENDIANESS_LBF_LWF, 4, MB_DATATYPE_INT32,        0, 0,      0, 0,      0, 0,      0, 0,     0, 0}, // unused slot for future new meters
     {"Unused 2",  ENDIANESS_LBF_LWF, 4, MB_DATATYPE_INT32,        0, 0,      0, 0,      0, 0,      0, 0,     0, 0}, // unused slot for future new meters
     {"Unused 3",  ENDIANESS_LBF_LWF, 4, MB_DATATYPE_INT32,        0, 0,      0, 0,      0, 0,      0, 0,     0, 0}, // unused slot for future new meters
@@ -2395,6 +2396,12 @@ void requestEnergyMeasurement(uint8_t Meter, uint8_t Address, bool Export) {
             if (Export) requestMeasurement(Meter, Address, EMConfig[Meter].ERegister, 1);
             else        requestMeasurement(Meter, Address, EMConfig[Meter].ERegister_Exp, 1);
             break;
+        case EM_SINOTIMER:
+            // Note:
+            // - Sinotimer uses 16-bit values, except for this measurement it uses 32bit int format
+            if (Export) ModbusReadInputRequest(Address, EMConfig[Meter].Function, EMConfig[Meter].ERegister_Exp, 2);
+            else        ModbusReadInputRequest(Address, EMConfig[Meter].Function, EMConfig[Meter].ERegister, 2);
+            break;
         default:
             if (!Export) //refuse to do a request on exported energy if the meter doesnt support it
                 requestMeasurement(Meter, Address, EMConfig[Meter].ERegister, 1);
@@ -2402,6 +2409,24 @@ void requestEnergyMeasurement(uint8_t Meter, uint8_t Address, bool Export) {
     }
 }
 
+/**
+ * Send Power measurement request over modbus
+ *
+ * @param uint8_t Meter
+ * @param uint8_t Address
+ */
+void requestPowerMeasurement(uint8_t Meter, uint8_t Address, uint8_t PRegister) {
+   switch (Meter) {
+        case EM_SINOTIMER:
+            // Note:
+            // - Sinotimer does not output total power but only individual power of the 3 phases
+            requestMeasurement(Meter, Address, PRegister, 3);            
+            break;
+        default:
+            requestMeasurement(Meter, Address, PRegister, 1);
+            break;
+   }
+}
 
 // Task that handles the Cable Lock and modbus
 // 
@@ -2505,7 +2530,7 @@ uint8_t PollEVNode = NR_EVSES, updated = 0;
                 case 5:                                                         // EV kWh meter, Power measurement (momentary power in Watt)
                     // Request Power if EV meter is configured
                     if (Node[PollEVNode].EVMeter && Node[PollEVNode].EVMeter != EM_API) {
-                        requestMeasurement(Node[PollEVNode].EVMeter, Node[PollEVNode].EVAddress,EMConfig[Node[PollEVNode].EVMeter].PRegister, 1);
+                        requestPowerMeasurement(Node[PollEVNode].EVMeter, Node[PollEVNode].EVAddress,EMConfig[Node[PollEVNode].EVMeter].PRegister);
                         break;
                     }
                     ModbusRequest++;
@@ -3211,6 +3236,10 @@ signed int receiveEnergyMeasurement(uint8_t *buf, uint8_t Meter) {
             // - SolarEdge uses 16-bit values, except for this measurement it uses 32bit int format
             // - EM_SOLAREDGE should not be used for EV Energy Measurements
             return receiveMeasurement(buf, 0, EMConfig[Meter].Endianness, MB_DATATYPE_INT32, EMConfig[Meter].EDivisor - 3);
+        case EM_SINOTIMER:
+            // Note:
+            // - Sinotimer uses 16-bit values, except for this measurement it uses 32bit int format
+            return receiveMeasurement(buf, 0, EMConfig[Meter].Endianness, MB_DATATYPE_INT32, EMConfig[Meter].EDivisor - 3);            
         default:
             return receiveMeasurement(buf, 0, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, EMConfig[Meter].EDivisor - 3);
     }
@@ -3241,6 +3270,16 @@ signed int receivePowerMeasurement(uint8_t *buf, uint8_t Meter) {
         }
         case EM_EASTRON3P_INV:
             return -receiveMeasurement(buf, 0, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, EMConfig[Meter].PDivisor);
+        case EM_SINOTIMER:
+        {
+            //Note:
+            // - Sinotimer does not output total power but only individual power of the 3 phases which we need to add to eachother.
+            int evmeterp1 = (int)receiveMeasurement(buf, 0, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, EMConfig[Meter].PDivisor);
+            int evmeterp2 = (int)receiveMeasurement(buf, 1, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, EMConfig[Meter].PDivisor);
+            int evmeterp3 = (int)receiveMeasurement(buf, 2, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, EMConfig[Meter].PDivisor);
+            _LOG_V("Received power EVmeter L1=(%iW), L2=(%iW), L3=(%iW)\n", evmeterp1, evmeterp2, evmeterp3);
+            return (evmeterp1 + evmeterp2 + evmeterp3);
+        }
         default:
             return receiveMeasurement(buf, 0, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, EMConfig[Meter].PDivisor);
     }
