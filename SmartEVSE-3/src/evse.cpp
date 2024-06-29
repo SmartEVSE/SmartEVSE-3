@@ -2341,12 +2341,10 @@ void EVSEStates(void * parameter) {
         
             if (pilot == PILOT_12V) {                                           // Disconnected ?
                 setState(STATE_A);                                              // switch back to STATE_A
-                GLCD_init();                                                    // Re-init LCD
     
             } else if (pilot == PILOT_9V) {
                 setState(STATE_B);                                              // switch back to STATE_B
                 DiodeCheck = 0;
-                GLCD_init();                                                    // Re-init LCD (200ms delay)
                                                                                 // Mark EVSE as inactive (still State B)
             }  
     
