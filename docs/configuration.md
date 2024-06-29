@@ -107,6 +107,7 @@ WIFI          Enable wifi connection to your LAN
               -on the SmartEVSE LCD screen, select "Wifi", select "SetupWifi",
               -press the middle button to start the configuration procedure,
               -once pressed, the bottom line shows you a 16 character key, first 8 zeros,
+              -note that from this point on, you have 120s TO FINISH this procedure!
               -fill in that key in the ESPTouch app, in the AES Key field
               -leave Custom Data empty
               -press "Confirm", within 30 seconds the app will confirm a MAC address and an IP address

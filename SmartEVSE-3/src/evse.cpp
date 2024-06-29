@@ -5560,23 +5560,21 @@ void SetupPortalTask(void * parameter) {
     }
     if (WiFi.smartConfigDone()) {
         _LOG_V("\nSmartConfig received, Waiting for WiFi.\n");
-        //Wait for WiFi to connect to AP TODO is this necessary?
-        while (WiFi.status() != WL_CONNECTED) {
-            delay(500);
-            _LOG_V_NO_FUNC(".");
-        }
-        _LOG_V("\nWiFi Connected, IP Address:%s.\n", WiFi.localIP().toString().c_str());
     }
     else {
         _LOG_A("\nSmartConfig failed, you can now enter WIFI credentials through the serial port !!!");
         //TODO show this on the LCD screen?
-        while (CliState < 6) {
-            ProvisionCli();
-            delay(1000);
+        while (WiFi.status() != WL_CONNECTED) {
+            while (CliState < 6) {
+                ProvisionCli();
+                delay(100);
+            }
+            CliState = 0;
+            delay(2000); //wait for connection
         }
-        CliState = 0;
     }
     WiFi.stopSmartConfig(); // this makes sure repeated SmartConfig calls are succesfull
+    _LOG_V("\nWiFi Connected, IP Address:%s.\n", WiFi.localIP().toString().c_str());
 
     //for some reason the webserver is not accessible after this action, so we have to disable wifi before enabling it:
     WIFImode = 0;
