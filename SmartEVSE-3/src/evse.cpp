@@ -1078,18 +1078,10 @@ void CalcBalancedCurrent(char mod) {
     if (Mode == MODE_NORMAL)                                                    // Normal Mode
     {
         if (LoadBl == 1)                                                        // Load Balancing = Master? MaxCircuit is max current for all active EVSE's;
-            IsetBalanced = MaxCircuit * 10 - Baseload_EV;                       // subpanel option not valid in Normal Mode;
+            IsetBalanced = min((MaxMains * 10) - Baseload, (MaxCircuit * 10 ) - Baseload_EV);
                                                                                 // limiting is per phase so no Nr_Of_Phases_Charging here!
         else
             IsetBalanced = ChargeCurrent;                                       // No Load Balancing in Normal Mode. Set current to ChargeCurrent (fix: v2.05)
-        if (ActiveEVSE && mod) {                                                // Only if we have active EVSE's and New EVSE charging
-            // Set max combined charge current to MaxMains - Baseload, or MaxCircuit - Baseload_EV if that is less
-            if (LoadBl == 1)
-                IsetBalanced = min((MaxMains * 10) - Baseload, (MaxCircuit * 10 ) - Baseload_EV);
-            else
-                IsetBalanced = (MaxMains * 10) - Baseload;                      // ignore MaxCircuit in Normal Mode and LoadBl == 0
-                                                                                              //TODO: capacity rate limiting here?
-        }
     } //end MODE_NORMAL
     else { // start MODE_SOLAR || MODE_SMART
         // adapt IsetBalanced in Smart Mode, and ensure the MaxMains/MaxCircuit settings for Solar
@@ -1150,12 +1142,9 @@ void CalcBalancedCurrent(char mod) {
         } //end MODE_SOLAR
         else { // MODE_SMART
         // New EVSE charging, and only if we have active EVSE's
-            if (mod && ActiveEVSE) {                                            // Set max combined charge current to MaxMains - Baseload
-                // Set max combined charge current to MaxMains - Baseload, or MaxCircuit - Baseload_EV if that is less
-                if ((LoadBl == 0 && EVMeter && Mode) || LoadBl == 1)    // Conditions in which MaxCircuit has to be considered
-                    IsetBalanced = min((MaxMains * 10) - Baseload, min((MaxCircuit * 10 ) - Baseload_EV, ((MaxSumMains * 10) - Isum)/3)); //assume the current should be available on all 3 phases
-                else
-                    IsetBalanced = ((MaxSumMains * 10) - Isum)/3;
+            if (mod && ActiveEVSE) {                                            // if we have an ActiveEVSE and mod=1, we must be Master, so MaxCircuit has to be
+                                                                                // taken into account
+                IsetBalanced = min((MaxMains * 10) - Baseload, min((MaxCircuit * 10 ) - Baseload_EV, ((MaxSumMains * 10) - Isum)/3)); //assume the current should be available on all 3 phases
             }
         } //end MODE_SMART
     } // end MODE_SOLAR || MODE_SMART
