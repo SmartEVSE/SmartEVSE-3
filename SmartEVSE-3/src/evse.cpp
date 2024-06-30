@@ -4514,11 +4514,11 @@ char s_mqtt_url[80];
 //TODO perhaps integrate multiple fn callback functions?
 static void fn_mqtt(struct mg_connection *c, int ev, void *ev_data) {
     if (ev == MG_EV_OPEN) {
-        _LOG_V("%lu CREATED", c->id);
+        _LOG_V("%lu CREATED\n", c->id);
         // c->is_hexdumping = 1;
     } else if (ev == MG_EV_ERROR) {
         // On error, log error message
-        _LOG_A("%lu ERROR %s", c->id, (char *) ev_data);
+        _LOG_A("%lu ERROR %s\n", c->id, (char *) ev_data);
     } else if (ev == MG_EV_CONNECT) {
         // If target URL is SSL/TLS, command client connection to use TLS
         if (mg_url_is_ssl(s_mqtt_url)) {
@@ -4528,18 +4528,18 @@ static void fn_mqtt(struct mg_connection *c, int ev, void *ev_data) {
         }
     } else if (ev == MG_EV_MQTT_OPEN) {
         // MQTT connect is successful
-        _LOG_V("%lu CONNECTED to %s", c->id, s_mqtt_url);
+        _LOG_V("%lu CONNECTED to %s\n", c->id, s_mqtt_url);
         MQTTclient.connected = true;
         SetupMQTTClient();
     } else if (ev == MG_EV_MQTT_MSG) {
         // When we get echo response, print it
         struct mg_mqtt_message *mm = (struct mg_mqtt_message *) ev_data;
-        _LOG_V("%lu RECEIVED %.*s <- %.*s", c->id, (int) mm->data.len, mm->data.ptr, (int) mm->topic.len, mm->topic.ptr);
+        _LOG_V("%lu RECEIVED %.*s <- %.*s\n", c->id, (int) mm->data.len, mm->data.ptr, (int) mm->topic.len, mm->topic.ptr);
         //somehow topic is not null terminated
         String topic2 = String(mm->topic.ptr).substring(0,mm->topic.len);
         mqtt_receive_callback(topic2, mm->data.ptr);
     } else if (ev == MG_EV_CLOSE) {
-        _LOG_V("%lu CLOSED", c->id);
+        _LOG_V("%lu CLOSED\n", c->id);
         MQTTclient.connected = false;
         s_conn = NULL;  // Mark that we're closed
     }
