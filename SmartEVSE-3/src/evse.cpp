@@ -4575,11 +4575,6 @@ static void timer_fn(void *arg) {
 // We use the same event handler function for HTTP and HTTPS connections
 // fn_data is NULL for plain HTTP, and non-NULL for HTTPS
 static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
-  // close this listener if the portal is active
-  if (WIFImode == 2) {
-      _LOG_A("Closing mongoose http listener!!\n");
-      c->is_closing = 1;
-  }
   if (ev == MG_EV_ACCEPT && c->fn_data != NULL) {
     struct mg_tls_opts opts = { .ca = empty, .cert = mg_unpacked("/data/cert.pem"), .key = mg_unpacked("/data/key.pem"), .name = empty};
     mg_tls_init(c, &opts);
@@ -5565,6 +5560,10 @@ void SetupPortalTask(void * parameter) {
     }
     if (WiFi.smartConfigDone()) {
         _LOG_V("\nSmartConfig received, Waiting for WiFi.\n");
+        while (WiFi.status() != WL_CONNECTED) {
+            delay(500);
+            _LOG_V_NO_FUNC("..");
+        }
     }
     else {
         _LOG_A("\nSmartConfig failed, you can now enter WIFI credentials through the serial port !!!");
@@ -5581,11 +5580,7 @@ void SetupPortalTask(void * parameter) {
     WiFi.stopSmartConfig(); // this makes sure repeated SmartConfig calls are succesfull
     _LOG_V("\nWiFi Connected, IP Address:%s.\n", WiFi.localIP().toString().c_str());
 
-    //for some reason the webserver is not accessible after this action, so we have to disable wifi before enabling it:
-    WIFImode = 0;
-    handleWIFImode();
     WIFImode = 1;
-    handleWIFImode();
     write_settings();
     LCDNav = 0;
     vTaskDelete(NULL);                                                          //end this task so it will not take up resources
