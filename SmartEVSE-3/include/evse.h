@@ -468,7 +468,7 @@ extern portMUX_TYPE rtc_spinlock;   //TODO: Will be placed in the appropriate po
 #define RTC_EXIT_CRITICAL()     portEXIT_CRITICAL(&rtc_spinlock)
 
 
-extern char APpassword[];
+extern char SmartConfigKey[];
 extern struct tm timeinfo;
 
 

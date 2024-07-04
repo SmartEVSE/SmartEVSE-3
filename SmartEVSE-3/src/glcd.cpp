@@ -441,7 +441,7 @@ void GLCD(void) {
                     GLCD_write_buf_str(0,0, Str, GLCD_ALIGN_LEFT);
                 } else {
                     // Show ESPTouch key
-                    sprintf(Str, "Key:%s", APpassword);
+                    sprintf(Str, "Key:%s", SmartConfigKey);
                     GLCD_write_buf_str(0, 0, Str, GLCD_ALIGN_LEFT);
                     GLCD_sendbuf(7, 1);
                     GLCD_buffer_clr();

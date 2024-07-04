@@ -145,7 +145,7 @@ uint8_t RFIDReader = RFID_READER;                                           // R
 uint8_t Show_RFID = 0;
 #endif
 uint8_t WIFImode = WIFI_MODE;                                               // WiFi Mode (0:Disabled / 1:Enabled / 2:Start Portal)
-char APpassword[] = "0000000000000000";
+char SmartConfigKey[] = "0000000000000000";                                 // SmartConfig / EspTouch AES key, used to encyrypt the WiFi password.
 String TZinfo = "";                                                         // contains POSIX time string
 
 EnableC2_t EnableC2 = ENABLE_C2;                                            // Contactor C2
@@ -5510,6 +5510,12 @@ void WiFiSetup(void) {
     sntp_setservername(1, "europe.pool.ntp.org");                               //fallback server
     sntp_set_time_sync_notification_cb(timeSyncCallback);
     sntp_init();
+
+    // Set random AES Key for SmartConfig provisioning, first 8 positions are 0
+    // This key is displayed on the LCD, and should be entered when using the EspTouch app.
+    for (uint8_t i=0; i<8 ;i++) {
+        SmartConfigKey[i+8] = random(9) + '1';
+    }
 }
 
 void SetupPortalTask(void * parameter) {
@@ -5531,48 +5537,28 @@ void SetupPortalTask(void * parameter) {
 
     //Init WiFi as Station, start SmartConfig
     WiFi.mode(WIFI_AP_STA);
-    uint8_t c;
-    // Set random password, first 8 positions are 0
-    for (uint8_t i=0; i<8 ;i++) {
-            c = random(16) + '0';
-            if (c > '9') c += 'a'-'9'-1;
-            APpassword[i+8] = c;
-    }
-#define SMARTCONFIG_TIMEOUT 120000                                              // SmartConfig has a built in timeout but it only starts halfway the process..
-                                                                                // we want to make sure our backup ProvisionCli will be called ...
-    unsigned long startSmartConfig = millis();
-    WiFi.beginSmartConfig(SC_TYPE_ESPTOUCH_V2, APpassword);
-    //Wait for SmartConfig packet from mobile
+    WiFi.beginSmartConfig(SC_TYPE_ESPTOUCH_V2, SmartConfigKey);
+ 
+    //Wait for SmartConfig packet from mobile.
     _LOG_V("Waiting for SmartConfig.\n");
-    while (!WiFi.smartConfigDone() && (millis() - startSmartConfig < SMARTCONFIG_TIMEOUT)) {
-        delay(500);
-        _LOG_V_NO_FUNC(".");
-    }
-    if (WiFi.smartConfigDone()) {
-        _LOG_V("\nSmartConfig received, Waiting for WiFi.\n");
-        while (WiFi.status() != WL_CONNECTED) {
-            delay(500);
-            _LOG_V_NO_FUNC("..");
-        }
-    }
-    else {
-        _LOG_A("\nSmartConfig failed, you can now enter WIFI credentials through the serial port !!!");
-        //TODO show this on the LCD screen?
-        while (WiFi.status() != WL_CONNECTED) {
-            while (CliState < 6) {
-                ProvisionCli();
-                delay(100);
-            }
-            CliState = 0;
-            delay(2000); //wait for connection
-        }
-    }
-    WiFi.stopSmartConfig(); // this makes sure repeated SmartConfig calls are succesfull
-    _LOG_V("\nWiFi Connected, IP Address:%s.\n", WiFi.localIP().toString().c_str());
+    while (!WiFi.smartConfigDone() && (WIFImode == 2) && (WiFi.status() != WL_CONNECTED)) {
+        // Also start Serial CLI for entering AP and password.
+        ProvisionCli();
+        delay(100);
+    }                       // loop until connected or Wifi setup menu is exited.
+    
+    delay(2000);            // give smartConfig time to send provision status back to the users phone.
+        
+    if (WiFi.status() == WL_CONNECTED) {
+        _LOG_V("\nWiFi Connected, IP Address:%s.\n", WiFi.localIP().toString().c_str());
+        WIFImode = 1;
+        write_settings();
+        LCDNav = 0;
+    }  
 
-    WIFImode = 1;
-    write_settings();
-    LCDNav = 0;
+    CliState = 0;
+    WiFi.stopSmartConfig(); // this makes sure repeated SmartConfig calls are succesfull
+
     vTaskDelete(NULL);                                                          //end this task so it will not take up resources
 }
 
