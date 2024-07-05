@@ -1037,6 +1037,9 @@ void GLCDMenu(uint8_t Buttons) {
         setAccess(false);
         ButtonRelease = 1;
     } else if ((LCDNav == MENU_OFF) && (Buttons == 0x7)) {                      // Button 1 released before entering menu?
+        //if < button is pressed shorter then 2 seconds we are switching from Smart mode to Solar mode and vice versa
+        if (Mode)
+            setMode(~Mode & 0x3);                                               // Change from Solar to Smart mode and vice versa.
         LCDNav = 0;
         ButtonRelease = 0;
         GLCD();

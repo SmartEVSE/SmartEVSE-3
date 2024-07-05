@@ -2122,8 +2122,6 @@ void CheckSwitch(void)
 // called every 10ms
 void EVSEStates(void * parameter) {
 
-  //uint8_t n;
-    uint8_t leftbutton = 5;
     uint8_t DiodeCheck = 0; 
     uint16_t StateTimer = 0;                                                 // When switching from State B to C, make sure pilot is at 6v for 100ms 
 
@@ -2155,17 +2153,6 @@ void EVSEStates(void * parameter) {
 
         // Update/Show Helpmenu
         if (LCDNav > MENU_ENTER && LCDNav < MENU_EXIT && (ScrollTimer + 5000 < millis() ) && (!SubMenu)) GLCDHelp();
-
-        // Left button pressed, Loadbalancing is Master or Disabled, switch is set to "Sma-Sol B" and Mode is Smart or Solar?
-        if ((!LCDNav || LCDNav == MENU_OFF) && ButtonState == 0x6 && Mode && !leftbutton && Switch == 3) {
-            setMode(~Mode & 0x3);                                           // Change from Solar to Smart mode and vice versa.
-            ErrorFlags &= ~(NO_SUN | LESS_6A);                              // Clear All errors
-            ChargeDelay = 0;                                                // Clear any Chargedelay
-            SolarStopTimer = 0;                                             // Also make sure the SolarTimer is disabled.
-            MaxSumMainsTimer = 0;
-            LCDTimer = 0;
-            leftbutton = 5;
-        } else if (leftbutton && ButtonState == 0x7) leftbutton--;
 
         // Check the external switch and RCM sensor
         CheckSwitch();
