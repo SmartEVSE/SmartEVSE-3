@@ -5466,7 +5466,16 @@ void onWifiEvent(WiFiEvent_t event) {
 #if MQTT
                 //mg_timer_free(&mgr);
 #endif
-                _LOG_A("WiFi Disconnected. Reconnecting...\n");
+                //this reconnect interferes with setAutoReconnect, but having it work only 1 out of 5 times
+                //seems to give the best of both worlds...
+                //using just one of both gives unreproducable reconnection problems...
+                static uint8_t ReconnectCounter;
+                ReconnectCounter++;
+                if (ReconnectCounter >=5) {
+                    WiFi.reconnect();
+                    _LOG_A("WiFi Disconnected. Reconnecting...\n");
+                    ReconnectCounter = 0;
+                }
             }
             break;
         default: break;
