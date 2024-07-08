@@ -5899,7 +5899,7 @@ void ocppLoop() {
 void setup() {
 
     pinMode(PIN_CP_OUT, OUTPUT);            // CP output
-    pinMode(PIN_SW_IN, INPUT);              // SW Switch input
+    //pinMode(PIN_SW_IN, INPUT);            // SW Switch input, handled by OneWire32 class
     pinMode(PIN_SSR, OUTPUT);               // SSR1 output
     pinMode(PIN_SSR2, OUTPUT);              // SSR2 output
     pinMode(PIN_RCM_FAULT, INPUT_PULLUP);   

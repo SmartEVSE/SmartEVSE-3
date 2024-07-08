@@ -325,10 +325,6 @@ extern RemoteDebug Debug;
 #define ACTUATOR_UNLOCK { _LOG_A("Unlocking Actuator.\n"); digitalWrite(PIN_ACTB, LOW); digitalWrite(PIN_ACTA, HIGH); }
 #define ACTUATOR_OFF { digitalWrite(PIN_ACTB, HIGH); digitalWrite(PIN_ACTA, HIGH); }
 
-#define ONEWIRE_LOW { digitalWrite(PIN_SW_IN, LOW); pinMode(PIN_SW_IN, OUTPUT); }   // SW set to 0, set to output (driven low)
-#define ONEWIRE_HIGH { digitalWrite(PIN_SW_IN, HIGH); pinMode(PIN_SW_IN, OUTPUT); } // SW set to 1, set to output (driven high)
-#define ONEWIRE_FLOATHIGH pinMode(PIN_SW_IN, INPUT_PULLUP );                        // SW input (floating high)
-
 #define RCMFAULT digitalRead(PIN_RCM_FAULT)
 #define FREE(x) free(x); x = NULL;
 #define FW_DOWNLOAD_PATH "http://smartevse-3.s3.eu-west-2.amazonaws.com"
