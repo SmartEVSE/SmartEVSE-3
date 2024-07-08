@@ -2318,10 +2318,12 @@ void EVSEStates(void * parameter) {
         
             if (pilot == PILOT_12V) {                                           // Disconnected ?
                 setState(STATE_A);                                              // switch back to STATE_A
+                GLCD_init();                                                    // Re-init LCD; necessary because switching contactors can cause LCD to mess up
     
             } else if (pilot == PILOT_9V) {
                 setState(STATE_B);                                              // switch back to STATE_B
                 DiodeCheck = 0;
+                GLCD_init();                                                    // Re-init LCD (200ms delay); necessary because switching contactors can cause LCD to mess up
                                                                                 // Mark EVSE as inactive (still State B)
             }  
     
@@ -3122,6 +3124,7 @@ void Timer1S(void * parameter) {
             else {
                 _LOG_A("State C1 timeout!\n");
                 setState(STATE_B1);                                         // switch back to STATE_B1
+                GLCD_init();                                                // Re-init LCD (200ms delay); necessary because switching contactors can cause LCD to mess up
             }
         }
 
