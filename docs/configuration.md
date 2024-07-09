@@ -174,8 +174,10 @@ CONTACT2      One can add a second contactor (C2) that switches off 2 of the 3 p
               in [Hardware installation](docs/installation.md). If you invent your own wiring
               your installation will be UNSAFE!
 
-  <Not present> No second contactor C2 is present (default)
+  <Not present> No second contactor C2 is present (default);
+                In this case SmartEVSE will assume 3 phase charging, which is "worst case"
   <Always Off>  C2 is always off, so you are single phase charging
+                You can use this setting if you want SmartEVSE to assume 1 phase charging in its calculations
   <Always On>   C2 is always on, so you are three phase charging (if your Mains are three phase and your EV
                 supports it)
   <Solar Off>   C2 is always on except in Solar Mode where it is always off
