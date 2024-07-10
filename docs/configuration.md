@@ -142,10 +142,10 @@ AUTOUPDAT     (only appears when WIFI is Enabled):
 MAX TEMP      Maximum allowed temperature for your SmartEVSE; 40-75C, default 65.
               You can increase this if your SmartEVSE is in direct sunlight.
 
-SUMMAINS      (only appears when a MAINSMET is configured):
+CAPACITY      (only appears when a MAINSMET is configured):
               Maximum allowed Mains Current summed over all phases: 10-600A
               This is used for the EU Capacity rate limiting, currently only in Belgium
-SUM STOP      (only appears when a SUMMAINS is configured):
+CAP STOP      (only appears when a SUMMAINS is configured):
               Timer in minutes; if set, if SUMMAINS is exceeded, we do not immediately stop
               charging but wait until the timer expires.
 

@@ -832,8 +832,13 @@ const char * getMenuItemOption(uint8_t nav) {
             } else return StrDisabled;
         case MENU_LOADBL:
             return StrLoadBl[LoadBl];
-        case MENU_MAINS:
         case MENU_SUMMAINS:
+            if (value)
+                sprintf(Str, "%2u A", value);
+            else
+                sprintf(Str, "Disabled");
+            return Str;
+        case MENU_MAINS:
         case MENU_MIN:
         case MENU_MAX:
         case MENU_CIRCUIT:
@@ -982,7 +987,7 @@ uint8_t getMenuItems (void) {
     MenuItems[m++] = MENU_MAX_TEMP;
     if (MainsMeter && LoadBl < 2) {
         MenuItems[m++] = MENU_SUMMAINS;
-        if (getItemValue(MENU_SUMMAINS) != 600)
+        if (getItemValue(MENU_SUMMAINS) != 0)
             MenuItems[m++] = MENU_SUMMAINSTIME;
     }
     MenuItems[m++] = MENU_EXIT;
@@ -1087,6 +1092,12 @@ void GLCDMenu(uint8_t Buttons) {
                         setItemValue(LCDNav, value);
                         if (value !=2 )
                             handleWIFImode();                                   //postpone handling WIFImode == 2 to moving to upper line
+                        break;
+                    case MENU_SUMMAINS:                                         // do not display the Sensorbox or unused slots here
+                        do {
+                            value = MenuNavInt(Buttons, value, MenuStr[LCDNav].Min, MenuStr[LCDNav].Max);
+                        } while (value > 0 && value < 10);
+                        setItemValue(LCDNav, value);
                         break;
                     default:
                         value = MenuNavInt(Buttons, value, MenuStr[LCDNav].Min, MenuStr[LCDNav].Max);

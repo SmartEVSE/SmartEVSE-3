@@ -199,7 +199,7 @@ extern RemoteDebug Debug;
 
 #define ICAL 1024                                                               // Irms Calibration value (for Current transformers)
 #define MAX_MAINS 25                                                            // max Current the Mains connection can supply
-#define MAX_SUMMAINS 600                                                        // only used for capacity rate limiting, max current over the sum of all phases
+#define MAX_SUMMAINS 0                                                          // only used for capacity rate limiting, max current over the sum of all phases
 #define MAX_SUMMAINSTIME 0
 #define MAX_CURRENT 13                                                          // max charging Current for the EV
 #ifndef MIN_CURRENT
@@ -572,8 +572,8 @@ const struct {
     {"AUTOUPDAT","Automatic Firmware Update",                         0, 1, AUTOUPDATE},
     {"CONTACT 2","Contactor2 (C2) behaviour",                          0, sizeof(StrEnableC2) / sizeof(StrEnableC2[0])-1, ENABLE_C2},
     {"MAX TEMP","Maximum temperature for the EVSE module",            40, 75, MAX_TEMPERATURE},
-    {"SUM MAINS","Capacity Rate limit on sum of MAINS Current (A)",    10, 600, MAX_SUMMAINS},
-    {"SUM STOP","Stop Capacity Rate limit charging after X minutes",    0, 60, MAX_SUMMAINSTIME},
+    {"CAPACITY","Capacity Rate limit on sum of MAINS Current (A)",    0, 600, MAX_SUMMAINS},
+    {"CAP STOP","Stop Capacity Rate limit charging after X minutes",    0, 60, MAX_SUMMAINSTIME},
 #if ENABLE_OCPP
     {"OCPP",    "Select OCPP mode",                                   0, 1, OCPP_MODE},
 #endif

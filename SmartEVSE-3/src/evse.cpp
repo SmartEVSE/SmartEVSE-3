@@ -103,6 +103,7 @@ bool shouldReboot = false;
 uint16_t MaxMains = MAX_MAINS;                                              // Max Mains Amps (hard limit, limited by the MAINS connection) (A)
 uint16_t MaxSumMains = MAX_SUMMAINS;                                        // Max Mains Amps summed over all 3 phases, limit used by EU capacity rate
                                                                             // see https://github.com/serkri/SmartEVSE-3/issues/215
+                                                                            // 0 means disabled, allowed value 10 - 600 A
 uint8_t MaxSumMainsTime = MAX_SUMMAINSTIME;                                // Number of Minutes we wait when MaxSumMains is exceeded, before we stop charging
 uint16_t MaxSumMainsTimer = 0;
 uint16_t MaxCurrent = MAX_CURRENT;                                          // Max Charge current (A)
@@ -944,7 +945,7 @@ char IsCurrentAvailable(void) {
     bool must_be_single_phase_charging = (EnableC2 == ALWAYS_OFF || (Mode == MODE_SOLAR && EnableC2 == SOLAR_OFF) ||
             (Mode == MODE_SOLAR && EnableC2 == AUTO && Switching_To_Single_Phase == AFTER_SWITCH));
     int Phases = must_be_single_phase_charging ? 1 : 3;
-    if ((Phases * ActiveEVSE * (MinCurrent * 10) + Isum) > (MaxSumMains * 10)) {
+    if ((MaxSumMains && Phases * ActiveEVSE * (MinCurrent * 10) + Isum) > (MaxSumMains * 10)) {
         _LOG_D("No current available MaxSumMains line %d. ActiveEVSE=%i, MinCurrent=%iA, Isum=%.1fA, MaxSumMains=%iA.\n", __LINE__, ActiveEVSE, MinCurrent,  (float)Isum/10, MaxSumMains);
         return 0;                                                           // Not enough current available!, return with error
     }
@@ -1094,7 +1095,7 @@ void CalcBalancedCurrent(char mod) {
             Idifference = min((MaxMains * 10) - Imeasured, (MaxCircuit * 10) - Imeasured_EV);
         else
             Idifference = (MaxMains * 10) - Imeasured;
-        if (Idifference > ((MaxSumMains * 10) - Isum)/Temp_Phases) {
+        if (MaxSumMains && Idifference > ((MaxSumMains * 10) - Isum)/Temp_Phases) {
             Idifference = ((MaxSumMains * 10) - Isum)/Temp_Phases;
             LimitedByMaxSumMains = true;
             _LOG_V("Current is limited by MaxSumMains: MaxSumMains=%iA, Isum=%.1fA, Temp_Phases=%i.\n", MaxSumMains, (float)Isum/10, Temp_Phases);
@@ -1145,7 +1146,10 @@ void CalcBalancedCurrent(char mod) {
         // New EVSE charging, and only if we have active EVSE's
             if (mod && ActiveEVSE) {                                            // if we have an ActiveEVSE and mod=1, we must be Master, so MaxCircuit has to be
                                                                                 // taken into account
-                IsetBalanced = min((MaxMains * 10) - Baseload, min((MaxCircuit * 10 ) - Baseload_EV, ((MaxSumMains * 10) - Isum)/3)); //assume the current should be available on all 3 phases
+
+                IsetBalanced = min((MaxMains * 10) - Baseload, (MaxCircuit * 10 ) - Baseload_EV ); //assume the current should be available on all 3 phases
+                if (MaxSumMains)
+                    IsetBalanced = min((int) IsetBalanced, ((MaxSumMains * 10) - Isum)/3); //assume the current should be available on all 3 phases
             }
         } //end MODE_SMART
     } // end MODE_SOLAR || MODE_SMART
@@ -2728,7 +2732,7 @@ void mqtt_receive_callback(const String topic, const String payload) {
         uint16_t RequestedCurrent = payload.toInt();
         if (RequestedCurrent == 0) {
             MaxSumMains = 0;
-        } else if (RequestedCurrent >= 10 && RequestedCurrent <= 600) {
+        } else if (RequestedCurrent == 0 || (RequestedCurrent >= 10 && RequestedCurrent <= 600)) {
                 MaxSumMains = RequestedCurrent;
         }
     } else if (topic == MQTTprefix + "/Set/CPPWMOverride") {
@@ -4932,7 +4936,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
 
         if(request->hasParam("current_max_sum_mains")) {
             int current = request->getParam("current_max_sum_mains")->value().toInt();
-            if(current >= 10 && current <= 600 && LoadBl < 2) {
+            if((current == 0 || (current >= 10 && current <= 600)) && LoadBl < 2) {
                 MaxSumMains = current;
                 doc["current_max_sum_mains"] = MaxSumMains;
                 write_settings();
