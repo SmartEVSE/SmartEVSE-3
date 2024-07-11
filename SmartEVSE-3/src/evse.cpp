@@ -4520,10 +4520,10 @@ static void fn_mqtt(struct mg_connection *c, int ev, void *ev_data) {
     } else if (ev == MG_EV_MQTT_MSG) {
         // When we get echo response, print it
         struct mg_mqtt_message *mm = (struct mg_mqtt_message *) ev_data;
-        _LOG_V("%lu RECEIVED %.*s <- %.*s\n", c->id, (int) mm->data.len, mm->data.ptr, (int) mm->topic.len, mm->topic.ptr);
+        _LOG_V("%lu RECEIVED %.*s <- %.*s\n", c->id, (int) mm->data.len, mm->data.buf, (int) mm->topic.len, mm->topic.buf);
         //somehow topic is not null terminated
-        String topic2 = String(mm->topic.ptr).substring(0,mm->topic.len);
-        mqtt_receive_callback(topic2, mm->data.ptr);
+        String topic2 = String(mm->topic.buf).substring(0,mm->topic.len);
+        mqtt_receive_callback(topic2, mm->data.buf);
     } else if (ev == MG_EV_CLOSE) {
         _LOG_V("%lu CLOSED\n", c->id);
         MQTTclient.connected = false;
@@ -4577,7 +4577,9 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
     struct mg_http_message *hm = (struct mg_http_message *) ev_data;            // Parsed HTTP request
     webServerRequest* request = new webServerRequest();
     request->setMessage(hm);
-    if (mg_http_match_uri(hm, "/erasesettings")) {
+//make mongoose 7.14 compatible with 7.13
+#define mg_http_match_uri(X,Y) mg_match(X->uri, mg_str(Y), NULL)
+    if (mg_match(hm->uri, mg_str("/erasesettings"), NULL)) {
         mg_http_reply(c, 200, "Content-Type: text/plain\r\n", "Erasing settings, rebooting");
         if ( preferences.begin("settings", false) ) {         // our own settings
           preferences.clear();
@@ -4640,7 +4642,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
                     }
                 }
                 if(!Update.hasError()) {
-                    if(Update.write((uint8_t*) hm->body.ptr, hm->body.len) != hm->body.len) {
+                    if(Update.write((uint8_t*) hm->body.buf, hm->body.len) != hm->body.len) {
                         Update.printError(Serial);
                     } else {
                         _LOG_A("bytes written %lu\r", offset + hm->body.len);
@@ -4661,8 +4663,8 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
                 if(!offset) {
                     _LOG_A("Update Start: %s\n", file);
                     signature = (unsigned char *) malloc(SIGNATURE_LENGTH);                       //tried to free in in all exit scenarios, RISK of leakage!!!
-                    memcpy(signature, hm->body.ptr, SIGNATURE_LENGTH);          //signature is prepended to firmware.bin
-                    hm->body.ptr = hm->body.ptr + SIGNATURE_LENGTH;
+                    memcpy(signature, hm->body.buf, SIGNATURE_LENGTH);          //signature is prepended to firmware.bin
+                    hm->body.buf = hm->body.buf + SIGNATURE_LENGTH;
                     hm->body.len = hm->body.len - SIGNATURE_LENGTH;
                     _LOG_A("Firmware signature:");
                     dump(signature);
@@ -4671,7 +4673,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
                     }
                 }
                 if(!Update.hasError()) {
-                    if(Update.write((uint8_t*) hm->body.ptr, hm->body.len) != hm->body.len) {
+                    if(Update.write((uint8_t*) hm->body.buf, hm->body.len) != hm->body.len) {
                         Update.printError(Serial);
                         FREE(signature);
                     } else {
@@ -4729,10 +4731,10 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
                     int beginpos = 0;
                     while (pos <= hm->body.len) {
                         char c;
-                        c = *(hm->body.ptr + pos);
+                        c = *(hm->body.buf + pos);
                         //_LOG_A_NO_FUNC("%c", c);
                         if (c == '\n' || pos == hm->body.len) {
-                            strncpy(RFIDtxtstring, hm->body.ptr + beginpos, 17);         // in case of DOS the 0x0D is stripped off here
+                            strncpy(RFIDtxtstring, hm->body.buf + beginpos, 17);         // in case of DOS the 0x0D is stripped off here
                             RFIDtxtstring[17] = '\0';
                             r = sscanf(RFIDtxtstring,"%02x%02x%02x%02x%02x%02x", &RFID_UID[1], &RFID_UID[2], &RFID_UID[3], &RFID_UID[4], &RFID_UID[5], &RFID_UID[6]);
                             RFID_UID[7]=crc8((unsigned char *) RFID_UID,7);
@@ -4750,7 +4752,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
             mg_http_reply(c, 200, "", "%ld", res);
         }
     } else if (mg_http_match_uri(hm, "/settings")) {                            // REST API call?
-      if (!memcmp("GET", hm->method.ptr, hm->method.len)) {                     // if GET
+      if (!memcmp("GET", hm->method.buf, hm->method.len)) {                     // if GET
         String mode = "N/A";
         int modeId = -1;
         if(Access_bit == 0)  {
@@ -4916,7 +4918,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         String json;
         serializeJson(doc, json);
         mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\n", json.c_str());    // Yes. Respond JSON
-      } else if (!memcmp("POST", hm->method.ptr, hm->method.len)) {                     // if POST
+      } else if (!memcmp("POST", hm->method.buf, hm->method.len)) {                     // if POST
         DynamicJsonDocument doc(512); // https://arduinojson.org/v6/assistant/
 
         if(request->hasParam("backlight")) {
@@ -5221,7 +5223,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
       } else {
         mg_http_reply(c, 404, "", "Not Found\n");
       }
-    } else if (mg_http_match_uri(hm, "/currents") && !memcmp("POST", hm->method.ptr, hm->method.len)) {
+    } else if (mg_http_match_uri(hm, "/currents") && !memcmp("POST", hm->method.buf, hm->method.len)) {
         DynamicJsonDocument doc(200);
 
         if(request->hasParam("battery_current")) {
@@ -5258,7 +5260,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         serializeJson(doc, json);
         mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", json.c_str());    // Yes. Respond JSON
 
-    } else if (mg_http_match_uri(hm, "/ev_meter") && !memcmp("POST", hm->method.ptr, hm->method.len)) {
+    } else if (mg_http_match_uri(hm, "/ev_meter") && !memcmp("POST", hm->method.buf, hm->method.len)) {
         DynamicJsonDocument doc(200);
 
         if(EVMeter == EM_API) {
@@ -5299,7 +5301,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         serializeJson(doc, json);
         mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", json.c_str());    // Yes. Respond JSON
 
-    } else if (mg_http_match_uri(hm, "/reboot") && !memcmp("POST", hm->method.ptr, hm->method.len)) {
+    } else if (mg_http_match_uri(hm, "/reboot") && !memcmp("POST", hm->method.buf, hm->method.len)) {
         DynamicJsonDocument doc(20);
 
         ESP.restart();
@@ -5309,7 +5311,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         serializeJson(doc, json);
         mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", json.c_str());    // Yes. Respond JSON
 
-    } else if (mg_http_match_uri(hm, "/ev_state") && !memcmp("POST", hm->method.ptr, hm->method.len)) {
+    } else if (mg_http_match_uri(hm, "/ev_state") && !memcmp("POST", hm->method.buf, hm->method.len)) {
         DynamicJsonDocument doc(200);
 
         //State of charge posting
@@ -5366,7 +5368,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
 
 #if FAKE_RFID
     //this can be activated by: http://smartevse-xxx.lan/debug?showrfid=1
-    } else if (mg_http_match_uri(hm, "/debug") && !memcmp("GET", hm->method.ptr, hm->method.len)) {
+    } else if (mg_http_match_uri(hm, "/debug") && !memcmp("GET", hm->method.buf, hm->method.len)) {
         if(request->hasParam("showrfid")) {
             Show_RFID = strtol(request->getParam("showrfid")->value().c_str(),NULL,0);
         }
@@ -5379,7 +5381,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
     //WARNING: because of automated testing, no limitations here!
     //THAT IS DANGEROUS WHEN USED IN PRODUCTION ENVIRONMENT
     //FOR SMARTEVSE's IN A TESTING BENCH ONLY!!!!
-    } else if (mg_http_match_uri(hm, "/automated_testing") && !memcmp("POST", hm->method.ptr, hm->method.len)) {
+    } else if (mg_http_match_uri(hm, "/automated_testing") && !memcmp("POST", hm->method.buf, hm->method.len)) {
         if(request->hasParam("current_max")) {
             MaxCurrent = strtol(request->getParam("current_max")->value().c_str(),NULL,0);
         }
