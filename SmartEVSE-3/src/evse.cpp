@@ -1156,8 +1156,6 @@ void CalcBalancedCurrent(char mod) {
 
     // ############### make sure the calculated IsetBalanced doesnt exceed any boundaries #################
 
-    // Reset flag that keeps track of new MainsMeter measurements
-    phasesLastUpdateFlag = false;
 
     // guard MaxCircuit
     if (((LoadBl == 0 && EVMeter && Mode != MODE_NORMAL) || LoadBl == 1)    // Conditions in which MaxCircuit has to be considered
@@ -1168,7 +1166,8 @@ void CalcBalancedCurrent(char mod) {
 
     // ############### the rest of the work we only do if there are ActiveEVSEs #################
 
-    if (ActiveEVSE) {                                                           // Only if we have active EVSE's
+    int saveActiveEVSE = ActiveEVSE;                                            // TODO remove this when calcbalancedcurrent2 is approved
+    if (ActiveEVSE && phasesLastUpdateFlag) {                                   // Only if we have active EVSE's and if we have new phase currents
 
         // ############### we now check shortage of power  #################
 
@@ -1213,7 +1212,7 @@ void CalcBalancedCurrent(char mod) {
         } else {                                                                // we have enough current
             // ############### no shortage of power  #################
 
-            LOG_D("Checkpoint b: Resetting SolarStopTimer, MaxSumMainsTimer, IsetBalanced=%.1fA, ActiveEVSE=%i.\n", (float)IsetBalanced/10, ActiveEVSE);
+            _LOG_D("Checkpoint b: Resetting SolarStopTimer, MaxSumMainsTimer, IsetBalanced=%.1fA, ActiveEVSE=%i.\n", (float)IsetBalanced/10, ActiveEVSE);
             SolarStopTimer = 0;
             MaxSumMainsTimer = 0;
             NoCurrent = 0;
@@ -1272,14 +1271,17 @@ void CalcBalancedCurrent(char mod) {
             }                                                                   //TODO since the average has risen the other EVSE's should be checked for exceeding their MAX's too!
             n++;
         }
+    } //ActiveEVSE && phasesLastUpdateFlag
 
-
-    } else { // no ActiveEVSEs so reset all timers
-        LOG_D("Checkpoint c: Resetting SolarStopTimer, MaxSumMainsTimer, IsetBalanced=%.1fA, ActiveEVSE=%i.\n", (float)IsetBalanced/10, ActiveEVSE);
+    if (!saveActiveEVSE) { // no ActiveEVSEs so reset all timers
+        _LOG_D("Checkpoint c: Resetting SolarStopTimer, MaxSumMainsTimer, IsetBalanced=%.1fA, saveActiveEVSE=%i.\n", (float)IsetBalanced/10, saveActiveEVSE);
         SolarStopTimer = 0;
         MaxSumMainsTimer = 0;
         NoCurrent = 0;
     }
+
+    // Reset flag that keeps track of new MainsMeter measurements
+    phasesLastUpdateFlag = false;
 
     // ############### print all the distributed currents #################
 
