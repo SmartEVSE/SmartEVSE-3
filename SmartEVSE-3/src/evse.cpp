@@ -5626,7 +5626,7 @@ void ocppInit() {
 
     mocpp_initialize(
             *OcppWsClient, //WebSocket adapter for MicroOcpp
-            ChargerCredentials("SmartEVSE", "Stegen Electronics", VERSION, String(serialnr).c_str(), NULL, (char *) EMConfig[MainsMeter].Desc),
+            ChargerCredentials("SmartEVSE", "Stegen Electronics", VERSION, String(serialnr).c_str(), NULL, (char *) EMConfig[EVMeter].Desc),
             filesystem);
 
     //setup OCPP hardware bindings
