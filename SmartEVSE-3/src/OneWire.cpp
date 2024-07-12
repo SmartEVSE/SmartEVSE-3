@@ -211,14 +211,15 @@ void CheckRFID(void) {
         if (OneWireReadCardId() ) {                                             // Read card ID
 #if ENABLE_OCPP
             uint8_t OcppMode = getItemValue(MENU_OCPP);
-            static unsigned long lastread;
-            if (OcppMode && millis() - lastread > 1500 &&                       // Remote authorization via OCPP? Debounce 1500ms
-                    (RFIDReader == 1 || // EnableAll
-                     RFIDReader == 2)) { // EnableOne
+            if (RFIDReader == 1 || // EnableAll                                     // Remote authorization via OCPP?
+                     RFIDReader == 2) { // EnableOne
                 // Use OCPP
 
-                ocppUpdateRfidReading(RFID + 1, 7); // UUID starts at RFID+1; Assume 7-byte UUID for now
-                lastread = millis();
+                static unsigned long lastread;
+                if (OcppMode && millis() - lastread > 1500) {                       // Debounce 1500ms
+                    ocppUpdateRfidReading(RFID + 1, 7); // UUID starts at RFID+1; Assume 7-byte UUID for now
+                    lastread = millis();
+                }
             } else
 #endif
             {

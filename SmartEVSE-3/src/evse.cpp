@@ -5600,8 +5600,9 @@ void handleWIFImode() {
 #if ENABLE_OCPP
 
 void ocppUpdateRfidReading(const unsigned char *uuid, size_t uuidLen) {
-    if (!uuid || uuidLen >= sizeof(OcppRfidUuid)) {
+    if (!uuid || uuidLen > sizeof(OcppRfidUuid)) {
         _LOG_W("OCPP: invalid UUID\n");
+        return;
     }
     memcpy(OcppRfidUuid, uuid, uuidLen);
     OcppRfidUuidLen = uuidLen;
