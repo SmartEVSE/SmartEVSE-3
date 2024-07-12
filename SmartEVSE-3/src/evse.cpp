@@ -5632,7 +5632,7 @@ void ocppInit() {
     //setup OCPP hardware bindings
 
     setEnergyMeterInput([] () { //Input of the electricity meter register in Wh
-        return EV_import_active_energy;
+        return EnergyEV;
     });
 
     setPowerMeterInput([] () { //Input of the power meter reading in W
