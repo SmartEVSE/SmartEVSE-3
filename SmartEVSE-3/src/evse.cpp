@@ -5535,20 +5535,10 @@ void onWifiEvent(WiFiEvent_t event) {
             break;
         case WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
             if (WIFImode == 1) {
-                delay(1500);                                                    // so mg_mgr_poll has timed out
 #if MQTT
                 //mg_timer_free(&mgr);
 #endif
-                //this reconnect interferes with setAutoReconnect, but having it work only 1 out of 5 times
-                //seems to give the best of both worlds...
-                //using just one of both gives unreproducable reconnection problems...
-                static uint8_t ReconnectCounter;
-                ReconnectCounter++;
-                if (ReconnectCounter >=5) {
-                    WiFi.reconnect();
-                    _LOG_A("WiFi Disconnected. Reconnecting...\n");
-                    ReconnectCounter = 0;
-                }
+                WiFi.reconnect();                                               // recommended reconnection strategy by ESP-IDF manual
             }
             break;
         default: break;
@@ -5567,7 +5557,7 @@ void timeSyncCallback(struct timeval *tv)
 void WiFiSetup(void) {
     mg_mgr_init(&mgr);  // Initialise event manager
 
-    WiFi.setAutoReconnect(true);
+    WiFi.setAutoReconnect(true);                                                //actually does nothing since this is the default value
     //WiFi.persistent(true);
     WiFi.onEvent(onWifiEvent);
     handleWIFImode();                                                           //go into the mode that was saved in nonvolatile memory
