@@ -216,7 +216,7 @@ void CheckRFID(void) {
 
                 static unsigned long lastread;
                 if (OcppMode && millis() - lastread > 1500) {                       // Debounce 1500ms
-                    ocppUpdateRfidReading(RFID + 1, 7); // UUID starts at RFID+1; Assume 7-byte UUID for now
+                    ocppUpdateRfidReading(RFID + 1, 6); // UUID starts at RFID+1; Pad / truncate UUID to 6-bytes for now
                     lastread = millis();
                 }
                 RFIDstatus = 1;
