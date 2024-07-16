@@ -4911,6 +4911,13 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         doc["ocpp"]["cb_id"] = OcppWsClient ? OcppWsClient->getChargeBoxId() : "";
         doc["ocpp"]["auth_key"] = OcppWsClient ? OcppWsClient->getAuthKey() : "";
 
+        {
+            auto freevendMode = MicroOcpp::getConfigurationPublic(MO_CONFIG_EXT_PREFIX "FreeVendActive");
+            doc["ocpp"]["auto_auth"] = freevendMode && freevendMode->getBool() ? "Enabled" : "Disabled";
+            auto freevendIdTag = MicroOcpp::getConfigurationPublic(MO_CONFIG_EXT_PREFIX "FreeVendIdTag");
+            doc["ocpp"]["auto_auth_idtag"] = freevendIdTag ? freevendIdTag->getString() : "";
+        }
+
         if (OcppWsClient && OcppWsClient->isConnected()) {
             doc["ocpp"]["status"] = "Connected";
         } else {
@@ -5242,10 +5249,31 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
                     }
                 }
 
+                if(request->hasParam("ocpp_auto_auth")) {
+                    auto freevendMode = MicroOcpp::getConfigurationPublic(MO_CONFIG_EXT_PREFIX "FreeVendActive");
+                    if (freevendMode) {
+                        freevendMode->setBool(request->getParam("ocpp_auto_auth")->value().toInt());
+                        doc["ocpp_auto_auth"] = freevendMode->getBool() ? 1 : 0;
+                    } else {
+                        doc["ocpp_auto_auth"] = "Can only update when OCPP enabled";
+                    }
+                }
+
+                if(request->hasParam("ocpp_auto_auth_idtag")) {
+                    auto freevendIdTag = MicroOcpp::getConfigurationPublic(MO_CONFIG_EXT_PREFIX "FreeVendIdTag");
+                    if (freevendIdTag) {
+                        freevendIdTag->setString(request->getParam("ocpp_auto_auth_idtag")->value().c_str());
+                        doc["ocpp_auto_auth_idtag"] = freevendIdTag->getString();
+                    } else {
+                        doc["ocpp_auto_auth_idtag"] = "Can only update when OCPP enabled";
+                    }
+                }
+
                 // Apply changes in OcppWsClient
                 if (OcppWsClient) {
                     OcppWsClient->reloadConfigs();
                 }
+                MicroOcpp::configuration_save();
                 write_settings();
             }
         }

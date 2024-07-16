@@ -272,10 +272,23 @@
                 document.getElementById("enable_ocpp_label").classList.add("ui-checkbox-off")
               }
 
+              if (data.ocpp.auto_auth == "Enabled") {
+                $('[id=ocpp_auto_auth_idtag_wrapper]').show();
+                document.getElementById("ocpp_auto_auth").checked = true;
+                document.getElementById("ocpp_auto_auth_label").classList.remove("ui-checkbox-off")
+                document.getElementById("ocpp_auto_auth_label").classList.add("ui-checkbox-on")
+              } else {
+                $('[id=ocpp_auto_auth_idtag_wrapper]').hide();
+                document.getElementById("ocpp_auto_auth").checked = false;
+                document.getElementById("ocpp_auto_auth_label").classList.remove("ui-checkbox-on")
+                document.getElementById("ocpp_auto_auth_label").classList.add("ui-checkbox-off")
+              }
+
               if (!ocppEditMode) {
                 $('#ocpp_backend_url').val(data.ocpp.backend_url);
                 $('#ocpp_cb_id').val(data.ocpp.cb_id);
                 $('#ocpp_auth_key').val(data.ocpp.auth_key);
+                $('#ocpp_auto_auth_idtag').val(data.ocpp.auto_auth_idtag);
               }
 
               $('#ocpp_ws_status').text(data.ocpp.status);
@@ -884,10 +897,11 @@
                     }
                     function toggleEnableOcpp() {
                       var enableOcppCheckbox = document.getElementById("enable_ocpp");
-                      // Get the output text
-                      var ocppSettingsDiv = document.getElementById("ocpp_settings");
-
                       $.post( "/settings?ocpp_update=1&ocpp_mode=" + (enableOcppCheckbox.checked == true ? 1 : 0));
+                    }
+                    function toggleEnableOcppAutoAuth() {
+                      var autoAuthCheckbox = document.getElementById("ocpp_auto_auth");
+                      $.post( "/settings?ocpp_update=1&ocpp_auto_auth=" + (autoAuthCheckbox.checked == true ? 1 : 0));
                     }
                     function toggleOcppEdit() {
                         ocppEditMode = !ocppEditMode;
@@ -896,27 +910,41 @@
                             $('#ocpp_backend_url').prop("disabled",false);
                             $('#ocpp_cb_id').prop("disabled",false);
                             $('#ocpp_auth_key').prop("disabled",false);
+                            $('#ocpp_auto_auth').prop("disabled",false);
+                            $('#ocpp_auto_auth_label').prop("disabled",false);
+                            $('#ocpp_auto_auth_idtag').prop("disabled",false);
                             document.getElementById("ocpp_backend_url").classList.remove("ui-state-disabled");
                             document.getElementById("ocpp_cb_id").classList.remove("ui-state-disabled");
                             document.getElementById("ocpp_auth_key").classList.remove("ui-state-disabled");
+                            document.getElementById("ocpp_auto_auth").classList.remove("ui-state-disabled");
+                            document.getElementById("ocpp_auto_auth_label").classList.remove("ui-state-disabled");
+                            document.getElementById("ocpp_auto_auth_idtag").classList.remove("ui-state-disabled");
                         } else {
                             configureOcpp();
                             $('#ocpp_save_btn').text("Edit Settings");
                             $('#ocpp_backend_url').prop("disabled",true);
                             $('#ocpp_cb_id').prop("disabled",true);
                             $('#ocpp_auth_key').prop("disabled",true);
+                            $('#ocpp_auto_auth').prop("disabled",true);
+                            $('#ocpp_auto_auth_label').prop("disabled",true);
+                            $('#ocpp_auto_auth_idtag').prop("disabled",true);
                             document.getElementById("ocpp_backend_url").classList.add("ui-state-disabled");
                             document.getElementById("ocpp_cb_id").classList.add("ui-state-disabled");
                             document.getElementById("ocpp_auth_key").classList.add("ui-state-disabled");
+                            document.getElementById("ocpp_auto_auth").classList.add("ui-state-disabled");
+                            document.getElementById("ocpp_auto_auth_label").classList.add("ui-state-disabled");
+                            document.getElementById("ocpp_auto_auth_idtag").classList.add("ui-state-disabled");
                         }
                     }
                     function configureOcpp() {
                         var ocpp_backend_url=$('#ocpp_backend_url').val();
                         var ocpp_cb_id=$('#ocpp_cb_id').val();
                         var ocpp_auth_key=$('#ocpp_auth_key').val();
+                        var ocpp_auto_auth_idtag=$('#ocpp_auto_auth_idtag').val();
 
                         $.post( "/settings?ocpp_update=1&ocpp_backend_url=" + ocpp_backend_url +
-                            "&ocpp_cb_id=" + ocpp_cb_id + "&ocpp_auth_key=" + ocpp_auth_key);
+                            "&ocpp_cb_id=" + ocpp_cb_id + "&ocpp_auth_key=" + ocpp_auth_key +
+                            "&ocpp_auto_auth_idtag=" + ocpp_auto_auth_idtag);
 
                         event.preventDefault();
                     }
@@ -1092,6 +1120,17 @@
                                               <label>Backend URL: <input id="ocpp_backend_url" class="ui-state-disabled"></label>
                                               <label>Charge Box Id: <input id="ocpp_cb_id" class="ui-state-disabled"></label>
                                               <label>Authentication key: <input id="ocpp_auth_key" class="ui-state-disabled"></label>
+                                              <div class="row no-gutters align-items-center" style="margin-top:20px;margin-bottom:10px">
+                                                <div class="col-auto mb-0 mr-3" style="width: 200px">
+                                                  <input type="checkbox" class="form-check-input ui-state-disabled" id="ocpp_auto_auth" onclick="toggleEnableOcppAutoAuth()">
+                                                  <label class="form-check-label ui-state-disabled" for="ocpp_auto_auth" id="ocpp_auto_auth_label">Auto-authorize</label>
+                                                </div>
+                                                <div class="col">
+                                                  <div class="mb-0" id="ocpp_auto_auth_idtag_wrapper">
+                                                    <input id="ocpp_auto_auth_idtag" class="ui-state-disabled" placeholder="Default idTag">
+                                                  </div>
+                                                </div>
+                                              </div>
                                               <button id="ocpp_save_btn" onclick="toggleOcppEdit()" style="display:inline-block;">Edit Settings</button>
                                           </div>
                                         </div>
