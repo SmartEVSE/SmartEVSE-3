@@ -64,6 +64,10 @@
 #define ENABLE_OCPP 0
 #endif
 
+#if ENABLE_OCPP
+#include <MicroOcpp/Model/ConnectorBase/Notification.h>
+#endif
+
 #ifndef MODEM
 //the wifi-debugger is available by telnetting to your SmartEVSE device
 #define MODEM 0  //0 = no modem 1 = modem
@@ -540,7 +544,7 @@ const struct {
     {"PWR SHARE", "Share Power between multiple SmartEVSEs (2-8)",    0, NR_EVSES, LOADBL},
     {"SWITCH",  "Switch function control on pin SW",                  0, 4, SWITCH},
     {"RCMON",   "Residual Current Monitor on pin RCM",                0, 1, RC_MON},
-    {"RFID",    "RFID reader, learn/remove cards",                    0, 5, RFID_READER},
+    {"RFID",    "RFID reader, learn/remove cards",                    0, 5 + (ENABLE_OCPP ? 1 : 0), RFID_READER},
     {"EV METER","Type of EV electric meter",                          0, EM_CUSTOM, EV_METER},
     {"EV ADDR", "Address of EV electric meter",                       MIN_METER_ADDRESS, MAX_METER_ADDRESS, EV_METER_ADDRESS},
 
@@ -629,6 +633,12 @@ void handleWIFImode(void);
 
 #if ENABLE_OCPP
 void ocppUpdateRfidReading(const unsigned char *uuid, size_t uuidLen);
+bool ocppIsConnectorPlugged();
+
+bool ocppHasTxNotification();
+MicroOcpp::TxNotification ocppGetTxNotification();
+
+bool ocppLockingTxDefined();
 #endif //ENABLE_OCPP
 
 #endif

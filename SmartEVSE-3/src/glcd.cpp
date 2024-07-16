@@ -36,6 +36,10 @@
 #include "font.cpp"
 #include "font2.cpp"
 
+#if ENABLE_OCPP
+#include <MicroOcpp.h>
+#endif
+
 
 const unsigned char LCD_Flow [] = {
 0x00, 0x00, 0x98, 0xCC, 0x66, 0x22, 0x22, 0x22, 0xF2, 0xAA, 0x26, 0x2A, 0xF2, 0x22, 0x22, 0x22,
@@ -527,6 +531,49 @@ void GLCD(void) {
         glcd_clrln(6, 0x10);                                                    // horizontal line
         glcd_clrln(7, 0x00);
 
+#if ENABLE_OCPP
+        if (ocppHasTxNotification()) {
+            switch(ocppGetTxNotification()) {
+                case MicroOcpp::TxNotification::Authorized:
+                    GLCD_print_buf2(2, (const char *) "ACCEPTED");
+                    GLCD_print_buf2(4, (const char *) "RFID CARD");
+                    break;
+                case MicroOcpp::TxNotification::AuthorizationRejected:
+                case MicroOcpp::TxNotification::DeAuthorized:
+                    GLCD_print_buf2(2, (const char *) "INVALID");
+                    GLCD_print_buf2(4, (const char *) "RFID CARD");
+                    break;
+                case MicroOcpp::TxNotification::AuthorizationTimeout:
+                    GLCD_print_buf2(2, (const char *) "OFFLINE");
+                    GLCD_print_buf2(4, (const char *) "TRY LATER");
+                    break;
+                case MicroOcpp::TxNotification::ReservationConflict:
+                    GLCD_print_buf2(2, (const char *) "BLOCKED BY");
+                    GLCD_print_buf2(4, (const char *) "RESERVATION");
+                    break;
+                case MicroOcpp::TxNotification::ConnectionTimeout:
+                    GLCD_print_buf2(2, (const char *) "TIMEOUT");
+                    GLCD_print_buf2(4, (const char *) "TRY AGAIN");
+                    break;
+                case MicroOcpp::TxNotification::RemoteStart:
+                    if (!ocppIsConnectorPlugged()) {
+                        GLCD_print_buf2(2, (const char *) "PLUG IN");
+                        GLCD_print_buf2(4, (const char *) "VEHICLE");
+                    }
+                    break;
+                case MicroOcpp::TxNotification::StartTx:
+                    GLCD_print_buf2(2, (const char *) "STARTED");
+                    GLCD_print_buf2(4, (const char *) "TRANSACTION");
+                    break;
+                case MicroOcpp::TxNotification::StopTx:
+                    GLCD_print_buf2(2, (const char *) "STOPPED");
+                    GLCD_print_buf2(4, (const char *) "TRANSACTION");
+                    break;
+                default:
+                    break;
+            }
+        } else
+#endif //ENABLE_OCPP
         if (ErrorFlags & LESS_6A) {
             GLCD_print_buf2(2, (const char *) "WAITING");
             GLCD_print_buf2(4, (const char *) "FOR POWER");
@@ -558,6 +605,65 @@ void GLCD(void) {
                 } else Str[6] = '\0';
                 GLCD_print_buf2(4, Str);
             } else {
+#if ENABLE_OCPP
+                if (getItemValue(MENU_OCPP)) {
+                    switch (getChargePointStatus()) {
+                        case ChargePointStatus_Available:
+                            if (getItemValue(MENU_RFIDREADER) && getItemValue(MENU_RFIDREADER) != 6) {
+                                if (RFIDstatus == 7) {
+                                    GLCD_print_buf2(2, (const char *) "INVALID");
+                                    GLCD_print_buf2(4, (const char *) "RFID CARD");
+                                } else {
+                                    GLCD_print_buf2(2, (const char *) "PRESENT");
+                                    GLCD_print_buf2(4, (const char *) "RFID CARD");
+                                }
+                            } else {
+                                GLCD_print_buf2(2, (const char *) "AVAILABLE");
+                                GLCD_print_buf2(4, (const char *) "");
+                            }
+                            break;
+                        case ChargePointStatus_Preparing:
+                            if (!ocppIsConnectorPlugged()) {
+                                GLCD_print_buf2(2, (const char *) "PLUG IN");
+                                GLCD_print_buf2(4, (const char *) "VEHICLE");
+                            } else {
+                                GLCD_print_buf2(2, (const char *) "PLEASE");
+                                GLCD_print_buf2(4, (const char *) "AUTHORIZE");
+                            }
+                            break;
+                        case ChargePointStatus_Charging:
+                        case ChargePointStatus_SuspendedEVSE:
+                        case ChargePointStatus_SuspendedEV:
+                            // Should not be reached (Access_bit or STATE_C above prevail)
+                            GLCD_print_buf2(2, (const char *) "CHARGING");
+                            GLCD_print_buf2(4, (const char *) "IN PROGRESS");
+                            break;
+                        case ChargePointStatus_Finishing:
+                            if (ocppLockingTxDefined()) {
+                                GLCD_print_buf2(2, (const char *) "UNLOCK BY");
+                                GLCD_print_buf2(4, (const char *) "RFID CARD");
+                            } else {
+                                GLCD_print_buf2(2, (const char *) "FINISHED");
+                                GLCD_print_buf2(4, (const char *) "CHARGING");
+                            }
+                            break;
+                        case ChargePointStatus_Reserved:
+                            GLCD_print_buf2(2, (const char *) "RESERVED");
+                            GLCD_print_buf2(4, (const char *) "");
+                            break;
+                        case ChargePointStatus_Unavailable:
+                            GLCD_print_buf2(2, (const char *) "OUT OF");
+                            GLCD_print_buf2(4, (const char *) "ORDER");
+                            break;
+                        case ChargePointStatus_Faulted:
+                            GLCD_print_buf2(2, (const char *) "NO SERVICE");
+                            GLCD_print_buf2(4, (const char *) "");
+                            break;
+                        default:
+                            break;
+                    }
+                } else
+#endif //ENABLE_OCPP
                 if (getItemValue(MENU_RFIDREADER)) {
                     if (RFIDstatus == 7) {
                         GLCD_print_buf2(2, (const char *) "INVALID");
@@ -800,7 +906,7 @@ const char * getMenuItemOption(uint8_t nav) {
     const static char StrGrid[2][10] = {"4Wire", "3Wire"};
     const static char StrEnabled[] = "Enabled";
     const static char StrExitMenu[] = "MENU";
-    const static char StrRFIDReader[6][10] = {"Disabled", "EnableAll", "EnableOne", "Learn", "Delete", "DeleteAll"};
+    const static char StrRFIDReader[7][10] = {"Disabled", "EnableAll", "EnableOne", "Learn", "Delete", "DeleteAll", "Rmt/OCPP"};
 #if ENABLE_OCPP
     const static char StrOcpp[2][10] = {"Disabled", "Enabled"};
 #endif

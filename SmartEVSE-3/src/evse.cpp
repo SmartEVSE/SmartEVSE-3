@@ -141,7 +141,7 @@ uint8_t MainsMeterAddress = MAINS_METER_ADDRESS;
 uint8_t Grid = GRID;                                                        // Type of Grid connected to Sensorbox (0:4Wire / 1:3Wire )
 uint8_t EVMeter = EV_METER;                                                 // Type of EV electric meter (0: Disabled / Constants EM_*)
 uint8_t EVMeterAddress = EV_METER_ADDRESS;
-uint8_t RFIDReader = RFID_READER;                                           // RFID Reader (0:Disabled / 1:Enabled / 2:Enable One / 3:Learn / 4:Delete / 5:Delete All)
+uint8_t RFIDReader = RFID_READER;                                           // RFID Reader (0:Disabled / 1:Enabled / 2:Enable One / 3:Learn / 4:Delete / 5:Delete All / 6: Remote via OCPP)
 #if FAKE_RFID
 uint8_t Show_RFID = 0;
 #endif
@@ -319,6 +319,10 @@ MicroOcpp::MOcppMongooseClient *OcppWsClient;
 float OcppCurrentLimit = -1.f; // Negative value: no OCPP limit defined
 
 unsigned long OcppStopReadingSyncTime; // Stop value synchronization: delay StopTransaction by a few seconds so it reports an accurate energy reading
+
+bool OcppDefinedTxNotification;
+MicroOcpp::TxNotification OcppTrackTxNotification;
+unsigned long OcppLastTxNotification;
 #endif //ENABLE_OCPP
 
 
@@ -450,6 +454,36 @@ void BlinkLed(void * parameter) {
                 BluePwm = 0;
             }
 
+#if ENABLE_OCPP
+        } else if (OcppMode && millis() - OcppLastRfidUpdate < 200) {
+            RedPwm = 128;
+            GreenPwm = 128;
+            BluePwm = 128;
+        } else if (OcppMode && millis() - OcppLastTxNotification < 1000 && OcppTrackTxNotification == MicroOcpp::TxNotification::Authorized) {
+            RedPwm = 0;
+            GreenPwm = 255;
+            BluePwm = 0;
+        } else if (OcppMode && millis() - OcppLastTxNotification < 2000 && (OcppTrackTxNotification == MicroOcpp::TxNotification::AuthorizationRejected ||
+                                                                            OcppTrackTxNotification == MicroOcpp::TxNotification::DeAuthorized ||
+                                                                            OcppTrackTxNotification == MicroOcpp::TxNotification::ReservationConflict)) {
+            RedPwm = 255;
+            GreenPwm = 0;
+            BluePwm = 0;
+        } else if (OcppMode && millis() - OcppLastTxNotification < 300 && (OcppTrackTxNotification == MicroOcpp::TxNotification::AuthorizationTimeout ||
+                                                                           OcppTrackTxNotification == MicroOcpp::TxNotification::ConnectionTimeout)) {
+            RedPwm = 255;
+            GreenPwm = 0;
+            BluePwm = 0;
+        } else if (OcppMode && getChargePointStatus() == ChargePointStatus_Reserved) {
+            RedPwm = 196;
+            GreenPwm = 64;
+            BluePwm = 0;
+        } else if (OcppMode && (getChargePointStatus() == ChargePointStatus_Unavailable ||
+                                getChargePointStatus() == ChargePointStatus_Faulted)) {
+            RedPwm = 255;
+            GreenPwm = 0;
+            BluePwm = 0;
+#endif //ENABLE_OCPP
         } else if (Access_bit == 0 || State == STATE_MODEM_DENIED) {                                            // No Access, LEDs off
             RedPwm = 0;
             GreenPwm = 0;
@@ -3009,7 +3043,7 @@ void mqttPublishData() {
         MQTTclient.publish(MQTTprefix + "/ChargeCurrentOverride", String(OverrideCurrent), true, 0);
         MQTTclient.publish(MQTTprefix + "/Access", String(StrAccessBit[Access_bit]), true, 0);
         MQTTclient.publish(MQTTprefix + "/RFID", !RFIDReader ? "Not Installed" : RFIDstatus >= 8 ? "NOSTATUS" : StrRFIDStatusWeb[RFIDstatus], true, 0);
-        if (RFIDReader) {
+        if (RFIDReader && RFIDReader != 6) { //RFIDLastRead not updated in Remote/OCPP mode
             char buf[13];
             sprintf(buf, "%02X%02X%02X%02X%02X%02X", RFID[1], RFID[2], RFID[3], RFID[4], RFID[5], RFID[6]);
             MQTTclient.publish(MQTTprefix + "/RFIDLastRead", buf, true, 0);
@@ -4821,7 +4855,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         doc["evse"]["error"] = error;
         doc["evse"]["error_id"] = errorId;
         doc["evse"]["rfid"] = !RFIDReader ? "Not Installed" : RFIDstatus >= 8 ? "NOSTATUS" : StrRFIDStatusWeb[RFIDstatus];
-        if (RFIDReader) {
+        if (RFIDReader && RFIDReader != 6) { //RFIDLastRead not updated in Remote/OCPP mode
             char buf[13];
             sprintf(buf, "%02X%02X%02X%02X%02X%02X", RFID[1], RFID[2], RFID[3], RFID[4], RFID[5], RFID[6]);
             doc["evse"]["rfid_lastread"] = buf;
@@ -5609,6 +5643,22 @@ void ocppUpdateRfidReading(const unsigned char *uuid, size_t uuidLen) {
     OcppLastRfidUpdate = millis();
 }
 
+bool ocppIsConnectorPlugged() {
+    return OcppTrackCPvoltage >= PILOT_9V && OcppTrackCPvoltage <= PILOT_3V;
+}
+
+bool ocppHasTxNotification() {
+    return OcppDefinedTxNotification && millis() - OcppLastTxNotification <= 3000;
+}
+
+MicroOcpp::TxNotification ocppGetTxNotification() {
+    return OcppTrackTxNotification;
+}
+
+bool ocppLockingTxDefined() {
+    return OcppLockingTx != nullptr;
+}
+
 void ocppInit() {
 
     //load OCPP library modules: Mongoose WS adapter and Core OCPP library
@@ -5641,7 +5691,7 @@ void ocppInit() {
     });
 
     setConnectorPluggedInput([] () { //Input about if an EV is plugged to this EVSE
-        return OcppTrackCPvoltage >= PILOT_9V && OcppTrackCPvoltage <= PILOT_3V;
+        return ocppIsConnectorPlugged();
     });
 
     setEvReadyInput([] () { //Input if EV is ready to charge (= J1772 State C)
@@ -5776,6 +5826,12 @@ void ocppInit() {
         return millis() - OcppStopReadingSyncTime >= 5000;
     });
 
+    setTxNotificationOutput([] (MicroOcpp::Transaction*, MicroOcpp::TxNotification event) {
+        OcppDefinedTxNotification = true;
+        OcppTrackTxNotification = event;
+        OcppLastTxNotification = millis();
+    });
+
     OcppUnlockConnectorOnEVSideDisconnect = MicroOcpp::declareConfiguration<bool>("UnlockConnectorOnEVSideDisconnect", true);
 
     endTransaction(nullptr, "PowerLoss"); // If a transaction from previous power cycle is still running, abort it here
@@ -5880,6 +5936,9 @@ void ocppLoop() {
     if (OcppLockingTx) {
         if (OcppUnlockConnectorOnEVSideDisconnect->getBool() && !OcppLockingTx->isActive()) {
             // No LockingTx mode configured (still, keep LockingTx until end of transaction because the config could be changed in the middle of tx)
+            OcppLockingTx.reset();
+        } else if (OcppLockingTx->isAborted()) {
+            // LockingTx hasn't successfully started
             OcppLockingTx.reset();
         } else if (transaction && transaction != OcppLockingTx) {
             // Another Tx has already started

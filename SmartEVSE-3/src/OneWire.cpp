@@ -211,8 +211,7 @@ void CheckRFID(void) {
         if (OneWireReadCardId() ) {                                             // Read card ID
 #if ENABLE_OCPP
             uint8_t OcppMode = getItemValue(MENU_OCPP);
-            if (RFIDReader == 1 || // EnableAll                                     // Remote authorization via OCPP?
-                     RFIDReader == 2) { // EnableOne
+            if (OcppMode && RFIDReader == 6) {                                      // Remote authorization via OCPP?
                 // Use OCPP
 
                 static unsigned long lastread;
@@ -220,6 +219,7 @@ void CheckRFID(void) {
                     ocppUpdateRfidReading(RFID + 1, 7); // UUID starts at RFID+1; Assume 7-byte UUID for now
                     lastread = millis();
                 }
+                RFIDstatus = 1;
             } else
 #endif
             {
