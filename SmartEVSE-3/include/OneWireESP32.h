@@ -37,6 +37,7 @@ class OneWire32 {
 		~OneWire32();
 		bool reset();
 		void request();
+		uint8_t readRom(uint8_t data[8]);
 		uint8_t getTemp(uint64_t &addr, float &temp);
 		uint8_t search(uint64_t addresses[], uint8_t total);
 		bool read(uint8_t &data, uint8_t len = 8);

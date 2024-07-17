@@ -62,7 +62,8 @@ unsigned char OneWireReadCardId(void) {
 unsigned char OneWireReadCardId(void) {
     uint8_t x;
 
-    if (ds.search((uint64_t *)RFID, 1) ) {                                      // read Family code (0x01) RFID ID (6 bytes) and crc8
+    // Use ReadRom command (33)
+    if (!ds.readRom(RFID)) {                                                    // read Family code (0x01) RFID ID (6 bytes) and crc8
         if (crc8(RFID,8)) {
             RFID[0] = 0;                                                        // CRC incorrect, clear first byte of RFID buffer
             return 0;
