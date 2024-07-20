@@ -3018,7 +3018,7 @@ void SetupMQTTClient() {
 
     //set the parameters for and announce number entities:
     optional_payload = jsna("command_topic", String(MQTTprefix + "/Set/CurrentOverride")) + jsna("min", "0") + jsna("max", MaxCurrent ) + jsna("mode","slider");
-    optional_payload += jsna("value_template", R"({{ none if (value | int == 0) else (value | int / 10) }})") + jsna("command_template", R"({{ value | int * 10 }})");
+    optional_payload += jsna("value_template", R"({{ value | int / 10 if value | is_number else none }})") + jsna("command_template", R"({{ value | int * 10 }})");
     announce("Charge Current Override", "number");
 }
 
