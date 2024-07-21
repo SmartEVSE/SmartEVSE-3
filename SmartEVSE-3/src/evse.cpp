@@ -313,6 +313,7 @@ std::shared_ptr<MicroOcpp::Configuration> OcppUnlockConnectorOnEVSideDisconnect;
 std::shared_ptr<MicroOcpp::Transaction> OcppLockingTx; // Transaction which locks connector until same RFID card is presented again
 
 bool OcppTrackPermitsCharge = false;
+bool OcppTrackAccessBit = false;
 uint8_t OcppTrackCPvoltage = PILOT_NOK; //track positive part of CP signal for OCPP transaction logic
 MicroOcpp::MOcppMongooseClient *OcppWsClient;
 
@@ -455,31 +456,37 @@ void BlinkLed(void * parameter) {
             }
 
 #if ENABLE_OCPP
-        } else if (OcppMode && millis() - OcppLastRfidUpdate < 200) {
+        } else if (OcppMode && (RFIDReader == 6 || RFIDReader == 0) &&
+                    millis() - OcppLastRfidUpdate < 200) {
             RedPwm = 128;
             GreenPwm = 128;
             BluePwm = 128;
-        } else if (OcppMode && millis() - OcppLastTxNotification < 1000 && OcppTrackTxNotification == MicroOcpp::TxNotification::Authorized) {
+        } else if (OcppMode && (RFIDReader == 6 || RFIDReader == 0) &&
+                    millis() - OcppLastTxNotification < 1000 && OcppTrackTxNotification == MicroOcpp::TxNotification::Authorized) {
             RedPwm = 0;
             GreenPwm = 255;
             BluePwm = 0;
-        } else if (OcppMode && millis() - OcppLastTxNotification < 2000 && (OcppTrackTxNotification == MicroOcpp::TxNotification::AuthorizationRejected ||
-                                                                            OcppTrackTxNotification == MicroOcpp::TxNotification::DeAuthorized ||
-                                                                            OcppTrackTxNotification == MicroOcpp::TxNotification::ReservationConflict)) {
+        } else if (OcppMode && (RFIDReader == 6 || RFIDReader == 0) &&
+                    millis() - OcppLastTxNotification < 2000 && (OcppTrackTxNotification == MicroOcpp::TxNotification::AuthorizationRejected ||
+                                                                 OcppTrackTxNotification == MicroOcpp::TxNotification::DeAuthorized ||
+                                                                 OcppTrackTxNotification == MicroOcpp::TxNotification::ReservationConflict)) {
             RedPwm = 255;
             GreenPwm = 0;
             BluePwm = 0;
-        } else if (OcppMode && millis() - OcppLastTxNotification < 300 && (OcppTrackTxNotification == MicroOcpp::TxNotification::AuthorizationTimeout ||
-                                                                           OcppTrackTxNotification == MicroOcpp::TxNotification::ConnectionTimeout)) {
+        } else if (OcppMode && (RFIDReader == 6 || RFIDReader == 0) &&
+                    millis() - OcppLastTxNotification < 300 && (OcppTrackTxNotification == MicroOcpp::TxNotification::AuthorizationTimeout ||
+                                                                OcppTrackTxNotification == MicroOcpp::TxNotification::ConnectionTimeout)) {
             RedPwm = 255;
             GreenPwm = 0;
             BluePwm = 0;
-        } else if (OcppMode && getChargePointStatus() == ChargePointStatus_Reserved) {
+        } else if (OcppMode && (RFIDReader == 6 || RFIDReader == 0) &&
+                    getChargePointStatus() == ChargePointStatus_Reserved) {
             RedPwm = 196;
             GreenPwm = 64;
             BluePwm = 0;
-        } else if (OcppMode && (getChargePointStatus() == ChargePointStatus_Unavailable ||
-                                getChargePointStatus() == ChargePointStatus_Faulted)) {
+        } else if (OcppMode && (RFIDReader == 6 || RFIDReader == 0) &&
+                    (getChargePointStatus() == ChargePointStatus_Unavailable ||
+                     getChargePointStatus() == ChargePointStatus_Faulted)) {
             RedPwm = 255;
             GreenPwm = 0;
             BluePwm = 0;
@@ -5878,6 +5885,7 @@ void ocppDeinit() {
     }
 
     OcppTrackPermitsCharge = false;
+    OcppTrackAccessBit = false;
     OcppTrackCPvoltage = PILOT_NOK;
     OcppCurrentLimit = -1.f;
 
@@ -5928,19 +5936,39 @@ void ocppLoop() {
 
     // Set / unset Access_bit
     // Allow to set Access_bit only once per OCPP transaction because other modules may override the Access_bit
-    if (!OcppTrackPermitsCharge && ocppPermitsCharge()) {
-        _LOG_A("OCPP set Access_bit\n");
-        setAccess(true);
-    } else if (Access_bit && !ocppPermitsCharge()) {
-        _LOG_A("OCPP unset Access_bit\n");
-        setAccess(false);
-    }
-    OcppTrackPermitsCharge = ocppPermitsCharge();
+    // Doesn't apply if SmartEVSE built-in RFID store is enabled
+    if (RFIDReader == 6 || RFIDReader == 0) {
+        // RFID reader in OCPP mode or RFID fully disabled - OCPP controls Access_bit
+        if (!OcppTrackPermitsCharge && ocppPermitsCharge()) {
+            _LOG_A("OCPP set Access_bit\n");
+            setAccess(true);
+        } else if (Access_bit && !ocppPermitsCharge()) {
+            _LOG_A("OCPP unset Access_bit\n");
+            setAccess(false);
+        }
+        OcppTrackPermitsCharge = ocppPermitsCharge();
 
-    // Check if OCPP charge permission has been revoked by other module
-    if (OcppTrackPermitsCharge && // OCPP has set Acess_bit and still allows charge
-            !Access_bit) { // Access_bit is not active anymore
-        endTransaction(nullptr, "Other");
+        // Check if OCPP charge permission has been revoked by other module
+        if (OcppTrackPermitsCharge && // OCPP has set Acess_bit and still allows charge
+                !Access_bit) { // Access_bit is not active anymore
+            endTransaction(nullptr, "Other");
+        }
+    } else {
+        // Built-in RFID store enabled - OCPP does not control Access_bit, but starts transactions when Access_bit is set
+        if (Access_bit && !OcppTrackAccessBit && !getTransaction() && isOperative()) {
+            // Access_bit has been set
+            OcppTrackAccessBit = true;
+            _LOG_A("OCPP detected Access_bit set\n");
+            char buf[13];
+            sprintf(buf, "%02X%02X%02X%02X%02X%02X", RFID[1], RFID[2], RFID[3], RFID[4], RFID[5], RFID[6]);
+            beginTransaction_authorized(buf);
+        } else if (!Access_bit && (OcppTrackAccessBit || (getTransaction() && getTransaction()->isActive()))) {
+            OcppTrackAccessBit = false;
+            _LOG_A("OCPP detected Access_bit unset\n");
+            char buf[13];
+            sprintf(buf, "%02X%02X%02X%02X%02X%02X", RFID[1], RFID[2], RFID[3], RFID[4], RFID[5], RFID[6]);
+            endTransaction_authorized(buf);
+        }
     }
 
     // Stop value synchronization: block StopTransaction for a short period as long as charging is permitted

@@ -532,7 +532,9 @@ void GLCD(void) {
         glcd_clrln(7, 0x00);
 
 #if ENABLE_OCPP
-        if (ocppHasTxNotification()) {
+        if (getItemValue(MENU_OCPP) &&                                          // OCPP enabled
+                (getItemValue(MENU_RFIDREADER) == 6 || getItemValue(MENU_RFIDREADER) == 0) && // RFID in OCPP mode or disabled
+                ocppHasTxNotification()) {                                      // There is an OCPP event to display
             switch(ocppGetTxNotification()) {
                 case MicroOcpp::TxNotification::Authorized:
                     GLCD_print_buf2(2, (const char *) "ACCEPTED");
@@ -606,21 +608,12 @@ void GLCD(void) {
                 GLCD_print_buf2(4, Str);
             } else {
 #if ENABLE_OCPP
-                if (getItemValue(MENU_OCPP)) {
+                if (getItemValue(MENU_OCPP) &&                                  // OCPP enabled
+                        (getItemValue(MENU_RFIDREADER) == 6 || getItemValue(MENU_RFIDREADER) == 0)) { // RFID in OCPP mode or disabled
                     switch (getChargePointStatus()) {
                         case ChargePointStatus_Available:
-                            if (getItemValue(MENU_RFIDREADER) && getItemValue(MENU_RFIDREADER) != 6) {
-                                if (RFIDstatus == 7) {
-                                    GLCD_print_buf2(2, (const char *) "INVALID");
-                                    GLCD_print_buf2(4, (const char *) "RFID CARD");
-                                } else {
-                                    GLCD_print_buf2(2, (const char *) "PRESENT");
-                                    GLCD_print_buf2(4, (const char *) "RFID CARD");
-                                }
-                            } else {
-                                GLCD_print_buf2(2, (const char *) "AVAILABLE");
-                                GLCD_print_buf2(4, (const char *) "");
-                            }
+                            GLCD_print_buf2(2, (const char *) "AVAILABLE");
+                            GLCD_print_buf2(4, (const char *) "");
                             break;
                         case ChargePointStatus_Preparing:
                             if (!ocppIsConnectorPlugged()) {
