@@ -214,7 +214,7 @@ CONTACT2      One can add a second contactor (C2) that switches off 2 of the 3 p
 For the specification of the REST API, see [REST API](REST_API.md)
 
 # MQTT API
-Your SmartEVSE can now export the most important data to your MQTT-server. Just fill in the configuration data on the webserver and the data will automatically be announced to your MQTT server.
+Your SmartEVSE can now export the most important data to your MQTT-server. Just fill in the configuration data on the webserver and the data will automatically be announced to your MQTT server. Note that because the configuration data is transported to the SmartEVSE via the URL, special characters are not allowed.
 
 You can easily show all the MQTT topics published:
 ```

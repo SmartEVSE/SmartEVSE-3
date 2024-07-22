@@ -5213,8 +5213,6 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
                     }
                     doc["mqtt_password_set"] = (MQTTpassword != "");
                 }
-                // disconnect mqtt so it will automatically reconnect with then new params
-                MQTTclient.disconnect();
                 write_settings();
             }
         }
