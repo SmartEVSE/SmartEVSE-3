@@ -1032,7 +1032,6 @@ uint8_t getMenuItems (void) {
             MenuItems[m++] = MENU_MAINSMETER;                                   // - - Type of Mains electric meter (0: Disabled / Constants EM_*)
             if (MainsMeter == EM_SENSORBOX) {                                   // - - ? Sensorbox?
                 if (GridActive == 1) MenuItems[m++] = MENU_GRID;
-//                if (CalActive == 1) MenuItems[m++] = MENU_CAL;                  // - - - Sensorbox CT measurement calibration
             } else if (MainsMeter && MainsMeter != EM_API) {                    // - - ? Other?
                 MenuItems[m++] = MENU_MAINSMETERADDRESS;                        // - - - Address of Mains electric meter (9 - 247)
             }
@@ -1106,7 +1105,7 @@ uint8_t getMenuItems (void) {
 void GLCDMenu(uint8_t Buttons) {
     static unsigned long ButtonTimer = 0;
     static uint8_t ButtonRelease = 0;                                           // keeps track of LCD Menu Navigation
-    static uint16_t CT1, value, ButtonRepeat = 0;
+    static uint16_t value, ButtonRepeat = 0;
     char Str[24];
 
     unsigned char MenuItemsCount = getMenuItems();
@@ -1161,19 +1160,13 @@ void GLCDMenu(uint8_t Buttons) {
         GLCD();
     ////////////////
     } else if (Buttons == 0x2 && (ButtonRelease < 2)) {                         // Buttons < and > pressed ?
-        if ((LCDNav == MENU_CAL) &&  SubMenu ) {                                // While in CT CAL submenu ?
-            ICal = ICAL;                                                        // reset Calibration value
-            SubMenu = 0;                                                        // Exit Submenu
-        } else if (LCDNav == 0) GLCD_init();                                    // When not in Menu, re-initialize LCD
+        if (LCDNav == 0) GLCD_init();                                           // When not in Menu, re-initialize LCD
         ButtonRelease = 1;
     } else if ((LCDNav > 1) && LCDNav != MENU_OFF && LCDNav != MENU_ON && (Buttons == 0x2 || Buttons == 0x3 || Buttons == 0x6)) { // Buttons < or > or both pressed
         if (ButtonRelease == 0) {                                               // We are navigating between sub menu options
             if (SubMenu) {
                 value = getItemValue(LCDNav);
                 switch (LCDNav) {
-                    case MENU_CAL:
-                        CT1 = MenuNavInt(Buttons, CT1, 60, 999);                // range 6.0 - 99.9A
-                        break;
                     case MENU_MAINSMETER:
                         do {
                             value = MenuNavInt(Buttons, value, MenuStr[LCDNav].Min, MenuStr[LCDNav].Max);
@@ -1222,18 +1215,12 @@ void GLCDMenu(uint8_t Buttons) {
         ButtonRelease = 1;
         if (SubMenu) {                                                          // We are currently in Submenu
             SubMenu = 0;                                                        // Exit Submenu now
-            if (LCDNav == MENU_CAL && Iuncal) {                                 // Exit CT1 calibration? check if Iuncal is not zero
-                ICal = ((unsigned long)CT1 * 10 + 5) * ICAL / Iuncal;           // Calculate new Calibration value
-                Irms[0] = CT1;                                                  // Set the Irms value, so the LCD update is instant
-            }
             uint8_t WIFImode = getItemValue(MENU_WIFI);
             if (LCDNav == MENU_WIFI && WIFImode == 2)
                 handleWIFImode();
         } else {                                                                // We are currently not in Submenu.
             SubMenu = 1;                                                        // Enter Submenu now
-            if (LCDNav == MENU_CAL) {                                           // CT1 calibration start
-                CT1 = (unsigned int) abs(Irms[0]);                              // make working copy of CT1 value
-            } else if (LCDNav == MENU_EXIT) {                                   // Exit Main Menu
+            if (LCDNav == MENU_EXIT) {                                          // Exit Main Menu
                 LCDNav = 0;
                 SubMenu = 0;
                 ErrorFlags = NO_ERROR;                                          // Clear All Errors when exiting the Main Menu
@@ -1265,17 +1252,6 @@ void GLCDMenu(uint8_t Buttons) {
             break;
         case MENU_ON:
             HoldStr = "to Start";
-            break;
-        case MENU_CAL:
-            if (ButtonRelease == 1) {
-                GLCD_print_menu(2, MenuStr[LCDNav].LCD);                            // add navigation arrows on both sides
-                if (SubMenu) {
-                    sprintf(Str, "%u.%uA", CT1 / 10, CT1 % 10);
-                } else {
-                    sprintf(Str, "%u.%uA",((unsigned int) abs(Irms[0]) / 10), ((unsigned int) abs(Irms[0]) % 10) );
-                }
-                GLCD_print_menu(4, Str);
-            }
             break;
         default:
             //so we are anything else then 1, MENU_OFF, MENU_ON

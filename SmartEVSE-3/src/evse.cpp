@@ -108,7 +108,6 @@ uint8_t MaxSumMainsTime = MAX_SUMMAINSTIME;                                // Nu
 uint16_t MaxSumMainsTimer = 0;
 uint16_t MaxCurrent = MAX_CURRENT;                                          // Max Charge current (A)
 uint16_t MinCurrent = MIN_CURRENT;                                          // Minimal current the EV is happy with (A)
-uint16_t ICal = ICAL;                                                       // CT calibration value
 uint8_t Mode = MODE;                                                        // EVSE mode (0:Normal / 1:Smart / 2:Solar)
 uint32_t CurrentPWM = 0;                                                    // Current PWM duty cycle value (0 - 1024)
 int8_t InitialSoC = -1;                                                     // State of charge of car
@@ -234,8 +233,6 @@ uint16_t CardOffset = CARD_OFFSET;                                          // R
 uint8_t ConfigChanged = 0;
 uint32_t serialnr = 0;
 uint8_t GridActive = 0;                                                     // When the CT's are used on Sensorbox2, it enables the GRID menu option.
-uint8_t CalActive = 0;                                                      // When the CT's are used on Sensorbox(1.5 or 2), it enables the CAL menu option.
-uint16_t Iuncal = 0;                                                        // Uncalibrated CT1 measurement (resolution 10mA)
 
 uint16_t SolarStopTimer = 0;
 int32_t EnergyCharged = 0;                                                  // kWh meter value energy charged. (Wh) (will reset if state changes from A->B)
@@ -252,7 +249,6 @@ int32_t Mains_import_active_energy = 0;                                     // M
                                                                             // enery usage of your house
 int32_t EV_export_active_energy = 0;
 int32_t EV_import_active_energy = 0;
-int32_t CM[3]={0, 0, 0};
 uint8_t ResetKwh = 2;                                                       // if set, reset EV kwh meter at state transition B->C
                                                                             // cleared when charging, reset to 1 when disconnected (state A)
 uint8_t ActivationMode = 0, ActivationTimer = 0;
@@ -1724,9 +1720,6 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
         case MENU_RCMON:
             RCmon = val;
             break;
-        case MENU_CAL:
-            ICal = val;
-            break;
         case MENU_GRID:
             Grid = val;
             break;
@@ -1871,8 +1864,6 @@ uint16_t getItemValue(uint8_t nav) {
             return Switch;
         case MENU_RCMON:
             return RCmon;
-        case MENU_CAL:
-            return ICal;
         case MENU_GRID:
             return Grid;
         case MENU_MAINSMETER:
@@ -3475,6 +3466,7 @@ ModbusMessage MBEVMeterResponse(ModbusMessage request) {
 // Only runs on master, slave gets the MainsMeter currents via MBbroadcast
 ModbusMessage MBMainsMeterResponse(ModbusMessage request) {
     uint8_t x;
+    int32_t CM[3];
     ModbusMessage response;     // response message to be sent back
 
     ModbusDecode( (uint8_t*)request.data(), request.size());
@@ -3490,7 +3482,7 @@ ModbusMessage MBMainsMeterResponse(ModbusMessage request) {
             // Convert Irms from mA to (A * 10)
             for (x = 0; x < 3; x++) {
                 // Calculate difference of Mains and PV electric meter
-                Irms[x] = (signed int)(CM[x] / 100);            // Convert to AMPERE * 10
+                Irms[x] = (CM[x] / 100);            // Convert to AMPERE * 10
             }
             CalcIsum();
         }
@@ -3812,10 +3804,6 @@ void validate_settings(void) {
         setItemValue(MENU_RFIDREADER, 0);                                       // RFID Reader Disabled
     }
 
-    // We disabled CAL in the menu.
-    // Make sure the stored CAL value is reset to the default value
-    ICal = ICAL;
-
     // Update master node config
     if (LoadBl < 2) {
         Node[0].EVMeter = EVMeter;
@@ -3861,7 +3849,6 @@ void read_settings() {
         MaxCurrent = preferences.getUShort("MaxCurrent", MAX_CURRENT); 
         MinCurrent = preferences.getUShort("MinCurrent", MIN_CURRENT); 
         MaxCircuit = preferences.getUShort("MaxCircuit", MAX_CIRCUIT); 
-        ICal = preferences.getUShort("ICal", ICAL); 
         Switch = preferences.getUChar("Switch", SWITCH); 
         RCmon = preferences.getUChar("RCmon", RC_MON); 
         StartCurrent = preferences.getUShort("StartCurrent", START_CURRENT); 
@@ -3940,7 +3927,6 @@ void write_settings(void) {
     preferences.putUShort("MaxCurrent", MaxCurrent); 
     preferences.putUShort("MinCurrent", MinCurrent); 
     preferences.putUShort("MaxCircuit", MaxCircuit); 
-    preferences.putUShort("ICal", ICal); 
     preferences.putUChar("Switch", Switch); 
     preferences.putUChar("RCmon", RCmon); 
     preferences.putUShort("StartCurrent", StartCurrent); 

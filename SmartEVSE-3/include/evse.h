@@ -201,7 +201,6 @@ extern RemoteDebug Debug;
 #define PWM_95 950                                                              // 95% of PWM
 #define PWM_100 1000                                                            // 100% of PWM
 
-#define ICAL 1024                                                               // Irms Calibration value (for Current transformers)
 #define MAX_MAINS 25                                                            // max Current the Mains connection can supply
 #define MAX_SUMMAINS 0                                                          // only used for capacity rate limiting, max current over the sum of all phases
 #define MAX_SUMMAINSTIME 0
@@ -383,7 +382,7 @@ extern RemoteDebug Debug;
 #define MENU_MODE 12                                                            // 0x0200: EVSE mode
 #define MENU_CIRCUIT 13                                                         // 0x0201: EVSE Circuit max Current
 #define MENU_GRID 14                                                            // 0x0202: Grid type to which the Sensorbox is connected
-#define MENU_CAL 15                                                             // 0x0203: CT calibration value
+#define MENU_UNUSED 15                                                          // 0x0203: Unused
 #define MENU_MAINS 16                                                           // 0x0204: Max Mains Current
 #define MENU_START 17                                                           // 0x0205: Surplus energy start Current
 #define MENU_STOP 18                                                            // 0x0206: Stop solar charging at 6A after this time
@@ -472,7 +471,6 @@ extern char SmartConfigKey[];
 extern struct tm timeinfo;
 
 
-extern uint16_t ICal;                                                           // CT calibration value
 extern uint8_t Mode;                                                            // EVSE mode
 extern uint8_t LoadBl;                                                          // Load Balance Setting (Disable, Master or Node)
 extern uint8_t Grid;
@@ -507,8 +505,6 @@ extern uint8_t Access_bit;
 extern uint16_t CardOffset;
 
 extern uint8_t GridActive;                                                      // When the CT's are used on Sensorbox2, it enables the GRID menu option.
-extern uint8_t CalActive;                                                       // When the CT's are used on Sensorbox(1.5 or 2), it enables the CAL menu option.
-extern uint16_t Iuncal;
 extern uint16_t SolarStopTimer;
 extern int32_t EnergyCharged;
 extern int32_t EnergyCapacity;
@@ -553,7 +549,7 @@ const struct {
     {"MODE",    "Normal, Smart or Solar EVSE mode",                   0, 2, MODE},
     {"CIRCUIT", "EVSE Circuit max Current",                           10, 160, MAX_CIRCUIT},
     {"GRID",    "Grid type to which the Sensorbox is connected",      0, 1, GRID},
-    {"CAL",     "Calibrate CT1 (CT2+3 will also change)",             (unsigned int) (ICAL * 0.3), (unsigned int) (ICAL * 2.0), ICAL}, // valid range is 0.3 - 2.0 times measured value
+    {"Unused",  "Unused",                                             0, 1, 0},
     {"MAINS",   "Max MAINS Current (per phase)",                      10, 200, MAX_MAINS},
     {"START",   "Surplus energy start Current (sum of phases)",       0, 48, START_CURRENT},
     {"STOP",    "Stop solar charging at 6A after this time",          0, 60, STOP_TIME},
