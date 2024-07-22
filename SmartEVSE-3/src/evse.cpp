@@ -2441,7 +2441,7 @@ void requestEnergyMeasurement(uint8_t Meter, uint8_t Address, bool Export) {
  * @param uint8_t Meter
  * @param uint8_t Address
  */
-void requestPowerMeasurement(uint8_t Meter, uint8_t Address, uint8_t PRegister) {
+void requestPowerMeasurement(uint8_t Meter, uint8_t Address, uint16_t PRegister) {
    switch (Meter) {
         case EM_SINOTIMER:
             // Note:
@@ -2713,6 +2713,8 @@ uint8_t PollEVNode = NR_EVSES, updated = 0;
                     }
                     ModbusRequest++;
                     // fall through
+                    break;  // TODO: remove break; read modbus registers more evenly. 
+                    //  For now this gives the next modbus broadcast some room.
                 default:
                     // slave never gets here
                     // what about normal mode with no meters attached?
