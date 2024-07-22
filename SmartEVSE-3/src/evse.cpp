@@ -1204,7 +1204,7 @@ void CalcBalancedCurrent(char mod) {
     // ############### the rest of the work we only do if there are ActiveEVSEs #################
 
     int saveActiveEVSE = ActiveEVSE;                                            // TODO remove this when calcbalancedcurrent2 is approved
-    if (ActiveEVSE && phasesLastUpdateFlag) {                                   // Only if we have active EVSE's and if we have new phase currents
+    if (ActiveEVSE && (phasesLastUpdateFlag || Mode == MODE_NORMAL)) {          // Only if we have active EVSE's and if we have new phase currents
 
         // ############### we now check shortage of power  #################
 
