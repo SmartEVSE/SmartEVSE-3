@@ -2871,7 +2871,7 @@ public:
 };
 
 void MQTTclient_t::publish(const String &topic, const String &payload, bool retained, int qos) {
-  if (s_conn) {
+  if (s_conn && connected) {
     struct mg_mqtt_opts opts = default_opts;
     opts.topic = mg_str(topic.c_str());
     opts.message = mg_str(payload.c_str());
@@ -2882,7 +2882,7 @@ void MQTTclient_t::publish(const String &topic, const String &payload, bool reta
 }
 
 void MQTTclient_t::subscribe(const String &topic, int qos) {
-  if (s_conn) {
+  if (s_conn && connected) {
     struct mg_mqtt_opts opts = default_opts;
     opts.topic = mg_str(topic.c_str());
     opts.qos = qos;
