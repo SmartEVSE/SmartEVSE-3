@@ -1675,7 +1675,9 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
             Config = val;
             break;
         case STATUS_MODE:
-            setMode(val);
+            if (Mode != val)                                                    // this prevents slave from waking up from OFF mode when Masters'
+                                                                                // solarstoptimer starts to count
+                setMode(val);
             break;
         case MENU_MODE:
             Mode = val;
