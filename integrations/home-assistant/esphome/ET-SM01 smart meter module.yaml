@@ -162,3 +162,5 @@ interval:
               url.append("&L3=");
               url.append(to_string(l3*10));
               return url.c_str();
+          headers:
+            Content-Length: 0
