@@ -532,7 +532,7 @@ void GLCD(void) {
         glcd_clrln(7, 0x00);
 
 #if ENABLE_OCPP
-        if (getItemValue(MENU_OCPP) &&                                          // OCPP enabled
+        if (OcppMode &&                                          // OCPP enabled
                 (getItemValue(MENU_RFIDREADER) == 6 || getItemValue(MENU_RFIDREADER) == 0) && // RFID in OCPP mode or disabled
                 ocppHasTxNotification()) {                                      // There is an OCPP event to display
             switch(ocppGetTxNotification()) {
@@ -608,7 +608,7 @@ void GLCD(void) {
                 GLCD_print_buf2(4, Str);
             } else {
 #if ENABLE_OCPP
-                if (getItemValue(MENU_OCPP) &&                                  // OCPP enabled
+                if (OcppMode &&                                  // OCPP enabled
                         (getItemValue(MENU_RFIDREADER) == 6 || getItemValue(MENU_RFIDREADER) == 0)) { // RFID in OCPP mode or disabled
                     switch (getChargePointStatus()) {
                         case ChargePointStatus_Available:
@@ -900,9 +900,6 @@ const char * getMenuItemOption(uint8_t nav) {
     const static char StrEnabled[] = "Enabled";
     const static char StrExitMenu[] = "MENU";
     const static char StrRFIDReader[7][10] = {"Disabled", "EnableAll", "EnableOne", "Learn", "Delete", "DeleteAll", "Rmt/OCPP"};
-#if ENABLE_OCPP
-    const static char StrOcpp[2][10] = {"Disabled", "Enabled"};
-#endif
     const static char StrWiFi[3][10] = {"Disabled", "Enabled", "SetupWifi"};
 
     unsigned int value = getItemValue(nav);
@@ -997,10 +994,6 @@ const char * getMenuItemOption(uint8_t nav) {
             return Str;
         case MENU_RFIDREADER:
             return StrRFIDReader[value];
-#if ENABLE_OCPP
-        case MENU_OCPP:
-            return StrOcpp[value];
-#endif
         case MENU_WIFI:
             return StrWiFi[value];
         case MENU_EXIT:
@@ -1078,9 +1071,6 @@ uint8_t getMenuItems (void) {
     MenuItems[m++] = MENU_WIFI;                                                 // Wifi Disabled / Enabled / Portal
     if (getItemValue(MENU_WIFI)  == 1) {                                        // only show AutoUpdate menu if Wifi enabled
         MenuItems[m++] = MENU_AUTOUPDATE;                                       // Firmware automatic update Disabled / Enabled
-#if ENABLE_OCPP
-        MenuItems[m++] = MENU_OCPP;                                             // OCPP (0:Disable / 1:Enable)
-#endif
     }
     MenuItems[m++] = MENU_MAX_TEMP;
     if (MainsMeter && LoadBl < 2) {
