@@ -148,6 +148,8 @@ interval:
   - interval: 5sec
     then:
       - http_request.post:
+          headers:
+            Content-Length: 0
           url: !lambda |-
               std::string url;
 
@@ -162,5 +164,3 @@ interval:
               url.append("&L3=");
               url.append(to_string(l3*10));
               return url.c_str();
-          headers:
-            Content-Length: 0
