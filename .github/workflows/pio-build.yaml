@@ -50,7 +50,7 @@ jobs:
                     echo "version=${{ inputs.major }}.${{ inputs.minor }}.${{ inputs.patch }}-${{ inputs.prerelease }}" >> $GITHUB_OUTPUT
                  fi
               fi
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Cache pip
         uses: actions/cache@v3
         with:
