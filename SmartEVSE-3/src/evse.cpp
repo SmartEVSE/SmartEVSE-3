@@ -30,6 +30,7 @@
 #include "utils.h"
 #include "OneWire.h"
 #include "modbus.h"
+#include "meter.h"
 
 #ifndef DEBUG_DISABLED
 RemoteDebug Debug;
@@ -135,11 +136,7 @@ uint16_t ImportCurrent = IMPORT_CURRENT;
 struct DelayedTimeStruct DelayedStartTime;
 struct DelayedTimeStruct DelayedStopTime;
 uint8_t DelayedRepeat;                                                      // 0 = no repeat, 1 = daily repeat
-uint8_t MainsMeter = MAINS_METER;                                           // Type of Mains electric meter (0: Disabled / Constants EM_*)
-uint8_t MainsMeterAddress = MAINS_METER_ADDRESS;
 uint8_t Grid = GRID;                                                        // Type of Grid connected to Sensorbox (0:4Wire / 1:3Wire )
-uint8_t EVMeter = EV_METER;                                                 // Type of EV electric meter (0: Disabled / Constants EM_*)
-uint8_t EVMeterAddress = EV_METER_ADDRESS;
 uint8_t RFIDReader = RFID_READER;                                           // RFID Reader (0:Disabled / 1:Enabled / 2:Enable One / 3:Learn / 4:Delete / 5:Delete All / 6: Remote via OCPP)
 #if FAKE_RFID
 uint8_t Show_RFID = 0;
@@ -151,8 +148,8 @@ String TZinfo = "";                                                         // c
 EnableC2_t EnableC2 = ENABLE_C2;                                            // Contactor C2
 uint16_t maxTemp = MAX_TEMPERATURE;
 
-int16_t Irms[3]={0, 0, 0};                                                  // Momentary current per Phase (23 = 2.3A) (resolution 100mA)
-int16_t Irms_EV[3]={0, 0, 0};                                               // Momentary current per Phase (23 = 2.3A) (resolution 100mA)
+Meter MainsMeter(MAINS_METER, MAINS_METER_ADDRESS, COMM_TIMEOUT);
+Meter EVMeter(EV_METER, EV_METER_ADDRESS, COMM_EVTIMEOUT);
 uint8_t Nr_Of_Phases_Charging = 0;                                          // 0 = Undetected, 1,2,3 = nr of phases that was detected at the start of this charging session
 Single_Phase_t Switching_To_Single_Phase = FALSE;
 
@@ -165,8 +162,6 @@ uint8_t prev_pilot;
 uint16_t MaxCapacity;                                                       // Cable limit (A) (limited by the wire in the charge cable, set automatically, or manually if Config=Fixed Cable)
 uint16_t ChargeCurrent;                                                     // Calculated Charge Current (Amps *10)
 uint16_t OverrideCurrent = 0;                                               // Temporary assigned current (Amps *10) (modbus)
-int16_t Imeasured = 0;                                                      // Max of all Phases (Amps *10) of mains power
-int16_t Imeasured_EV = 0;                                                   // Max of all Phases (Amps *10) of EV power
 int16_t Isum = 0;                                                           // Sum of all measured Phases (Amps *10) (can be negative)
 
 // Load Balance variables
@@ -201,8 +196,6 @@ struct {
 };
 
 uint8_t lock1 = 0, lock2 = 1;
-uint8_t MainsMeterTimeout = COMM_TIMEOUT;                                   // MainsMeter communication timeout (sec)
-uint8_t EVMeterTimeout = COMM_EVTIMEOUT;                                    // EV Meter communication Timeout (sec)
 uint16_t BacklightTimer = 0;                                                // Backlight timer (sec)
 uint8_t BacklightSet = 0;
 uint8_t LCDTimer = 0;
@@ -235,22 +228,10 @@ uint32_t serialnr = 0;
 uint8_t GridActive = 0;                                                     // When the CT's are used on Sensorbox2, it enables the GRID menu option.
 
 uint16_t SolarStopTimer = 0;
-int32_t EnergyCharged = 0;                                                  // kWh meter value energy charged. (Wh) (will reset if state changes from A->B)
-int32_t EnergyMeterStart = 0;                                               // kWh meter value is stored once EV is connected to EVSE (Wh)
-int16_t PowerMeasured = 0;                                                  // Measured Charge power in Watt by kWh meter
 uint8_t RFIDstatus = 0;
 bool PilotDisconnected = false;
 uint8_t PilotDisconnectTime = 0;                                            // Time the Control Pilot line should be disconnected (Sec)
 
-int32_t EnergyEV = 0;                                                       // Wh -> EV_import_active_energy - EV_export_active_energy
-int32_t Mains_export_active_energy = 0;                                     // Mainsmeter exported active energy, only for API purposes so you can guard the
-                                                                            // enery usage of your house
-int32_t Mains_import_active_energy = 0;                                     // Mainsmeter imported active energy, only for API purposes so you can guard the
-                                                                            // enery usage of your house
-int32_t EV_export_active_energy = 0;
-int32_t EV_import_active_energy = 0;
-uint8_t ResetKwh = 2;                                                       // if set, reset EV kwh meter at state transition B->C
-                                                                            // cleared when charging, reset to 1 when disconnected (state A)
 uint8_t ActivationMode = 0, ActivationTimer = 0;
 volatile uint16_t adcsample = 0;
 volatile uint16_t ADCsamples[25];                                           // declared volatile, as they are used in a ISR
@@ -273,28 +254,6 @@ uint16_t firmwareUpdateTimer = 0;                                               
                                                                                 // 0 < timer < FW_UPDATE_DELAY means we are in countdown for an actual update
                                                                                 // FW_UPDATE_DELAY <= timer <= 0xffff means we are in countdown for checking
                                                                                 //                                              whether an update is necessary
-
-struct EMstruct EMConfig[EM_CUSTOM + 1] = {
-    /* DESC,      ENDIANNESS,      FCT, DATATYPE,            U_REG,DIV, I_REG,DIV, P_REG,DIV, E_REG_IMP,DIV, E_REG_EXP, DIV */
-    {"Disabled",  ENDIANESS_LBF_LWF, 0, MB_DATATYPE_INT32,        0, 0,      0, 0,      0, 0,      0, 0,0     , 0}, // First entry!
-    {"Sensorbox", ENDIANESS_HBF_HWF, 4, MB_DATATYPE_FLOAT32, 0xFFFF, 0,      0, 0, 0xFFFF, 0, 0xFFFF, 0,0     , 0}, // Sensorbox (Own routine for request/receive)
-    {"Phoenix C", ENDIANESS_HBF_LWF, 4, MB_DATATYPE_INT32,      0x0, 1,    0xC, 3,   0x28, 1,   0x3E, 1,0     , 0}, // PHOENIX CONTACT EEM-350-D-MCB (0,1V / mA / 0,1W / 0,1kWh) max read count 11
-    {"Finder 7E", ENDIANESS_HBF_HWF, 4, MB_DATATYPE_FLOAT32, 0x1000, 0, 0x100E, 0, 0x1026, 0, 0x1106, 3,0x110E, 3}, // Finder 7E.78.8.400.0212 (V / A / W / Wh) max read count 127
-    {"Eastron3P", ENDIANESS_HBF_HWF, 4, MB_DATATYPE_FLOAT32,    0x0, 0,    0x6, 0,   0x34, 0,  0x48 , 0,0x4A  , 0}, // Eastron SDM630 (V / A / W / kWh) max read count 80
-    {"InvEastrn", ENDIANESS_HBF_HWF, 4, MB_DATATYPE_FLOAT32,    0x0, 0,    0x6, 0,   0x34, 0,  0x48 , 0,0x4A  , 0}, // Since Eastron SDM series are bidirectional, sometimes they are connected upsidedown, so positive current becomes negative etc.; Eastron SDM630 (V / A / W / kWh) max read count 80
-    {"ABB",       ENDIANESS_HBF_HWF, 3, MB_DATATYPE_INT32,   0x5B00, 1, 0x5B0C, 2, 0x5B14, 2, 0x5000, 2,0x5004, 2}, // ABB B23 212-100 (0.1V / 0.01A / 0.01W / 0.01kWh) RS485 wiring reversed / max read count 125
-    {"SolarEdge", ENDIANESS_HBF_HWF, 3, MB_DATATYPE_INT16,    40196, 0,  40191, 0,  40206, 0,  40234, 3, 40226, 3}, // SolarEdge SunSpec (0.01V (16bit) / 0.1A (16bit) / 1W  (16bit) / 1 Wh (32bit))
-    {"WAGO",      ENDIANESS_HBF_HWF, 3, MB_DATATYPE_FLOAT32, 0x5002, 0, 0x500C, 0, 0x5012, -3, 0x600C, 0,0x6018, 0}, // WAGO 879-30x0 (V / A / kW / kWh)//TODO maar WAGO heeft ook totaal
-    {"API",       ENDIANESS_HBF_HWF, 3, MB_DATATYPE_FLOAT32, 0x5002, 0, 0x500C, 0, 0x5012, 3, 0x6000, 0,0x6018, 0}, // WAGO 879-30x0 (V / A / kW / kWh)
-    {"Eastron1P", ENDIANESS_HBF_HWF, 4, MB_DATATYPE_FLOAT32,    0x0, 0,    0x6, 0,   0x0C, 0,  0x48 , 0,0x4A  , 0}, // Eastron SDM630 (V / A / W / kWh) max read count 80
-    {"Finder 7M", ENDIANESS_HBF_HWF, 4, MB_DATATYPE_FLOAT32,   2500, 0,   2516, 0,   2536, 0,   2638, 3,     0, 0}, // Finder 7M.38.8.400.0212 (V / A / W / Wh) / Backlight 10173
-    {"Sinotimer", ENDIANESS_HBF_HWF, 4, MB_DATATYPE_INT16,      0x0, 1,    0x3, 2,    0x8, 0, 0x0027, 2,0x0031, 2}, // Sinotimer DTS6619 (0.1V (16bit) / 0.01A (16bit) / 1W  (16bit) / 1 Wh (32bit))
-    {"Unused 1",  ENDIANESS_LBF_LWF, 4, MB_DATATYPE_INT32,        0, 0,      0, 0,      0, 0,      0, 0,     0, 0}, // unused slot for future new meters
-    {"Unused 2",  ENDIANESS_LBF_LWF, 4, MB_DATATYPE_INT32,        0, 0,      0, 0,      0, 0,      0, 0,     0, 0}, // unused slot for future new meters
-    {"Unused 3",  ENDIANESS_LBF_LWF, 4, MB_DATATYPE_INT32,        0, 0,      0, 0,      0, 0,      0, 0,     0, 0}, // unused slot for future new meters
-    {"Unused 4",  ENDIANESS_LBF_LWF, 4, MB_DATATYPE_INT32,        0, 0,      0, 0,      0, 0,      0, 0,     0, 0}, // unused slot for future new meters
-    {"Custom",    ENDIANESS_LBF_LWF, 4, MB_DATATYPE_INT32,        0, 0,      0, 0,      0, 0,      0, 0,     0, 0}  // Last entry!
-};
 
 #if ENABLE_OCPP
 uint8_t OcppMode = OCPP_MODE; //OCPP Client mode. 0:Disable / 1:Enable
@@ -688,7 +647,7 @@ const char * getErrorNameWeb(uint8_t ErrorCode) {
  */
 void setMode(uint8_t NewMode) {
     // If mainsmeter disabled we can only run in Normal Mode
-    if (!MainsMeter && NewMode != MODE_NORMAL)
+    if (!MainsMeter.Type && NewMode != MODE_NORMAL)
         return;
 
     // Take care of extra conditionals/checks for custom features
@@ -963,8 +922,8 @@ char IsCurrentAvailable(void) {
 
     ActiveEVSE++;                                                           // Do calculations with one more EVSE
     if (ActiveEVSE > NR_EVSES) ActiveEVSE = NR_EVSES;
-    Baseload = Imeasured - TotalCurrent;                                    // Calculate Baseload (load without any active EVSE)
-    Baseload_EV = Imeasured_EV - TotalCurrent;                              // Load on the EV subpanel excluding any active EVSE
+    Baseload = MainsMeter.Imeasured - TotalCurrent;                         // Calculate Baseload (load without any active EVSE)
+    Baseload_EV = EVMeter.Imeasured - TotalCurrent;                         // Load on the EV subpanel excluding any active EVSE
     if (Baseload < 0) Baseload = 0;
     if (Baseload_EV < 0) Baseload_EV = 0;                                   // so Baseload_EV = 0 when no EVMeter installed
 
@@ -973,7 +932,7 @@ char IsCurrentAvailable(void) {
         _LOG_D("No current available MaxMains line %d. ActiveEVSE=%i, Baseload=%.1fA, MinCurrent=%iA, MaxMains=%iA.\n", __LINE__, ActiveEVSE, (float) Baseload/10, MinCurrent, MaxMains);
         return 0;                                                           // Not enough current available!, return with error
     }
-    if (((LoadBl == 0 && EVMeter && Mode != MODE_NORMAL) || LoadBl == 1)    // Conditions in which MaxCircuit has to be considered
+    if (((LoadBl == 0 && EVMeter.Type && Mode != MODE_NORMAL) || LoadBl == 1) // Conditions in which MaxCircuit has to be considered
         && ((ActiveEVSE * (MinCurrent * 10) + Baseload_EV) > (MaxCircuit * 10))) { // MaxCircuit is exceeded
         _LOG_D("No current available MaxCircuit line %d. ActiveEVSE=%i, Baseload_EV=%.1fA, MinCurrent=%iA, MaxCircuit=%iA.\n", __LINE__, ActiveEVSE, (float) Baseload_EV/10, MinCurrent, MaxCircuit);
         return 0;                                                           // Not enough current available!, return with error
@@ -1012,10 +971,10 @@ void Set_Nr_of_Phases_Charging(void) {
 #define BOTTOM_THRESHOLD 25
     _LOG_D("Detected Charging Phases: ChargeCurrent=%u, Balanced[0]=%u, IsetBalanced=%u.\n", ChargeCurrent, Balanced[0],IsetBalanced);
     for (int i=0; i<3; i++) {
-        if (EVMeter) {
-            Charging_Prob = 10 * (abs(Irms_EV[i] - IsetBalanced)) / IsetBalanced;    //100% means this phase is charging, 0% mwans not charging
+        if (EVMeter.Type) {
+            Charging_Prob = 10 * (abs(EVMeter.Irms[i] - IsetBalanced)) / IsetBalanced;  //100% means this phase is charging, 0% mwans not charging
                                                                                         //TODO does this work for the slaves too?
-            _LOG_D("Trying to detect Charging Phases END Irms_EV[%i]=%.1f A.\n", i, (float)Irms_EV[i]/10);
+            _LOG_D("Trying to detect Charging Phases END EVMeter.Irms[%i]=%.1f A.\n", i, (float)EVMeter.Irms[i]/10);
         }
         Max_Charging_Prob = max(Charging_Prob, Max_Charging_Prob);
 
@@ -1103,12 +1062,12 @@ void CalcBalancedCurrent(char mod) {
             TotalCurrent += Balanced[n];                                        // Calculate total of all set charge currents
     }
 
-    _LOG_V("Checkpoint 1 Isetbalanced=%.1f A Imeasured=%.1f A MaxCircuit=%i Imeasured_EV=%.1f A, Battery Current = %.1f A, mode=%i.\n", (float)IsetBalanced/10, (float)Imeasured/10, MaxCircuit, (float)Imeasured_EV/10, (float)homeBatteryCurrent/10, Mode);
+    _LOG_V("Checkpoint 1 Isetbalanced=%.1f A Imeasured=%.1f A MaxCircuit=%i Imeasured_EV=%.1f A, Battery Current = %.1f A, mode=%i.\n", (float)IsetBalanced/10, (float)MainsMeter.Imeasured/10, MaxCircuit, (float)EVMeter.Imeasured/10, (float)homeBatteryCurrent/10, Mode);
 
-    Baseload_EV = Imeasured_EV - TotalCurrent;                                  // Calculate Baseload (load without any active EVSE)
+    Baseload_EV = EVMeter.Imeasured - TotalCurrent;                             // Calculate Baseload (load without any active EVSE)
     if (Baseload_EV < 0)
         Baseload_EV = 0;
-    Baseload = Imeasured - TotalCurrent;                                        // Calculate Baseload (load without any active EVSE)
+    Baseload = MainsMeter.Imeasured - TotalCurrent;                             // Calculate Baseload (load without any active EVSE)
     if (Baseload < 0)
         Baseload = 0;
 
@@ -1127,11 +1086,11 @@ void CalcBalancedCurrent(char mod) {
 
         uint8_t Temp_Phases;
         Temp_Phases = (Nr_Of_Phases_Charging ? Nr_Of_Phases_Charging : 3);      // in case nr of phases not detected, assume 3
-        if ((LoadBl == 0 && EVMeter) || LoadBl == 1)                            // Conditions in which MaxCircuit has to be considered;
+        if ((LoadBl == 0 && EVMeter.Type) || LoadBl == 1)                       // Conditions in which MaxCircuit has to be considered;
                                                                                 // mode = Smart/Solar so don't test for that
-            Idifference = min((MaxMains * 10) - Imeasured, (MaxCircuit * 10) - Imeasured_EV);
+            Idifference = min((MaxMains * 10) - MainsMeter.Imeasured, (MaxCircuit * 10) - EVMeter.Imeasured);
         else
-            Idifference = (MaxMains * 10) - Imeasured;
+            Idifference = (MaxMains * 10) - MainsMeter.Imeasured;
         if (MaxSumMains && Idifference > ((MaxSumMains * 10) - Isum)/Temp_Phases) {
             Idifference = ((MaxSumMains * 10) - Isum)/Temp_Phases;
             LimitedByMaxSumMains = true;
@@ -1195,7 +1154,7 @@ void CalcBalancedCurrent(char mod) {
 
 
     // guard MaxCircuit
-    if (((LoadBl == 0 && EVMeter && Mode != MODE_NORMAL) || LoadBl == 1)    // Conditions in which MaxCircuit has to be considered
+    if (((LoadBl == 0 && EVMeter.Type && Mode != MODE_NORMAL) || LoadBl == 1)    // Conditions in which MaxCircuit has to be considered
        && (IsetBalanced > (MaxCircuit * 10) - Baseload_EV))
         IsetBalanced = MaxCircuit * 10 - Baseload_EV; //limiting is per phase so no Nr_Of_Phases_Charging here!
 
@@ -1371,8 +1330,8 @@ void BroadcastCurrent(void) {
     p = p + sizeof(Balanced);
     // Irms values, we only send the 16 least significant bits (range -327.6A to +327.6A) per phase
     for ( i=0; i<3; i++) {
-        p[i * 2] = Irms[i] & 0xff;
-        p[(i * 2) + 1] = Irms[i] >> 8;    
+        p[i * 2] = MainsMeter.Irms[i] & 0xff;
+        p[(i * 2) + 1] = MainsMeter.Irms[i] >> 8;
     }
     ModbusWriteMultipleRequest(BROADCAST_ADR, 0x0020, (uint16_t *) buf, 8 + 3);
 }
@@ -1726,16 +1685,16 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
             Grid = val;
             break;
         case MENU_MAINSMETER:
-            MainsMeter = val;
+            MainsMeter.Type = val;
             break;
         case MENU_MAINSMETERADDRESS:
-            MainsMeterAddress = val;
+            MainsMeter.Address = val;
             break;
         case MENU_EVMETER:
-            EVMeter = val;
+            EVMeter.Type = val;
             break;
         case MENU_EVMETERADDRESS:
-            EVMeterAddress = val;
+            EVMeter.Address = val;
             break;
         case MENU_EMCUSTOM_ENDIANESS:
             EMConfig[EM_CUSTOM].Endianness = val;
@@ -1787,7 +1746,7 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
         case STATUS_ERROR:
             ErrorFlags = val;
             if (ErrorFlags) {                                                   // Is there an actual Error? Maybe the error got cleared?
-                if (ErrorFlags & CT_NOCOMM) MainsMeterTimeout = 0;              // clear MainsMeterTimeout on a CT_NOCOMM error, so the error will be immediate.
+                if (ErrorFlags & CT_NOCOMM) MainsMeter.Timeout = 0;             // clear MainsMeter.Timeout on a CT_NOCOMM error, so the error will be immediate.
                 setStatePowerUnavailable();
                 ChargeDelay = CHARGEDELAY;
                 _LOG_V("Error message received!\n");
@@ -1797,7 +1756,7 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
             break;
         case STATUS_CURRENT:
             OverrideCurrent = val;
-            if (LoadBl < 2) MainsMeterTimeout = COMM_TIMEOUT;                   // reset timeout when register is written
+            if (LoadBl < 2) MainsMeter.Timeout = COMM_TIMEOUT;                  // reset timeout when register is written
             break;
         case STATUS_SOLAR_TIMER:
             SolarStopTimer = val;
@@ -1864,13 +1823,13 @@ uint16_t getItemValue(uint8_t nav) {
         case MENU_GRID:
             return Grid;
         case MENU_MAINSMETER:
-            return MainsMeter;
+            return MainsMeter.Type;
         case MENU_MAINSMETERADDRESS:
-            return MainsMeterAddress;
+            return MainsMeter.Address;
         case MENU_EVMETER:
-            return EVMeter;
+            return EVMeter.Type;
         case MENU_EVMETERADDRESS:
-            return EVMeterAddress;
+            return EVMeter.Address;
         case MENU_EMCUSTOM_ENDIANESS:
             return EMConfig[EM_CUSTOM].Endianness;
         case MENU_EMCUSTOM_DATATYPE:
@@ -1930,8 +1889,8 @@ uint16_t getItemValue(uint8_t nav) {
 
 void printStatus(void)
 {
-    _LOG_I ("STATE: %s Error: %u StartCurrent: -%i ChargeDelay: %u SolarStopTimer: %u NoCurrent: %u Imeasured: %.1f A IsetBalanced: %.1f A, MainsMeterTimeout=%u, EVMeterTimeout=%u.\n", getStateName(State), ErrorFlags, StartCurrent, ChargeDelay, SolarStopTimer,  NoCurrent, (float)Imeasured/10, (float)IsetBalanced/10, MainsMeterTimeout, EVMeterTimeout);
-    _LOG_I("L1: %.1f A L2: %.1f A L3: %.1f A Isum: %.1f A\n", (float)Irms[0]/10, (float)Irms[1]/10, (float)Irms[2]/10, (float)Isum/10);
+    _LOG_I ("STATE: %s Error: %u StartCurrent: -%i ChargeDelay: %u SolarStopTimer: %u NoCurrent: %u Imeasured: %.1f A IsetBalanced: %.1f A, MainsMeter.Timeout=%u, EVMeter.Timeout=%u.\n", getStateName(State), ErrorFlags, StartCurrent, ChargeDelay, SolarStopTimer,  NoCurrent, (float)MainsMeter.Imeasured/10, (float)IsetBalanced/10, MainsMeter.Timeout, EVMeter.Timeout);
+    _LOG_I("L1: %.1f A L2: %.1f A L3: %.1f A Isum: %.1f A\n", (float)MainsMeter.Irms[0]/10, (float)MainsMeter.Irms[1]/10, (float)MainsMeter.Irms[2]/10, (float)Isum/10);
 }
 
 // Recompute State of Charge, in case we have a known initial state of charge
@@ -1949,10 +1908,10 @@ void RecomputeSoC(void) {
 
             if (EnergyRequest > 0) {
                 // Attempt to use EnergyRequest to determine SoC with greater accuracy
-                EnergyRemaining = EnergyCharged > 0 ? (EnergyRequest - EnergyCharged) : EnergyRequest;
+                EnergyRemaining = EVMeter.EnergyCharged > 0 ? (EnergyRequest - EVMeter.EnergyCharged) : EnergyRequest;
             } else {
                 // We use a rough estimation based on FullSoC and EnergyCapacity
-                EnergyRemaining = TargetEnergyCapacity - (EnergyCharged + (InitialSoC / 100.f) * EnergyCapacity);
+                EnergyRemaining = TargetEnergyCapacity - (EVMeter.EnergyCharged + (InitialSoC / 100.f) * EnergyCapacity);
             }
 
             RemainingSoC = ((FullSoC * EnergyRemaining) / TargetEnergyCapacity);
@@ -1962,9 +1921,9 @@ void RecomputeSoC(void) {
             if (EnergyRemaining > -1) {
                 int TimeToGo = -1;
                 // Do a very simple estimation in seconds until car would reach FullSoC according to current charging power
-                if (PowerMeasured > 0) {
+                if (EVMeter.PowerMeasured > 0) {
                     // Use real-time PowerMeasured data if available
-                    TimeToGo = (3600 * EnergyRemaining) / PowerMeasured;
+                    TimeToGo = (3600 * EnergyRemaining) / EVMeter.PowerMeasured;
                 } else if (Nr_Of_Phases_Charging > 0) {
                     // Else, fall back on the theoretical maximum of the cable + nr of phases
                     TimeToGo = (3600 * EnergyRemaining) / (MaxCapacity * (Nr_Of_Phases_Charging * 230));
@@ -1983,7 +1942,7 @@ void RecomputeSoC(void) {
                 TimeUntilFull = -1;
             }
 
-            _LOG_I("SoC: EnergyRemaining %i RemaningSoC %i EnergyRequest %i EnergyCharged %i EnergyCapacity %i ComputedSoC %i FullSoC %i TimeUntilFull %i TargetEnergyCapacity %i\n", EnergyRemaining, RemainingSoC, EnergyRequest, EnergyCharged, EnergyCapacity, ComputedSoC, FullSoC, TimeUntilFull, TargetEnergyCapacity);
+            _LOG_I("SoC: EnergyRemaining %i RemaningSoC %i EnergyRequest %i EnergyCharged %i EnergyCapacity %i ComputedSoC %i FullSoC %i TimeUntilFull %i TargetEnergyCapacity %i\n", EnergyRemaining, RemainingSoC, EnergyRequest, EVMeter.EnergyCharged, EnergyCapacity, ComputedSoC, FullSoC, TimeUntilFull, TargetEnergyCapacity);
         }
     } else {
         if (TimeUntilFull != -1) TimeUntilFull = -1;
@@ -2006,14 +1965,6 @@ void DisconnectEvent(void){
     strncpy(EVCCID, "", sizeof(EVCCID));
 }
 
-void CalcImeasured_EV(void) {
-    // Initialize Imeasured (max power used) to first channel.
-    Imeasured_EV = Irms_EV[0];
-    for (int x = 1; x < 3; x++) {
-        if (Irms_EV[x] > Imeasured_EV) Imeasured_EV = Irms_EV[x];
-    }
-}
-
 void CalcIsum(void) {
     phasesLastUpdate = time(NULL);
     phasesLastUpdateFlag = true;                        // Set flag if a new Irms measurement is received.
@@ -2026,17 +1977,13 @@ void CalcIsum(void) {
     temp[2] = INJECT_CURRENT_L3 * 10;
 #endif
 
-    // Initialize Imeasured (max power used) to first channel.
-    Imeasured = Irms[0];
     for (int x = 0; x < 3; x++) {
 #if FAKE_SUNNY_DAY
-        Irms[x] = Irms[x] - temp[x];
+        MainsMeter.Irms[x] = MainsMeter.Irms[x] - temp[x];
 #endif
-        IrmsOriginal[x] = Irms[x];
-        Irms[x] -= batteryPerPhase;
-        Isum = Isum + Irms[x];
-        // Imeasured holds highest Irms of all channels
-        if (Irms[x] > Imeasured) Imeasured = Irms[x];
+        IrmsOriginal[x] = MainsMeter.Irms[x];
+        MainsMeter.Irms[x] -= batteryPerPhase;
+        Isum = Isum + MainsMeter.Irms[x];
     }
 }
 
@@ -2209,7 +2156,7 @@ void EVSEStates(void * parameter) {
                 if (State != STATE_A) setState(STATE_A);                        // reset state, incase we were stuck in STATE_COMM_B
                 ChargeDelay = 0;                                                // Clear ChargeDelay when disconnected.
 
-                if (!ResetKwh) ResetKwh = 1;                                    // when set, reset EV kWh meter on state B->C change.
+                if (!EVMeter.ResetKwh) EVMeter.ResetKwh = 1;                    // when set, reset EV kWh meter on state B->C change.
             } else if ( pilot == PILOT_9V && ErrorFlags == NO_ERROR 
                 && ChargeDelay == 0 && Access_bit && State != STATE_COMM_B
 #if MODEM
@@ -2265,10 +2212,10 @@ void EVSEStates(void * parameter) {
             } else if (pilot == PILOT_6V && ++StateTimer > 50) {                // When switching from State B to C, make sure pilot is at 6V for at least 500ms 
                                                                                 // Fixes https://github.com/dingo35/SmartEVSE-3.5/issues/40
                 if ((DiodeCheck == 1) && (ErrorFlags == NO_ERROR) && (ChargeDelay == 0)) {
-                    if (EVMeter && ResetKwh) {
-                        EnergyMeterStart = EnergyEV;                            // store kwh measurement at start of charging.
-                        EnergyCharged = EnergyEV - EnergyMeterStart;            // Calculate Energy
-                        ResetKwh = 0;                                           // clear flag, will be set when disconnected from EVSE (State A)
+                    if (EVMeter.Type && EVMeter.ResetKwh) {
+                        EVMeter.EnergyMeterStart = EVMeter.Energy;              // store kwh measurement at start of charging.
+                        EVMeter.EnergyCharged = EVMeter.Energy - EVMeter.EnergyMeterStart; // Calculate Energy
+                        EVMeter.ResetKwh = 0;                                   // clear flag, will be set when disconnected from EVSE (State A)
                     }
 
                     // Load Balancing : Node
@@ -2590,9 +2537,9 @@ uint8_t PollEVNode = NR_EVSES, updated = 0;
                     ModbusRequest++;
                     // fall through
                 case 2:                                                         // Sensorbox or kWh meter that measures -all- currents
-                    if (MainsMeter && MainsMeter != EM_API) {                   // we don't want modbus meter currents to conflict with EM_API currents
+                    if (MainsMeter.Type && MainsMeter.Type != EM_API) {         // we don't want modbus meter currents to conflict with EM_API currents
                         _LOG_D("ModbusRequest %u: Request MainsMeter Measurement\n", ModbusRequest);
-                        requestCurrentMeasurement(MainsMeter, MainsMeterAddress);
+                        requestCurrentMeasurement(MainsMeter.Type, MainsMeter.Address);
                         break;
                     }
                     ModbusRequest++;
@@ -2630,8 +2577,18 @@ uint8_t PollEVNode = NR_EVSES, updated = 0;
                 case 5:                                                         // EV kWh meter, Power measurement (momentary power in Watt)
                     // Request Power if EV meter is configured
                     if (Node[PollEVNode].EVMeter && Node[PollEVNode].EVMeter != EM_API) {
-                        requestPowerMeasurement(Node[PollEVNode].EVMeter, Node[PollEVNode].EVAddress,EMConfig[Node[PollEVNode].EVMeter].PRegister);
-                        break;
+                        switch(EVMeter.Type) {
+                            //these meters all have their power measured via receiveCurrentMeasurement already
+                            case EM_EASTRON1P:
+                            case EM_EASTRON3P:
+                            case EM_EASTRON3P_INV:
+                            case EM_ABB:
+                            case EM_FINDER_7M:
+                                break;
+                            default:
+                                requestPowerMeasurement(Node[PollEVNode].EVMeter, Node[PollEVNode].EVAddress,EMConfig[Node[PollEVNode].EVMeter].PRegister);
+                                break;
+                        }
                     }
                     ModbusRequest++;
                     // fall through
@@ -2681,16 +2638,16 @@ uint8_t PollEVNode = NR_EVSES, updated = 0;
                     // fall through
                 case 21:
                     // Request active energy if Mainsmeter is configured
-                    if (MainsMeter && (MainsMeter != EM_API) && (MainsMeter != EM_SENSORBOX) ) {                   // EM_API and Sensorbox do not support energy postings
+                    if (MainsMeter.Type && (MainsMeter.Type != EM_API) && (MainsMeter.Type != EM_SENSORBOX) ) { // EM_API and Sensorbox do not support energy postings
                         energytimer++; //this ticks approx every second?!?
                         if (energytimer == 30) {
                             _LOG_D("ModbusRequest %u: Request MainsMeter Import Active Energy Measurement\n", ModbusRequest);
-                            requestEnergyMeasurement(MainsMeter, MainsMeterAddress, 0);
+                            requestEnergyMeasurement(MainsMeter.Type, MainsMeter.Address, 0);
                             break;
                         }
                         if (energytimer >= 60) {
                             _LOG_D("ModbusRequest %u: Request MainsMeter Export Active Energy Measurement\n", ModbusRequest);
-                            requestEnergyMeasurement(MainsMeter, MainsMeterAddress, 1);
+                            requestEnergyMeasurement(MainsMeter.Type, MainsMeter.Address, 1);
                             energytimer = 0;
                             break;
                         }
@@ -2704,7 +2661,7 @@ uint8_t PollEVNode = NR_EVSES, updated = 0;
                     // what about normal mode with no meters attached?
                     CalcBalancedCurrent(0);
                     // No current left, or Overload (2x Maxmains)?
-                    if (Mode && (NoCurrent > 2 || Imeasured > (MaxMains * 20))) { // I guess we don't want to set this flag in Normal mode, we just want to charge ChargeCurrent
+                    if (Mode && (NoCurrent > 2 || MainsMeter.Imeasured > (MaxMains * 20))) { // I guess we don't want to set this flag in Normal mode, we just want to charge ChargeCurrent
                         // STOP charging for all EVSE's
                         // Display error message
                         ErrorFlags |= LESS_6A; //NOCURRENT;
@@ -2780,7 +2737,7 @@ void mqtt_receive_callback(const String topic, const String payload) {
             CPDutyOverride = true;
         }
     } else if (topic == MQTTprefix + "/Set/MainsMeter") {
-        if (MainsMeter != EM_API || LoadBl >= 2)
+        if (MainsMeter.Type != EM_API || LoadBl >= 2)
             return;
 
         int32_t L1, L2, L3;
@@ -2789,14 +2746,14 @@ void mqtt_receive_callback(const String topic, const String payload) {
         // MainsMeter can measure -200A to +200A per phase
         if (n == 3 && (L1 > -2000 && L1 < 2000) && (L2 > -2000 && L2 < 2000) && (L3 > -2000 && L3 < 2000)) {
             if (LoadBl < 2)
-                MainsMeterTimeout = COMM_TIMEOUT;
-            Irms[0] = L1;
-            Irms[1] = L2;
-            Irms[2] = L3;
+                MainsMeter.Timeout = COMM_TIMEOUT;
+            MainsMeter.Irms[0] = L1;
+            MainsMeter.Irms[1] = L2;
+            MainsMeter.Irms[2] = L3;
             CalcIsum();
         }
     } else if (topic == MQTTprefix + "/Set/EVMeter") {
-        if (EVMeter != EM_API)
+        if (EVMeter.Type != EM_API)
             return;
 
         int32_t L1, L2, L3, W, WH;
@@ -2806,25 +2763,23 @@ void mqtt_receive_callback(const String topic, const String payload) {
         if (n == 5) {
             if ((L1 > -1 && L1 < 1000) && (L2 > -1 && L2 < 1000) && (L3 > -1 && L3 < 1000)) {
                 // RMS currents
-                Irms_EV[0] = L1;
-                Irms_EV[1] = L2;
-                Irms_EV[2] = L3;
-                CalcImeasured_EV();
-                EVMeterTimeout = COMM_EVTIMEOUT;
+                EVMeter.Irms[0] = L1;
+                EVMeter.Irms[1] = L2;
+                EVMeter.Irms[2] = L3;
+                EVMeter.CalcImeasured();
+                EVMeter.Timeout = COMM_EVTIMEOUT;
             }
 
             if (W > -1) {
                 // Power measurement
-                PowerMeasured = W;
+                EVMeter.PowerMeasured = W;
             }
 
             if (WH > -1) {
                 // Energy measurement
-                EnergyEV = WH;
-                if (ResetKwh == 2)
-                    EnergyMeterStart = EnergyEV;             // At powerup, set EnergyEV to kwh meter value
-                EnergyCharged = EnergyEV - EnergyMeterStart; // Calculate Energy
-                RecomputeSoC();                              // Recalculate SoC
+                EVMeter.Import_active_energy = WH;
+                EVMeter.Export_active_energy = 0;
+                EVMeter.UpdateEnergies();
             }
         }
     } else if (topic == MQTTprefix + "/Set/HomeBatteryCurrent") {
@@ -2926,12 +2881,12 @@ void SetupMQTTClient() {
     optional_payload = jsna("device_class","current") + jsna("unit_of_measurement","A") + jsna("value_template", R"({{ value | int / 10 }})");
     announce("Charge Current", "sensor");
     announce("Max Current", "sensor");
-    if (MainsMeter) {
+    if (MainsMeter.Type) {
         announce("Mains Current L1", "sensor");
         announce("Mains Current L2", "sensor");
         announce("Mains Current L3", "sensor");
     }
-    if (EVMeter) {
+    if (EVMeter.Type) {
         announce("EV Current L1", "sensor");
         announce("EV Current L2", "sensor");
         announce("EV Current L3", "sensor");
@@ -2961,7 +2916,7 @@ void SetupMQTTClient() {
         announce("Required EVCCID", "text");
 #endif
 
-    if (EVMeter) {
+    if (EVMeter.Type) {
         //set the parameters for and announce other sensor entities:
         optional_payload = jsna("device_class","power") + jsna("unit_of_measurement","W");
         announce("EV Charge Power", "sensor");
@@ -3018,15 +2973,15 @@ void SetupMQTTClient() {
 void mqttPublishData() {
     lastMqttUpdate = 0;
 
-        if (MainsMeter) {
-            MQTTclient.publish(MQTTprefix + "/MainsCurrentL1", String(Irms[0]), false, 0);
-            MQTTclient.publish(MQTTprefix + "/MainsCurrentL2", String(Irms[1]), false, 0);
-            MQTTclient.publish(MQTTprefix + "/MainsCurrentL3", String(Irms[2]), false, 0);
+        if (MainsMeter.Type) {
+            MQTTclient.publish(MQTTprefix + "/MainsCurrentL1", String(MainsMeter.Irms[0]), false, 0);
+            MQTTclient.publish(MQTTprefix + "/MainsCurrentL2", String(MainsMeter.Irms[1]), false, 0);
+            MQTTclient.publish(MQTTprefix + "/MainsCurrentL3", String(MainsMeter.Irms[2]), false, 0);
         }
-        if (EVMeter) {
-            MQTTclient.publish(MQTTprefix + "/EVCurrentL1", String(Irms_EV[0]), false, 0);
-            MQTTclient.publish(MQTTprefix + "/EVCurrentL2", String(Irms_EV[1]), false, 0);
-            MQTTclient.publish(MQTTprefix + "/EVCurrentL3", String(Irms_EV[2]), false, 0);
+        if (EVMeter.Type) {
+            MQTTclient.publish(MQTTprefix + "/EVCurrentL1", String(EVMeter.Irms[0]), false, 0);
+            MQTTclient.publish(MQTTprefix + "/EVCurrentL2", String(EVMeter.Irms[1]), false, 0);
+            MQTTclient.publish(MQTTprefix + "/EVCurrentL3", String(EVMeter.Irms[2]), false, 0);
         }
         MQTTclient.publish(MQTTprefix + "/ESPUptime", String((esp_timer_get_time() / 1000000)), false, 0);
         MQTTclient.publish(MQTTprefix + "/ESPTemp", String(TempEVSE), false, 0);
@@ -3060,10 +3015,10 @@ void mqttPublishData() {
             MQTTclient.publish(MQTTprefix + "/EVCCID", String(EVCCID), true, 0);
             MQTTclient.publish(MQTTprefix + "/RequiredEVCCID", String(RequiredEVCCID), true, 0);
 #endif
-        if (EVMeter) {
-            MQTTclient.publish(MQTTprefix + "/EVChargePower", String(PowerMeasured), false, 0);
-            MQTTclient.publish(MQTTprefix + "/EVEnergyCharged", String(EnergyCharged), true, 0);
-            MQTTclient.publish(MQTTprefix + "/EVTotalEnergyCharged", String(EnergyEV), false, 0);
+        if (EVMeter.Type) {
+            MQTTclient.publish(MQTTprefix + "/EVChargePower", String(EVMeter.PowerMeasured), false, 0);
+            MQTTclient.publish(MQTTprefix + "/EVEVMeterEnergyCharged", String(EVMeter.EnergyCharged), true, 0);
+            MQTTclient.publish(MQTTprefix + "/EVTotalEnergyCharged", String(EVMeter.Energy), false, 0);
         }
         if (homeBatteryLastUpdate)
             MQTTclient.publish(MQTTprefix + "/HomeBatteryCurrent", String(homeBatteryCurrent), false, 0);
@@ -3241,37 +3196,37 @@ void Timer1S(void * parameter) {
              } else Node[x].IntTimer = 0;                                    // Reset IntervalTime when not charging
         }
 
-        if (MainsMeter) {
-            if ( MainsMeterTimeout == 0 && !(ErrorFlags & CT_NOCOMM) && Mode != MODE_NORMAL) { // timeout if current measurement takes > 10 secs
+        if (MainsMeter.Type) {
+            if ( MainsMeter.Timeout == 0 && !(ErrorFlags & CT_NOCOMM) && Mode != MODE_NORMAL) { // timeout if current measurement takes > 10 secs
                 // In Normal mode do not timeout; there might be MainsMeter/EVMeter configured that can be retrieved through the API,
                 // but in Normal mode we just want to charge ChargeCurrent, irrespective of communication problems.
                 ErrorFlags |= CT_NOCOMM;
                 setStatePowerUnavailable();
                 _LOG_W("Error, MainsMeter communication error!\n");
             } else {
-                if (MainsMeterTimeout) MainsMeterTimeout--;
+                if (MainsMeter.Timeout) MainsMeter.Timeout--;
             }
         } else
-            MainsMeterTimeout = COMM_TIMEOUT;
+            MainsMeter.Timeout = COMM_TIMEOUT;
 
-        if (EVMeter) {
-            if ( EVMeterTimeout == 0 && !(ErrorFlags & EV_NOCOMM) && Mode != MODE_NORMAL) {
+        if (EVMeter.Type) {
+            if ( EVMeter.Timeout == 0 && !(ErrorFlags & EV_NOCOMM) && Mode != MODE_NORMAL) {
                 ErrorFlags |= EV_NOCOMM;
                 setStatePowerUnavailable();
                 _LOG_W("Error, EV Meter communication error!\n");
             } else {
-                if (EVMeterTimeout) EVMeterTimeout--;
+                if (EVMeter.Timeout) EVMeter.Timeout--;
             }
         } else
-            EVMeterTimeout = COMM_EVTIMEOUT;
+            EVMeter.Timeout = COMM_EVTIMEOUT;
         
         // Clear communication error, if present
-        if ((ErrorFlags & CT_NOCOMM) && MainsMeterTimeout) ErrorFlags &= ~CT_NOCOMM; 
+        if ((ErrorFlags & CT_NOCOMM) && MainsMeter.Timeout) ErrorFlags &= ~CT_NOCOMM;
 
-        if ((ErrorFlags & EV_NOCOMM) && EVMeterTimeout) ErrorFlags &= ~EV_NOCOMM; 
+        if ((ErrorFlags & EV_NOCOMM) && EVMeter.Timeout) ErrorFlags &= ~EV_NOCOMM;
 
 
-        if (TempEVSE > maxTemp && !(ErrorFlags & TEMP_HIGH))                         // Temperature too High?
+        if (TempEVSE > maxTemp && !(ErrorFlags & TEMP_HIGH))                // Temperature too High?
         {
             ErrorFlags |= TEMP_HIGH;
             setStatePowerUnavailable();
@@ -3319,171 +3274,15 @@ void Timer1S(void * parameter) {
     } // while(1)
 }
 
-/**
- * Read energy measurement from modbus
- *
- * @param pointer to buf
- * @param uint8_t Meter
- * @return signed int Energy (Wh)
- */
-signed int receiveEnergyMeasurement(uint8_t *buf, uint8_t Meter) {
-    switch (Meter) {
-        case EM_ABB:
-            // Note:
-            // - ABB uses 32-bit values, except for this measurement it uses 64bit unsigned int format
-            // We skip the first 4 bytes (effectivaly creating uint 32). Will work as long as the value does not exeed  roughly 20 million
-            return receiveMeasurement(buf, 1, EMConfig[Meter].Endianness, MB_DATATYPE_INT32, EMConfig[Meter].EDivisor-3);
-        case EM_SOLAREDGE:
-            // Note:
-            // - SolarEdge uses 16-bit values, except for this measurement it uses 32bit int format
-            // - EM_SOLAREDGE should not be used for EV Energy Measurements
-            return receiveMeasurement(buf, 0, EMConfig[Meter].Endianness, MB_DATATYPE_INT32, EMConfig[Meter].EDivisor - 3);
-        case EM_SINOTIMER:
-            // Note:
-            // - Sinotimer uses 16-bit values, except for this measurement it uses 32bit int format
-            return receiveMeasurement(buf, 0, EMConfig[Meter].Endianness, MB_DATATYPE_INT32, EMConfig[Meter].EDivisor - 3);            
-        default:
-            return receiveMeasurement(buf, 0, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, EMConfig[Meter].EDivisor - 3);
-    }
-}
-
-/**
- * Read Power measurement from modbus
- *
- * @param pointer to buf
- * @param uint8_t Meter
- * @return signed int Power (W)
-  */
-signed int receivePowerMeasurement(uint8_t *buf, uint8_t Meter) {
-    switch (Meter) {
-        case EM_SOLAREDGE:
-        {
-            // Note:
-            // - SolarEdge uses 16-bit values, with a extra 16-bit scaling factor
-            // - EM_SOLAREDGE should not be used for EV power measurements, only PV power measurements are supported
-            int scalingFactor = -(int)receiveMeasurement(
-                        buf,
-                        1,
-                        EMConfig[Meter].Endianness,
-                        EMConfig[Meter].DataType,
-                        0
-            );
-            return receiveMeasurement(buf, 0, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, scalingFactor);
-        }
-        case EM_EASTRON3P_INV:
-            return -receiveMeasurement(buf, 0, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, EMConfig[Meter].PDivisor);
-        case EM_SINOTIMER:
-        {
-            //Note:
-            // - Sinotimer does not output total power but only individual power of the 3 phases which we need to add to eachother.
-            int evmeterp1 = (int)receiveMeasurement(buf, 0, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, EMConfig[Meter].PDivisor);
-            int evmeterp2 = (int)receiveMeasurement(buf, 1, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, EMConfig[Meter].PDivisor);
-            int evmeterp3 = (int)receiveMeasurement(buf, 2, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, EMConfig[Meter].PDivisor);
-            _LOG_V("Received power EVmeter L1=(%iW), L2=(%iW), L3=(%iW)\n", evmeterp1, evmeterp2, evmeterp3);
-            return (evmeterp1 + evmeterp2 + evmeterp3);
-        }
-        default:
-            return receiveMeasurement(buf, 0, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, EMConfig[Meter].PDivisor);
-    }
-}
-
-
-// Modbus functions
-
-// stores energy responses; returns 0 if it stored a value, returns 1 if the response didnt match
-int StoreEnergyResponse(uint8_t Meter, int32_t& Import, int32_t& Export ) {
-    if (MB.Register == EMConfig[Meter].ERegister) {
-        //import active energy
-        if (Meter == EM_EASTRON3P_INV)
-            Export = receiveEnergyMeasurement(MB.Data, Meter);
-        else
-            Import = receiveEnergyMeasurement(MB.Data, Meter);
-        return 0;
-    }
-    else if (MB.Register == EMConfig[Meter].ERegister_Exp) {
-        //export active energy
-        if (Meter == EM_EASTRON3P_INV)
-            Import = receiveEnergyMeasurement(MB.Data, Meter);
-        else
-            Export = receiveEnergyMeasurement(MB.Data, Meter);
-        return 0;
-    }
-    return 1;
-}
-
 // Monitor EV Meter responses, and update Enery and Power and Current measurements
 // Both the Master and Nodes will receive their own EV meter measurements here.
 // Does not send any data back.
 //
 ModbusMessage MBEVMeterResponse(ModbusMessage request) {
-    
-    uint8_t x;
-    int32_t EV[3]={0, 0, 0};
-
     ModbusDecode( (uint8_t*)request.data(), request.size());
-
-    if (MB.Type == MODBUS_RESPONSE) {
-       // _LOG_A("EVMeter Response\n");
-        // Packet from EV electric meter
-        if (!StoreEnergyResponse(EVMeter, EV_import_active_energy, EV_export_active_energy)) {
-            // Energy measurement
-            EnergyEV = EV_import_active_energy - EV_export_active_energy;
-            if (ResetKwh == 2) EnergyMeterStart = EnergyEV;                 // At powerup, set EnergyEV to kwh meter value
-            EnergyCharged = EnergyEV - EnergyMeterStart;                    // Calculate Energy
-#if MODEM
-            RecomputeSoC();
-#endif
-        } else if (MB.Register == EMConfig[EVMeter].PRegister) {
-            // Power measurement
-            PowerMeasured = receivePowerMeasurement(MB.Data, EVMeter);
-        } else if (MB.Register == EMConfig[EVMeter].IRegister) {
-            // Current measurement
-            x = receiveCurrentMeasurement(MB.Data, EVMeter, EV );
-
-            if (x) EVMeterTimeout = COMM_EVTIMEOUT;                 // only reset EVtimeout when data is ok
-            for (x = 0; x < 3; x++) {
-                // CurrentMeter and PV values are MILLI AMPERE
-                Irms_EV[x] = (signed int)(EV[x] / 100);            // Convert to AMPERE * 10
-            }
-            CalcImeasured_EV();
-        }
-    }
+    EVMeter.ResponseToMeasurement();
     // As this is a response to an earlier request, do not send response.
     
-    return NIL_RESPONSE;              
-}
-
-//
-// Monitor Mains Meter responses, and update Irms values
-// Does not send any data back.
-// Only runs on master, slave gets the MainsMeter currents via MBbroadcast
-ModbusMessage MBMainsMeterResponse(ModbusMessage request) {
-    uint8_t x;
-    int32_t CM[3];
-    ModbusMessage response;     // response message to be sent back
-
-    ModbusDecode( (uint8_t*)request.data(), request.size());
-
-    // process only Responses, as otherwise MB.Data is unitialized, and it will throw an exception
-    if (MB.Type == MODBUS_RESPONSE) {
-        if (MB.Register == EMConfig[MainsMeter].IRegister) {
-
-            //_LOG_A("Mains Meter Response\n");
-            x = receiveCurrentMeasurement(MB.Data, MainsMeter, CM);
-            if (x) MainsMeterTimeout = COMM_TIMEOUT;         // only reset timeout when data is ok
-
-            // Convert Irms from mA to (A * 10)
-            for (x = 0; x < 3; x++) {
-                // Calculate difference of Mains and PV electric meter
-                Irms[x] = (CM[x] / 100);            // Convert to AMPERE * 10
-            }
-            CalcIsum();
-        }
-        else
-            StoreEnergyResponse(MainsMeter, Mains_import_active_energy, Mains_export_active_energy);
-    }
-
-    // As this is a response to an earlier request, do not send response.
     return NIL_RESPONSE;              
 }
 
@@ -3599,7 +3398,7 @@ ModbusMessage MBbroadcast(ModbusMessage request) {
                     Balanced[0] = (MB.Data[(LoadBl - 1) * 2] <<8) | MB.Data[(LoadBl - 1) * 2 + 1];
                     if (Balanced[0] == 0 && State == STATE_C) setState(STATE_C1);               // tell EV to stop charging if charge current is zero
                     else if ((State == STATE_B) || (State == STATE_C)) SetCurrent(Balanced[0]); // Set charge current, and PWM output
-                    MainsMeterTimeout = COMM_TIMEOUT;                     // reset 10 second timeout
+                    MainsMeter.Timeout = COMM_TIMEOUT;                          // reset 10 second timeout
                     _LOG_V("Broadcast received, Node %.1f A, MainsMeter Irms ", (float) Balanced[0]/10);
 
                     //now decode registers 0x0028-0x002A
@@ -3608,8 +3407,8 @@ ModbusMessage MBbroadcast(ModbusMessage request) {
                         for (i=0; i<3; i++ ) {
                             combined = (MB.Data[(i * 2) + 16] <<8) + MB.Data[(i * 2) + 17]; 
                             Isum = Isum + combined;
-                            Irms[i] = combined;
-                            _LOG_V_NO_FUNC("L%i=%.1fA,", i+1, (float)Irms[i]/10);
+                            MainsMeter.Irms[i] = combined;
+                            _LOG_V_NO_FUNC("L%i=%.1fA,", i+1, (float)MainsMeter.Irms[i]/10);
                         }
                         _LOG_V_NO_FUNC("\n");
                     }
@@ -3641,10 +3440,11 @@ ModbusMessage MBbroadcast(ModbusMessage request) {
 void MBhandleData(ModbusMessage msg, uint32_t token) 
 {
     uint8_t Address = msg.getServerID();    // returns Server ID or 0 if MM_data is shorter than 3
-    if (Address == MainsMeterAddress) {
+    if (Address == MainsMeter.Address) {
         //_LOG_A("MainsMeter data\n");
-        MBMainsMeterResponse(msg);
-    } else if (Address == EVMeterAddress) {
+        ModbusDecode( (uint8_t*)msg.data(), msg.size());
+        MainsMeter.ResponseToMeasurement();
+    } else if (Address == EVMeter.Address) {
         //_LOG_A("EV Meter data\n");
         MBEVMeterResponse(msg);
     // Only responses to FC 03/04 are handled here. FC 06/10 response is only a acknowledge.
@@ -3739,7 +3539,7 @@ void ConfigureModbusMode(uint8_t newmode) {
             // Also add handler for all broadcast messages from Master.
             MBserver.registerWorker(BROADCAST_ADR, ANY_FUNCTION_CODE, &MBbroadcast);
 
-            if (EVMeter && EVMeter != EM_API) MBserver.registerWorker(EVMeterAddress, ANY_FUNCTION_CODE, &MBEVMeterResponse);
+            if (EVMeter.Type && EVMeter.Type != EM_API) MBserver.registerWorker(EVMeter.Address, ANY_FUNCTION_CODE, &MBEVMeterResponse);
 
             // Start ModbusRTU Node background task
             MBserver.begin(Serial1);
@@ -3787,7 +3587,7 @@ void validate_settings(void) {
     }
 
     // Sensorbox v2 has always address 0x0A
-    if (MainsMeter == EM_SENSORBOX) MainsMeterAddress = 0x0A;
+    if (MainsMeter.Type == EM_SENSORBOX) MainsMeter.Address = 0x0A;
     // set Lock variables for Solenoid or Motor
     if (Lock == 1) { lock1 = LOW; lock2 = HIGH; }                               // Solenoid
     else if (Lock == 2) { lock1 = HIGH; lock2 = LOW; }                          // Motor
@@ -3799,8 +3599,8 @@ void validate_settings(void) {
 
     // Update master node config
     if (LoadBl < 2) {
-        Node[0].EVMeter = EVMeter;
-        Node[0].EVAddress = EVMeterAddress;
+        Node[0].EVMeter = EVMeter.Type;
+        Node[0].EVAddress = EVMeter.Address;
     }
           
     // Default to modbus input registers
@@ -3817,10 +3617,10 @@ void validate_settings(void) {
 
     // If the address of the MainsMeter or EVmeter on a Node has changed, we must re-register the Modbus workers.
     if (LoadBl > 1) {
-        if (EVMeter && EVMeter != EM_API) MBserver.registerWorker(EVMeterAddress, ANY_FUNCTION_CODE, &MBEVMeterResponse);
+        if (EVMeter.Type && EVMeter.Type != EM_API) MBserver.registerWorker(EVMeter.Address, ANY_FUNCTION_CODE, &MBEVMeterResponse);
     }
-    MainsMeterTimeout = COMM_TIMEOUT;
-    EVMeterTimeout = COMM_TIMEOUT;          // Short Delay, to clear the error message for ~10 seconds.
+    MainsMeter.Timeout = COMM_TIMEOUT;
+    EVMeter.Timeout = COMM_TIMEOUT;                                             // Short Delay, to clear the error message for ~10 seconds.
 
 }
 
@@ -3850,10 +3650,10 @@ void read_settings() {
         Grid = preferences.getUChar("Grid",GRID);
         RFIDReader = preferences.getUChar("RFIDReader",RFID_READER);
 
-        MainsMeter = preferences.getUChar("MainsMeter", MAINS_METER);
-        MainsMeterAddress = preferences.getUChar("MainsMAddress",MAINS_METER_ADDRESS);
-        EVMeter = preferences.getUChar("EVMeter",EV_METER);
-        EVMeterAddress = preferences.getUChar("EVMeterAddress",EV_METER_ADDRESS);
+        MainsMeter.Type = preferences.getUChar("MainsMeter", MAINS_METER);
+        MainsMeter.Address = preferences.getUChar("MainsMAddress",MAINS_METER_ADDRESS);
+        EVMeter.Type = preferences.getUChar("EVMeter",EV_METER);
+        EVMeter.Address = preferences.getUChar("EVMeterAddress",EV_METER_ADDRESS);
         EMConfig[EM_CUSTOM].Endianness = preferences.getUChar("EMEndianness",EMCUSTOM_ENDIANESS);
         EMConfig[EM_CUSTOM].IRegister = preferences.getUShort("EMIRegister",EMCUSTOM_IREGISTER);
         EMConfig[EM_CUSTOM].IDivisor = preferences.getUChar("EMIDivisor",EMCUSTOM_IDIVISOR);
@@ -3928,10 +3728,10 @@ void write_settings(void) {
     preferences.putUChar("Grid", Grid);
     preferences.putUChar("RFIDReader", RFIDReader);
 
-    preferences.putUChar("MainsMeter", MainsMeter);
-    preferences.putUChar("MainsMAddress", MainsMeterAddress);
-    preferences.putUChar("EVMeter", EVMeter);
-    preferences.putUChar("EVMeterAddress", EVMeterAddress);
+    preferences.putUChar("MainsMeter", MainsMeter.Type);
+    preferences.putUChar("MainsMAddress", MainsMeter.Address);
+    preferences.putUChar("EVMeter", EVMeter.Type);
+    preferences.putUChar("EVMeterAddress", EVMeter.Address);
     preferences.putUChar("EMEndianness", EMConfig[EM_CUSTOM].Endianness);
     preferences.putUShort("EMIRegister", EMConfig[EM_CUSTOM].IRegister);
     preferences.putUChar("EMIDivisor", EMConfig[EM_CUSTOM].IDivisor);
@@ -4861,7 +4661,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         doc["settings"]["solar_start_current"] = StartCurrent;
         doc["settings"]["solar_stop_time"] = StopTime;
         doc["settings"]["enable_C2"] = StrEnableC2[EnableC2];
-        doc["settings"]["mains_meter"] = EMConfig[MainsMeter].Desc;
+        doc["settings"]["mains_meter"] = EMConfig[MainsMeter.Type].Desc;
         doc["settings"]["starttime"] = (DelayedStartTime.epoch2 ? DelayedStartTime.epoch2 + EPOCH2_OFFSET : 0);
         doc["settings"]["stoptime"] = (DelayedStopTime.epoch2 ? DelayedStopTime.epoch2 + EPOCH2_OFFSET : 0);
         doc["settings"]["repeat"] = DelayedRepeat;
@@ -4916,25 +4716,25 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         doc["home_battery"]["current"] = homeBatteryCurrent;
         doc["home_battery"]["last_update"] = homeBatteryLastUpdate;
 
-        doc["ev_meter"]["description"] = EMConfig[EVMeter].Desc;
-        doc["ev_meter"]["address"] = EVMeterAddress;
-        doc["ev_meter"]["import_active_power"] = round((float)PowerMeasured / 100)/10; //in kW, precision 1 decimal
-        doc["ev_meter"]["total_kwh"] = round((float)EnergyEV / 100)/10; //in kWh, precision 1 decimal
-        doc["ev_meter"]["charged_kwh"] = round((float)EnergyCharged / 100)/10; //in kWh, precision 1 decimal
-        doc["ev_meter"]["currents"]["TOTAL"] = Irms_EV[0] + Irms_EV[1] + Irms_EV[2];
-        doc["ev_meter"]["currents"]["L1"] = Irms_EV[0];
-        doc["ev_meter"]["currents"]["L2"] = Irms_EV[1];
-        doc["ev_meter"]["currents"]["L3"] = Irms_EV[2];
-        doc["ev_meter"]["import_active_energy"] = round((float)EV_import_active_energy / 100)/10; //in kWh, precision 1 decimal
-        doc["ev_meter"]["export_active_energy"] = round((float)EV_export_active_energy / 100)/10; //in kWh, precision 1 decimal
+        doc["ev_meter"]["description"] = EMConfig[EVMeter.Type].Desc;
+        doc["ev_meter"]["address"] = EVMeter.Address;
+        doc["ev_meter"]["import_active_power"] = round((float)EVMeter.PowerMeasured / 100)/10; //in kW, precision 1 decimal
+        doc["ev_meter"]["total_kwh"] = round((float)EVMeter.Energy / 100)/10; //in kWh, precision 1 decimal
+        doc["ev_meter"]["charged_kwh"] = round((float)EVMeter.EnergyCharged / 100)/10; //in kWh, precision 1 decimal
+        doc["ev_meter"]["currents"]["TOTAL"] = EVMeter.Irms[0] + EVMeter.Irms[1] + EVMeter.Irms[2];
+        doc["ev_meter"]["currents"]["L1"] = EVMeter.Irms[0];
+        doc["ev_meter"]["currents"]["L2"] = EVMeter.Irms[1];
+        doc["ev_meter"]["currents"]["L3"] = EVMeter.Irms[2];
+        doc["ev_meter"]["import_active_energy"] = round((float)EVMeter.Import_active_energy / 100)/10; //in kWh, precision 1 decimal
+        doc["ev_meter"]["export_active_energy"] = round((float)EVMeter.Export_active_energy / 100)/10; //in kWh, precision 1 decimal
 
-        doc["mains_meter"]["import_active_energy"] = round((float)Mains_import_active_energy / 100)/10; //in kWh, precision 1 decimal
-        doc["mains_meter"]["export_active_energy"] = round((float)Mains_export_active_energy / 100)/10; //in kWh, precision 1 decimal
+        doc["mains_meter"]["import_active_energy"] = round((float)MainsMeter.Import_active_energy / 100)/10; //in kWh, precision 1 decimal
+        doc["mains_meter"]["export_active_energy"] = round((float)MainsMeter.Export_active_energy / 100)/10; //in kWh, precision 1 decimal
 
-        doc["phase_currents"]["TOTAL"] = Irms[0] + Irms[1] + Irms[2];
-        doc["phase_currents"]["L1"] = Irms[0];
-        doc["phase_currents"]["L2"] = Irms[1];
-        doc["phase_currents"]["L3"] = Irms[2];
+        doc["phase_currents"]["TOTAL"] = MainsMeter.Irms[0] + MainsMeter.Irms[1] + MainsMeter.Irms[2];
+        doc["phase_currents"]["L1"] = MainsMeter.Irms[0];
+        doc["phase_currents"]["L2"] = MainsMeter.Irms[1];
+        doc["phase_currents"]["L3"] = MainsMeter.Irms[2];
         doc["phase_currents"]["last_data_update"] = phasesLastUpdate;
         doc["phase_currents"]["original_data"]["TOTAL"] = IrmsOriginal[0] + IrmsOriginal[1] + IrmsOriginal[2];
         doc["phase_currents"]["original_data"]["L1"] = IrmsOriginal[0];
@@ -5283,21 +5083,21 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
                 doc["battery_current"] = "not allowed on slave";
         }
 
-        if(MainsMeter == EM_API) {
+        if(MainsMeter.Type == EM_API) {
             if(request->hasParam("L1") && request->hasParam("L2") && request->hasParam("L3")) {
                 if (LoadBl < 2) {
-                    Irms[0] = request->getParam("L1")->value().toInt();
-                    Irms[1] = request->getParam("L2")->value().toInt();
-                    Irms[2] = request->getParam("L3")->value().toInt();
+                    MainsMeter.Irms[0] = request->getParam("L1")->value().toInt();
+                    MainsMeter.Irms[1] = request->getParam("L2")->value().toInt();
+                    MainsMeter.Irms[2] = request->getParam("L3")->value().toInt();
 
                     CalcIsum();
                     for (int x = 0; x < 3; x++) {
                         doc["original"]["L" + x] = IrmsOriginal[x];
-                        doc["L" + x] = Irms[x];
+                        doc["L" + x] = MainsMeter.Irms[x];
                     }
                     doc["TOTAL"] = Isum;
 
-                    MainsMeterTimeout = COMM_TIMEOUT;
+                    MainsMeter.Timeout = COMM_TIMEOUT;
 
                 } else
                     doc["TOTAL"] = "not allowed on slave";
@@ -5311,37 +5111,31 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
     } else if (mg_http_match_uri(hm, "/ev_meter") && !memcmp("POST", hm->method.buf, hm->method.len)) {
         DynamicJsonDocument doc(200);
 
-        if(EVMeter == EM_API) {
+        if(EVMeter.Type == EM_API) {
             if(request->hasParam("L1") && request->hasParam("L2") && request->hasParam("L3")) {
 
-                Irms_EV[0] = request->getParam("L1")->value().toInt();
-                Irms_EV[1] = request->getParam("L2")->value().toInt();
-                Irms_EV[2] = request->getParam("L3")->value().toInt();
-                CalcImeasured_EV();
-                EVMeterTimeout = COMM_EVTIMEOUT;
+                EVMeter.Irms[0] = request->getParam("L1")->value().toInt();
+                EVMeter.Irms[1] = request->getParam("L2")->value().toInt();
+                EVMeter.Irms[2] = request->getParam("L3")->value().toInt();
+                EVMeter.CalcImeasured();
+                EVMeter.Timeout = COMM_EVTIMEOUT;
                 for (int x = 0; x < 3; x++)
-                    doc["ev_meter"]["currents"]["L" + x] = Irms_EV[x];
-                doc["ev_meter"]["currents"]["TOTAL"] = Irms_EV[0] + Irms_EV[1] + Irms_EV[2];
+                    doc["ev_meter"]["currents"]["L" + x] = EVMeter.Irms[x];
+                doc["ev_meter"]["currents"]["TOTAL"] = EVMeter.Irms[0] + EVMeter.Irms[1] + EVMeter.Irms[2];
             }
 
             if(request->hasParam("import_active_energy") && request->hasParam("export_active_energy") && request->hasParam("import_active_power")) {
 
-                EV_import_active_energy = request->getParam("import_active_energy")->value().toInt();
-                EV_export_active_energy = request->getParam("export_active_energy")->value().toInt();
+                EVMeter.Import_active_energy = request->getParam("import_active_energy")->value().toInt();
+                EVMeter.Export_active_energy = request->getParam("export_active_energy")->value().toInt();
 
-                PowerMeasured = request->getParam("import_active_power")->value().toInt();
-                
-                EnergyEV = EV_import_active_energy - EV_export_active_energy;
-                if (ResetKwh == 2) EnergyMeterStart = EnergyEV;                 // At powerup, set EnergyEV to kwh meter value
-                EnergyCharged = EnergyEV - EnergyMeterStart;                    // Calculate Energy
-#if MODEM
-                RecomputeSoC();
-#endif
-                doc["ev_meter"]["import_active_power"] = PowerMeasured;
-                doc["ev_meter"]["import_active_energy"] = EV_import_active_energy;
-                doc["ev_meter"]["export_active_energy"] = EV_export_active_energy;
-                doc["ev_meter"]["total_kwh"] = EnergyEV;
-                doc["ev_meter"]["charged_kwh"] = EnergyCharged;
+                EVMeter.PowerMeasured = request->getParam("import_active_power")->value().toInt();
+                EVMeter.UpdateEnergies();
+                doc["ev_meter"]["import_active_power"] = EVMeter.PowerMeasured;
+                doc["ev_meter"]["import_active_energy"] = EVMeter.Import_active_energy;
+                doc["ev_meter"]["export_active_energy"] = EVMeter.Export_active_energy;
+                doc["ev_meter"]["total_kwh"] = EVMeter.Energy;
+                doc["ev_meter"]["charged_kwh"] = EVMeter.EnergyCharged;
             }
         }
 
@@ -5440,10 +5234,10 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
             MaxCircuit = strtol(request->getParam("current_max_circuit")->value().c_str(),NULL,0);
         }
         if(request->hasParam("mainsmeter")) {
-            MainsMeter = strtol(request->getParam("mainsmeter")->value().c_str(),NULL,0);
+            MainsMeter.Type = strtol(request->getParam("mainsmeter")->value().c_str(),NULL,0);
         }
         if(request->hasParam("evmeter")) {
-            EVMeter = strtol(request->getParam("evmeter")->value().c_str(),NULL,0);
+            EVMeter.Type = strtol(request->getParam("evmeter")->value().c_str(),NULL,0);
         }
         if(request->hasParam("config")) {
             Config = strtol(request->getParam("config")->value().c_str(),NULL,0);
@@ -5681,17 +5475,17 @@ void ocppInit() {
 
     mocpp_initialize(
             *OcppWsClient, //WebSocket adapter for MicroOcpp
-            ChargerCredentials("SmartEVSE", "Stegen Electronics", VERSION, String(serialnr).c_str(), NULL, (char *) EMConfig[EVMeter].Desc),
+            ChargerCredentials("SmartEVSE", "Stegen Electronics", VERSION, String(serialnr).c_str(), NULL, (char *) EMConfig[EVMeter.Type].Desc),
             filesystem);
 
     //setup OCPP hardware bindings
 
     setEnergyMeterInput([] () { //Input of the electricity meter register in Wh
-        return EnergyEV;
+        return EVMeter.Energy;
     });
 
     setPowerMeterInput([] () { //Input of the power meter reading in W
-        return PowerMeasured;
+        return EVMeter.PowerMeasured;
     });
 
     setConnectorPluggedInput([] () { //Input about if an EV is plugged to this EVSE
@@ -5707,13 +5501,13 @@ void ocppInit() {
     });
 
     addMeterValueInput([] () {
-            return (float) (Irms_EV[0] + Irms_EV[1] + Irms_EV[2]);
+            return (float) (EVMeter.Irms[0] + EVMeter.Irms[1] + EVMeter.Irms[2]);
         },
         "Current.Import",
         "A");
 
     addMeterValueInput([] () {
-            return (float) Irms_EV[0];
+            return (float) EVMeter.Irms[0];
         },
         "Current.Import",
         "A",
@@ -5721,7 +5515,7 @@ void ocppInit() {
         "L1");
 
     addMeterValueInput([] () {
-            return (float) Irms_EV[1];
+            return (float) EVMeter.Irms[1];
         },
         "Current.Import",
         "A",
@@ -5729,7 +5523,7 @@ void ocppInit() {
         "L2");
 
     addMeterValueInput([] () {
-            return (float) Irms_EV[2];
+            return (float) EVMeter.Irms[2];
         },
         "Current.Import",
         "A",
@@ -5847,7 +5641,7 @@ void ocppDeinit() {
     if (auto& tx = getTransaction()) {
         if (tx->getMeterStop() < 0) {
             // Stop value not defined yet
-            tx->setMeterStop(EV_import_active_energy); // Use same reading as in `setEnergyMeterInput()`
+            tx->setMeterStop(EVMeter.Import_active_energy); // Use same reading as in `setEnergyMeterInput()`
             tx->setStopTimestamp(getOcppContext()->getModel().getClock().now());
         }
     }

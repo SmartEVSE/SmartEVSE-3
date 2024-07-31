@@ -32,6 +32,7 @@
 #include "evse.h"
 #include "glcd.h"
 #include "utils.h"
+#include "meter.h"
 
 #include "font.cpp"
 #include "font2.cpp"
@@ -740,8 +741,8 @@ void GLCD(void) {
         if (abs(Isum) >3 ) GLCD_write_buf(0x0A, 0);                             // Show energy flow 'blob' between Grid and House
                                                                                 // If current flow is < 0.3A don't show the blob
 
-        if (EVMeter) {                                                          // If we have a EV kWh meter configured, Show total charged energy in kWh on LCD.
-            sprintfl(Str, "%2u.%1ukWh", EnergyCharged, 3, 1);                   // Will reset to 0.0kWh when charging cable reconnected, and state change from STATE B->C
+        if (EVMeter.Type) {                                                     // If we have a EV kWh meter configured, Show total charged energy in kWh on LCD.
+            sprintfl(Str, "%2u.%1ukWh", EVMeter.EnergyCharged, 3, 1);           // Will reset to 0.0kWh when charging cable reconnected, and state change from STATE B->C
             GLCD_write_buf_str(89, 1, Str,GLCD_ALIGN_LEFT);                     // print to buffer
         }
 
@@ -762,11 +763,11 @@ void GLCD(void) {
             GLCDy = 3;
             GLCD_write_buf(0x0A, 0);                                            // Show energy flow 'blob' between House and Car
 
-            if (LCDToggle && EVMeter) {
-                if (PowerMeasured < 9950) {
-                    sprintfl(Str, "%1u.%1ukW", PowerMeasured, 3, 1);
+            if (LCDToggle && EVMeter.Type) {
+                if (EVMeter.PowerMeasured < 9950) {
+                    sprintfl(Str, "%1u.%1ukW", EVMeter.PowerMeasured, 3, 1);
                 } else {
-                    sprintfl(Str, "%ukW", PowerMeasured, 3, 0);
+                    sprintfl(Str, "%ukW", EVMeter.PowerMeasured, 3, 0);
                 }
             } else {
                 sprintfl(Str, "%uA", Balanced[0], 1, 0);
@@ -786,7 +787,7 @@ void GLCD(void) {
             GLCD_write_buf_str(46, 2, Str, GLCD_ALIGN_RIGHT);                   // print to buffer
         } else {                                                                // Displayed only in Smart and Solar modes
             for (x = 0; x < 3; x++) {                                           // Display L1, L2 and L3 currents on LCD
-                sprintfl(Str, "%dA", Irms[x], 1, 0);
+                sprintfl(Str, "%dA", MainsMeter.Irms[x], 1, 0);
                 GLCD_write_buf_str(46, x, Str, GLCD_ALIGN_RIGHT);               // print to buffer
             }
         }
@@ -835,15 +836,15 @@ void GLCD(void) {
                     GLCD_print_buf2(5, (const char *) "CHARGING");
                     break;
                 case 2:
-                    if (EVMeter) {
-                        sprintfl(Str, "%u.%01u kW", PowerMeasured, 3, 1);
+                    if (EVMeter.Type) {
+                        sprintfl(Str, "%u.%01u kW", EVMeter.PowerMeasured, 3, 1);
                         GLCD_print_buf2(5, Str);
                         break;
                     } else LCDText++;
                     // fall through
                 case 3:
-                    if (EVMeter) {
-                        sprintfl(Str, "%u.%02u kWh", EnergyCharged, 3, 2);
+                    if (EVMeter.Type) {
+                        sprintfl(Str, "%u.%02u kWh", EVMeter.EnergyCharged, 3, 2);
                         GLCD_print_buf2(5, Str);
                         break;
                     } else LCDText++;
@@ -1013,7 +1014,6 @@ const char * getMenuItemOption(uint8_t nav) {
 uint8_t getMenuItems (void) {
     uint8_t m = 0;
 
-    uint8_t MainsMeter = getItemValue(MENU_MAINSMETER);
     MenuItems[m++] = MENU_MODE;                                                 // EVSE mode (0:Normal / 1:Smart / 2: Solar)
     MenuItems[m++] = MENU_CONFIG;                                               // Configuration (0:Socket / 1:Fixed Cable)
     if (!getItemValue(MENU_CONFIG)) {                                                              // ? Fixed Cable?
@@ -1023,18 +1023,18 @@ uint8_t getMenuItems (void) {
     if (Mode) {                                                                 // ? Smart or Solar mode?
         if (LoadBl < 2) {                                                       // - ? Load Balancing Disabled/Master?
             MenuItems[m++] = MENU_MAINSMETER;                                   // - - Type of Mains electric meter (0: Disabled / Constants EM_*)
-            if (MainsMeter == EM_SENSORBOX) {                                   // - - ? Sensorbox?
+            if (MainsMeter.Type == EM_SENSORBOX) {                              // - - ? Sensorbox?
                 if (GridActive == 1) MenuItems[m++] = MENU_GRID;
-            } else if (MainsMeter && MainsMeter != EM_API) {                    // - - ? Other?
+            } else if (MainsMeter.Type && MainsMeter.Type != EM_API) {          // - - ? Other?
                 MenuItems[m++] = MENU_MAINSMETERADDRESS;                        // - - - Address of Mains electric meter (9 - 247)
             }
         }
         MenuItems[m++] = MENU_EVMETER;                                          // - Type of EV electric meter (0: Disabled / Constants EM_*)
-        if (EVMeter && EVMeter != EM_API) {                                                          // - ? EV meter configured?
+        if (EVMeter.Type && EVMeter.Type != EM_API) {                           // - ? EV meter configured?
             MenuItems[m++] = MENU_EVMETERADDRESS;                               // - - Address of EV electric meter (9 - 247)
         }
         if (LoadBl < 2) {                                                       // - ? Load Balancing Disabled/Master?
-            if (MainsMeter == EM_CUSTOM || EVMeter == EM_CUSTOM) { // ? Custom electric meter used?
+            if (MainsMeter.Type == EM_CUSTOM || EVMeter.Type == EM_CUSTOM) { // ? Custom electric meter used?
                 MenuItems[m++] = MENU_EMCUSTOM_ENDIANESS;                       // - - Byte order of custom electric meter
                 MenuItems[m++] = MENU_EMCUSTOM_DATATYPE;                        // - - Data type of custom electric meter
                 MenuItems[m++] = MENU_EMCUSTOM_FUNCTION;                        // - - Modbus Function of custom electric meter
@@ -1047,14 +1047,14 @@ uint8_t getMenuItems (void) {
                 MenuItems[m++] = MENU_EMCUSTOM_EREGISTER;                       // - - Starting register for energy of custom electric meter
                 MenuItems[m++] = MENU_EMCUSTOM_EDIVISOR;                        // - - Divisor for energy of custom electric meter
             }
-            if (MainsMeter) {                                                   // Mainsmeter is configured and Load Balancing Disabled/Master?
+            if (MainsMeter.Type) {                                              // Mainsmeter is configured and Load Balancing Disabled/Master?
                 MenuItems[m++] = MENU_MAINS;                                    // - Max Mains Amps (hard limit, limited by the MAINS connection) (A) (Mode:Smart/Solar)
                 MenuItems[m++] = MENU_MIN;                                      // - Minimal current the EV is happy with (A) (Mode:Smart/Solar or LoadBl:Master)
             }
         }
     }
     MenuItems[m++] = MENU_MAX;                                                  // Max Charge current (A)
-    if (LoadBl == 1 || (LoadBl == 0 && Mode != MODE_NORMAL && EVMeter)) {       // ? Load balancing Master?
+    if (LoadBl == 1 || (LoadBl == 0 && Mode != MODE_NORMAL && EVMeter.Type)) {  // ? Load balancing Master?
                                                                                 // Also, when not in Normal Mode and that EV meter is present, MaxCircuit will limit
                                                                                 // the total current (subpanel configuration)
         MenuItems[m++] = MENU_CIRCUIT;                                          // - Max current of the EVSE circuit (A)
@@ -1073,7 +1073,7 @@ uint8_t getMenuItems (void) {
         MenuItems[m++] = MENU_AUTOUPDATE;                                       // Firmware automatic update Disabled / Enabled
     }
     MenuItems[m++] = MENU_MAX_TEMP;
-    if (MainsMeter && LoadBl < 2) {
+    if (MainsMeter.Type && LoadBl < 2) {
         MenuItems[m++] = MENU_SUMMAINS;
         if (getItemValue(MENU_SUMMAINS) != 0)
             MenuItems[m++] = MENU_SUMMAINSTIME;

@@ -25,15 +25,9 @@
 #include <Arduino.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "ModbusServerRTU.h"
-#include "ModbusClientRTU.h"
 #include "driver/uart.h"
 
-#include "evse.h"
 #include "modbus.h"
-#include "utils.h"
-
-extern struct ModBus MB;
 
 // ########################## Modbus helper functions ##########################
 
@@ -62,63 +56,6 @@ void ModbusSend8(uint8_t address, uint8_t function, uint16_t reg, uint16_t data)
     }
     _LOG_V_NO_FUNC(" address: 0x%02x, function: 0x%02x, reg: 0x%04x, token:0x%08x, data: 0x%04x.\n", address, function, reg, token, data);
 }
-
-/**
- * Combine Bytes received over modbus
- * 
- * @param pointer to var
- * @param pointer to buf
- * @param uint8_t pos
- * @param uint8_t endianness:\n
- *        0: low byte first, low word first (little endian)\n
- *        1: low byte first, high word first\n
- *        2: high byte first, low word first\n
- *        3: high byte first, high word first (big endian)
- * @param MBDataType dataType: used to determine how many bytes should be combined
- */
-void combineBytes(void *var, uint8_t *buf, uint8_t pos, uint8_t endianness, MBDataType dataType) {
-    char *pBytes;
-    pBytes = (char *)var;
-
-    // ESP32 is little endian
-    switch(endianness) {
-        case ENDIANESS_LBF_LWF: // low byte first, low word first (little endian)
-            *pBytes++ = (uint8_t)buf[pos + 0];
-            *pBytes++ = (uint8_t)buf[pos + 1];
-            if (dataType != MB_DATATYPE_INT16) {
-                *pBytes++ = (uint8_t)buf[pos + 2];
-                *pBytes   = (uint8_t)buf[pos + 3];
-            }
-            break;
-        case ENDIANESS_LBF_HWF: // low byte first, high word first
-            if (dataType != MB_DATATYPE_INT16) {
-                *pBytes++ = (uint8_t)buf[pos + 2];
-                *pBytes++ = (uint8_t)buf[pos + 3];
-            }
-            *pBytes++ = (uint8_t)buf[pos + 0];
-            *pBytes   = (uint8_t)buf[pos + 1];
-            break;
-        case ENDIANESS_HBF_LWF: // high byte first, low word first
-            *pBytes++ = (uint8_t)buf[pos + 1];
-            *pBytes++ = (uint8_t)buf[pos + 0];
-            if (dataType != MB_DATATYPE_INT16) {
-                *pBytes++ = (uint8_t)buf[pos + 3];
-                *pBytes   = (uint8_t)buf[pos + 2];
-            }
-            break;
-        case ENDIANESS_HBF_HWF: // high byte first, high word first (big endian)
-            if (dataType != MB_DATATYPE_INT16) {
-                *pBytes++ = (uint8_t)buf[pos + 3];
-                *pBytes++ = (uint8_t)buf[pos + 2];
-            }
-            *pBytes++ = (uint8_t)buf[pos + 1];
-            *pBytes   = (uint8_t)buf[pos + 0];
-            break;
-        default:
-            break;
-    }
-}
-
 
 
 // ########################### Modbus main functions ###########################
@@ -388,42 +325,6 @@ void requestMeasurement(uint8_t Meter, uint8_t Address, uint16_t Register, uint8
 }
 
 /**
- * Decode measurement value
- * 
- * @param pointer to buf
- * @param uint8_t Count
- * @param uint8_t Endianness
- * @param MBDataType dataType
- * @param signed char Divisor
- * @return signed int Measurement
- */
-signed int receiveMeasurement(uint8_t *buf, uint8_t Count, uint8_t Endianness, MBDataType dataType, signed char Divisor) {
-    float dCombined;
-    signed int lCombined;
-
-    if (dataType == MB_DATATYPE_FLOAT32) {
-        combineBytes(&dCombined, buf, Count * (dataType == MB_DATATYPE_INT16 ? 2u : 4u), Endianness, dataType);
-        if (Divisor >= 0) {
-            lCombined = (signed int)(dCombined / (signed int)pow_10[(unsigned)Divisor]);
-        } else {
-            lCombined = (signed int)(dCombined * (signed int)pow_10[(unsigned)-Divisor]);
-        }
-    } else {
-        combineBytes(&lCombined, buf, Count * (dataType == MB_DATATYPE_INT16 ? 2u : 4u), Endianness, dataType);
-        if (dataType == MB_DATATYPE_INT16) {
-            lCombined = (signed int)((int16_t)lCombined); /* sign extend 16bit into 32bit */
-        }
-        if (Divisor >= 0) {
-            lCombined = lCombined / (signed int)pow_10[(unsigned)Divisor];
-        } else {
-            lCombined = lCombined * (signed int)pow_10[(unsigned)-Divisor];
-        }
-    }
-
-    return lCombined;
-}
-
-/**
  * Send current measurement request over modbus
  * 
  * @param uint8_t Meter
@@ -462,109 +363,6 @@ void requestCurrentMeasurement(uint8_t Meter, uint8_t Address) {
             requestMeasurement(Meter, Address, EMConfig[Meter].IRegister, 3);
             break;
     }  
-}
-
-/**
- * Read current measurement from modbus
- * 
- * @param pointer to buf
- * @param uint8_t Meter
- * @param pointer to Current (mA)
- * @return uint8_t error
- */
-uint8_t receiveCurrentMeasurement(uint8_t *buf, uint8_t Meter, signed int *var) {
-    uint8_t x, offset;
-
-    switch(Meter) {
-        case EM_API:
-            break;
-        case EM_SENSORBOX:
-            // return immediately if the data contains no new P1 or CT measurement
-            if (buf[3] == 0) return 0;  // error!!
-            // determine if there is P1 data present, otherwise use CT data
-            if (buf[3] & 0x80) offset = 4;                                      // P1 data present
-            else offset = 7;                                                    // Use CTs
-            // offset 16 is Smart meter P1 current
-            for (x = 0; x < 3; x++) {
-                // SmartEVSE works with Amps * 10
-                var[x] = receiveMeasurement(buf, offset + x, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, EMConfig[Meter].IDivisor - 3u);
-                if (offset == 7) {
-                    // When MaxMains is set to >100A, it's assumed 200A:50ma CT's are used.
-                    if (getItemValue(MENU_MAINS) > 100) var[x] = var[x] * 2;                    // Multiply measured currents with 2
-                    // very small negative currents are shown as zero.
-                    if ((var[x] > -1) && (var[x] < 1)) var[x] = 0;
-                }
-            }
-            // Set Sensorbox 2 to 3/4 Wire configuration (and phase Rotation) (v2.16)
-            if (buf[1] >= 0x10 && offset == 7) {
-                GridActive = 1;                                                 // Enable the GRID menu option
-                if ((buf[1] & 0x3) != (Grid << 1) && (LoadBl < 2)) ModbusWriteSingleRequest(0x0A, 0x800, Grid << 1);
-            } else GridActive = 0;
-            break;
-        case EM_SOLAREDGE:
-        {
-            // Need to handle the extra scaling factor
-            int scalingFactor = -(int)receiveMeasurement(
-                        buf,
-                        3,
-                        EMConfig[Meter].Endianness,
-                        EMConfig[Meter].DataType,
-                        0
-            );
-            // Now decode the three Current values using that scaling factor
-            for (x = 0; x < 3; x++) {
-                var[x] = receiveMeasurement(
-                        buf,
-                        x,
-                        EMConfig[Meter].Endianness,
-                        EMConfig[Meter].DataType,
-                        scalingFactor - 3
-                );
-            }
-            break;
-        }
-        default:
-            for (x = 0; x < 3; x++) {
-                var[x] = receiveMeasurement(
-                        buf,
-                        x,
-                        EMConfig[Meter].Endianness,
-                        EMConfig[Meter].DataType,
-                        EMConfig[Meter].IDivisor - 3
-                );
-            }
-            break;
-    }
-
-    // Get sign from power measurement on some electric meters
-    switch(Meter) {
-        case EM_EASTRON1P:                                                      // for some reason the EASTRON1P also needs to loop through the 3 var[x]
-                                                                                // if you only loop through x=0, the minus sign of the current is incorrect
-                                                                                // when exporting current
-        case EM_EASTRON3P:
-            for (x = 0; x < 3; x++) {
-                if (receiveMeasurement(buf, x + 3u, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, EMConfig[Meter].PDivisor) < 0) var[x] = -var[x];
-            }
-            break;
-        case EM_EASTRON3P_INV:
-            for (x = 0; x < 3; x++) {
-                if (receiveMeasurement(buf, x + 3u, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, EMConfig[Meter].PDivisor) > 0) var[x] = -var[x];
-            }
-            break;
-        case EM_ABB:
-            for (x = 0; x < 3; x++) {
-                if (receiveMeasurement(buf, x + 5u, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, EMConfig[Meter].PDivisor) < 0) var[x] = -var[x];
-            }
-            break;
-        case EM_FINDER_7M:
-            for (x = 0; x < 3; x++) {
-                if (receiveMeasurement(buf, x + 7u, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, EMConfig[Meter].PDivisor) < 0) var[x] = -var[x];
-            }
-            break;
-    }
-
-    // all OK
-    return 1;
 }
 
 /**
