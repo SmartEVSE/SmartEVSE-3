@@ -1907,6 +1907,7 @@ void printStatus(void)
     _LOG_I("L1: %.1f A L2: %.1f A L3: %.1f A Isum: %.1f A\n", (float)MainsMeter.Irms[0]/10, (float)MainsMeter.Irms[1]/10, (float)MainsMeter.Irms[2]/10, (float)Isum/10);
 }
 
+#if MODEM
 // Recompute State of Charge, in case we have a known initial state of charge
 // This function is called by kWh logic and after an EV state update through API, Serial or MQTT
 void RecomputeSoC(void) {
@@ -1963,6 +1964,7 @@ void RecomputeSoC(void) {
     }
     // There's also the possibility an external API/app is used for SoC info. In such case, we allow setting ComputedSoC directly.
 }
+#endif
 
 // EV disconnected from charger. Triggered after 60 seconds of disconnect
 // This is done so we can "re-plug" the car in the Modem process without triggering disconnect events
@@ -5169,6 +5171,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         serializeJson(doc, json);
         mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", json.c_str());    // Yes. Respond JSON
 
+#if MODEM
     } else if (mg_http_match_uri(hm, "/ev_state") && !memcmp("POST", hm->method.buf, hm->method.len)) {
         DynamicJsonDocument doc(200);
 
@@ -5223,6 +5226,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         String json;
         serializeJson(doc, json);
         mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", json.c_str());    // Yes. Respond JSON
+#endif
 
 #if FAKE_RFID
     //this can be activated by: http://smartevse-xxx.lan/debug?showrfid=1
