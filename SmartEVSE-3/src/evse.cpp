@@ -2392,16 +2392,15 @@ void requestEnergyMeasurement(uint8_t Meter, uint8_t Address, bool Export) {
  * @param uint8_t Address
  */
 void requestPowerMeasurement(uint8_t Meter, uint8_t Address, uint16_t PRegister) {
-   switch (Meter) {
+    uint8_t Count = 1;                                                          // by default it only takes 1 register to get power measurement
+    switch (Meter) {
         case EM_SINOTIMER:
             // Note:
             // - Sinotimer does not output total power but only individual power of the 3 phases
-            requestMeasurement(Meter, Address, PRegister, 3);            
+            Count = 3;
             break;
-        default:
-            requestMeasurement(Meter, Address, PRegister, 1);
-            break;
-   }
+    }
+    requestMeasurement(Meter, Address, PRegister, Count);
 }
 
 bool isValidInput(String input) {
