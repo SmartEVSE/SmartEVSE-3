@@ -84,6 +84,7 @@ unsigned int GLCDx, GLCDy;
 uint8_t GLCDbuf[512];                                                       // GLCD buffer (half of the display)
 tm DelayedStartTimeTM;
 time_t DelayedStartTime_Old;
+uint8_t MenuItems[MENU_EXIT];
 
 void st7565_command(unsigned char data) {
     _A0_0;
