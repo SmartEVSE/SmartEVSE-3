@@ -863,22 +863,6 @@ void GLCD(void) {
 
 
 /**
- * Counts nr of menu options currently available
- * 
- * @param unsigned char count
- * @return unsigned char postion
- */
-unsigned char GetPosInMenu (unsigned char count) {
-    unsigned char i;
-
-    for (i = 0; i < count; i++) {
-        if (MenuItems[i] == LCDNav) return i + 1u;
-    }
-    return 0;
-}
-
-
-/**
  * Get active option of an menu item
  *
  * @param uint8_t nav
