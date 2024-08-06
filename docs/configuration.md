@@ -324,3 +324,11 @@ For versions older than v3.6.0:
 
 If you are not using the webserver /update endpoint:
 * Upload via USB configured in platformio.ini: platformio run --target upload
+
+# I think I bricked my SmartEVSE
+Luckily for you, there are no known instances of people who actually bricked their SmartEVSE.
+But if all else fails, connect your SmartEVSE via USB-C to your laptop and follow the instruction https://github.com/dingo35/SmartEVSE-3.5/issues/79
+
+Another tool can be found here: https://github.com/marcelstoer/nodemcu-pyflasher
+
+Remember to flash to both partitions, 0x10000 and 0x1c0000  !!!
