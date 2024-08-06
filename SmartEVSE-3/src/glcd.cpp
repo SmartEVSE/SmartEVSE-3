@@ -881,7 +881,7 @@ const char * getMenuItemOption(uint8_t nav) {
     const static char StrMotor[]   = "Motor";
     const static char StrDisabled[] = "Disabled";
     const static char StrLoadBl[9][9]  = {"Disabled", "Master", "Node 1", "Node 2", "Node 3", "Node 4", "Node 5", "Node 6", "Node 7"};
-    const static char StrSwitch[5][10] = {"Disabled", "Access B", "Access S", "Sma-Sol B", "Sma-Sol S"};
+    const static char StrSwitch[6][11] = {"Disabled", "Access B", "Access S", "Sma-Sol B", "Sma-Sol S", "Grid Relay"};
     const static char StrGrid[2][10] = {"4Wire", "3Wire"};
     const static char StrEnabled[] = "Enabled";
     const static char StrExitMenu[] = "MENU";
@@ -1164,6 +1164,12 @@ void GLCDMenu(uint8_t Buttons) {
                         do {
                             value = MenuNavInt(Buttons, value, MenuStr[LCDNav].Min, MenuStr[LCDNav].Max);
                         } while (value > 0 && value < 10);
+                        setItemValue(LCDNav, value);
+                        break;
+                    case MENU_SWITCH:                                           // do not display the Sensorbox or unused slots here
+                        do {
+                            value = MenuNavInt(Buttons, value, MenuStr[LCDNav].Min, MenuStr[LCDNav].Max);
+                        } while (LoadBl >=2 && value == 5);                     // do not allow GridRelay on Slave
                         setItemValue(LCDNav, value);
                         break;
                     default:
