@@ -295,11 +295,11 @@ signed int Meter::receivePowerMeasurement(uint8_t *buf) {
         {
             //Note:
             // - Sinotimer does not output total power but only individual power of the 3 phases which we need to add to eachother.
-            int evmeterp1 = (int)decodeMeasurement(buf, 0, EMConfig[Type].PDivisor);
-            int evmeterp2 = (int)decodeMeasurement(buf, 1, EMConfig[Type].PDivisor);
-            int evmeterp3 = (int)decodeMeasurement(buf, 2, EMConfig[Type].PDivisor);
-            _LOG_V("Received power EVmeter L1=(%iW), L2=(%iW), L3=(%iW)\n", evmeterp1, evmeterp2, evmeterp3);
-            return (evmeterp1 + evmeterp2 + evmeterp3);
+            Power[0] = (int)decodeMeasurement(buf, 0, EMConfig[Type].PDivisor);
+            Power[1] = (int)decodeMeasurement(buf, 1, EMConfig[Type].PDivisor);
+            Power[2] = (int)decodeMeasurement(buf, 2, EMConfig[Type].PDivisor);
+            _LOG_V("Received power EVmeter L1=(%iW), L2=(%iW), L3=(%iW)\n", Power[0], Power[1], Power[2]);
+            return (Power[0] + Power[1] + Power[2]);
         }
         default:
             return decodeMeasurement(buf, 0, EMConfig[Type].PDivisor);
