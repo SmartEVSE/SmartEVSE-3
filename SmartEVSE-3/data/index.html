@@ -883,6 +883,18 @@
                         var mqtt_password=$('#mqtt_password').val();
                         var mqtt_topic_prefix=$('#mqtt_topic_prefix').val();
 
+                        if (mqtt_host == "") {
+                            mqtt_host = "%00";
+                        }
+
+                        if (mqtt_username == "") {
+                            mqtt_username = "%00";
+                        }
+
+                        if (mqtt_password == "") {
+                            mqtt_password = "%00";
+                        }
+
                         if (mqtt_host && mqtt_port) {
                             $.post( "/settings?mqtt_update=1&mqtt_host=" + mqtt_host +
                                 "&mqtt_port=" + mqtt_port + "&mqtt_username=" + mqtt_username +
