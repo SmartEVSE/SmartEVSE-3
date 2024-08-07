@@ -1,5 +1,5 @@
 /*
-;	 Project:       Smart EVSE
+;  Project:       Smart EVSE
 ;
 ;
 ;
@@ -211,7 +211,6 @@ void CheckRFID(void) {
     if (RFIDReader) {                                        // RFID Reader set to Enabled, Learn or Delete
         if (OneWireReadCardId() ) {                                             // Read card ID
 #if ENABLE_OCPP
-            uint8_t OcppMode = getItemValue(MENU_OCPP);
             if (OcppMode && RFIDReader == 6) {                                      // Remote authorization via OCPP?
                 // Use OCPP
 

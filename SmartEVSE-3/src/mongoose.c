@@ -17560,8 +17560,8 @@ static bool mg_tcpip_driver_xmc7_up(struct mg_tcpip_if *ifp) {
   up = mg_phy_up(&phy, d->phy_addr, &full_duplex, &speed);
   if ((ifp->state == MG_TCPIP_STATE_DOWN) && up) {  // link state just went up
     if (speed == MG_PHY_SPEED_1000M) {
-		  ETH0->NETWORK_CONFIG |= MG_BIT(10);
-	  }
+      ETH0->NETWORK_CONFIG |= MG_BIT(10);
+    }
     MG_DEBUG(("Link is %uM %s-duplex",
               speed == MG_PHY_SPEED_10M ? 10 :
               (speed == MG_PHY_SPEED_100M ? 100 : 1000),

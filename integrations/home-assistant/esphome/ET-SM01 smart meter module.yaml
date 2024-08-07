@@ -148,6 +148,8 @@ interval:
   - interval: 5sec
     then:
       - http_request.post:
+          headers:
+            Content-Length: 0
           url: !lambda |-
               std::string url;
 

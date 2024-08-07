@@ -25,6 +25,10 @@
 #ifndef __EVSE_MODBUS
 #define __EVSE_MODBUS
 
+#include "meter.h"
+#include "ModbusServerRTU.h"
+#include "ModbusClientRTU.h"
+
 struct ModBus {
     uint8_t Address;
     uint8_t Function;
@@ -39,6 +43,8 @@ struct ModBus {
     uint16_t RequestRegister;
     uint8_t Exception;
 };
+
+extern struct ModBus MB;
 
 // definition of MBserver / MBclient class is done in evse.cpp
 extern ModbusServerRTU MBserver;
@@ -58,10 +64,8 @@ void ModbusDecode(uint8_t *buf, uint8_t len);
 
 // ########################### EVSE modbus functions ###########################
 
-signed int receiveMeasurement(uint8_t *buf, uint8_t pos, uint8_t Endianness, MBDataType dataType, signed char Divisor);
 void requestMeasurement(uint8_t Meter, uint8_t Address, uint16_t Register, uint8_t Count);
 void requestCurrentMeasurement(uint8_t Meter, uint8_t Address);
-uint8_t receiveCurrentMeasurement(uint8_t *buf, uint8_t Meter, signed int *var);
 
 //void ReadItemValueResponse(void);
 //void WriteItemValueResponse(void);

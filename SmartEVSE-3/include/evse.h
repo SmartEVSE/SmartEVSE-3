@@ -407,16 +407,9 @@ extern RemoteDebug Debug;
 #define MENU_MAX_TEMP 37
 #define MENU_SUMMAINS 38
 #define MENU_SUMMAINSTIME 39
-#if ENABLE_OCPP == 0
 #define MENU_OFF 40                                                             // so access bit is reset and charging stops when pressing < button 2 seconds
 #define MENU_ON 41                                                              // so access bit is set and charging starts when pressing > button 2 seconds
 #define MENU_EXIT 42
-#else
-#define MENU_OCPP 40                                                            // OCPP Disable / Enable / Further modes
-#define MENU_OFF 41                                                             // so access bit is reset and charging stops when pressing < button 2 seconds
-#define MENU_ON 42                                                              // so access bit is set and charging starts when pressing > button 2 seconds
-#define MENU_EXIT 43
-#endif
 
 #define MENU_STATE 50
 
@@ -442,11 +435,6 @@ extern RemoteDebug Debug;
 #define EM_UNUSED_SLOT3 15
 #define EM_UNUSED_SLOT4 16
 #define EM_CUSTOM 17
-
-#define ENDIANESS_LBF_LWF 0
-#define ENDIANESS_LBF_HWF 1
-#define ENDIANESS_HBF_LWF 2
-#define ENDIANESS_HBF_HWF 3
 
 #define OWNER_FACT "SmartEVSE"
 #define REPO_FACT "SmartEVSE-3"
@@ -474,15 +462,9 @@ extern struct tm timeinfo;
 extern uint8_t Mode;                                                            // EVSE mode
 extern uint8_t LoadBl;                                                          // Load Balance Setting (Disable, Master or Node)
 extern uint8_t Grid;
-extern uint8_t MainsMeterAddress;
-extern uint8_t EVMeter;                                                         // Type of EV electric meter (0: Disabled / Constants EM_*)
-extern uint8_t EVMeterAddress;
 #if FAKE_RFID
 extern uint8_t Show_RFID;
 #endif
-
-extern int16_t Irms[3];                                                         // Momentary current per Phase (Amps *10) (23 = 2.3A)
-extern int16_t Irms_EV[3];                                                         // Momentary current per Phase (Amps *10) (23 = 2.3A)
 
 extern uint8_t State;
 extern uint8_t ErrorFlags;
@@ -506,10 +488,9 @@ extern uint16_t CardOffset;
 
 extern uint8_t GridActive;                                                      // When the CT's are used on Sensorbox2, it enables the GRID menu option.
 extern uint16_t SolarStopTimer;
-extern int32_t EnergyCharged;
 extern int32_t EnergyCapacity;
-extern int16_t PowerMeasured;
 extern uint8_t RFIDstatus;
+extern uint8_t OcppMode;
 extern bool LocalTimeSet;
 extern uint32_t serialnr;
 
@@ -574,9 +555,6 @@ const struct {
     {"MAX TEMP","Maximum temperature for the EVSE module",            40, 75, MAX_TEMPERATURE},
     {"CAPACITY","Capacity Rate limit on sum of MAINS Current (A)",    0, 600, MAX_SUMMAINS},
     {"CAP STOP","Stop Capacity Rate limit charging after X minutes",    0, 60, MAX_SUMMAINSTIME},
-#if ENABLE_OCPP
-    {"OCPP",    "Select OCPP mode",                                   0, 1, OCPP_MODE},
-#endif
     {"", "Hold 2 sec to stop charging", 0, 0, 0},
     {"", "Hold 2 sec to start charging", 0, 0, 0},
 
@@ -600,8 +578,6 @@ struct EMstruct {
     uint16_t ERegister_Exp; // Total exported energy (kWh)
     int8_t EDivisor_Exp;    // 10^x
 };
-
-extern struct EMstruct EMConfig[EM_CUSTOM + 1];
 
 struct DelayedTimeStruct {
     uint32_t epoch2;        // in case of Delayed Charging the StartTime in epoch2; if zero we are NOT Delayed Charging
