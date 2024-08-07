@@ -450,8 +450,8 @@ extern RemoteDebug Debug;
 
 #define OWNER_FACT "SmartEVSE"
 #define REPO_FACT "SmartEVSE-3"
-#define OWNER_COMM "dingo35"
-#define REPO_COMM "SmartEVSE-3.5"
+#define OWNER_COMM "rob040"
+#define REPO_COMM "SmartEVSE-3"
 
 typedef enum mb_datatype {
     MB_DATATYPE_INT32 = 0,

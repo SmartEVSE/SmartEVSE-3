@@ -288,18 +288,12 @@ The sender has several options when sending the home battery current:
 * Reserve an amount of current for the home battery (e.g. 10A) -> Prioritize the home battery up to a specific limit
 
 # Integration with Home Assistant
-There are three options to integrate SmartEVSE with Home Assistant:
-* through the HA-integration - the easy way<br />
-
-    If you want to integrate your SmartEVSE with Home Asisstant, please have a look at [the SmartEVSE `custom_component` for Home Assistant](https://github.com/dingo35/ha-SmartEVSEv3). This `custom_component` uses the API to share data from the SmartEVSE to Home Assistant, and enables you to set SmartEVSE settings from Home Assistant. You will need firmware version 1.5.2 or higher to use this integration.
+These are possible options to integrate SmartEVSE with Home Assistant:
 
 * by manually configuring your configuration.yaml<br />
 
-    Its a lot of work, but you can have everything exactly your way. See examples in the integrations directory of our github repository.
-
 * by MQTT<br />
 
-    If you don't like the integration, e.g. because it only updates its data every 60 seconds, you might like to interface through MQTT; updates are done as soon as values change.... you can even mix it up by using both the integration AND the MQTT interface at the same time!
 
 # EU Capacity Rate Limiting
 An EU directive gives electricity providers the possibility to charge end consumers by a "capacity rate", so consumers will be stimulated to flatten their usage curve.
@@ -312,7 +306,7 @@ For more details see https://github.com/serkri/SmartEVSE-3/issues/215
 * If you don't understand this setting, or don't live in Belgium, leave this setting at its default value
 
 # Building the firmware
-You can get the latest release off of https://github.com/dingo35/SmartEVSE-3.5/releases, but if you want to build it yourself:
+If you want to build it yourself:
 * Install platformio-core https://docs.platformio.org/en/latest/core/installation/methods/index.html
 * Clone this github project, cd to the smartevse directory where platformio.ini is located
 * Compile firmware.bin: platformio run

@@ -266,7 +266,6 @@ int homeBatteryLastUpdate = 0; // Time in milliseconds
 char *downloadUrl = NULL;
 int downloadProgress = 0;
 int downloadSize = 0;
-//#define FW_UPDATE_DELAY 30        //DINGO TODO                                            // time between detection of new version and actual update in seconds
 #define FW_UPDATE_DELAY 3600                                                    // time between detection of new version and actual update in seconds
 uint16_t firmwareUpdateTimer = 0;                                               // timer for firmware updates in seconds, max 0xffff = approx 18 hours
                                                                                 // 0 means timer inactive
@@ -2270,7 +2269,6 @@ void EVSEStates(void * parameter) {
                 setState(STATE_A);                                              // switch to STATE_A
 
             } else if (pilot == PILOT_6V && ++StateTimer > 50) {                // When switching from State B to C, make sure pilot is at 6V for at least 500ms 
-                                                                                // Fixes https://github.com/dingo35/SmartEVSE-3.5/issues/40
                 if ((DiodeCheck == 1) && (ErrorFlags == NO_ERROR) && (ChargeDelay == 0)) {
                     if (EVMeter && ResetKwh) {
                         EnergyMeterStart = EnergyEV;                            // store kwh measurement at start of charging.
@@ -4022,7 +4020,7 @@ CV4Ks2dH/hzg1cEo70qLRDEmBDeNiXQ2Lu+lIg+DdEmSx/cQwgwp+7e9un/jX9Wf
 
 // get version nr. of latest release of off github
 // input:
-// owner_repo format: dingo35/SmartEVSE-3.5
+// owner_repo format: rob040/SmartEVSE-3
 // asset name format: one of firmware.bin, firmware.debug.bin, firmware.signed.bin, firmware.debug.signed.bin
 // output:
 // version -- null terminated string with latest version of this repo
@@ -4357,7 +4355,7 @@ bool forceUpdate(const char* firmwareURL, bool validate) {
     }
     _LOG_D("OTA Update complete!.\n");
     if (Update.isFinished()) {
-        _LOG_V("Update succesfully completed at %s partition\n", partition==U_SPIFFS ? "spiffs" : "firmware" );
+        _LOG_V("Update successfully completed at %s partition\n", partition==U_SPIFFS ? "spiffs" : "firmware" );
         return true;
     } else {
         _LOG_A("ERROR: Update not finished! Something went wrong!.\n");
@@ -4368,9 +4366,9 @@ bool forceUpdate(const char* firmwareURL, bool validate) {
 
 // put firmware update in separate task so we can feed progress to the html page
 void FirmwareUpdate(void *parameter) {
-    //_LOG_A("DINGO: url=%s.\n", downloadUrl);
+    //_LOG_A("FWU: url=%s.\n", downloadUrl);
     if (forceUpdate(downloadUrl, 1)) {
-        _LOG_A("Firmware update succesfull; rebooting as soon as no EV is connected.\n");
+        _LOG_A("Firmware update successful; rebooting as soon as no EV is connected.\n");
         downloadProgress = -1;
         shouldReboot = true;
     } else {
@@ -6204,7 +6202,6 @@ void setup() {
     CP_ON;           // CP signal ACTIVE
 
     firmwareUpdateTimer = random(FW_UPDATE_DELAY, 0xffff);
-    //firmwareUpdateTimer = random(FW_UPDATE_DELAY, 120); // DINGO TODO debug max 2 minutes
 }
 
 // returns true if current and latest version can be detected correctly and if the latest version is newer then current
@@ -6287,7 +6284,7 @@ void loop() {
             }
         }
 
-        //_LOG_A("DINGO: firmwareUpdateTimer just before decrement=%i.\n", firmwareUpdateTimer);
+        //_LOG_A("FWU: firmwareUpdateTimer just before decrement=%i.\n", firmwareUpdateTimer);
         if (AutoUpdate && !shouldReboot) {                                      // we don't want to autoupdate if we are on the verge of rebooting
             firmwareUpdateTimer--;
             char version[32];
