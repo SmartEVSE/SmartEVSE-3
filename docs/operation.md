@@ -4,8 +4,6 @@
 * When pressing < button longer then 2 seconds the access will be denied, i.e. the mode will be set to "Off" and charging will stop
 * When pressing > button longer then 2 seconds the access will be granted, i.e. the previously set mode will be activated and charging will start
 
-Pressing < and > buttons at the same time will refresh the LCD screen.
-
 # Webserver
 After configuration of your Wifi parameters, your SmartEVSE will present itself on your LAN via a webserver. This webserver can be accessed through:
 * http://ip-address/

@@ -31,14 +31,86 @@
 #include "evse.h"
 #include "utils.h"
 #include "OneWire.h"
-#include "OneWireESP32.h"
 
 unsigned char RFID[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 unsigned char RFIDlist[600];                                                    // holds up to 100 RFIDs
 
-OneWire32 ds(PIN_SW_IN, 0, 1, 0);                                               //gpio pin, tx, rx, parasite power
 
 // ############################# OneWire functions #############################
+
+
+
+// Reset 1-Wire device on SW input
+// returns:  1 Device found
+//           0 No device found
+//         255 Error. Line is pulled low (short, or external button pressed?)
+//
+unsigned char OneWireReset(void) {
+    unsigned char r;
+
+    if (digitalRead(PIN_SW_IN) == LOW) return 255;                              // Error, pulled low by external device?
+
+    ONEWIRE_LOW;                                                                // Drive wire low
+    delayMicroseconds(480);
+    RTC_ENTER_CRITICAL();                                                       // Disable interrupts
+	ONEWIRE_FLOATHIGH;                                                          // don't drive high, but use pullup
+    delayMicroseconds(70);
+    if (digitalRead(PIN_SW_IN) == HIGH) r = 0;                                  // sample pin to see if there is a OneWire device..
+    else r = 1;
+    RTC_EXIT_CRITICAL();                                                        // Restore interrupts
+    delayMicroseconds(410);
+    return r;
+}
+
+void OneWireWriteBit(unsigned char v) {
+
+    if (v & 1) {                                                                // write a '1'
+        RTC_ENTER_CRITICAL();                                                   // Disable interrupts
+        ONEWIRE_LOW;                                                            // Drive low
+        delayMicroseconds(10);
+        ONEWIRE_HIGH;                                                           // Drive high
+        RTC_EXIT_CRITICAL();                                                    // Restore interrupts
+        delayMicroseconds(55);
+    } else {                                                                    // write a '0'
+        RTC_ENTER_CRITICAL();                                                   // Disable interrupts
+        ONEWIRE_LOW;                                                            // Drive low
+        delayMicroseconds(65);
+        ONEWIRE_HIGH;                                                           // Drive high
+        RTC_EXIT_CRITICAL();                                                    // Restore interrupts
+        delayMicroseconds(5);
+    }
+}
+
+unsigned char OneWireReadBit(void) {
+    unsigned char r;
+
+    RTC_ENTER_CRITICAL();                                                       // Disable interrupts
+    ONEWIRE_LOW;
+    delayMicroseconds(3);
+    ONEWIRE_FLOATHIGH;
+    delayMicroseconds(10);
+    if (digitalRead(PIN_SW_IN) == HIGH) r = 1;                                  // sample pin
+    else r = 0;
+    RTC_EXIT_CRITICAL();                                                        // Restore interrupts
+    delayMicroseconds(53);
+    return r;
+}
+
+void OneWireWrite(unsigned char v) {
+    unsigned char bitmask;
+    for (bitmask = 0x01; bitmask ; bitmask <<= 1) {
+        OneWireWriteBit( (bitmask & v) ? 1u : 0);
+    }
+}
+
+unsigned char OneWireRead(void) {
+    unsigned char bitmask, r = 0;
+
+    for (bitmask = 0x01; bitmask ; bitmask <<= 1) {
+        if ( OneWireReadBit()) r |= bitmask;
+    }
+    return r;
+}
 
 #if FAKE_RFID
 unsigned char OneWireReadCardId(void) {
@@ -60,16 +132,17 @@ unsigned char OneWireReadCardId(void) {
 
 #else
 unsigned char OneWireReadCardId(void) {
-    uint8_t x;
+    unsigned char x;
 
-    // Use ReadRom command (33)
-    if (!ds.readRom(RFID)) {                                                    // read Family code (0x01) RFID ID (6 bytes) and crc8
+    if (OneWireReset() == 1) {                                                  // RFID card detected
+        OneWireWrite(0x33);                                                     // OneWire ReadRom Command
+        for (x=0 ; x<8 ; x++) RFID[x] = OneWireRead();                          // read Family code (0x01) RFID ID (6 bytes) and crc8
         if (crc8(RFID,8)) {
             RFID[0] = 0;                                                        // CRC incorrect, clear first byte of RFID buffer
             return 0;
         } else {
-            for (x=1 ; x<7 ; x++) _LOG_A_NO_FUNC("%02x",RFID[x]);
-            _LOG_A_NO_FUNC("\r\n");
+            for (x=1 ; x<7 ; x++) _LOG_A("%02x",RFID[x]);
+            _LOG_A("\r\n");
             return 1;
         }
     }
@@ -212,15 +285,12 @@ void CheckRFID(void) {
         if (OneWireReadCardId() ) {                                             // Read card ID
 #if ENABLE_OCPP
             uint8_t OcppMode = getItemValue(MENU_OCPP);
-            if (OcppMode && RFIDReader == 6) {                                      // Remote authorization via OCPP?
+            if (OcppMode &&                                                     // Remote authorization via OCPP?
+                    (RFIDReader == 1 || // EnableAll
+                     RFIDReader == 2)) { // EnableOne
                 // Use OCPP
 
-                static unsigned long lastread;
-                if (OcppMode && millis() - lastread > 1500) {                       // Debounce 1500ms
-                    ocppUpdateRfidReading(RFID + 1, 6); // UUID starts at RFID+1; Pad / truncate UUID to 6-bytes for now
-                    lastread = millis();
-                }
-                RFIDstatus = 1;
+                ocppUpdateRfidReading(RFID + 1, 7); // UUID starts at RFID+1; Assume 7-byte UUID for now
             } else
 #endif
             {

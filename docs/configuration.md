@@ -73,16 +73,10 @@ MAX	Set MAX charge current for the EV: 10-80A (per phase)
         If CONFIG is set to <Fixed>, configure MAX lower or equal to the maximum current
         that your fixed cable can carry.
 
-CIRCUIT
-        If PWR SHARE set to <Disabled>:
-        Only appears when an EV METER is configured, in Smart or Solar mode.
+CIRCUIT	(only appears when PWR SHARE set to <Master>, or when PWR SHARE set to <Disabled>
+        and Mode is Smart or Solar and EV METER not set to <Disabled>):
         Set the max current the EVSE circuit can handle (load balancing): 10-200A
-        Not obeyed in Normal mode.
         (see also subpanel wiring)
-
-        If PWR SHARE set to <Master>:
-        Set the max current the EVSE circuit can handle (load balancing): 10-200A
-        Obeyed in all modes!
 
 SWITCH  Set the function of an external switch connected to pin SW
   <Disabled>    A push button on io pin SW can be used to STOP charging
@@ -97,80 +91,21 @@ RCMON   RCM14-03 Residual Current Monitor is plugged into connector P1
 
 RFID    use a RFID card reader to enable/disable access to the EVSE
         A maximum of 20 RFID cards can be stored.
-  <Disabled>  RFID reader turned off
-  <EnableAll> Accept all learned cards for enabling/disabling the SmartEVSE
-  <EnableOne> Only allow a single (learned) card to be used for enabling/disabling the
-              SmartEVSE. In this mode the lock (if used) will lock the cable in the charging
-              socket, and the same card is used to unlock it again
-  <Learn>     Learn a new card and store it into the SmartEVSE. Make sure you stay in the
-              menu when learning cards. Present a card in front of the reader. "Card Stored"
-              will be shown on the LCD
-  <Delete>    Erase a previous learned card. Hold the card in front of the reader. "Card
-              Deleted" will be shown on the LCD once the card has been deleted
-  <DeleteAll> Erase all cards from the SmartEVSE. The cards will be erased once you exit
-              the menu of the SmartEVSE
-  <Rmt/OCPP>  Authorize remotely over OCPP and bypass the SmartEVSE local RFID storage. For
-              offline storage, use OCPP local lists. SmartEVSE sends RFID readings to the
-              OCPP server in this mode only
+                <Disabled> / <Enabled> / <Learn> / <Delete> / <Delete All>
 
 WIFI          Enable wifi connection to your LAN
   <Disabled>  No wifi connection
-  <SetupWifi> v3.6.3 or older: The SmartEVSE presents itself as a Wifi Acces Point "smartevse-xxxx";
+  <SetupWifi> The SmartEVSE presents itself as a Wifi Acces Point "smartevse-xxxx";
               connect with your phone to that access point, goto http://192.168.4.1/
               and configure your Wifi password
-              v.3.6.4 and newer: On your smartphone:
-              -connect your smartphone to the wifi network you want your SmartEVSE connected to
-              -download and run the ESPTouch app from your appstore (both Android and Apple),
-              -choose EspTouch V2,
-              -fill in the password of the wifi network,
-              -fill in "1" in device count for provisioning,
-              -on the SmartEVSE LCD screen, select "Wifi", select "SetupWifi",
-              -press the middle button to start the configuration procedure,
-              -once pressed, the bottom line shows you a 16 character key, first 8 zeros,
-              -note that from this point on, you have 120s TO FINISH this procedure!
-              -fill in that key in the ESPTouch app, in the AES Key field
-              -leave Custom Data empty
-              -press "Confirm", within 30 seconds the app will confirm a MAC address and an IP address
-              You are connected now. If you want special stuff (static IP address, special DNS address),
-              configure them on your AP/router.
-
-              v3.6.4 and newer BACKUP PROCEDURE: if you don't get it to work with the ESPTouch app, there is
-              a backup procedure:
-              -connect your SmartEVSE with a USB cable to your PC
-              -install the USB driver (Windows) or not (linux) for ESP32 chipset
-              -connect your favorite serial terminal to the appropriate port
-              -on the SmartEVSE LCD screen, select "Wifi", select "SetupWifi",
-              -press the middle button to start the configuration procedure,
-              -wait for 120s ; then press enter on your serial terminal; you will be prompted for your WiFi
-               network name and password.
   <Enabled>   Connect to your LAN via Wifi.
-
-OCPP          Enable OCPP
-              See the OCPP section in the SmartEVSE dashboard for setting up identifiers and configuring
-              the OCPP interface.
-  <Disabled>  No OCPP functionality including OCPP access control and load managment
-  <Enabled>   Connect to the OCPP server using the credentials set up in the SmartEVSE dashboard. To use
-              the RFID reader with OCPP, set the mode Rmt/OCPP in the RFID menu. Note that the other
-              RFID modes overrule the OCPP access control. OCPP SmartCharging requires the SmartEVSE
-              internal load balancing means to be turned off.
-
-AUTOUPDAT     (only appears when WIFI is Enabled):
-              Automatic update of your firmware
-  <Disabled>  No automatic update
-  <Enabled>   Checks every 18 hours if there is a new stable firmware version available;
-              If so, downloads and flashes it, and reboots as soon as no EV is connected.
-              DOES NOT WORK if your current version is not one of the format vx.y.z, e.g. v3.6.1
-              So locally compiled versions, or RCx versions, will NOT Autoupdate!
 
 MAX TEMP      Maximum allowed temperature for your SmartEVSE; 40-75C, default 65.
               You can increase this if your SmartEVSE is in direct sunlight.
 
-CAPACITY      (only appears when a MAINSMET is configured):
+SUMMAINS      (only appears when a MAINSMET is configured):
               Maximum allowed Mains Current summed over all phases: 10-600A
               This is used for the EU Capacity rate limiting, currently only in Belgium
-CAP STOP      (only appears when a SUMMAINS is configured):
-              Timer in minutes; if set, if SUMMAINS is exceeded, we do not immediately stop
-              charging but wait until the timer expires.
 
 The following options are only shown when Mode set to <Solar> and
 PWR SHARE set to <Disabled> or <Master>:
@@ -197,10 +132,8 @@ CONTACT2      One can add a second contactor (C2) that switches off 2 of the 3 p
               in [Hardware installation](docs/installation.md). If you invent your own wiring
               your installation will be UNSAFE!
 
-  <Not present> No second contactor C2 is present (default);
-                In this case SmartEVSE will assume 3 phase charging, which is "worst case"
+  <Not present> No second contactor C2 is present (default)
   <Always Off>  C2 is always off, so you are single phase charging
-                You can use this setting if you want SmartEVSE to assume 1 phase charging in its calculations
   <Always On>   C2 is always on, so you are three phase charging (if your Mains are three phase and your EV
                 supports it)
   <Solar Off>   C2 is always on except in Solar Mode where it is always off
@@ -214,7 +147,7 @@ CONTACT2      One can add a second contactor (C2) that switches off 2 of the 3 p
 For the specification of the REST API, see [REST API](REST_API.md)
 
 # MQTT API
-Your SmartEVSE can now export the most important data to your MQTT-server. Just fill in the configuration data on the webserver and the data will automatically be announced to your MQTT server. Note that because the configuration data is transported to the SmartEVSE via the URL, special characters are not allowed.
+Your SmartEVSE can now export the most important data to your MQTT-server. Just fill in the configuration data on the webserver and the data will automatically be announced to your MQTT server.
 
 You can easily show all the MQTT topics published:
 ```
@@ -316,7 +249,6 @@ You can get the latest release off of https://github.com/dingo35/SmartEVSE-3.5/r
 * Install platformio-core https://docs.platformio.org/en/latest/core/installation/methods/index.html
 * Clone this github project, cd to the smartevse directory where platformio.ini is located
 * Compile firmware.bin: platformio run
-* If your want to give special compiler options, e.g. lower the minimum current to 5A:  PLATFORMIO_BUILD_FLAGS='-DDBG=1 -DMIN_CURRENT=5' pio run
 For versions older than v3.6.0:
 * Compile spiffs.bin: platformio run -t buildfs
 

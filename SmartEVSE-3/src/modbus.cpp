@@ -245,8 +245,8 @@ void ModbusDecode(uint8_t * buf, uint8_t len) {
         // Modbus Exception code
         MB.Exception = buf[2];
         _LOG_A("Modbus Exception 0x%02x, Address=0x%02x, Function=0x%02x.\n", MB.Exception, MB.Address, MB.Function);
-    // Modbus data packets minimum length is 7 bytes (with one 16-bit register = two bytes of data.)
-    } else if (len >= 5) {
+    // Modbus data packets minimum length is 8 bytes
+    } else if (len >= 6) {
         // Modbus device address
         MB.Address = buf[0];
         // Modbus function
@@ -475,6 +475,9 @@ void requestCurrentMeasurement(uint8_t Meter, uint8_t Address) {
 uint8_t receiveCurrentMeasurement(uint8_t *buf, uint8_t Meter, signed int *var) {
     uint8_t x, offset;
 
+    // No CAL option in Menu
+    CalActive = 0;
+
     switch(Meter) {
         case EM_API:
             break;
@@ -488,11 +491,15 @@ uint8_t receiveCurrentMeasurement(uint8_t *buf, uint8_t Meter, signed int *var) 
             for (x = 0; x < 3; x++) {
                 // SmartEVSE works with Amps * 10
                 var[x] = receiveMeasurement(buf, offset + x, EMConfig[Meter].Endianness, EMConfig[Meter].DataType, EMConfig[Meter].IDivisor - 3u);
+                // When using CT's , adjust the measurements with calibration value
                 if (offset == 7) {
+                    if (x == 0) Iuncal = abs((var[x] / 10));                    // Store uncalibrated CT1 measurement (10mA)
+                    var[x] = var[x] * (signed int)ICal / ICAL;
                     // When MaxMains is set to >100A, it's assumed 200A:50ma CT's are used.
                     if (getItemValue(MENU_MAINS) > 100) var[x] = var[x] * 2;                    // Multiply measured currents with 2
                     // very small negative currents are shown as zero.
                     if ((var[x] > -1) && (var[x] < 1)) var[x] = 0;
+                    CalActive = 1;                                              // Enable CAL option in Menu
                 }
             }
             // Set Sensorbox 2 to 3/4 Wire configuration (and phase Rotation) (v2.16)

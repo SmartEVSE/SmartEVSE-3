@@ -36,10 +36,6 @@
 #include "font.cpp"
 #include "font2.cpp"
 
-#if ENABLE_OCPP
-#include <MicroOcpp.h>
-#endif
-
 
 const unsigned char LCD_Flow [] = {
 0x00, 0x00, 0x98, 0xCC, 0x66, 0x22, 0x22, 0x22, 0xF2, 0xAA, 0x26, 0x2A, 0xF2, 0x22, 0x22, 0x22,
@@ -438,19 +434,18 @@ void GLCD(void) {
                     GLCD_write_buf_str(127,0, Str, GLCD_ALIGN_RIGHT);
                 } else GLCD_write_buf_str(0,0, "Not connected to WiFi", GLCD_ALIGN_LEFT);
 
-            // When Wifi Setup is selected, show AES key for the ESPTouch app
+            // When Wifi Setup is selected, show password and SSID of the Access Point
             } else if (WIFImode == 2) {
                 if (SubMenu && WiFi.getMode() != WIFI_AP_STA) {           // Do not show if AP_STA mode is started
-                    sprintf(Str, "O button starts config");
+                    sprintf(Str, "O button starts portal");
                     GLCD_write_buf_str(0,0, Str, GLCD_ALIGN_LEFT);
                 } else {
-                    // Show ESPTouch key
-                    sprintf(Str, "Key:%s", SmartConfigKey);
-                    GLCD_write_buf_str(0, 0, Str, GLCD_ALIGN_LEFT);
-                    GLCD_sendbuf(7, 1);
-                    GLCD_buffer_clr();
-                    sprintf(Str, "Now use EspTouch app ");
-                    GLCD_write_buf_str(0, 0, Str, GLCD_ALIGN_LEFT);
+                    // Show Access Point name
+                    sprintf(Str, "AP:%u", serialnr);
+                    GLCD_write_buf_str(0,0, Str, GLCD_ALIGN_LEFT);
+                    // and password
+                    sprintf(Str, "PW:%s", APpassword.c_str());
+                    GLCD_write_buf_str(127,0, Str, GLCD_ALIGN_RIGHT);
                 }
             }
         }
@@ -531,51 +526,6 @@ void GLCD(void) {
         glcd_clrln(6, 0x10);                                                    // horizontal line
         glcd_clrln(7, 0x00);
 
-#if ENABLE_OCPP
-        if (getItemValue(MENU_OCPP) &&                                          // OCPP enabled
-                (getItemValue(MENU_RFIDREADER) == 6 || getItemValue(MENU_RFIDREADER) == 0) && // RFID in OCPP mode or disabled
-                ocppHasTxNotification()) {                                      // There is an OCPP event to display
-            switch(ocppGetTxNotification()) {
-                case MicroOcpp::TxNotification::Authorized:
-                    GLCD_print_buf2(2, (const char *) "ACCEPTED");
-                    GLCD_print_buf2(4, (const char *) "RFID CARD");
-                    break;
-                case MicroOcpp::TxNotification::AuthorizationRejected:
-                case MicroOcpp::TxNotification::DeAuthorized:
-                    GLCD_print_buf2(2, (const char *) "INVALID");
-                    GLCD_print_buf2(4, (const char *) "RFID CARD");
-                    break;
-                case MicroOcpp::TxNotification::AuthorizationTimeout:
-                    GLCD_print_buf2(2, (const char *) "OFFLINE");
-                    GLCD_print_buf2(4, (const char *) "TRY LATER");
-                    break;
-                case MicroOcpp::TxNotification::ReservationConflict:
-                    GLCD_print_buf2(2, (const char *) "BLOCKED BY");
-                    GLCD_print_buf2(4, (const char *) "RESERVATION");
-                    break;
-                case MicroOcpp::TxNotification::ConnectionTimeout:
-                    GLCD_print_buf2(2, (const char *) "TIMEOUT");
-                    GLCD_print_buf2(4, (const char *) "TRY AGAIN");
-                    break;
-                case MicroOcpp::TxNotification::RemoteStart:
-                    if (!ocppIsConnectorPlugged()) {
-                        GLCD_print_buf2(2, (const char *) "PLUG IN");
-                        GLCD_print_buf2(4, (const char *) "VEHICLE");
-                    }
-                    break;
-                case MicroOcpp::TxNotification::StartTx:
-                    GLCD_print_buf2(2, (const char *) "STARTED");
-                    GLCD_print_buf2(4, (const char *) "TRANSACTION");
-                    break;
-                case MicroOcpp::TxNotification::StopTx:
-                    GLCD_print_buf2(2, (const char *) "STOPPED");
-                    GLCD_print_buf2(4, (const char *) "TRANSACTION");
-                    break;
-                default:
-                    break;
-            }
-        } else
-#endif //ENABLE_OCPP
         if (ErrorFlags & LESS_6A) {
             GLCD_print_buf2(2, (const char *) "WAITING");
             GLCD_print_buf2(4, (const char *) "FOR POWER");
@@ -607,56 +557,6 @@ void GLCD(void) {
                 } else Str[6] = '\0';
                 GLCD_print_buf2(4, Str);
             } else {
-#if ENABLE_OCPP
-                if (getItemValue(MENU_OCPP) &&                                  // OCPP enabled
-                        (getItemValue(MENU_RFIDREADER) == 6 || getItemValue(MENU_RFIDREADER) == 0)) { // RFID in OCPP mode or disabled
-                    switch (getChargePointStatus()) {
-                        case ChargePointStatus_Available:
-                            GLCD_print_buf2(2, (const char *) "AVAILABLE");
-                            GLCD_print_buf2(4, (const char *) "");
-                            break;
-                        case ChargePointStatus_Preparing:
-                            if (!ocppIsConnectorPlugged()) {
-                                GLCD_print_buf2(2, (const char *) "PLUG IN");
-                                GLCD_print_buf2(4, (const char *) "VEHICLE");
-                            } else {
-                                GLCD_print_buf2(2, (const char *) "PLEASE");
-                                GLCD_print_buf2(4, (const char *) "AUTHORIZE");
-                            }
-                            break;
-                        case ChargePointStatus_Charging:
-                        case ChargePointStatus_SuspendedEVSE:
-                        case ChargePointStatus_SuspendedEV:
-                            // Should not be reached (Access_bit or STATE_C above prevail)
-                            GLCD_print_buf2(2, (const char *) "CHARGING");
-                            GLCD_print_buf2(4, (const char *) "IN PROGRESS");
-                            break;
-                        case ChargePointStatus_Finishing:
-                            if (ocppLockingTxDefined()) {
-                                GLCD_print_buf2(2, (const char *) "UNLOCK BY");
-                                GLCD_print_buf2(4, (const char *) "RFID CARD");
-                            } else {
-                                GLCD_print_buf2(2, (const char *) "FINISHED");
-                                GLCD_print_buf2(4, (const char *) "CHARGING");
-                            }
-                            break;
-                        case ChargePointStatus_Reserved:
-                            GLCD_print_buf2(2, (const char *) "RESERVED");
-                            GLCD_print_buf2(4, (const char *) "");
-                            break;
-                        case ChargePointStatus_Unavailable:
-                            GLCD_print_buf2(2, (const char *) "OUT OF");
-                            GLCD_print_buf2(4, (const char *) "ORDER");
-                            break;
-                        case ChargePointStatus_Faulted:
-                            GLCD_print_buf2(2, (const char *) "NO SERVICE");
-                            GLCD_print_buf2(4, (const char *) "");
-                            break;
-                        default:
-                            break;
-                    }
-                } else
-#endif //ENABLE_OCPP
                 if (getItemValue(MENU_RFIDREADER)) {
                     if (RFIDstatus == 7) {
                         GLCD_print_buf2(2, (const char *) "INVALID");
@@ -899,7 +799,7 @@ const char * getMenuItemOption(uint8_t nav) {
     const static char StrGrid[2][10] = {"4Wire", "3Wire"};
     const static char StrEnabled[] = "Enabled";
     const static char StrExitMenu[] = "MENU";
-    const static char StrRFIDReader[7][10] = {"Disabled", "EnableAll", "EnableOne", "Learn", "Delete", "DeleteAll", "Rmt/OCPP"};
+    const static char StrRFIDReader[6][10] = {"Disabled", "EnableAll", "EnableOne", "Learn", "Delete", "DeleteAll"};
 #if ENABLE_OCPP
     const static char StrOcpp[2][10] = {"Disabled", "Enabled"};
 #endif
@@ -923,7 +823,6 @@ const char * getMenuItemOption(uint8_t nav) {
         case MENU_START:
                 sprintf(Str, "-%2u A", value);
                 return Str;
-        case MENU_SUMMAINSTIME:
         case MENU_STOP:
             if (value) {
                 sprintf(Str, "%2u min", value);
@@ -931,13 +830,8 @@ const char * getMenuItemOption(uint8_t nav) {
             } else return StrDisabled;
         case MENU_LOADBL:
             return StrLoadBl[LoadBl];
-        case MENU_SUMMAINS:
-            if (value)
-                sprintf(Str, "%2u A", value);
-            else
-                sprintf(Str, "Disabled");
-            return Str;
         case MENU_MAINS:
+        case MENU_SUMMAINS:
         case MENU_MIN:
         case MENU_MAX:
         case MENU_CIRCUIT:
@@ -1032,6 +926,7 @@ uint8_t getMenuItems (void) {
             MenuItems[m++] = MENU_MAINSMETER;                                   // - - Type of Mains electric meter (0: Disabled / Constants EM_*)
             if (MainsMeter == EM_SENSORBOX) {                                   // - - ? Sensorbox?
                 if (GridActive == 1) MenuItems[m++] = MENU_GRID;
+//                if (CalActive == 1) MenuItems[m++] = MENU_CAL;                  // - - - Sensorbox CT measurement calibration
             } else if (MainsMeter && MainsMeter != EM_API) {                    // - - ? Other?
                 MenuItems[m++] = MENU_MAINSMETERADDRESS;                        // - - - Address of Mains electric meter (9 - 247)
             }
@@ -1083,11 +978,8 @@ uint8_t getMenuItems (void) {
 #endif
     }
     MenuItems[m++] = MENU_MAX_TEMP;
-    if (MainsMeter && LoadBl < 2) {
+    if (MainsMeter && LoadBl < 2)
         MenuItems[m++] = MENU_SUMMAINS;
-        if (getItemValue(MENU_SUMMAINS) != 0)
-            MenuItems[m++] = MENU_SUMMAINSTIME;
-    }
     MenuItems[m++] = MENU_EXIT;
 
     return m;
@@ -1105,7 +997,7 @@ uint8_t getMenuItems (void) {
 void GLCDMenu(uint8_t Buttons) {
     static unsigned long ButtonTimer = 0;
     static uint8_t ButtonRelease = 0;                                           // keeps track of LCD Menu Navigation
-    static uint16_t value, ButtonRepeat = 0;
+    static uint16_t CT1, value, ButtonRepeat = 0;
     char Str[24];
 
     unsigned char MenuItemsCount = getMenuItems();
@@ -1140,9 +1032,6 @@ void GLCDMenu(uint8_t Buttons) {
         setAccess(false);
         ButtonRelease = 1;
     } else if ((LCDNav == MENU_OFF) && (Buttons == 0x7)) {                      // Button 1 released before entering menu?
-        //if < button is pressed shorter then 2 seconds we are switching from Smart mode to Solar mode and vice versa
-        if (Mode)
-            setMode(~Mode & 0x3);                                               // Change from Solar to Smart mode and vice versa.
         LCDNav = 0;
         ButtonRelease = 0;
         GLCD();
@@ -1160,13 +1049,19 @@ void GLCDMenu(uint8_t Buttons) {
         GLCD();
     ////////////////
     } else if (Buttons == 0x2 && (ButtonRelease < 2)) {                         // Buttons < and > pressed ?
-        if (LCDNav == 0) GLCD_init();                                           // When not in Menu, re-initialize LCD
+        if ((LCDNav == MENU_CAL) &&  SubMenu ) {                                // While in CT CAL submenu ?
+            ICal = ICAL;                                                        // reset Calibration value
+            SubMenu = 0;                                                        // Exit Submenu
+        } else if (LCDNav == 0) GLCD_init();                                    // When not in Menu, re-initialize LCD
         ButtonRelease = 1;
     } else if ((LCDNav > 1) && LCDNav != MENU_OFF && LCDNav != MENU_ON && (Buttons == 0x2 || Buttons == 0x3 || Buttons == 0x6)) { // Buttons < or > or both pressed
         if (ButtonRelease == 0) {                                               // We are navigating between sub menu options
             if (SubMenu) {
                 value = getItemValue(LCDNav);
                 switch (LCDNav) {
+                    case MENU_CAL:
+                        CT1 = MenuNavInt(Buttons, CT1, 60, 999);                // range 6.0 - 99.9A
+                        break;
                     case MENU_MAINSMETER:
                         do {
                             value = MenuNavInt(Buttons, value, MenuStr[LCDNav].Min, MenuStr[LCDNav].Max);
@@ -1184,12 +1079,6 @@ void GLCDMenu(uint8_t Buttons) {
                         setItemValue(LCDNav, value);
                         if (value !=2 )
                             handleWIFImode();                                   //postpone handling WIFImode == 2 to moving to upper line
-                        break;
-                    case MENU_SUMMAINS:                                         // do not display the Sensorbox or unused slots here
-                        do {
-                            value = MenuNavInt(Buttons, value, MenuStr[LCDNav].Min, MenuStr[LCDNav].Max);
-                        } while (value > 0 && value < 10);
-                        setItemValue(LCDNav, value);
                         break;
                     default:
                         value = MenuNavInt(Buttons, value, MenuStr[LCDNav].Min, MenuStr[LCDNav].Max);
@@ -1215,18 +1104,24 @@ void GLCDMenu(uint8_t Buttons) {
         ButtonRelease = 1;
         if (SubMenu) {                                                          // We are currently in Submenu
             SubMenu = 0;                                                        // Exit Submenu now
+            if (LCDNav == MENU_CAL && Iuncal) {                                 // Exit CT1 calibration? check if Iuncal is not zero
+                ICal = ((unsigned long)CT1 * 10 + 5) * ICAL / Iuncal;           // Calculate new Calibration value
+                Irms[0] = CT1;                                                  // Set the Irms value, so the LCD update is instant
+            }
             uint8_t WIFImode = getItemValue(MENU_WIFI);
             if (LCDNav == MENU_WIFI && WIFImode == 2)
                 handleWIFImode();
         } else {                                                                // We are currently not in Submenu.
             SubMenu = 1;                                                        // Enter Submenu now
-            if (LCDNav == MENU_EXIT) {                                          // Exit Main Menu
+            if (LCDNav == MENU_CAL) {                                           // CT1 calibration start
+                CT1 = (unsigned int) abs(Irms[0]);                              // make working copy of CT1 value
+            } else if (LCDNav == MENU_EXIT) {                                   // Exit Main Menu
                 LCDNav = 0;
                 SubMenu = 0;
                 ErrorFlags = NO_ERROR;                                          // Clear All Errors when exiting the Main Menu
                 TestState = 0;                                                  // Clear TestState
                 ChargeDelay = 0;                                                // Clear ChargeDelay
-                SolarStopTimer = 0;                                             // Disable Solar Timer
+                setSolarStopTimer(0);                                           // Disable Solar Timer
                 GLCD();
                 write_settings();                                               // Write to eeprom
                 ButtonRelease = 2;                                              // Skip updating of the LCD 
@@ -1252,6 +1147,17 @@ void GLCDMenu(uint8_t Buttons) {
             break;
         case MENU_ON:
             HoldStr = "to Start";
+            break;
+        case MENU_CAL:
+            if (ButtonRelease == 1) {
+                GLCD_print_menu(2, MenuStr[LCDNav].LCD);                            // add navigation arrows on both sides
+                if (SubMenu) {
+                    sprintf(Str, "%u.%uA", CT1 / 10, CT1 % 10);
+                } else {
+                    sprintf(Str, "%u.%uA",((unsigned int) abs(Irms[0]) / 10), ((unsigned int) abs(Irms[0]) % 10) );
+                }
+                GLCD_print_menu(4, Str);
+            }
             break;
         default:
             //so we are anything else then 1, MENU_OFF, MENU_ON
