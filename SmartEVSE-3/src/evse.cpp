@@ -103,6 +103,7 @@ bool shouldReboot = false;
 uint16_t MaxMains = MAX_MAINS;                                              // Max Mains Amps (hard limit, limited by the MAINS connection) (A)
 uint16_t MaxSumMains = MAX_SUMMAINS;                                        // Max Mains Amps summed over all 3 phases, limit used by EU capacity rate
                                                                             // see https://github.com/serkri/SmartEVSE-3/issues/215
+                                                                            // 0 means disabled, allowed value 10 - 600 A
 uint8_t MaxSumMainsTime = MAX_SUMMAINSTIME;                                // Number of Minutes we wait when MaxSumMains is exceeded, before we stop charging
 uint16_t MaxSumMainsTimer = 0;
 uint16_t MaxCurrent = MAX_CURRENT;                                          // Max Charge current (A)
@@ -140,7 +141,7 @@ uint8_t MainsMeterAddress = MAINS_METER_ADDRESS;
 uint8_t Grid = GRID;                                                        // Type of Grid connected to Sensorbox (0:4Wire / 1:3Wire )
 uint8_t EVMeter = EV_METER;                                                 // Type of EV electric meter (0: Disabled / Constants EM_*)
 uint8_t EVMeterAddress = EV_METER_ADDRESS;
-uint8_t RFIDReader = RFID_READER;                                           // RFID Reader (0:Disabled / 1:Enabled / 2:Enable One / 3:Learn / 4:Delete / 5:Delete All)
+uint8_t RFIDReader = RFID_READER;                                           // RFID Reader (0:Disabled / 1:Enabled / 2:Enable One / 3:Learn / 4:Delete / 5:Delete All / 6: Remote via OCPP)
 #if FAKE_RFID
 uint8_t Show_RFID = 0;
 #endif
@@ -318,6 +319,10 @@ MicroOcpp::MOcppMongooseClient *OcppWsClient;
 float OcppCurrentLimit = -1.f; // Negative value: no OCPP limit defined
 
 unsigned long OcppStopReadingSyncTime; // Stop value synchronization: delay StopTransaction by a few seconds so it reports an accurate energy reading
+
+bool OcppDefinedTxNotification;
+MicroOcpp::TxNotification OcppTrackTxNotification;
+unsigned long OcppLastTxNotification;
 #endif //ENABLE_OCPP
 
 
@@ -449,6 +454,36 @@ void BlinkLed(void * parameter) {
                 BluePwm = 0;
             }
 
+#if ENABLE_OCPP
+        } else if (OcppMode && millis() - OcppLastRfidUpdate < 200) {
+            RedPwm = 128;
+            GreenPwm = 128;
+            BluePwm = 128;
+        } else if (OcppMode && millis() - OcppLastTxNotification < 1000 && OcppTrackTxNotification == MicroOcpp::TxNotification::Authorized) {
+            RedPwm = 0;
+            GreenPwm = 255;
+            BluePwm = 0;
+        } else if (OcppMode && millis() - OcppLastTxNotification < 2000 && (OcppTrackTxNotification == MicroOcpp::TxNotification::AuthorizationRejected ||
+                                                                            OcppTrackTxNotification == MicroOcpp::TxNotification::DeAuthorized ||
+                                                                            OcppTrackTxNotification == MicroOcpp::TxNotification::ReservationConflict)) {
+            RedPwm = 255;
+            GreenPwm = 0;
+            BluePwm = 0;
+        } else if (OcppMode && millis() - OcppLastTxNotification < 300 && (OcppTrackTxNotification == MicroOcpp::TxNotification::AuthorizationTimeout ||
+                                                                           OcppTrackTxNotification == MicroOcpp::TxNotification::ConnectionTimeout)) {
+            RedPwm = 255;
+            GreenPwm = 0;
+            BluePwm = 0;
+        } else if (OcppMode && getChargePointStatus() == ChargePointStatus_Reserved) {
+            RedPwm = 196;
+            GreenPwm = 64;
+            BluePwm = 0;
+        } else if (OcppMode && (getChargePointStatus() == ChargePointStatus_Unavailable ||
+                                getChargePointStatus() == ChargePointStatus_Faulted)) {
+            RedPwm = 255;
+            GreenPwm = 0;
+            BluePwm = 0;
+#endif //ENABLE_OCPP
         } else if (Access_bit == 0 || State == STATE_MODEM_DENIED) {                                            // No Access, LEDs off
             RedPwm = 0;
             GreenPwm = 0;
@@ -944,7 +979,7 @@ char IsCurrentAvailable(void) {
     bool must_be_single_phase_charging = (EnableC2 == ALWAYS_OFF || (Mode == MODE_SOLAR && EnableC2 == SOLAR_OFF) ||
             (Mode == MODE_SOLAR && EnableC2 == AUTO && Switching_To_Single_Phase == AFTER_SWITCH));
     int Phases = must_be_single_phase_charging ? 1 : 3;
-    if ((Phases * ActiveEVSE * (MinCurrent * 10) + Isum) > (MaxSumMains * 10)) {
+    if ((MaxSumMains && Phases * ActiveEVSE * (MinCurrent * 10) + Isum) > (MaxSumMains * 10)) {
         _LOG_D("No current available MaxSumMains line %d. ActiveEVSE=%i, MinCurrent=%iA, Isum=%.1fA, MaxSumMains=%iA.\n", __LINE__, ActiveEVSE, MinCurrent,  (float)Isum/10, MaxSumMains);
         return 0;                                                           // Not enough current available!, return with error
     }
@@ -1094,7 +1129,7 @@ void CalcBalancedCurrent(char mod) {
             Idifference = min((MaxMains * 10) - Imeasured, (MaxCircuit * 10) - Imeasured_EV);
         else
             Idifference = (MaxMains * 10) - Imeasured;
-        if (Idifference > ((MaxSumMains * 10) - Isum)/Temp_Phases) {
+        if (MaxSumMains && Idifference > ((MaxSumMains * 10) - Isum)/Temp_Phases) {
             Idifference = ((MaxSumMains * 10) - Isum)/Temp_Phases;
             LimitedByMaxSumMains = true;
             _LOG_V("Current is limited by MaxSumMains: MaxSumMains=%iA, Isum=%.1fA, Temp_Phases=%i.\n", MaxSumMains, (float)Isum/10, Temp_Phases);
@@ -1145,15 +1180,16 @@ void CalcBalancedCurrent(char mod) {
         // New EVSE charging, and only if we have active EVSE's
             if (mod && ActiveEVSE) {                                            // if we have an ActiveEVSE and mod=1, we must be Master, so MaxCircuit has to be
                                                                                 // taken into account
-                IsetBalanced = min((MaxMains * 10) - Baseload, min((MaxCircuit * 10 ) - Baseload_EV, ((MaxSumMains * 10) - Isum)/3)); //assume the current should be available on all 3 phases
+
+                IsetBalanced = min((MaxMains * 10) - Baseload, (MaxCircuit * 10 ) - Baseload_EV ); //assume the current should be available on all 3 phases
+                if (MaxSumMains)
+                    IsetBalanced = min((int) IsetBalanced, ((MaxSumMains * 10) - Isum)/3); //assume the current should be available on all 3 phases
             }
         } //end MODE_SMART
     } // end MODE_SOLAR || MODE_SMART
 
     // ############### make sure the calculated IsetBalanced doesnt exceed any boundaries #################
 
-    // Reset flag that keeps track of new MainsMeter measurements
-    phasesLastUpdateFlag = false;
 
     // guard MaxCircuit
     if (((LoadBl == 0 && EVMeter && Mode != MODE_NORMAL) || LoadBl == 1)    // Conditions in which MaxCircuit has to be considered
@@ -1164,7 +1200,8 @@ void CalcBalancedCurrent(char mod) {
 
     // ############### the rest of the work we only do if there are ActiveEVSEs #################
 
-    if (ActiveEVSE) {                                                           // Only if we have active EVSE's
+    int saveActiveEVSE = ActiveEVSE;                                            // TODO remove this when calcbalancedcurrent2 is approved
+    if (ActiveEVSE && phasesLastUpdateFlag) {                                   // Only if we have active EVSE's and if we have new phase currents
 
         // ############### we now check shortage of power  #################
 
@@ -1176,7 +1213,7 @@ void CalcBalancedCurrent(char mod) {
             //so now we have a shortage of power
             if (Mode == MODE_SOLAR) {
                 // ----------- Check to see if we have to continue charging on solar power alone ----------
-                if (ActiveEVSE && StopTime && (IsumImport > 10)) {
+                if (ActiveEVSE && StopTime && (IsumImport > 0)) {
                     //TODO maybe enable solar switching for loadbl = 1
                     if (EnableC2 == AUTO && LoadBl == 0)
                         Set_Nr_of_Phases_Charging();
@@ -1209,7 +1246,7 @@ void CalcBalancedCurrent(char mod) {
         } else {                                                                // we have enough current
             // ############### no shortage of power  #################
 
-            LOG_D("Checkpoint b: Resetting SolarStopTimer, MaxSumMainsTimer, IsetBalanced=%.1fA, ActiveEVSE=%i.\n", (float)IsetBalanced/10, ActiveEVSE);
+            _LOG_D("Checkpoint b: Resetting SolarStopTimer, MaxSumMainsTimer, IsetBalanced=%.1fA, ActiveEVSE=%i.\n", (float)IsetBalanced/10, ActiveEVSE);
             SolarStopTimer = 0;
             MaxSumMainsTimer = 0;
             NoCurrent = 0;
@@ -1268,14 +1305,17 @@ void CalcBalancedCurrent(char mod) {
             }                                                                   //TODO since the average has risen the other EVSE's should be checked for exceeding their MAX's too!
             n++;
         }
+    } //ActiveEVSE && phasesLastUpdateFlag
 
-
-    } else { // no ActiveEVSEs so reset all timers
-        LOG_D("Checkpoint c: Resetting SolarStopTimer, MaxSumMainsTimer, IsetBalanced=%.1fA, ActiveEVSE=%i.\n", (float)IsetBalanced/10, ActiveEVSE);
+    if (!saveActiveEVSE) { // no ActiveEVSEs so reset all timers
+        _LOG_D("Checkpoint c: Resetting SolarStopTimer, MaxSumMainsTimer, IsetBalanced=%.1fA, saveActiveEVSE=%i.\n", (float)IsetBalanced/10, saveActiveEVSE);
         SolarStopTimer = 0;
         MaxSumMainsTimer = 0;
         NoCurrent = 0;
     }
+
+    // Reset flag that keeps track of new MainsMeter measurements
+    phasesLastUpdateFlag = false;
 
     // ############### print all the distributed currents #################
 
@@ -2318,10 +2358,12 @@ void EVSEStates(void * parameter) {
         
             if (pilot == PILOT_12V) {                                           // Disconnected ?
                 setState(STATE_A);                                              // switch back to STATE_A
+                GLCD_init();                                                    // Re-init LCD; necessary because switching contactors can cause LCD to mess up
     
             } else if (pilot == PILOT_9V) {
                 setState(STATE_B);                                              // switch back to STATE_B
                 DiodeCheck = 0;
+                GLCD_init();                                                    // Re-init LCD (200ms delay); necessary because switching contactors can cause LCD to mess up
                                                                                 // Mark EVSE as inactive (still State B)
             }  
     
@@ -2726,7 +2768,7 @@ void mqtt_receive_callback(const String topic, const String payload) {
         uint16_t RequestedCurrent = payload.toInt();
         if (RequestedCurrent == 0) {
             MaxSumMains = 0;
-        } else if (RequestedCurrent >= 10 && RequestedCurrent <= 600) {
+        } else if (RequestedCurrent == 0 || (RequestedCurrent >= 10 && RequestedCurrent <= 600)) {
                 MaxSumMains = RequestedCurrent;
         }
     } else if (topic == MQTTprefix + "/Set/CPPWMOverride") {
@@ -3001,7 +3043,7 @@ void mqttPublishData() {
         MQTTclient.publish(MQTTprefix + "/ChargeCurrentOverride", String(OverrideCurrent), true, 0);
         MQTTclient.publish(MQTTprefix + "/Access", String(StrAccessBit[Access_bit]), true, 0);
         MQTTclient.publish(MQTTprefix + "/RFID", !RFIDReader ? "Not Installed" : RFIDstatus >= 8 ? "NOSTATUS" : StrRFIDStatusWeb[RFIDstatus], true, 0);
-        if (RFIDReader) {
+        if (RFIDReader && RFIDReader != 6) { //RFIDLastRead not updated in Remote/OCPP mode
             char buf[13];
             sprintf(buf, "%02X%02X%02X%02X%02X%02X", RFID[1], RFID[2], RFID[3], RFID[4], RFID[5], RFID[6]);
             MQTTclient.publish(MQTTprefix + "/RFIDLastRead", buf, true, 0);
@@ -3122,6 +3164,7 @@ void Timer1S(void * parameter) {
             else {
                 _LOG_A("State C1 timeout!\n");
                 setState(STATE_B1);                                         // switch back to STATE_B1
+                GLCD_init();                                                // Re-init LCD (200ms delay); necessary because switching contactors can cause LCD to mess up
             }
         }
 
@@ -4511,10 +4554,10 @@ static void fn_mqtt(struct mg_connection *c, int ev, void *ev_data) {
     } else if (ev == MG_EV_MQTT_MSG) {
         // When we get echo response, print it
         struct mg_mqtt_message *mm = (struct mg_mqtt_message *) ev_data;
-        _LOG_V("%lu RECEIVED %.*s <- %.*s\n", c->id, (int) mm->data.len, mm->data.ptr, (int) mm->topic.len, mm->topic.ptr);
+        _LOG_V("%lu RECEIVED %.*s <- %.*s\n", c->id, (int) mm->data.len, mm->data.buf, (int) mm->topic.len, mm->topic.buf);
         //somehow topic is not null terminated
-        String topic2 = String(mm->topic.ptr).substring(0,mm->topic.len);
-        mqtt_receive_callback(topic2, mm->data.ptr);
+        String topic2 = String(mm->topic.buf).substring(0,mm->topic.len);
+        mqtt_receive_callback(topic2, mm->data.buf);
     } else if (ev == MG_EV_CLOSE) {
         _LOG_V("%lu CLOSED\n", c->id);
         MQTTclient.connected = false;
@@ -4568,7 +4611,9 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
     struct mg_http_message *hm = (struct mg_http_message *) ev_data;            // Parsed HTTP request
     webServerRequest* request = new webServerRequest();
     request->setMessage(hm);
-    if (mg_http_match_uri(hm, "/erasesettings")) {
+//make mongoose 7.14 compatible with 7.13
+#define mg_http_match_uri(X,Y) mg_match(X->uri, mg_str(Y), NULL)
+    if (mg_match(hm->uri, mg_str("/erasesettings"), NULL)) {
         mg_http_reply(c, 200, "Content-Type: text/plain\r\n", "Erasing settings, rebooting");
         if ( preferences.begin("settings", false) ) {         // our own settings
           preferences.clear();
@@ -4631,7 +4676,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
                     }
                 }
                 if(!Update.hasError()) {
-                    if(Update.write((uint8_t*) hm->body.ptr, hm->body.len) != hm->body.len) {
+                    if(Update.write((uint8_t*) hm->body.buf, hm->body.len) != hm->body.len) {
                         Update.printError(Serial);
                     } else {
                         _LOG_A("bytes written %lu\r", offset + hm->body.len);
@@ -4652,8 +4697,8 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
                 if(!offset) {
                     _LOG_A("Update Start: %s\n", file);
                     signature = (unsigned char *) malloc(SIGNATURE_LENGTH);                       //tried to free in in all exit scenarios, RISK of leakage!!!
-                    memcpy(signature, hm->body.ptr, SIGNATURE_LENGTH);          //signature is prepended to firmware.bin
-                    hm->body.ptr = hm->body.ptr + SIGNATURE_LENGTH;
+                    memcpy(signature, hm->body.buf, SIGNATURE_LENGTH);          //signature is prepended to firmware.bin
+                    hm->body.buf = hm->body.buf + SIGNATURE_LENGTH;
                     hm->body.len = hm->body.len - SIGNATURE_LENGTH;
                     _LOG_A("Firmware signature:");
                     dump(signature);
@@ -4662,7 +4707,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
                     }
                 }
                 if(!Update.hasError()) {
-                    if(Update.write((uint8_t*) hm->body.ptr, hm->body.len) != hm->body.len) {
+                    if(Update.write((uint8_t*) hm->body.buf, hm->body.len) != hm->body.len) {
                         Update.printError(Serial);
                         FREE(signature);
                     } else {
@@ -4720,10 +4765,10 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
                     int beginpos = 0;
                     while (pos <= hm->body.len) {
                         char c;
-                        c = *(hm->body.ptr + pos);
+                        c = *(hm->body.buf + pos);
                         //_LOG_A_NO_FUNC("%c", c);
                         if (c == '\n' || pos == hm->body.len) {
-                            strncpy(RFIDtxtstring, hm->body.ptr + beginpos, 17);         // in case of DOS the 0x0D is stripped off here
+                            strncpy(RFIDtxtstring, hm->body.buf + beginpos, 17);         // in case of DOS the 0x0D is stripped off here
                             RFIDtxtstring[17] = '\0';
                             r = sscanf(RFIDtxtstring,"%02x%02x%02x%02x%02x%02x", &RFID_UID[1], &RFID_UID[2], &RFID_UID[3], &RFID_UID[4], &RFID_UID[5], &RFID_UID[6]);
                             RFID_UID[7]=crc8((unsigned char *) RFID_UID,7);
@@ -4741,7 +4786,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
             mg_http_reply(c, 200, "", "%ld", res);
         }
     } else if (mg_http_match_uri(hm, "/settings")) {                            // REST API call?
-      if (!memcmp("GET", hm->method.ptr, hm->method.len)) {                     // if GET
+      if (!memcmp("GET", hm->method.buf, hm->method.len)) {                     // if GET
         String mode = "N/A";
         int modeId = -1;
         if(Access_bit == 0)  {
@@ -4810,7 +4855,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         doc["evse"]["error"] = error;
         doc["evse"]["error_id"] = errorId;
         doc["evse"]["rfid"] = !RFIDReader ? "Not Installed" : RFIDstatus >= 8 ? "NOSTATUS" : StrRFIDStatusWeb[RFIDstatus];
-        if (RFIDReader) {
+        if (RFIDReader && RFIDReader != 6) { //RFIDLastRead not updated in Remote/OCPP mode
             char buf[13];
             sprintf(buf, "%02X%02X%02X%02X%02X%02X", RFID[1], RFID[2], RFID[3], RFID[4], RFID[5], RFID[6]);
             doc["evse"]["rfid_lastread"] = buf;
@@ -4866,6 +4911,13 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         doc["ocpp"]["cb_id"] = OcppWsClient ? OcppWsClient->getChargeBoxId() : "";
         doc["ocpp"]["auth_key"] = OcppWsClient ? OcppWsClient->getAuthKey() : "";
 
+        {
+            auto freevendMode = MicroOcpp::getConfigurationPublic(MO_CONFIG_EXT_PREFIX "FreeVendActive");
+            doc["ocpp"]["auto_auth"] = freevendMode && freevendMode->getBool() ? "Enabled" : "Disabled";
+            auto freevendIdTag = MicroOcpp::getConfigurationPublic(MO_CONFIG_EXT_PREFIX "FreeVendIdTag");
+            doc["ocpp"]["auto_auth_idtag"] = freevendIdTag ? freevendIdTag->getString() : "";
+        }
+
         if (OcppWsClient && OcppWsClient->isConnected()) {
             doc["ocpp"]["status"] = "Connected";
         } else {
@@ -4907,7 +4959,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         String json;
         serializeJson(doc, json);
         mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\n", json.c_str());    // Yes. Respond JSON
-      } else if (!memcmp("POST", hm->method.ptr, hm->method.len)) {                     // if POST
+      } else if (!memcmp("POST", hm->method.buf, hm->method.len)) {                     // if POST
         DynamicJsonDocument doc(512); // https://arduinojson.org/v6/assistant/
 
         if(request->hasParam("backlight")) {
@@ -4929,7 +4981,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
 
         if(request->hasParam("current_max_sum_mains")) {
             int current = request->getParam("current_max_sum_mains")->value().toInt();
-            if(current >= 10 && current <= 600 && LoadBl < 2) {
+            if((current == 0 || (current >= 10 && current <= 600)) && LoadBl < 2) {
                 MaxSumMains = current;
                 doc["current_max_sum_mains"] = MaxSumMains;
                 write_settings();
@@ -5197,10 +5249,31 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
                     }
                 }
 
+                if(request->hasParam("ocpp_auto_auth")) {
+                    auto freevendMode = MicroOcpp::getConfigurationPublic(MO_CONFIG_EXT_PREFIX "FreeVendActive");
+                    if (freevendMode) {
+                        freevendMode->setBool(request->getParam("ocpp_auto_auth")->value().toInt());
+                        doc["ocpp_auto_auth"] = freevendMode->getBool() ? 1 : 0;
+                    } else {
+                        doc["ocpp_auto_auth"] = "Can only update when OCPP enabled";
+                    }
+                }
+
+                if(request->hasParam("ocpp_auto_auth_idtag")) {
+                    auto freevendIdTag = MicroOcpp::getConfigurationPublic(MO_CONFIG_EXT_PREFIX "FreeVendIdTag");
+                    if (freevendIdTag) {
+                        freevendIdTag->setString(request->getParam("ocpp_auto_auth_idtag")->value().c_str());
+                        doc["ocpp_auto_auth_idtag"] = freevendIdTag->getString();
+                    } else {
+                        doc["ocpp_auto_auth_idtag"] = "Can only update when OCPP enabled";
+                    }
+                }
+
                 // Apply changes in OcppWsClient
                 if (OcppWsClient) {
                     OcppWsClient->reloadConfigs();
                 }
+                MicroOcpp::configuration_save();
                 write_settings();
             }
         }
@@ -5212,7 +5285,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
       } else {
         mg_http_reply(c, 404, "", "Not Found\n");
       }
-    } else if (mg_http_match_uri(hm, "/currents") && !memcmp("POST", hm->method.ptr, hm->method.len)) {
+    } else if (mg_http_match_uri(hm, "/currents") && !memcmp("POST", hm->method.buf, hm->method.len)) {
         DynamicJsonDocument doc(200);
 
         if(request->hasParam("battery_current")) {
@@ -5249,7 +5322,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         serializeJson(doc, json);
         mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", json.c_str());    // Yes. Respond JSON
 
-    } else if (mg_http_match_uri(hm, "/ev_meter") && !memcmp("POST", hm->method.ptr, hm->method.len)) {
+    } else if (mg_http_match_uri(hm, "/ev_meter") && !memcmp("POST", hm->method.buf, hm->method.len)) {
         DynamicJsonDocument doc(200);
 
         if(EVMeter == EM_API) {
@@ -5290,7 +5363,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         serializeJson(doc, json);
         mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", json.c_str());    // Yes. Respond JSON
 
-    } else if (mg_http_match_uri(hm, "/reboot") && !memcmp("POST", hm->method.ptr, hm->method.len)) {
+    } else if (mg_http_match_uri(hm, "/reboot") && !memcmp("POST", hm->method.buf, hm->method.len)) {
         DynamicJsonDocument doc(20);
 
         ESP.restart();
@@ -5300,7 +5373,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         serializeJson(doc, json);
         mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", json.c_str());    // Yes. Respond JSON
 
-    } else if (mg_http_match_uri(hm, "/ev_state") && !memcmp("POST", hm->method.ptr, hm->method.len)) {
+    } else if (mg_http_match_uri(hm, "/ev_state") && !memcmp("POST", hm->method.buf, hm->method.len)) {
         DynamicJsonDocument doc(200);
 
         //State of charge posting
@@ -5357,7 +5430,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
 
 #if FAKE_RFID
     //this can be activated by: http://smartevse-xxx.lan/debug?showrfid=1
-    } else if (mg_http_match_uri(hm, "/debug") && !memcmp("GET", hm->method.ptr, hm->method.len)) {
+    } else if (mg_http_match_uri(hm, "/debug") && !memcmp("GET", hm->method.buf, hm->method.len)) {
         if(request->hasParam("showrfid")) {
             Show_RFID = strtol(request->getParam("showrfid")->value().c_str(),NULL,0);
         }
@@ -5370,7 +5443,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
     //WARNING: because of automated testing, no limitations here!
     //THAT IS DANGEROUS WHEN USED IN PRODUCTION ENVIRONMENT
     //FOR SMARTEVSE's IN A TESTING BENCH ONLY!!!!
-    } else if (mg_http_match_uri(hm, "/automated_testing") && !memcmp("POST", hm->method.ptr, hm->method.len)) {
+    } else if (mg_http_match_uri(hm, "/automated_testing") && !memcmp("POST", hm->method.buf, hm->method.len)) {
         if(request->hasParam("current_max")) {
             MaxCurrent = strtol(request->getParam("current_max")->value().c_str(),NULL,0);
         }
@@ -5462,20 +5535,10 @@ void onWifiEvent(WiFiEvent_t event) {
             break;
         case WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
             if (WIFImode == 1) {
-                delay(1500);                                                    // so mg_mgr_poll has timed out
 #if MQTT
                 //mg_timer_free(&mgr);
 #endif
-                //this reconnect interferes with setAutoReconnect, but having it work only 1 out of 5 times
-                //seems to give the best of both worlds...
-                //using just one of both gives unreproducable reconnection problems...
-                static uint8_t ReconnectCounter;
-                ReconnectCounter++;
-                if (ReconnectCounter >=5) {
-                    WiFi.reconnect();
-                    _LOG_A("WiFi Disconnected. Reconnecting...\n");
-                    ReconnectCounter = 0;
-                }
+                WiFi.reconnect();                                               // recommended reconnection strategy by ESP-IDF manual
             }
             break;
         default: break;
@@ -5494,7 +5557,7 @@ void timeSyncCallback(struct timeval *tv)
 void WiFiSetup(void) {
     mg_mgr_init(&mgr);  // Initialise event manager
 
-    WiFi.setAutoReconnect(true);
+    WiFi.setAutoReconnect(true);                                                //actually does nothing since this is the default value
     //WiFi.persistent(true);
     WiFi.onEvent(onWifiEvent);
     handleWIFImode();                                                           //go into the mode that was saved in nonvolatile memory
@@ -5589,12 +5652,29 @@ void handleWIFImode() {
 #if ENABLE_OCPP
 
 void ocppUpdateRfidReading(const unsigned char *uuid, size_t uuidLen) {
-    if (!uuid || uuidLen >= sizeof(OcppRfidUuid)) {
+    if (!uuid || uuidLen > sizeof(OcppRfidUuid)) {
         _LOG_W("OCPP: invalid UUID\n");
+        return;
     }
     memcpy(OcppRfidUuid, uuid, uuidLen);
     OcppRfidUuidLen = uuidLen;
     OcppLastRfidUpdate = millis();
+}
+
+bool ocppIsConnectorPlugged() {
+    return OcppTrackCPvoltage >= PILOT_9V && OcppTrackCPvoltage <= PILOT_3V;
+}
+
+bool ocppHasTxNotification() {
+    return OcppDefinedTxNotification && millis() - OcppLastTxNotification <= 3000;
+}
+
+MicroOcpp::TxNotification ocppGetTxNotification() {
+    return OcppTrackTxNotification;
+}
+
+bool ocppLockingTxDefined() {
+    return OcppLockingTx != nullptr;
 }
 
 void ocppInit() {
@@ -5615,13 +5695,13 @@ void ocppInit() {
 
     mocpp_initialize(
             *OcppWsClient, //WebSocket adapter for MicroOcpp
-            ChargerCredentials("SmartEVSE", "Stegen Electronics", VERSION, String(serialnr).c_str(), NULL, (char *) EMConfig[MainsMeter].Desc),
+            ChargerCredentials("SmartEVSE", "Stegen Electronics", VERSION, String(serialnr).c_str(), NULL, (char *) EMConfig[EVMeter].Desc),
             filesystem);
 
     //setup OCPP hardware bindings
 
     setEnergyMeterInput([] () { //Input of the electricity meter register in Wh
-        return EV_import_active_energy;
+        return EnergyEV;
     });
 
     setPowerMeterInput([] () { //Input of the power meter reading in W
@@ -5629,7 +5709,7 @@ void ocppInit() {
     });
 
     setConnectorPluggedInput([] () { //Input about if an EV is plugged to this EVSE
-        return OcppTrackCPvoltage >= PILOT_9V && OcppTrackCPvoltage <= PILOT_3V;
+        return ocppIsConnectorPlugged();
     });
 
     setEvReadyInput([] () { //Input if EV is ready to charge (= J1772 State C)
@@ -5764,6 +5844,12 @@ void ocppInit() {
         return millis() - OcppStopReadingSyncTime >= 5000;
     });
 
+    setTxNotificationOutput([] (MicroOcpp::Transaction*, MicroOcpp::TxNotification event) {
+        OcppDefinedTxNotification = true;
+        OcppTrackTxNotification = event;
+        OcppLastTxNotification = millis();
+    });
+
     OcppUnlockConnectorOnEVSideDisconnect = MicroOcpp::declareConfiguration<bool>("UnlockConnectorOnEVSideDisconnect", true);
 
     endTransaction(nullptr, "PowerLoss"); // If a transaction from previous power cycle is still running, abort it here
@@ -5869,6 +5955,9 @@ void ocppLoop() {
         if (OcppUnlockConnectorOnEVSideDisconnect->getBool() && !OcppLockingTx->isActive()) {
             // No LockingTx mode configured (still, keep LockingTx until end of transaction because the config could be changed in the middle of tx)
             OcppLockingTx.reset();
+        } else if (OcppLockingTx->isAborted()) {
+            // LockingTx hasn't successfully started
+            OcppLockingTx.reset();
         } else if (transaction && transaction != OcppLockingTx) {
             // Another Tx has already started
             OcppLockingTx.reset();
@@ -5896,7 +5985,7 @@ void ocppLoop() {
 void setup() {
 
     pinMode(PIN_CP_OUT, OUTPUT);            // CP output
-    pinMode(PIN_SW_IN, INPUT);              // SW Switch input
+    //pinMode(PIN_SW_IN, INPUT);            // SW Switch input, handled by OneWire32 class
     pinMode(PIN_SSR, OUTPUT);               // SSR1 output
     pinMode(PIN_SSR2, OUTPUT);              // SSR2 output
     pinMode(PIN_RCM_FAULT, INPUT_PULLUP);   

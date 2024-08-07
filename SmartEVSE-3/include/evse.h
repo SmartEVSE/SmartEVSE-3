@@ -64,6 +64,10 @@
 #define ENABLE_OCPP 0
 #endif
 
+#if ENABLE_OCPP
+#include <MicroOcpp/Model/ConnectorBase/Notification.h>
+#endif
+
 #ifndef MODEM
 //the wifi-debugger is available by telnetting to your SmartEVSE device
 #define MODEM 0  //0 = no modem 1 = modem
@@ -199,7 +203,7 @@ extern RemoteDebug Debug;
 
 #define ICAL 1024                                                               // Irms Calibration value (for Current transformers)
 #define MAX_MAINS 25                                                            // max Current the Mains connection can supply
-#define MAX_SUMMAINS 600                                                        // only used for capacity rate limiting, max current over the sum of all phases
+#define MAX_SUMMAINS 0                                                          // only used for capacity rate limiting, max current over the sum of all phases
 #define MAX_SUMMAINSTIME 0
 #define MAX_CURRENT 13                                                          // max charging Current for the EV
 #ifndef MIN_CURRENT
@@ -324,10 +328,6 @@ extern RemoteDebug Debug;
 #define ACTUATOR_LOCK { _LOG_A("Locking Actuator.\n"); digitalWrite(PIN_ACTB, HIGH); digitalWrite(PIN_ACTA, LOW); }
 #define ACTUATOR_UNLOCK { _LOG_A("Unlocking Actuator.\n"); digitalWrite(PIN_ACTB, LOW); digitalWrite(PIN_ACTA, HIGH); }
 #define ACTUATOR_OFF { digitalWrite(PIN_ACTB, HIGH); digitalWrite(PIN_ACTA, HIGH); }
-
-#define ONEWIRE_LOW { digitalWrite(PIN_SW_IN, LOW); pinMode(PIN_SW_IN, OUTPUT); }   // SW set to 0, set to output (driven low)
-#define ONEWIRE_HIGH { digitalWrite(PIN_SW_IN, HIGH); pinMode(PIN_SW_IN, OUTPUT); } // SW set to 1, set to output (driven high)
-#define ONEWIRE_FLOATHIGH pinMode(PIN_SW_IN, INPUT_PULLUP );                        // SW input (floating high)
 
 #define RCMFAULT digitalRead(PIN_RCM_FAULT)
 #define FREE(x) free(x); x = NULL;
@@ -544,7 +544,7 @@ const struct {
     {"PWR SHARE", "Share Power between multiple SmartEVSEs (2-8)",    0, NR_EVSES, LOADBL},
     {"SWITCH",  "Switch function control on pin SW",                  0, 4, SWITCH},
     {"RCMON",   "Residual Current Monitor on pin RCM",                0, 1, RC_MON},
-    {"RFID",    "RFID reader, learn/remove cards",                    0, 5, RFID_READER},
+    {"RFID",    "RFID reader, learn/remove cards",                    0, 5 + (ENABLE_OCPP ? 1 : 0), RFID_READER},
     {"EV METER","Type of EV electric meter",                          0, EM_CUSTOM, EV_METER},
     {"EV ADDR", "Address of EV electric meter",                       MIN_METER_ADDRESS, MAX_METER_ADDRESS, EV_METER_ADDRESS},
 
@@ -576,8 +576,8 @@ const struct {
     {"AUTOUPDAT","Automatic Firmware Update",                         0, 1, AUTOUPDATE},
     {"CONTACT 2","Contactor2 (C2) behaviour",                          0, sizeof(StrEnableC2) / sizeof(StrEnableC2[0])-1, ENABLE_C2},
     {"MAX TEMP","Maximum temperature for the EVSE module",            40, 75, MAX_TEMPERATURE},
-    {"SUM MAINS","Capacity Rate limit on sum of MAINS Current (A)",    10, 600, MAX_SUMMAINS},
-    {"SUM STOP","Stop Capacity Rate limit charging after X minutes",    0, 60, MAX_SUMMAINSTIME},
+    {"CAPACITY","Capacity Rate limit on sum of MAINS Current (A)",    0, 600, MAX_SUMMAINS},
+    {"CAP STOP","Stop Capacity Rate limit charging after X minutes",    0, 60, MAX_SUMMAINSTIME},
 #if ENABLE_OCPP
     {"OCPP",    "Select OCPP mode",                                   0, 1, OCPP_MODE},
 #endif
@@ -633,6 +633,12 @@ void handleWIFImode(void);
 
 #if ENABLE_OCPP
 void ocppUpdateRfidReading(const unsigned char *uuid, size_t uuidLen);
+bool ocppIsConnectorPlugged();
+
+bool ocppHasTxNotification();
+MicroOcpp::TxNotification ocppGetTxNotification();
+
+bool ocppLockingTxDefined();
 #endif //ENABLE_OCPP
 
 #endif

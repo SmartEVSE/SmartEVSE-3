@@ -97,7 +97,21 @@ RCMON   RCM14-03 Residual Current Monitor is plugged into connector P1
 
 RFID    use a RFID card reader to enable/disable access to the EVSE
         A maximum of 20 RFID cards can be stored.
-                <Disabled> / <Enabled> / <Learn> / <Delete> / <Delete All>
+  <Disabled>  RFID reader turned off
+  <EnableAll> Accept all learned cards for enabling/disabling the SmartEVSE
+  <EnableOne> Only allow a single (learned) card to be used for enabling/disabling the
+              SmartEVSE. In this mode the lock (if used) will lock the cable in the charging
+              socket, and the same card is used to unlock it again
+  <Learn>     Learn a new card and store it into the SmartEVSE. Make sure you stay in the
+              menu when learning cards. Present a card in front of the reader. "Card Stored"
+              will be shown on the LCD
+  <Delete>    Erase a previous learned card. Hold the card in front of the reader. "Card
+              Deleted" will be shown on the LCD once the card has been deleted
+  <DeleteAll> Erase all cards from the SmartEVSE. The cards will be erased once you exit
+              the menu of the SmartEVSE
+  <Rmt/OCPP>  Authorize remotely over OCPP and bypass the SmartEVSE local RFID storage. For
+              offline storage, use OCPP local lists. SmartEVSE sends RFID readings to the
+              OCPP server in this mode only
 
 WIFI          Enable wifi connection to your LAN
   <Disabled>  No wifi connection
@@ -131,6 +145,15 @@ WIFI          Enable wifi connection to your LAN
                network name and password.
   <Enabled>   Connect to your LAN via Wifi.
 
+OCPP          Enable OCPP
+              See the OCPP section in the SmartEVSE dashboard for setting up identifiers and configuring
+              the OCPP interface.
+  <Disabled>  No OCPP functionality including OCPP access control and load managment
+  <Enabled>   Connect to the OCPP server using the credentials set up in the SmartEVSE dashboard. To use
+              the RFID reader with OCPP, set the mode Rmt/OCPP in the RFID menu. Note that the other
+              RFID modes overrule the OCPP access control. OCPP SmartCharging requires the SmartEVSE
+              internal load balancing means to be turned off.
+
 AUTOUPDAT     (only appears when WIFI is Enabled):
               Automatic update of your firmware
   <Disabled>  No automatic update
@@ -142,10 +165,10 @@ AUTOUPDAT     (only appears when WIFI is Enabled):
 MAX TEMP      Maximum allowed temperature for your SmartEVSE; 40-75C, default 65.
               You can increase this if your SmartEVSE is in direct sunlight.
 
-SUMMAINS      (only appears when a MAINSMET is configured):
+CAPACITY      (only appears when a MAINSMET is configured):
               Maximum allowed Mains Current summed over all phases: 10-600A
               This is used for the EU Capacity rate limiting, currently only in Belgium
-SUM STOP      (only appears when a SUMMAINS is configured):
+CAP STOP      (only appears when a SUMMAINS is configured):
               Timer in minutes; if set, if SUMMAINS is exceeded, we do not immediately stop
               charging but wait until the timer expires.
 
@@ -174,8 +197,10 @@ CONTACT2      One can add a second contactor (C2) that switches off 2 of the 3 p
               in [Hardware installation](docs/installation.md). If you invent your own wiring
               your installation will be UNSAFE!
 
-  <Not present> No second contactor C2 is present (default)
+  <Not present> No second contactor C2 is present (default);
+                In this case SmartEVSE will assume 3 phase charging, which is "worst case"
   <Always Off>  C2 is always off, so you are single phase charging
+                You can use this setting if you want SmartEVSE to assume 1 phase charging in its calculations
   <Always On>   C2 is always on, so you are three phase charging (if your Mains are three phase and your EV
                 supports it)
   <Solar Off>   C2 is always on except in Solar Mode where it is always off
