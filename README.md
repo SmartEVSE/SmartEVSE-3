@@ -1,24 +1,28 @@
 SmartEVSE v3
-=========
+============
+
+> [!NOTE]
+> This software is a fork of [SmartEVSE/SmartEVSE-3](https://github.com/SmartEVSE/SmartEVSE-3) and combines several other forks of that with enhancements and improvements listed in the release notes.
 
 Smart Electric Vehicle Charge Controller
 
-![Image of SmartEVSE](/pictures/SmartEVSEv3.png)
+![Image of SmartEVSE](/pictures/SmartEVSEv3.png)<br>Controller hardware version 3
 
 # What is it?
 
-It's an open source EVSE (Electric Vehicle Supply Equipment). It supports 1-3 phase charging, fixed charging cable or charging socket. Locking actuator support (5 different types). And it can directly drive a mains contactor for supplying power to the EV. It features a display from which all module parameters can be configured.<br>
+It's an open source EVSE (Electric Vehicle Supply Equipment). It supports 1-phase or 3-phase charging, fixed charging cable or charging socket. Locking actuator support (5 different types). And it can directly drive a mains contactor for supplying power to the EV. It features a display from which module parameters can be configured.<br>
 Up to 8 modules can be connected together to charge up to eight EV's from one mains connection without overloading it.<br>
-The mains connection can be monitored by the (optional) sensorbox or a modbus kWh meter. This allows smart charging.
+The mains connection can be monitored by the (optional) sensorbox, a smart-meter interface or a modbus kWh meter. This allows for smart and Solar surplus charging.
 Communication between the SmartEVSE(s) / Sensorbox or kWh meters is done over RS485(modbus).
 
+This repo provides the software (firmware) for the controller.
 
 # Features
 
 - Fits into a standard DIN rail enclosure.
 - Measures the current consumption of other appliances, and automatically lowers or increases the charging current to the EV. (sensorbox required)
 - The load balancing feature let's you connect up to 8 SmartEVSE's to one mains supply.
-- Two switched 230VAC outputs, for contactors.
+- Two switched 230VAC outputs, for contactors (power-relays).
 - Powered RS485 communication bus for sensorbox / Modbus kWh Meters.
 - Can be used with fixed cable, or socket and charging cable.
 - Automatically selects current capacity of the connected cable (13/16/32A)

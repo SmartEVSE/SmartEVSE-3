@@ -9,3 +9,6 @@ sdkconfig.*
 .DS_Store
 */.DS_Store
 .idea
+*.log
+*.out
+TODO*.txt
