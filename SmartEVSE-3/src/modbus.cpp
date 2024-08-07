@@ -1,5 +1,5 @@
 /*
-;	 Project:       Smart EVSE
+;  Project:       Smart EVSE
 ;
 ;
 ;
@@ -33,7 +33,7 @@
 
 /**
  * Send single value over modbus
- * 
+ *
  * @param uint8_t address
  * @param uint8_t function
  * @param uint16_t register
@@ -64,7 +64,7 @@ void ModbusSend8(uint8_t address, uint8_t function, uint16_t reg, uint16_t data)
 
 /**
  * Request read holding (FC=3) or read input register (FC=04) to a device over modbus
- * 
+ *
  * @param uint8_t address
  * @param uint8_t function
  * @param uint16_t register
@@ -80,7 +80,7 @@ void ModbusReadInputRequest(uint8_t address, uint8_t function, uint16_t reg, uin
 
 /**
  * Response read holding (FC=3) or read input register (FC=04) to a device over modbus
- * 
+ *
  * @param uint8_t address
  * @param uint8_t function
  * @param uint16_t pointer to values
@@ -93,7 +93,7 @@ void ModbusReadInputResponse(uint8_t address, uint8_t function, uint16_t *values
 
 /**
  * Request write single register (FC=06) to a device over modbus
- * 
+ *
  * @param uint8_t address
  * @param uint16_t register
  * @param uint16_t value
@@ -102,12 +102,12 @@ void ModbusWriteSingleRequest(uint8_t address, uint16_t reg, uint16_t value) {
     MB.RequestAddress = address;
     MB.RequestFunction = 0x06;
     MB.RequestRegister = reg;
-    ModbusSend8(address, 0x06, reg, value);  
+    ModbusSend8(address, 0x06, reg, value);
 }
 
 /**
  * Request write multiple register (FC=16) to a device over modbus
- * 
+ *
  * @param uint8_t address
  * @param uint16_t register
  * @param uint8_t pointer to data
@@ -138,7 +138,7 @@ void ModbusWriteMultipleRequest(uint8_t address, uint16_t reg, uint16_t *values,
 
 /**
  * Response an exception
- * 
+ *
  * @param uint8_t address
  * @param uint8_t function
  * @param uint8_t exeption
@@ -151,7 +151,7 @@ void ModbusException(uint8_t address, uint8_t function, uint8_t exception) {
 
 /**
  * Decode received modbus packet
- * 
+ *
  * @param uint8_t pointer to buffer
  * @param uint8_t length of buffer
  */
@@ -259,7 +259,7 @@ void ModbusDecode(uint8_t * buf, uint8_t len) {
             // Modbus data is always at the end ahead the checksum
             MB.Data = MB.Data + (len - MB.DataLength);
         }
-        
+
         // Request - Response check
         switch (MB.Type) {
             case MODBUS_REQUEST:
@@ -270,7 +270,7 @@ void ModbusDecode(uint8_t * buf, uint8_t len) {
             case MODBUS_RESPONSE:
                 // If address and function identical with last send or received request, it is a valid response
                 if (MB.Address == MB.RequestAddress && MB.Function == MB.RequestFunction) {
-                    if (MB.Function == 0x03 || MB.Function == 0x04) 
+                    if (MB.Function == 0x03 || MB.Function == 0x04)
                         MB.Register = MB.RequestRegister;
                 }
                 MB.RequestAddress = 0;
@@ -314,7 +314,7 @@ void ModbusDecode(uint8_t * buf, uint8_t len) {
 
 /**
  * Send measurement request over modbus
- * 
+ *
  * @param uint8_t Meter
  * @param uint8_t Address
  * @param uint16_t Register
@@ -326,7 +326,7 @@ void requestMeasurement(uint8_t Meter, uint8_t Address, uint16_t Register, uint8
 
 /**
  * Send current measurement request over modbus
- * 
+ *
  * @param uint8_t Meter
  * @param uint8_t Address
  */
@@ -362,12 +362,12 @@ void requestCurrentMeasurement(uint8_t Meter, uint8_t Address) {
             // Read 3 Current values
             requestMeasurement(Meter, Address, EMConfig[Meter].IRegister, 3);
             break;
-    }  
+    }
 }
 
 /**
  * Map a Modbus register to an item ID (MENU_xxx or STATUS_xxx)
- * 
+ *
  * @return uint8_t ItemID
  */
 uint8_t mapModbusRegister2ItemID() {
@@ -394,7 +394,7 @@ uint8_t mapModbusRegister2ItemID() {
     } else {
         return 0;
     }
-    
+
     if (MB.RegisterCount <= (RegisterStart + Count) - MB.Register) {
         return (MB.Register - RegisterStart + ItemStart);
     } else {

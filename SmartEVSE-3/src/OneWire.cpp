@@ -1,5 +1,5 @@
 /*
-;	 Project:       Smart EVSE
+;  Project:       Smart EVSE
 ;
 ;
 ;
@@ -93,7 +93,7 @@ void WriteRFIDlist(void) {
     } else {
         _LOG_A("Error opening preferences!\n");
     }
-    
+
 
     _LOG_I("\nRFID list saved\n");
 }
@@ -191,7 +191,7 @@ unsigned char DeleteRFID(void) {
 
     _LOG_A("deleted %u ",offset);
     for (r=0; r<600; r++) _LOG_A("%02x",RFIDlist[r]);
-    
+
     WriteRFIDlist();
     return 1;
 }
