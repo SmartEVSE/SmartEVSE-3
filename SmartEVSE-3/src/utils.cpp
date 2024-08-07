@@ -62,7 +62,7 @@ unsigned char crc8(unsigned char *buf, unsigned char len) {
 /**
  * Calculates 16-bit CRC of given data
  * used for Frame Check Sequence on data frame
- * 
+ *
  * @param unsigned char pointer to buffer
  * @param unsigned char length of buffer
  * @return unsigned int CRC
@@ -92,7 +92,7 @@ unsigned int crc16(unsigned char *buf, unsigned char len) {
 
 /**
  * Insert rounded value into string in printf style
- * 
+ *
  * @param pointer to string
  * @param string Format
  * @param signed long Value to round and insert

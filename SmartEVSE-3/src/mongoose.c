@@ -11388,7 +11388,7 @@ void mg_tls_ctx_free(struct mg_mgr *mgr) {
 #define REPEATM(N, macro) EVAL(REPEATM_SOME(N, macro))
 #endif
 
-// 
+//
 
 #if (MG_UECC_WORD_SIZE == 1)
 #if MG_UECC_SUPPORTS_secp160r1
@@ -15567,7 +15567,7 @@ static bool mg_tcpip_driver_imxrt_init(struct mg_tcpip_if *ifp) {
   int cr = (d == NULL || d->mdc_cr < 0) ? 24 : d->mdc_cr;
   ENET->MSCR = (1 << 8) | ((cr & 0x3f) << 1);  // HOLDTIME 2 clks
   struct mg_phy phy = {enet_read_phy, enet_write_phy};
-  mg_phy_init(&phy, d->phy_addr, MG_PHY_LEDS_ACTIVE_HIGH); // MAC clocks PHY  
+  mg_phy_init(&phy, d->phy_addr, MG_PHY_LEDS_ACTIVE_HIGH); // MAC clocks PHY
   // Select RMII mode, 100M, keep CRC, set max rx length, disable loop
   ENET->RCR = (1518 << 16) | MG_BIT(8) | MG_BIT(2);
   // ENET->RCR |= MG_BIT(3);     // Receive all
@@ -17237,7 +17237,7 @@ static bool mg_tcpip_driver_xmc_init(struct mg_tcpip_if *ifp) {
 
   // set the MAC address
   ETH0->MAC_ADDRESS0_HIGH = MG_U32(0, 0, ifp->mac[5], ifp->mac[4]);
-  ETH0->MAC_ADDRESS0_LOW = 
+  ETH0->MAC_ADDRESS0_LOW =
         MG_U32(ifp->mac[3], ifp->mac[2], ifp->mac[1], ifp->mac[0]);
 
   // Configure the receive filter
@@ -17563,7 +17563,7 @@ static bool mg_tcpip_driver_xmc7_up(struct mg_tcpip_if *ifp) {
 		  ETH0->NETWORK_CONFIG |= MG_BIT(10);
 	  }
     MG_DEBUG(("Link is %uM %s-duplex",
-              speed == MG_PHY_SPEED_10M ? 10 : 
+              speed == MG_PHY_SPEED_10M ? 10 :
               (speed == MG_PHY_SPEED_100M ? 100 : 1000),
               full_duplex ? "full" : "half"));
   }

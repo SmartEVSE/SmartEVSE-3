@@ -349,7 +349,7 @@ void GLCD_print_menu(unsigned char y, const char* str) {
 
 /**
  * Increase or decrease int value
- * 
+ *
  * @param unsigned int Buttons
  * @param unsigned int Value
  * @param unsigned int Min
@@ -370,7 +370,7 @@ unsigned int MenuNavInt(unsigned char Buttons, unsigned int Value, unsigned int 
 
 /**
  * Get to next or previous value of an char array
- * 
+ *
  * @param unsigned char Buttons
  * @param unsigned char Value
  * @param unsigned char Count
@@ -389,7 +389,7 @@ unsigned char MenuNavCharArray(unsigned char Buttons, unsigned char Value, unsig
 }
 
 // uses buffer
-void GLCDHelp(void)                                                             // Display/Scroll helptext on LCD 
+void GLCDHelp(void)                                                             // Display/Scroll helptext on LCD
 {
     unsigned int x;
 
@@ -413,7 +413,7 @@ void GLCD(void) {
     char Str[26];
 
     LCDTimer++;
-    
+
     if (LCDNav) {
         GLCD_buffer_clr();
         // top line
@@ -462,7 +462,7 @@ void GLCD(void) {
             read_settings();                                                    // don't save, but restore settings
         } else return;                                                          // disable LCD status messages when navigating LCD Menu
     } // if LCDNav
-   
+
     if (LCDTimer == 1) {
         LCDText = 0;
     } else if (LCDTimer > 4) {
@@ -475,14 +475,14 @@ void GLCD(void) {
         BacklightTimer = BACKLIGHT;                                             // Backlight timer is set to 120 seconds
 
         if (ErrorFlags & (CT_NOCOMM | EV_NOCOMM)) {                             // No serial communication for 10 seconds
-            
+
             if (ErrorFlags & EV_NOCOMM) {
                 GLCD_print_buf2(0, (const char *) "CAN'T READ");
                 GLCD_print_buf2(2, (const char *) "EV METER");
             } else {
                 GLCD_print_buf2(0, (const char *) "ERROR NO");
                 GLCD_print_buf2(2, (const char *) "SERIAL COM");
-            }            
+            }
             GLCD_print_buf2(4, (const char *) "CHECK CFG");
             GLCD_print_buf2(6, (const char *) "OR WIRING");
             return;
@@ -592,9 +592,9 @@ void GLCD(void) {
             GLCD_print_buf2(2, (const char *) "MODEM");
             GLCD_print_buf2(4, (const char *) "DENIED");
         } else if (State == STATE_C) {                                          // STATE C
-            
+
             BacklightTimer = BACKLIGHT;
-            
+
             GLCD_print_buf2(2, (const char *) "CHARGING");
             sprintf(Str, "%u.%uA",Balanced[0] / 10, Balanced[0] % 10);
             GLCD_print_buf2(4, Str);
@@ -862,7 +862,7 @@ void GLCD(void) {
 
 /**
  * Counts nr of menu options currently available
- * 
+ *
  * @param unsigned char count
  * @return unsigned char postion
  */
@@ -1097,7 +1097,7 @@ uint8_t getMenuItems (void) {
 
 /**
  * Called when one of the SmartEVSE buttons is pressed
- * 
+ *
  * @param Buttons: < o >
  *          Value: 1 2 4
  *            Bit: 0:Pressed / 1:Released
@@ -1229,7 +1229,7 @@ void GLCDMenu(uint8_t Buttons) {
                 SolarStopTimer = 0;                                             // Disable Solar Timer
                 GLCD();
                 write_settings();                                               // Write to eeprom
-                ButtonRelease = 2;                                              // Skip updating of the LCD 
+                ButtonRelease = 2;                                              // Skip updating of the LCD
             }
         }
 
@@ -1295,11 +1295,11 @@ void GLCD_init(void) {
     delayMicroseconds(4);
     _RSTB_1;                                                                    // Reset line high
     delayMicroseconds(4);
-    
+
     st7565_command(0xA2);                                                       // (11) set bias at duty cycle 1.65 (0xA2=1.9 0xA3=1.6)
     st7565_command(0xA0);                                                       // (8) SEG direction (0xA0 or 0xA1)
     st7565_command(0xC8);                                                       // (15) comm direction normal =0xC0 comm reverse= 0xC8
-   
+
     st7565_command(0x20 | 0x04);                                                // (17) set Regulation Ratio (0-7)
 
     st7565_command(0xF8);                                                       // (19) send Booster command
@@ -1316,7 +1316,7 @@ void GLCD_init(void) {
     glcd_clear();                                                               // clear internal GLCD buffer
     goto_row(0x00);                                                             // (3) Set page address
     goto_col(0x00);                                                             // (4) Set column addr LSB
- 
+
     st7565_command(0xAF);                                                       // (1) ON command
 
 }

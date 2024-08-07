@@ -20,7 +20,7 @@ OneWire32::OneWire32(uint8_t pin, uint8_t tx, uint8_t rx, uint8_t parasite){
 	owpin = static_cast<gpio_num_t>(pin);
 	owtx = static_cast<rmt_channel_t>(tx);
 	owrx = static_cast<rmt_channel_t>(rx);
-	power_default = parasite;	
+	power_default = parasite;
 	rmt_config_t rmt_tx = {
 		.rmt_mode           = RMT_MODE_TX,
 		.channel            = owtx,
@@ -70,7 +70,7 @@ OneWire32::OneWire32(uint8_t pin, uint8_t tx, uint8_t rx, uint8_t parasite){
 					rmt_set_gpio(owrx, RMT_MODE_RX, owpin, false);
 					rmt_set_gpio(owtx, RMT_MODE_TX, owpin, false);
 					PIN_INPUT_ENABLE(GPIO_PIN_MUX_REG[owpin]);
-					GPIO.pin[owpin].pad_driver = 1;				
+					GPIO.pin[owpin].pad_driver = 1;
 					return;// true;
 				}else{
 					return;// false;
