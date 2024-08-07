@@ -73,10 +73,16 @@ MAX	Set MAX charge current for the EV: 10-80A (per phase)
         If CONFIG is set to <Fixed>, configure MAX lower or equal to the maximum current
         that your fixed cable can carry.
 
-CIRCUIT	(only appears when PWR SHARE set to <Master>, or when PWR SHARE set to <Disabled>
-        and Mode is Smart or Solar and EV METER not set to <Disabled>):
+CIRCUIT
+        If PWR SHARE set to <Disabled>:
+        Only appears when an EV METER is configured, in Smart or Solar mode.
         Set the max current the EVSE circuit can handle (load balancing): 10-200A
+        Not obeyed in Normal mode.
         (see also subpanel wiring)
+
+        If PWR SHARE set to <Master>:
+        Set the max current the EVSE circuit can handle (load balancing): 10-200A
+        Obeyed in all modes!
 
 SWITCH  Set the function of an external switch connected to pin SW
   <Disabled>    A push button on io pin SW can be used to STOP charging
@@ -95,10 +101,43 @@ RFID    use a RFID card reader to enable/disable access to the EVSE
 
 WIFI          Enable wifi connection to your LAN
   <Disabled>  No wifi connection
-  <SetupWifi> The SmartEVSE presents itself as a Wifi Acces Point "smartevse-xxxx";
+  <SetupWifi> v3.6.3 or older: The SmartEVSE presents itself as a Wifi Acces Point "smartevse-xxxx";
               connect with your phone to that access point, goto http://192.168.4.1/
               and configure your Wifi password
+              v.3.6.4 and newer: On your smartphone:
+              -connect your smartphone to the wifi network you want your SmartEVSE connected to
+              -download and run the ESPTouch app from your appstore (both Android and Apple),
+              -choose EspTouch V2,
+              -fill in the password of the wifi network,
+              -fill in "1" in device count for provisioning,
+              -on the SmartEVSE LCD screen, select "Wifi", select "SetupWifi",
+              -press the middle button to start the configuration procedure,
+              -once pressed, the bottom line shows you a 16 character key, first 8 zeros,
+              -note that from this point on, you have 120s TO FINISH this procedure!
+              -fill in that key in the ESPTouch app, in the AES Key field
+              -leave Custom Data empty
+              -press "Confirm", within 30 seconds the app will confirm a MAC address and an IP address
+              You are connected now. If you want special stuff (static IP address, special DNS address),
+              configure them on your AP/router.
+
+              v3.6.4 and newer BACKUP PROCEDURE: if you don't get it to work with the ESPTouch app, there is
+              a backup procedure:
+              -connect your SmartEVSE with a USB cable to your PC
+              -install the USB driver (Windows) or not (linux) for ESP32 chipset
+              -connect your favorite serial terminal to the appropriate port
+              -on the SmartEVSE LCD screen, select "Wifi", select "SetupWifi",
+              -press the middle button to start the configuration procedure,
+              -wait for 120s ; then press enter on your serial terminal; you will be prompted for your WiFi
+               network name and password.
   <Enabled>   Connect to your LAN via Wifi.
+
+AUTOUPDAT     (only appears when WIFI is Enabled):
+              Automatic update of your firmware
+  <Disabled>  No automatic update
+  <Enabled>   Checks every 18 hours if there is a new stable firmware version available;
+              If so, downloads and flashes it, and reboots as soon as no EV is connected.
+              DOES NOT WORK if your current version is not one of the format vx.y.z, e.g. v3.6.1
+              So locally compiled versions, or RCx versions, will NOT Autoupdate!
 
 MAX TEMP      Maximum allowed temperature for your SmartEVSE; 40-75C, default 65.
               You can increase this if your SmartEVSE is in direct sunlight.
@@ -106,6 +145,9 @@ MAX TEMP      Maximum allowed temperature for your SmartEVSE; 40-75C, default 65
 SUMMAINS      (only appears when a MAINSMET is configured):
               Maximum allowed Mains Current summed over all phases: 10-600A
               This is used for the EU Capacity rate limiting, currently only in Belgium
+SUM STOP      (only appears when a SUMMAINS is configured):
+              Timer in minutes; if set, if SUMMAINS is exceeded, we do not immediately stop
+              charging but wait until the timer expires.
 
 The following options are only shown when Mode set to <Solar> and
 PWR SHARE set to <Disabled> or <Master>:
@@ -249,6 +291,7 @@ You can get the latest release off of https://github.com/dingo35/SmartEVSE-3.5/r
 * Install platformio-core https://docs.platformio.org/en/latest/core/installation/methods/index.html
 * Clone this github project, cd to the smartevse directory where platformio.ini is located
 * Compile firmware.bin: platformio run
+* If your want to give special compiler options, e.g. lower the minimum current to 5A:  PLATFORMIO_BUILD_FLAGS='-DDBG=1 -DMIN_CURRENT=5' pio run
 For versions older than v3.6.0:
 * Compile spiffs.bin: platformio run -t buildfs
 
