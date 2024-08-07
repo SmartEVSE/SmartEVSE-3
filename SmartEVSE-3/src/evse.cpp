@@ -710,6 +710,11 @@ void setMode(uint8_t NewMode) {
             switchOnLater = true;
         }
     }
+    /* rob040: similar to the above, when solar charging at 1F and mode change, we need to switch back to 3F */
+    if ((EnableC2 == AUTO) && (Mode != NewMode) && (Mode == MODE_SOLAR) /* && solar 1F*/) {
+        setAccess(0);                                                       //switch to OFF
+        switchOnLater = true;
+    }
 
 #if MQTT
     // Update MQTT faster
@@ -1064,7 +1069,7 @@ void Set_Nr_of_Phases_Charging(void) {
 void CalcBalancedCurrent(char mod) {
     int Average, MaxBalanced, Idifference, Baseload_EV;
     int ActiveEVSE = 0;
-    signed int IsumImport;
+    int IsumImport = 0; // rob040 fix uninitialized variable warning 20240805
     int ActiveMax = 0, TotalCurrent = 0, Baseload;
     char CurrentSet[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};
     uint8_t n;
@@ -1789,6 +1794,7 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
         case STATUS_ERROR:
             ErrorFlags = val;
             if (ErrorFlags) {                                                   // Is there an actual Error? Maybe the error got cleared?
+                // [rob040 20240807]: check this; possible unwanted interaction with mainsMeter; results in unclear error message on LCD
                 if (ErrorFlags & CT_NOCOMM) MainsMeterTimeout = 0;              // clear MainsMeterTimeout on a CT_NOCOMM error, so the error will be immediate.
                 setStatePowerUnavailable();
                 ChargeDelay = CHARGEDELAY;

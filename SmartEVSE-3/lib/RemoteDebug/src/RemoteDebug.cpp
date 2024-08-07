@@ -90,7 +90,7 @@
 
 ///// Defines
 
-#define VERSION "3.0.5"
+#define RD_VERSION "3.0.5"
 
 ///// Includes
 
@@ -260,7 +260,7 @@ bool RemoteDebug::begin(String hostName, uint16_t port,  uint8_t startingDebugLe
 	if (port != TELNET_PORT) { // Bug: not more can use begin(port)..
 	    return false;
 	}
-	
+
 	TelnetServer.begin();
 	TelnetServer.setNoDelay(true);
 
@@ -1298,7 +1298,7 @@ void RemoteDebug::showHelp() {
 #elif defined(ESP32)
 	help.concat("*** Remote debug - over telnet - for ESP32 - version ");
 #endif
-	help.concat(VERSION);
+	help.concat(RD_VERSION);
 	help.concat("\r\n");
 	help.concat("* Host name: ");
 	help.concat(_hostName);
@@ -1918,7 +1918,7 @@ void RemoteDebug::wsSendInfo() {
 
 		// Send info
 
-		String version = String(VERSION);
+		String version = String(RD_VERSION);
 		String board;
 
 #ifdef ESP32

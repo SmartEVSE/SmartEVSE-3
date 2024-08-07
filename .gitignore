@@ -9,6 +9,10 @@ sdkconfig.*
 .DS_Store
 */.DS_Store
 .idea
+SmartEVSE-3/src/packed_fs.c
 *.log
 *.out
+*.bak
+*.-
+*.???-
 TODO*.txt

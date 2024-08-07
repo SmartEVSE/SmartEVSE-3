@@ -1,0 +1,34 @@
+20230802: output of HTTP POST set currents returns incorrect json:
+
+> curl -X POST "http://smartevse-7033/currents?L1=101&L2=51&L3=-33" -d ''
+< {"original":{"L":101,"":51,"SMART":-33},"L":101,"":51,"SMART":-33,"TOTAL":119}
+
+- string texts wrong
+- org values wrong
+- target values good
+
+- REST API calls return JSON content. This is undocumented in API.
+-------------
+code: evse.cpp line 5152
+
+                    DynamicJsonDocument doc(200);
+                    for (int x = 0; x < 3; x++) {
+                        doc["original"]["L" + x] = IrmsOriginal[x];
+                        doc["L" + x] = Irms[x];
+                    }
+                    doc["TOTAL"] = Isum;
+
+the "L"+x is an increment on const char *, not a String with a number appended
+This happens one more time.
+
++warning uninitialized variable
+src/evse.cpp: In function 'void CalcBalancedCurrent(char)':
+src/evse.cpp:1219:44: warning: 'IsumImport' may be used uninitialized in this function [-Wmaybe-uninitialized]
+
++ hangups too often!
++ pressing the charge on/off buttons on faceplate refresh display in fast succession, where its impossible to see what action is taken.
++ Normal mode somehow limited to 6A, while everything says 16A
++ Uninitialized var in CalcBalancedCurrent();
+  change 	signed int IsumImport;
+  to    	int IsumImport = 0;
++ Contactor 2 (with its mode = Auto) when switched off in solar charge mode is never switched on, though SW thinks it is. Also other charge modes (with 3-phase charging) leave contactor 2 off, resulting effectively in 1F charge, while SW thinks it is doing 3F charge. Only a power-cycle fixes this!

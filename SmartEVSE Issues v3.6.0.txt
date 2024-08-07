@@ -1,0 +1,18 @@
+Issues found v3.5.RC2 -> v3.6.0 (2024-05-17)
+- Wifi configuration: static IP address is lost after power cycle; switches to DHCP obtained IP
+- Wifi configuration AP mode is only available for too short period. Its dificult to reconfigure smartphone to wifi AP and enter IP address into browser and wait for browser to connect within that time period. With v3.6.0 firmware it is completely impossible to connect and configure its wifi. 
+- entering Wifi config mode loses its configuration when not connected to AP.
+==> fixed (partly) with version 3.6.1
+- MQTT API description missing , MQTT_API.md created from source; basics and usage is in configuration.md
+- MQTT request: extend MQTT API to same functionality as REST API
+
+
+More Issues
+- Modbus communication to eastron-3P 630 is indicated as error on LCD, still total energy readout looks correct, maybe too often rx errors(?)
+  ==> error message on LCD (_"ERROR NO SERIAL COM CHECK CFG OR WIRING"_) is erroneous; also missing mainsmeter api call can initiate this error (check: ErrorFlags CT_NOCOMM)
+  -> TODO: get better fitting error conditions and messages
+- MQTT connect fails, while everything is setup correctly. Other ESP devices do connect successfully. No errrors visible on debug firmware output.
+- SW hangup just about every day (v3.6.0, V3.6.1, V3.6.3), in normal mode, but with above error message; power-cycle required.
+- 20240629: Interruption of communication (pwm) to car during charging (in normal mode)
+- 20240629: mains API via MQTT still not working; MQTT connect fails
+
