@@ -25,10 +25,11 @@ logger:
   baud_rate: 0
 
 api:
-  encryption:
-    key: !secret esphome_api_key
+  #encryption:
+  #  key: !secret esphome_api_key
 
 ota:
+  platform: esphome
   password: !secret esphome_ota_password
 
 web_server:
@@ -41,6 +42,7 @@ uart:
 http_request:
   useragent: esphome/device
   timeout: 1s
+  verify_ssl: false
 
 dsmr:
   id: dsmr_instance
