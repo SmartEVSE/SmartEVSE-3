@@ -481,8 +481,12 @@ void GLCD(void) {
                 GLCD_print_buf2(0, (const char *) "CAN'T READ");
                 GLCD_print_buf2(2, (const char *) "EV METER");
             } else {
-                GLCD_print_buf2(0, (const char *) "ERROR NO");
-                GLCD_print_buf2(2, (const char *) "SERIAL COM");
+                //ErrorFlags & CT_NOCOMM == mainsMeter timeout
+                // a mainsMeter timeout is not "SERIAL COMM"
+                //GLCD_print_buf2(0, (const char *) "ERROR NO");
+                //GLCD_print_buf2(2, (const char *) "SERIAL COM");
+                GLCD_print_buf2(0, (const char *) "ERR MAINS");
+                GLCD_print_buf2(2, (const char *) "METER DATA");
             }
             GLCD_print_buf2(4, (const char *) "CHECK CFG");
             GLCD_print_buf2(6, (const char *) "OR WIRING");
@@ -812,7 +816,11 @@ void GLCD(void) {
                         break;
                     case GOING_TO_SWITCH:
                         sprintf(Str, "3F -> 1F %u", ChargeDelay);
-                        if (!ChargeDelay) Str[7] = '\0';
+                        if (!ChargeDelay) Str[8] = '\0';
+                        break;
+                    case GOING_TO_SWITCH_3F:
+                        sprintf(Str, "1F -> 3F %u", ChargeDelay);
+                        if (!ChargeDelay) Str[8] = '\0';
                         break;
                     case AFTER_SWITCH:                                          // never getting here, just preventing compiler warning
                         break;
