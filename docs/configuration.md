@@ -323,6 +323,7 @@ For versions older than v3.6.0:
 * Compile spiffs.bin: platformio run -t buildfs
 
 If you are not using the webserver /update endpoint:
+* Windows users: install USB drivers https://www.silabs.com/de...o-uart-bridge-vcp-drivers
 * Upload via USB configured in platformio.ini: platformio run --target upload
 
 # I think I bricked my SmartEVSE
