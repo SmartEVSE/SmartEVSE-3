@@ -2977,6 +2977,8 @@ void SetupMQTTClient() {
     announce("OCPPConnection", "sensor");
 #endif //ENABLE_OCPP
 
+    optional_payload = jsna("device_class","duration") + jsna("unit_of_measurement","s");
+    announce("SolarStopTimer", "sensor");
     //set the parameters for and announce diagnostic sensor entities:
     optional_payload = jsna("entity_category","diagnostic");
     announce("Error", "sensor");
@@ -3194,7 +3196,9 @@ void Timer1S(void * parameter) {
                 ErrorFlags |= NO_SUN;                                       // Set error: NO_SUN
             }
         }
-
+#if MQTT
+        MQTTclient.publish(MQTTprefix + "/SolarStopTimer", String(SolarStopTimer), false, 0);
+#endif
         // When Smart or Solar Charging, once MaxSumMains is exceeded, a timer is started
         // Charging is stopped when the timer reaches the time set in 'MaxSumMainsTime' (in minutes)
         // Except when MaxSumMainsTime =0, then charging will continue.
