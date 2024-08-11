@@ -512,8 +512,9 @@ void BlinkLed(void * parameter) {
 // Set Charge Current
 // Current in Amps * 10 (160 = 16A)
 void SetCurrent(uint16_t current) {
+    /* old, inaccurate FP code
     uint32_t DutyCycle;
-// [ROB] TODO: use integer calculations for better integer precision
+// [ROB] use integer calculations for better integer precision
     if ((current >= (MIN_CURRENT * 10)) && (current <= 510)) {
                                                                             // calculate DutyCycle from current
         DutyCycle = current / 0.6;
@@ -526,6 +527,22 @@ void SetCurrent(uint16_t current) {
     }
     DutyCycle = DutyCycle * 1024 / 1000;                                    // conversion to 1024 = 100%
     SetCPDuty(DutyCycle);
+    */
+    uint32_t pwm1k;
+    if ((current >= (MIN_CURRENT * 10)) && (current <= 510)) {
+        // calculate DutyCycle from current in dA (deci-Ampere), without FP
+        // pwm(1024) = current_dA/0.6*1024/1000 = current_dA*1024/600; with rounding:= (current_dA*1024+300)/600
+        pwm1k = (current * 1024 + 300) / 600;
+    }
+    else if ((current > 510) && (current <= 800)) {
+        // pwm(1024) = (current_dA/2.5+640)*1024/1000 = current_dA*1024/2500+65536/100; with rounding:= (current_dA*1024+1250)/2500 + 655
+        pwm1k = (current *1024 + 125)/2500 + 655;
+    }
+    else {
+        pwm1k = 1024/10;                                                   // invalid, use 6A (10%)
+    }
+    SetCPDuty(pwm1k);
+
 }
 
 // Write duty cycle to pin
@@ -2788,9 +2805,13 @@ uint8_t PollEVNode = NR_EVSES, updated = 0;
                         ModbusWriteSingleRequest(BROADCAST_ADR, 0x0001, ErrorFlags);
                         NoCurrent = 0;
                     }
-                    if (LoadBl == 1 && !(ErrorFlags & CT_NOCOMM) ) BroadcastCurrent();               // When there is no Comm Error, Master sends current to all connected EVSE's
+                    if (LoadBl == 1 && !(ErrorFlags & CT_NOCOMM) ) {
+                        BroadcastCurrent();               // When there is no Comm Error, Master sends current to all connected EVSE's
+                    }
 
-                    if ((State == STATE_B || State == STATE_C) && !CPDutyOverride) SetCurrent(Balanced[0]); // set PWM output for Master //mind you, the !CPDutyOverride was not checked in Smart/Solar mode, but I think this was a bug!
+                    if ((State == STATE_B || State == STATE_C) && !CPDutyOverride) {
+                        SetCurrent(Balanced[0]); // set PWM output for Master //mind you, the !CPDutyOverride was not checked in Smart/Solar mode, but I think this was a bug!
+                    }
                     printStatus();  //for debug purposes
                     ModbusRequest = 0;
                     //_LOG_A("Timer100ms task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
