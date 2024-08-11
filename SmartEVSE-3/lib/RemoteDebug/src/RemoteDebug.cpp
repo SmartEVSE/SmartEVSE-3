@@ -1303,6 +1303,11 @@ void RemoteDebug::showHelp() {
 	help.concat("\r\n");
 	help.concat("* Host name: ");
 	help.concat(_hostName);
+	#ifdef VERSION
+	help.concat(" ");
+	help.concat(VERSION);
+	help.concat("\r\n* Host");
+	#endif
 	help.concat(" IP:");
 	help.concat(WiFi.localIP().toString());
 	help.concat(" Mac address:");
