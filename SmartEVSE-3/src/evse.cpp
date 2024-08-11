@@ -514,7 +514,6 @@ void BlinkLed(void * parameter) {
 void SetCurrent(uint16_t current) {
     /* old, inaccurate FP code
     uint32_t DutyCycle;
-// [ROB] use integer calculations for better integer precision
     if ((current >= (MIN_CURRENT * 10)) && (current <= 510)) {
                                                                             // calculate DutyCycle from current
         DutyCycle = current / 0.6;
@@ -528,6 +527,7 @@ void SetCurrent(uint16_t current) {
     DutyCycle = DutyCycle * 1024 / 1000;                                    // conversion to 1024 = 100%
     SetCPDuty(DutyCycle);
     */
+// [ROB] use integer calculations for higher accuracy
     uint32_t pwm1k;
     if ((current >= (MIN_CURRENT * 10)) && (current <= 510)) {
         // calculate DutyCycle from current in dA (deci-Ampere), without FP
@@ -856,7 +856,7 @@ void setState(uint8_t NewState) {
 
             if (Switching_To_Single_Phase == GOING_TO_SWITCH) {
                     CONTACTOR2_OFF;
-                    SolarStopTimer = 0; //TODO still needed? now we switched contactor2 off, review if we need to stop solar charging
+                    SolarStopTimer = 0;
                     MaxSumMainsTimer = 0;
                     Nr_Of_Phases_Charging = 1;                                  // switch to 1F
                     Switching_To_Single_Phase = AFTER_SWITCH;                   // we finished the switching process,
@@ -1155,15 +1155,24 @@ void CalcBalancedCurrent(char mod) {
     }
     else if (Mode == MODE_SOLAR && State == STATE_B) {
         // Prepare for switching to state C
-        IsetBalanced = 0;
+        IsetBalanced = 10*MinCurrent;
         _LOG_D("waiting for Solar (B) Isum=%d dA, phases=%d\n", Isum, Nr_Of_Phases_Charging);
         if (EnableC2 == AUTO) {
-            if (-Isum > (30*MinCurrent)) {
+            // Mains isn't loaded, so the Isum must be negative for solar charging
+            // determine if enough current is available for 3-phase or 1-phase charging
+            // TODO: deal with strong fluctuations in startup
+            if (-Isum >= (30*MinCurrent+30+60)) { // 30x for 3-phase and 0.1A resolution; +30 to have 3x1.0A room for regulation
                 Switching_To_Single_Phase = GOING_TO_SWITCH_3F;
+                Nr_Of_Phases_Charging = 3;
                 _LOG_D("Solar starting in 3-phase mode\n");
-            } else if (-Isum > (10*MinCurrent)) {
+            } else if (-Isum >= (10*MinCurrent+10)) {
                 Switching_To_Single_Phase = GOING_TO_SWITCH;
+                Nr_Of_Phases_Charging = 1;
                 _LOG_D("Solar starting in 1-phase mode\n");
+            } else {
+                Switching_To_Single_Phase = FALSE;
+                // Not enough current;
+                // TODO: we should return to STATE_A
             }
         } else {
             if (Force_Single_Phase_Charging() && (Nr_Of_Phases_Charging != 1)) {
@@ -1275,13 +1284,17 @@ void CalcBalancedCurrent(char mod) {
                     //TODO maybe enable solar switching for loadbl = 1
                     //if (EnableC2 == AUTO && LoadBl == 0)
                     //    Set_Nr_of_Phases_Charging();
-                    if (Nr_Of_Phases_Charging > 1 && EnableC2 == AUTO && LoadBl == 0) { // when loadbalancing is enabled we don't do forced single phase charging
-                        _LOG_A("Switching to single phase.\n");                 // because we wouldnt know which currents to make available to the nodes...
-                                                                                // since we don't know how many phases the nodes are using...
-                        //switching contactor2 off works ok for Skoda Enyaq but Hyundai Ioniq 5 goes into error, so we have to switch more elegantly
-                        if (State == STATE_C) setState(STATE_C1);               // tell EV to stop charging
-                        Switching_To_Single_Phase = GOING_TO_SWITCH;
-                        if (SolarStopTimer > 3) SolarStopTimer = 3; // expedite switching
+                    if (Nr_Of_Phases_Charging > 1 && EnableC2 == AUTO && LoadBl == 0 && State == STATE_C) {
+                        // not enough current for 3-phase operation; we can switch to 1-phase after some time
+                        // start solar stop timer
+                        if (SolarStopTimer == 0) SolarStopTimer = 60;
+                        // near end of solar stop timer, instruct to go to 1F charging
+                        if (SolarStopTimer <= 2) {
+                            _LOG_A("Switching to single phase.\n");
+                            Switching_To_Single_Phase = GOING_TO_SWITCH;
+                            setState(STATE_C1);               // tell EV to stop charging
+                            SolarStopTimer = 0;
+                        }
                     }
                     else {
                         if (SolarStopTimer == 0) SolarStopTimer = StopTime * 60; // Convert minutes into seconds
@@ -1305,18 +1318,26 @@ void CalcBalancedCurrent(char mod) {
         } else {                                                                // we have enough current
             // ############### no shortage of power  #################
 
-            // Solar mode with enough power for switching to 3F solar charge?
+            // Solar mode with C2=AUTO and enough power for switching from 1F to 3F solar charge?
             if (Mode == MODE_SOLAR && Nr_Of_Phases_Charging == 1 && EnableC2 == AUTO && LoadBl == 0 && State == STATE_C) {
-                if (IsetBalanced >= MaxCurrent*10) { // are we at max regulation at 1F
+                if ((IsetBalanced+8) >= MaxCurrent*10) {
+                    // are we at max regulation at 1F (Iset hovers at 15.2-16.0A on 16A MaxCurrent)(warning: Iset can also be at max when EV limits current)
                     // and is there enough spare that we can go to 3F charging?
-                    int spareCurrent = ((3*(MinCurrent+1)-MaxCurrent)>0) ? 3*(MinCurrent+1)-MaxCurrent : 3;
-                    if  (-Isum > (10*spareCurrent)) {
-                       _LOG_A("Switching to three phase.\n");                 // because we wouldnt know which currents to make available to the nodes...
-                                                                                // since we don't know how many phases the nodes are using...
-                        //switching contactor2 off works ok for Skoda Enyaq but Hyundai Ioniq 5 goes into error, so we have to switch more elegantly
-                        if (State == STATE_C) setState(STATE_C1);               // tell EV to stop charging
-                        Switching_To_Single_Phase = GOING_TO_SWITCH;
-                        if (SolarStopTimer > 3) SolarStopTimer = 3; // expedite switching
+                    // Can it take the step from 1x16A to 3x7A (in regular config)?
+                    // Note thet we do not take 3F MinCurrent but 3x1A above that to give it some regulation room;
+                    // It also needs to sustain that minimal room for 60 seconds before it may switch to 3F
+                    int spareCurrent = (3*(MinCurrent+1)-MaxCurrent);  // constant, gap between 1F range and 3F range
+                    if (spareCurrent < 0) spareCurrent = 3;  // const, when 1F range overlaps 3F range
+                    if (-Isum > (10*spareCurrent)) { // note that Isum is surplus current is negative
+                        // start solar stop timer
+                        if (SolarStopTimer == 0) SolarStopTimer = 63;
+                        // near end of solar stop timer, instruct to go to 3F charging
+                        if (SolarStopTimer <= 3) {
+                            _LOG_A("Switching to three phase.\n");
+                            Switching_To_Single_Phase = GOING_TO_SWITCH;
+                            setState(STATE_C1);               // tell EV to stop charging
+                            SolarStopTimer = 0;
+                        }
                     }
                 }
             }
