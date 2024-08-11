@@ -36,6 +36,8 @@
 RemoteDebug Debug;
 #endif
 
+#define CSV_OUT 1 // enable for serial CSV data out
+
 #define SNTP_GET_SERVERS_FROM_DHCP 1
 #include <esp_sntp.h>
 
@@ -102,11 +104,11 @@ bool shouldReboot = false;
 
 // The following data will be updated by eeprom/storage data at powerup:
 uint16_t MaxMains = MAX_MAINS;                                              // Max Mains Amps (hard limit, limited by the MAINS connection) (A)
-uint16_t MaxSumMains = MAX_SUMMAINS;                                        // Max Mains Amps summed over all 3 phases, limit used by EU capacity rate
+uint16_t MaxSumMains = MAX_SUMMAINS;                                        // Max Mains Amps summed over all 3 phases, limit used by BE capacity rate limit
                                                                             // see https://github.com/serkri/SmartEVSE-3/issues/215
                                                                             // 0 means disabled, allowed value 10 - 600 A
-uint8_t MaxSumMainsTime = MAX_SUMMAINSTIME;                                // Number of Minutes we wait when MaxSumMains is exceeded, before we stop charging
-uint16_t MaxSumMainsTimer = 0;
+uint8_t MaxSumMainsTime = MAX_SUMMAINSTIME;                                 // capacity rate limiting timelimit in minutes we wait when MaxSumMains is exceeded, before we stop charging
+uint16_t MaxSumMainsTimer = 0;                                              // Timer for capacity rate limiting timelimit
 uint16_t MaxCurrent = MAX_CURRENT;                                          // Max Charge current (A)
 uint16_t MinCurrent = MIN_CURRENT;                                          // Minimal current the EV is happy with (A)
 uint8_t Mode = MODE;                                                        // EVSE mode (0:Normal / 1:Smart / 2:Solar)
@@ -227,7 +229,7 @@ uint8_t ConfigChanged = 0;
 uint32_t serialnr = 0;
 uint8_t GridActive = 0;                                                     // When the CT's are used on Sensorbox2, it enables the GRID menu option.
 
-uint16_t SolarStopTimer = 0;
+uint16_t SolarStopTimer = 0;    // Timer starts when charge drops below MinCurrent to stop charging on timeout. Starttime is 'StopTime' minutes.
 uint8_t RFIDstatus = 0;
 bool PilotDisconnected = false;
 uint8_t PilotDisconnectTime = 0;                                            // Time the Control Pilot line should be disconnected (Sec)
@@ -280,6 +282,28 @@ MicroOcpp::TxNotification OcppTrackTxNotification;
 unsigned long OcppLastTxNotification;
 #endif //ENABLE_OCPP
 
+#if CSV_OUT
+typedef struct s_csvout {
+    char state;
+    uint8_t mode;
+    uint8_t phases;
+    uint8_t dummy;
+    int16_t L1,L2,L3,LA;
+    struct s_evm {
+      int16_t L1,L2,L3,LA,PA;
+    } EVM;
+    int16_t Iset, Import, Iheadrm;
+    int16_t CHdly,SolTim;
+} t_csvout;
+const char csvhdr[] = {"CSV: St, Md, ph, L1, L2, L3, LA, EVl1, EVl2, EVl3, EVPa, Iset, Import, Iheadrm, CHdly, SolTim\n"};
+#define CSVFMT  "CSV: %c, %i, %i, %i, %i, %i, %i,   %i, %i, %i, %i,    %i, %i, %i,   %i, %i\n"
+#define CSVARGS csvout.state, csvout.mode, csvout.phases, csvout.L1, csvout.L2, csvout.L3, csvout.LA, csvout.EVM.L1, csvout.EVM.L2, csvout.EVM.L3, csvout.EVM.PA, csvout.Iset, csvout.Import, csvout.Iheadrm, csvout.CHdly, csvout.SolTim
+t_csvout csvout;
+#define CSVsetState() {csvout.state='A'+State;}
+#define CSVsetMode() {csvout.mode=Mode;}
+#endif
+#if CSV_OUT
+#endif
 
 // Some low level stuff here to setup the ADC, and perform the conversion.
 //
@@ -489,11 +513,17 @@ void BlinkLed(void * parameter) {
 // Current in Amps * 10 (160 = 16A)
 void SetCurrent(uint16_t current) {
     uint32_t DutyCycle;
-
-    if ((current >= (MIN_CURRENT * 10)) && (current <= 510)) DutyCycle = current / 0.6;
+// [ROB] TODO: use integer calculations for better integer precision
+    if ((current >= (MIN_CURRENT * 10)) && (current <= 510)) {
                                                                             // calculate DutyCycle from current
-    else if ((current > 510) && (current <= 800)) DutyCycle = (current / 2.5) + 640;
-    else DutyCycle = 100;                                                   // invalid, use 6A
+        DutyCycle = current / 0.6;
+    }
+    else if ((current > 510) && (current <= 800)) {
+        DutyCycle = (current / 2.5) + 640;
+    }
+    else {
+        DutyCycle = 100;                                                   // invalid, use 6A
+    }
     DutyCycle = DutyCycle * 1024 / 1000;                                    // conversion to 1024 = 100%
     SetCPDuty(DutyCycle);
 }
@@ -919,15 +949,15 @@ char IsCurrentAvailable(void) {
      // Only when StartCurrent configured or Node MinCurrent detected or Node inactive
     if (Mode == MODE_SOLAR) {                                                   // no active EVSE yet?
         if (ActiveEVSE == 0 && Isum >= ((signed int)StartCurrent *-10)) {
-            _LOG_D("#%d. StartCurrent. ActiveEVSE=%i, TotalCurrent=%.1fA, StartCurrent=%iA, Isum=%.1fA, ImportCurrent=%iA.\n", __LINE__, ActiveEVSE, (float) TotalCurrent/10, StartCurrent, (float)Isum/10, ImportCurrent);
+            _LOG_D("#%d StartCurrent. ActiveEVSE=%i, TotalCurrent=%.1fA, StartCurrent=%iA, Isum=%.1fA, ImportCurrent=%iA.\n", __LINE__, ActiveEVSE, (float) TotalCurrent/10, StartCurrent, (float)Isum/10, ImportCurrent);
             return 0;
         }
         else if ((ActiveEVSE * MinCurrent * 10) > TotalCurrent) {               // check if we can split the available current between all active EVSE's
-            _LOG_D("#%d. TotalCurrent. ActiveEVSE=%i, TotalCurrent=%.1fA, StartCurrent=%iA, Isum=%.1fA, ImportCurrent=%iA.\n", __LINE__, ActiveEVSE, (float) TotalCurrent/10, StartCurrent, (float)Isum/10, ImportCurrent);
+            _LOG_D("#%d TotalCurrent. ActiveEVSE=%i, TotalCurrent=%.1fA, StartCurrent=%iA, Isum=%.1fA, ImportCurrent=%iA.\n", __LINE__, ActiveEVSE, (float) TotalCurrent/10, StartCurrent, (float)Isum/10, ImportCurrent);
             return 0;
         }
         else if (ActiveEVSE > 0 && Isum > ((signed int)ImportCurrent * 10) + TotalCurrent - (ActiveEVSE * MinCurrent * 10)) {
-            _LOG_D("#%d. Isum. ActiveEVSE=%i, TotalCurrent=%.1fA, StartCurrent=%iA, Isum=%.1fA, ImportCurrent=%iA.\n", __LINE__, ActiveEVSE, (float) TotalCurrent/10, StartCurrent, (float)Isum/10, ImportCurrent);
+            _LOG_D("#%d Isum. ActiveEVSE=%i, TotalCurrent=%.1fA, StartCurrent=%iA, Isum=%.1fA, ImportCurrent=%iA.\n", __LINE__, ActiveEVSE, (float) TotalCurrent/10, StartCurrent, (float)Isum/10, ImportCurrent);
             return 0;
         }
     }
@@ -941,12 +971,12 @@ char IsCurrentAvailable(void) {
 
     // Check if the lowest charge current(6A) x ActiveEV's + baseload would be higher then the MaxMains.
     if ((ActiveEVSE * (MinCurrent * 10) + Baseload) > (MaxMains * 10)) {
-        _LOG_D("#%d. MaxMains. ActiveEVSE=%i, Baseload=%.1fA, MinCurrent=%iA, MaxMains=%iA.\n", __LINE__, ActiveEVSE, (float) Baseload/10, MinCurrent, MaxMains);
+        _LOG_D("#%d MaxMains. ActiveEVSE=%i, Baseload=%.1fA, MinCurrent=%iA, MaxMains=%iA.\n", __LINE__, ActiveEVSE, (float) Baseload/10, MinCurrent, MaxMains);
         return 0;                                                           // Not enough current available!, return with error
     }
     if (((LoadBl == 0 && EVMeter.Type && Mode != MODE_NORMAL) || LoadBl == 1) // Conditions in which MaxCircuit has to be considered
         && ((ActiveEVSE * (MinCurrent * 10) + Baseload_EV) > (MaxCircuit * 10))) { // MaxCircuit is exceeded
-        _LOG_D("#%d. MaxCircuit. ActiveEVSE=%i, Baseload_EV=%.1fA, MinCurrent=%iA, MaxCircuit=%iA.\n", __LINE__, ActiveEVSE, (float) Baseload_EV/10, MinCurrent, MaxCircuit);
+        _LOG_D("#%d MaxCircuit. ActiveEVSE=%i, Baseload_EV=%.1fA, MinCurrent=%iA, MaxCircuit=%iA.\n", __LINE__, ActiveEVSE, (float) Baseload_EV/10, MinCurrent, MaxCircuit);
         return 0;                                                           // Not enough current available!, return with error
     }
     //assume the current should be available on all 3 phases
@@ -955,7 +985,7 @@ char IsCurrentAvailable(void) {
             (Mode == MODE_SOLAR && EnableC2 == AUTO && Nr_Of_Phases_Charging == 1));
     int Phases = must_be_single_phase_charging ? 1 : 3;
     if ((MaxSumMains && Phases * ActiveEVSE * (MinCurrent * 10) + Isum) > (MaxSumMains * 10)) {
-        _LOG_D("#%d. MaxSumMains. ActiveEVSE=%i, MinCurrent=%iA, Isum=%.1fA, MaxSumMains=%iA.\n", __LINE__, ActiveEVSE, MinCurrent,  (float)Isum/10, MaxSumMains);
+        _LOG_D("#%d MaxSumMains. ActiveEVSE=%i, MinCurrent=%iA, Isum=%.1fA, MaxSumMains=%iA.\n", __LINE__, ActiveEVSE, MinCurrent,  (float)Isum/10, MaxSumMains);
         return 0;                                                           // Not enough current available!, return with error
     }
 
@@ -1040,7 +1070,9 @@ char IsCurrentAvailable(void) {
 // mod =1 we have a new EVSE requesting to start charging.
 // only runs on the Master or when loadbalancing Disabled
 void CalcBalancedCurrent(char mod) {
-    int Average, MaxBalanced, Idifference, Baseload_EV;
+    int Average, MaxBalanced;
+    int Idifference = 0;   // FIXME: too generic name; This is the headroom of mains current per phase between actual and max allowed [dA]
+    int Baseload_EV;
     int ActiveEVSE = 0;
     int IsumImport = 0; // rob040 fix uninitialized variable warning 20240805
     int ActiveMax = 0, TotalCurrent = 0, Baseload;
@@ -1130,11 +1162,13 @@ void CalcBalancedCurrent(char mod) {
         uint8_t Temp_Phases;
         Temp_Phases = (Nr_Of_Phases_Charging ? Nr_Of_Phases_Charging : 3);      // in case nr of phases not detected, assume 3
         _LOG_D("State %d Mode %d starting %d phases charging %d phases\n", State, Mode, Nr_Of_Phases_Charging, Temp_Phases);
-        if ((LoadBl == 0 && EVMeter.Type) || LoadBl == 1)                       // Conditions in which MaxCircuit has to be considered;
+        if ((LoadBl == 0 && EVMeter.Type) || LoadBl == 1) {                     // Conditions in which MaxCircuit has to be considered;
                                                                                 // mode = Smart/Solar so don't test for that
             Idifference = min((MaxMains * 10) - MainsMeter.Imeasured, (MaxCircuit * 10) - EVMeter.Imeasured);
-        else
+        }
+        else {
             Idifference = (MaxMains * 10) - MainsMeter.Imeasured;
+        }
         if (MaxSumMains && Idifference > ((MaxSumMains * 10) - Isum)/Temp_Phases) {
             Idifference = ((MaxSumMains * 10) - Isum)/Temp_Phases;
             LimitedByMaxSumMains = true;
@@ -1161,7 +1195,7 @@ void CalcBalancedCurrent(char mod) {
         {
             IsumImport = Isum - (10 * ImportCurrent);                           // Allow Import of power from the grid when solar charging
             // when there is NO charging, do not change the setpoint (IsetBalanced)
-            if (State != STATE_C && Idifference > 0) {                                              // so we had some room for power as far as MaxCircuit and MaxMains are concerned
+            if (State == STATE_C && Idifference > 0) {                          // so we had some room for power as far as MaxCircuit and MaxMains are concerned
                 if (phasesLastUpdateFlag) {                                     // only increase or decrease current if measurements are updated.
                     if (IsumImport < 0) {
                         // negative, we have surplus (solar) power available
@@ -1351,6 +1385,17 @@ void CalcBalancedCurrent(char mod) {
         }
         _LOG_D_NO_FUNC("\n");
     }
+#if CSV_OUT
+{
+    CSVsetState();
+    CSVsetMode();
+    csvout.phases = Nr_Of_Phases_Charging;
+    csvout.Iset = IsetBalanced, csvout.Iheadrm = Idifference, csvout.Import = IsumImport;
+    csvout.CHdly = ChargeDelay, csvout.SolTim = SolarStopTimer;
+    csvout.L1 = MainsMeter.Irms[0], csvout.L2 = MainsMeter.Irms[1], csvout.L3 = MainsMeter.Irms[2], csvout.LA = Isum;
+    csvout.EVM.L1 = EVMeter.Irms[0], csvout.EVM.L2 = EVMeter.Irms[1], csvout.EVM.L3 = EVMeter.Irms[2], csvout.EVM.PA = EVMeter.PowerMeasured;
+}
+#endif
 } //CalcBalancedCurrent
 
 /**
@@ -1954,6 +1999,17 @@ void printStatus(void)
 {
     _LOG_I ("STATE: %s Error: %u StartCurrent: -%i ChargeDelay: %u SolarStopTimer: %u NoCurrent: %u Imeasured: %.1f A IsetBalanced: %.1f A, MainsMeter.Timeout=%u, EVMeter.Timeout=%u.\n", getStateName(State), ErrorFlags, StartCurrent, ChargeDelay, SolarStopTimer,  NoCurrent, (float)MainsMeter.Imeasured/10, (float)IsetBalanced/10, MainsMeter.Timeout, EVMeter.Timeout);
     _LOG_I("L1: %.1f A L2: %.1f A L3: %.1f A Isum: %.1f A\n", (float)MainsMeter.Irms[0]/10, (float)MainsMeter.Irms[1]/10, (float)MainsMeter.Irms[2]/10, (float)Isum/10);
+#if CSV_OUT
+    {
+        static char once;
+        if (once != csvout.state) {
+            //once = true;
+            once = csvout.state;
+            _LOG_A("%s", csvhdr);
+        }
+        _LOG_A(CSVFMT, CSVARGS);
+    }
+#endif
 }
 
 // Recompute State of Charge, in case we have a known initial state of charge
@@ -4393,7 +4449,7 @@ static void fn_mqtt(struct mg_connection *c, int ev, void *ev_data) {
     } else if (ev == MG_EV_CONNECT) {
         // If target URL is SSL/TLS, command client connection to use TLS
         if (mg_url_is_ssl(s_mqtt_url)) {
-            struct mg_tls_opts opts = {.ca = empty, .cert = empty, .key = empty, .name = mg_url_host(s_mqtt_url)};
+            struct mg_tls_opts opts = {.ca = empty, .cert = empty, .key = empty, .name = mg_url_host(s_mqtt_url), .skip_verification = 0};
             //struct mg_tls_opts opts = {.ca = empty};
             mg_tls_init(c, &opts);
         }
@@ -4447,7 +4503,7 @@ static void timer_fn(void *arg) {
 // fn_data is NULL for plain HTTP, and non-NULL for HTTPS
 static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
   if (ev == MG_EV_ACCEPT && c->fn_data != NULL) {
-    struct mg_tls_opts opts = { .ca = empty, .cert = mg_unpacked("/data/cert.pem"), .key = mg_unpacked("/data/key.pem"), .name = empty};
+    struct mg_tls_opts opts = { .ca = empty, .cert = mg_unpacked("/data/cert.pem"), .key = mg_unpacked("/data/key.pem"), .name = empty, .skip_verification = 0};
     mg_tls_init(c, &opts);
   } else if (ev == MG_EV_CLOSE) {
     if (c == HttpListener80) {
