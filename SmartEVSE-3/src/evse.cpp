@@ -153,7 +153,7 @@ uint16_t maxTemp = MAX_TEMPERATURE;
 Meter MainsMeter(MAINS_METER, MAINS_METER_ADDRESS, COMM_TIMEOUT);
 Meter EVMeter(EV_METER, EV_METER_ADDRESS, COMM_EVTIMEOUT);
 uint8_t Nr_Of_Phases_Charging = 0;                                          // 0 = Undetected, 1,2,3 = nr of phases that was detected at the start of this charging session [rob] requires EV meter! only valid in SOLAR mode
-Single_Phase_t Switching_To_Single_Phase = FALSE;                           // switching phases only used in SOLAR mode with Contactor C2 = AUTO
+Switch_Phase_t Switching_Phases_C2 = NO_SWITCH;                             // switching phases only used in SOLAR mode with Contactor C2 = AUTO
 
 uint8_t State = STATE_A;
 uint8_t ErrorFlags = NO_ERROR;
@@ -295,9 +295,9 @@ typedef struct s_csvout {
     int16_t Iset, Import, Iheadrm;
     int16_t CHdly,SolTim;
 } t_csvout;
-const char csvhdr[] = {"CSV: St, Md, ph, L1, L2, L3, LA, EVl1, EVl2, EVl3, EVPa, Iset, Import, Iheadrm, CHdly, SolTim\n"};
-#define CSVFMT  "CSV: %c, %i, %i, %i, %i, %i, %i,   %i, %i, %i, %i,    %i, %i, %i,   %i, %i\n"
-#define CSVARGS csvout.state, csvout.mode, csvout.phases, csvout.L1, csvout.L2, csvout.L3, csvout.LA, csvout.EVM.L1, csvout.EVM.L2, csvout.EVM.L3, csvout.EVM.PA, csvout.Iset, csvout.Import, csvout.Iheadrm, csvout.CHdly, csvout.SolTim
+const char csvhdr[] = {"CSV: TIME, St, Md, ph, L1, L2, L3, LA, EVl1, EVl2, EVl3, EVPa, Iset, Import, Iheadrm, CHdly, SolTim\n"};
+#define CSVFMT  "CSV: %02d:%02d:%02d,%c, %i, %i, %i, %i, %i, %i,   %i, %i, %i, %i,    %i, %i, %i,   %i, %i\n"
+#define CSVARGS timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec, csvout.state, csvout.mode, csvout.phases, csvout.L1, csvout.L2, csvout.L3, csvout.LA, csvout.EVM.L1, csvout.EVM.L2, csvout.EVM.L3, csvout.EVM.PA, csvout.Iset, csvout.Import, csvout.Iheadrm, csvout.CHdly, csvout.SolTim
 t_csvout csvout;
 #define CSVsetState() {csvout.state='A'+State;}
 #define CSVsetMode() {csvout.mode=Mode;}
@@ -854,23 +854,23 @@ void setState(uint8_t NewState) {
         case STATE_C:                                                           // State C2
             ActivationMode = 255;                                               // Disable ActivationMode
 
-            if (Switching_To_Single_Phase == GOING_TO_SWITCH) {
+            if (Switching_Phases_C2 == GOING_TO_SWITCH_1F) {
                     CONTACTOR2_OFF;
                     SolarStopTimer = 0;
                     MaxSumMainsTimer = 0;
                     Nr_Of_Phases_Charging = 1;                                  // switch to 1F
-                    Switching_To_Single_Phase = AFTER_SWITCH;                   // we finished the switching process,
+                    Switching_Phases_C2 = AFTER_SWITCH;                         // we finished the switching process,
                                                                                 // BUT we don't know which is the single phase
             }
-            if (Switching_To_Single_Phase == GOING_TO_SWITCH_3F) {
+            if (Switching_Phases_C2 == GOING_TO_SWITCH_3F) {
                     SolarStopTimer = 0;
                     MaxSumMainsTimer = 0;
                     Nr_Of_Phases_Charging = 3;                                  // switch to 3F
-                    Switching_To_Single_Phase = AFTER_SWITCH;                   // we finished the switching process,
+                    Switching_Phases_C2 = AFTER_SWITCH;                         // we finished the switching process,
             }
 
             CONTACTOR1_ON;
-            if (!Force_Single_Phase_Charging()/* && Switching_To_Single_Phase != AFTER_SWITCH*/) {                               // in AUTO mode we start with 3phases
+            if (!Force_Single_Phase_Charging()) {                               // in AUTO mode we start with 3phases
                 CONTACTOR2_ON;                                                  // Contactor2 ON
             }
             LCDTimer = 0;
@@ -1161,16 +1161,16 @@ void CalcBalancedCurrent(char mod) {
             // Mains isn't loaded, so the Isum must be negative for solar charging
             // determine if enough current is available for 3-phase or 1-phase charging
             // TODO: deal with strong fluctuations in startup
-            if (-Isum >= (30*MinCurrent+30+60)) { // 30x for 3-phase and 0.1A resolution; +30 to have 3x1.0A room for regulation
-                Switching_To_Single_Phase = GOING_TO_SWITCH_3F;
+            if (-Isum >= (30*MinCurrent+30)) { // 30x for 3-phase and 0.1A resolution; +30 to have 3x1.0A room for regulation
+                Switching_Phases_C2 = GOING_TO_SWITCH_3F;
                 Nr_Of_Phases_Charging = 3;
                 _LOG_D("Solar starting in 3-phase mode\n");
-            } else if (-Isum >= (10*MinCurrent+10)) {
-                Switching_To_Single_Phase = GOING_TO_SWITCH;
+            } else if (-Isum >= (10*MinCurrent+2)) {
+                Switching_Phases_C2 = GOING_TO_SWITCH_1F;
                 Nr_Of_Phases_Charging = 1;
                 _LOG_D("Solar starting in 1-phase mode\n");
             } else {
-                Switching_To_Single_Phase = FALSE;
+                Switching_Phases_C2 = NO_SWITCH;
                 // Not enough current;
                 // TODO: we should return to STATE_A
             }
@@ -1291,7 +1291,7 @@ void CalcBalancedCurrent(char mod) {
                         // near end of solar stop timer, instruct to go to 1F charging
                         if (SolarStopTimer <= 2) {
                             _LOG_A("Switching to single phase.\n");
-                            Switching_To_Single_Phase = GOING_TO_SWITCH;
+                            Switching_Phases_C2 = GOING_TO_SWITCH_1F;
                             setState(STATE_C1);               // tell EV to stop charging
                             SolarStopTimer = 0;
                         }
@@ -1328,13 +1328,13 @@ void CalcBalancedCurrent(char mod) {
                     // It also needs to sustain that minimal room for 60 seconds before it may switch to 3F
                     int spareCurrent = (3*(MinCurrent+1)-MaxCurrent);  // constant, gap between 1F range and 3F range
                     if (spareCurrent < 0) spareCurrent = 3;  // const, when 1F range overlaps 3F range
-                    if (-Isum > (10*spareCurrent)) { // note that Isum is surplus current is negative
+                    if (-Isum > (10*spareCurrent)) { // note that Isum is surplus current, which is negative
                         // start solar stop timer
                         if (SolarStopTimer == 0) SolarStopTimer = 63;
                         // near end of solar stop timer, instruct to go to 3F charging
                         if (SolarStopTimer <= 3) {
                             _LOG_A("Switching to three phase.\n");
-                            Switching_To_Single_Phase = GOING_TO_SWITCH;
+                            Switching_Phases_C2 = GOING_TO_SWITCH_3F;
                             setState(STATE_C1);               // tell EV to stop charging
                             SolarStopTimer = 0;
                         }

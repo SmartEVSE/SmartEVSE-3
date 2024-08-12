@@ -809,12 +809,12 @@ void GLCD(void) {
         } else if (State == STATE_MODEM_REQUEST || State == STATE_MODEM_WAIT || State == STATE_MODEM_DONE) {                                          // Modem states
             GLCD_print_buf2(5, (const char *) "MODEM");
         } else if (State != STATE_C) {
-                switch (Switching_To_Single_Phase) {
-                    case FALSE:
+                switch (Switching_Phases_C2) {
+                    case NO_SWITCH:
                         sprintf(Str, "READY %u", ChargeDelay);
                         if (!ChargeDelay) Str[5] = '\0';
                         break;
-                    case GOING_TO_SWITCH:
+                    case GOING_TO_SWITCH_1F:
                         sprintf(Str, "3F -> 1F %u", ChargeDelay);
                         if (!ChargeDelay) Str[8] = '\0';
                         break;
