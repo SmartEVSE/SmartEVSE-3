@@ -594,6 +594,7 @@ extern struct DelayedTimeStruct DelayedStartTime;
 
 void read_settings();
 void write_settings(void);
+void setSolarStopTimer(uint16_t Timer);
 void setState(uint8_t NewState);
 void setAccess(bool Access);
 void SetCPDuty(uint32_t DutyCycle);

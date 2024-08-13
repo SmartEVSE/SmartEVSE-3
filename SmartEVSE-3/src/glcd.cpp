@@ -1207,7 +1207,7 @@ void GLCDMenu(uint8_t Buttons) {
                 ErrorFlags = NO_ERROR;                                          // Clear All Errors when exiting the Main Menu
                 TestState = 0;                                                  // Clear TestState
                 ChargeDelay = 0;                                                // Clear ChargeDelay
-                SolarStopTimer = 0;                                             // Disable Solar Timer
+                setSolarStopTimer(0);                                           // Disable Solar Timer
                 GLCD();
                 write_settings();                                               // Write to eeprom
                 ButtonRelease = 2;                                              // Skip updating of the LCD 

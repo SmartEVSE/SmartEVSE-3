@@ -686,7 +686,7 @@ void setMode(uint8_t NewMode) {
 
     if (NewMode == MODE_SMART) {
         ErrorFlags &= ~(NO_SUN | LESS_6A);                                      // Clear All errors
-        SolarStopTimer = 0;                                                     // Also make sure the SolarTimer is disabled.
+        setSolarStopTimer(0);                                                   // Also make sure the SolarTimer is disabled.
         MaxSumMainsTimer = 0;
     }
     ChargeDelay = 0;                                                            // Clear any Chargedelay
@@ -811,7 +811,7 @@ void setState(uint8_t NewState) {
 
             if (Switching_To_Single_Phase == GOING_TO_SWITCH) {
                     CONTACTOR2_OFF;
-                    SolarStopTimer = 0; //TODO still needed? now we switched contactor2 off, review if we need to stop solar charging
+                    setSolarStopTimer(0); //TODO still needed? now we switched contactor2 off, review if we need to stop solar charging
                     MaxSumMainsTimer = 0;
                     //Nr_Of_Phases_Charging = 1; this will be detected automatically
                     Switching_To_Single_Phase = AFTER_SWITCH;                   // we finished the switching process,
@@ -1202,11 +1202,11 @@ void CalcBalancedCurrent(char mod) {
                         Switching_To_Single_Phase = GOING_TO_SWITCH;
                     }
                     else {
-                        if (SolarStopTimer == 0) SolarStopTimer = StopTime * 60; // Convert minutes into seconds
+                        if (SolarStopTimer == 0) setSolarStopTimer(StopTime * 60); // Convert minutes into seconds
                     }
                 } else {
                     _LOG_D("Checkpoint a: Resetting SolarStopTimer, IsetBalanced=%.1fA, ActiveEVSE=%i.\n", (float)IsetBalanced/10, ActiveEVSE);
-                    SolarStopTimer = 0;
+                    setSolarStopTimer(0);
                 }
             }
 
@@ -1237,7 +1237,7 @@ void CalcBalancedCurrent(char mod) {
             // ############### no shortage of power  #################
 
             _LOG_D("Checkpoint b: Resetting SolarStopTimer, MaxSumMainsTimer, IsetBalanced=%.1fA, ActiveEVSE=%i.\n", (float)IsetBalanced/10, ActiveEVSE);
-            SolarStopTimer = 0;
+            setSolarStopTimer(0);
             MaxSumMainsTimer = 0;
             NoCurrent = 0;
         }
@@ -1299,7 +1299,7 @@ void CalcBalancedCurrent(char mod) {
 
     if (!saveActiveEVSE) { // no ActiveEVSEs so reset all timers
         _LOG_D("Checkpoint c: Resetting SolarStopTimer, MaxSumMainsTimer, IsetBalanced=%.1fA, saveActiveEVSE=%i.\n", (float)IsetBalanced/10, saveActiveEVSE);
-        SolarStopTimer = 0;
+        setSolarStopTimer(0);
         MaxSumMainsTimer = 0;
         NoCurrent = 0;
     }
@@ -2094,7 +2094,7 @@ void CheckSwitch(void)
                             }
                             ErrorFlags &= ~(NO_SUN | LESS_6A);                   // Clear All errors
                             ChargeDelay = 0;                                // Clear any Chargedelay
-                            SolarStopTimer = 0;                             // Also make sure the SolarTimer is disabled.
+                            setSolarStopTimer(0);                           // Also make sure the SolarTimer is disabled.
                             MaxSumMainsTimer = 0;
                             LCDTimer = 0;
                         }
@@ -3071,6 +3071,22 @@ void mqttPublishData() {
 }
 #endif
 
+
+/**
+ * Set the solar stop timer
+ *
+ * @param unsigned int Timer (seconds)
+ */
+void setSolarStopTimer(uint16_t Timer) {
+    if (SolarStopTimer == Timer)
+        return;                                                             // prevent unnecessary publishing of SolarStopTimer
+    SolarStopTimer = Timer;
+#if MQTT
+    MQTTclient.publish(MQTTprefix + "/SolarStopTimer", SolarStopTimer, false, 0);
+#endif
+}
+
+
 // task 1000msTimer
 void Timer1S(void * parameter) {
 
@@ -3192,18 +3208,18 @@ void Timer1S(void * parameter) {
 
         if (SolarStopTimer) {
             SolarStopTimer--;
+#if MQTT
+            MQTTclient.publish(MQTTprefix + "/SolarStopTimer", SolarStopTimer, false, 0);
+#endif
             if (SolarStopTimer == 0) {
                 if (State == STATE_C) setState(STATE_C1);                   // tell EV to stop charging
                 ErrorFlags |= NO_SUN;                                       // Set error: NO_SUN
             }
         }
-#if MQTT
-        MQTTclient.publish(MQTTprefix + "/SolarStopTimer", SolarStopTimer, false, 0);
-#endif
+
         // When Smart or Solar Charging, once MaxSumMains is exceeded, a timer is started
         // Charging is stopped when the timer reaches the time set in 'MaxSumMainsTime' (in minutes)
         // Except when MaxSumMainsTime =0, then charging will continue.
-
         if (MaxSumMainsTimer) {
             MaxSumMainsTimer--;                                             // Decrease MaxSumMains counter every second.
             if (MaxSumMainsTimer == 0) {
