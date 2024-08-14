@@ -122,7 +122,11 @@ WIFI          Enable wifi connection to your LAN
               and configure your Wifi password
               v.3.6.4 and newer: On your smartphone:
               -connect your smartphone to the wifi network you want your SmartEVSE connected to
-              -download and run the ESPTouch app from your appstore (both Android and Apple),
+              -download and run the ESPTouch app from your favourite appstore:
+                Android: https://play.google.com/store/apps/details?id=com.fyent.esptouch.android&hl=en_US:
+                        (please ignore the strange Author name)
+                Apple:   https://apps.apple.com/us/app/espressif-esptouch/id1071176700
+                Github source: https://github.com/EspressifApp/EsptouchForAndroid
               -choose EspTouch V2,
               -fill in the password of the wifi network,
               -fill in "1" in device count for provisioning,
