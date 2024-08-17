@@ -21,7 +21,9 @@
 ; OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 ; THE SOFTWARE.
 */
-
+#ifdef DBG
+#undef DBG // no DEBUG in modbus for now // FIXME: remove this
+#endif
 #include <Arduino.h>
 #include <stdio.h>
 #include <stdlib.h>

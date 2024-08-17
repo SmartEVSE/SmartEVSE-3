@@ -481,8 +481,12 @@ void GLCD(void) {
                 GLCD_print_buf2(0, (const char *) "CAN'T READ");
                 GLCD_print_buf2(2, (const char *) "EV METER");
             } else {
-                GLCD_print_buf2(0, (const char *) "ERROR NO");
-                GLCD_print_buf2(2, (const char *) "SERIAL COM");
+                //ErrorFlags & CT_NOCOMM == mainsMeter timeout
+                // a mainsMeter timeout is not "SERIAL COMM"
+                //GLCD_print_buf2(0, (const char *) "ERROR NO");
+                //GLCD_print_buf2(2, (const char *) "SERIAL COM");
+                GLCD_print_buf2(0, (const char *) "ERR MAINS");
+                GLCD_print_buf2(2, (const char *) "METER DATA");
             }
             GLCD_print_buf2(4, (const char *) "CHECK CFG");
             GLCD_print_buf2(6, (const char *) "OR WIRING");
@@ -805,14 +809,18 @@ void GLCD(void) {
         } else if (State == STATE_MODEM_REQUEST || State == STATE_MODEM_WAIT || State == STATE_MODEM_DONE) {                                          // Modem states
             GLCD_print_buf2(5, (const char *) "MODEM");
         } else if (State != STATE_C) {
-                switch (Switching_To_Single_Phase) {
-                    case FALSE:
+                switch (Switching_Phases_C2) {
+                    case NO_SWITCH:
                         sprintf(Str, "READY %u", ChargeDelay);
                         if (!ChargeDelay) Str[5] = '\0';
                         break;
-                    case GOING_TO_SWITCH:
+                    case GOING_TO_SWITCH_1F:
                         sprintf(Str, "3F -> 1F %u", ChargeDelay);
-                        if (!ChargeDelay) Str[7] = '\0';
+                        if (!ChargeDelay) Str[8] = '\0';
+                        break;
+                    case GOING_TO_SWITCH_3F:
+                        sprintf(Str, "1F -> 3F %u", ChargeDelay);
+                        if (!ChargeDelay) Str[8] = '\0';
                         break;
                     case AFTER_SWITCH:                                          // never getting here, just preventing compiler warning
                         break;
@@ -1069,9 +1077,11 @@ uint8_t getMenuItems (void) {
     MenuItems[m++] = MENU_RCMON;                                                // Residual Current Monitor on RCM (0:Disable / 1:Enable)
     MenuItems[m++] = MENU_RFIDREADER;                                           // RFID Reader connected to SW (0:Disable / 1:Enable / 2:Learn / 3:Delete / 4:Delate All)
     MenuItems[m++] = MENU_WIFI;                                                 // Wifi Disabled / Enabled / Portal
+    #if AUTOUPDATE
     if (getItemValue(MENU_WIFI)  == 1) {                                        // only show AutoUpdate menu if Wifi enabled
         MenuItems[m++] = MENU_AUTOUPDATE;                                       // Firmware automatic update Disabled / Enabled
     }
+    #endif
     MenuItems[m++] = MENU_MAX_TEMP;
     if (MainsMeter.Type && LoadBl < 2) {
         MenuItems[m++] = MENU_SUMMAINS;

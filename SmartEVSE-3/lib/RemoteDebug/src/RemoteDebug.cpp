@@ -1194,6 +1194,7 @@ size_t RemoteDebug::write(uint8_t character) {
 		if (noPrint == false) {
 
 #ifdef COLOR_NEW_SYSTEM
+			if (_showColors)
 			_bufferPrint.concat(COLOR_RESET);
 #endif
 			// Send to telnet or websocket (buffered)
@@ -1302,6 +1303,11 @@ void RemoteDebug::showHelp() {
 	help.concat("\r\n");
 	help.concat("* Host name: ");
 	help.concat(_hostName);
+	#ifdef VERSION
+	help.concat(" ");
+	help.concat(VERSION);
+	help.concat("\r\n* Host");
+	#endif
 	help.concat(" IP:");
 	help.concat(WiFi.localIP().toString());
 	help.concat(" Mac address:");

@@ -74,9 +74,9 @@
 #endif
 
 #ifndef VERSION
-//please note that this version will only be displayed with the correct time/date if the program is recompiled
-//so the webserver will show correct version if evse.cpp is recompiled
-//the lcd display will show correct version if glcd.cpp is recompiled
+// Please note that this version will only be displayed with the build time/date if the program is recompiled.
+// So the webserver will show this version if evse.cpp is recompiled.
+// The lcd display will show this version if glcd.cpp is recompiled.
 #define VERSION (__TIME__ " @" __DATE__)
 #endif
 
@@ -97,20 +97,20 @@
 #endif
 
 #if DBG == 1
-#define _LOG_A(fmt, ...) if (Debug.isActive(Debug.ANY))                Debug.printf("(%s)(C%d) " fmt, __func__, xPortGetCoreID(), ##__VA_ARGS__) //Always = Errors!!!
-#define _LOG_P(fmt, ...) if (Debug.isActive(Debug.PROFILER))   Debug.printf("(%s)(C%d) " fmt, __func__, xPortGetCoreID(), ##__VA_ARGS__)
-#define _LOG_V(fmt, ...) if (Debug.isActive(Debug.VERBOSE))    Debug.printf("(%s)(C%d) " fmt, __func__, xPortGetCoreID(), ##__VA_ARGS__)         //Verbose
-#define _LOG_D(fmt, ...) if (Debug.isActive(Debug.DEBUG))              Debug.printf("(%s)(C%d) " fmt, __func__, xPortGetCoreID(), ##__VA_ARGS__) //Debug
-#define _LOG_I(fmt, ...) if (Debug.isActive(Debug.INFO))               Debug.printf("(%s)(C%d) " fmt, __func__, xPortGetCoreID(), ##__VA_ARGS__) //Info
-#define _LOG_W(fmt, ...) if (Debug.isActive(Debug.WARNING))    Debug.printf("(%s)(C%d) " fmt, __func__, xPortGetCoreID(), ##__VA_ARGS__)         //Warning
-#define _LOG_E(fmt, ...) if (Debug.isActive(Debug.ERROR))              Debug.printf("(%s)(C%d) " fmt, __func__, xPortGetCoreID(), ##__VA_ARGS__) //Error not used!
-#define _LOG_A_NO_FUNC(fmt, ...) if (Debug.isActive(Debug.ANY))                Debug.printf(fmt, ##__VA_ARGS__)
-#define _LOG_P_NO_FUNC(fmt, ...) if (Debug.isActive(Debug.PROFILER))   Debug.printf(fmt, ##__VA_ARGS__)
-#define _LOG_V_NO_FUNC(fmt, ...) if (Debug.isActive(Debug.VERBOSE))    Debug.printf(fmt, ##__VA_ARGS__)
-#define _LOG_D_NO_FUNC(fmt, ...) if (Debug.isActive(Debug.DEBUG))              Debug.printf(fmt, ##__VA_ARGS__)
-#define _LOG_I_NO_FUNC(fmt, ...) if (Debug.isActive(Debug.INFO))               Debug.printf(fmt, ##__VA_ARGS__)
-#define _LOG_W_NO_FUNC(fmt, ...) if (Debug.isActive(Debug.WARNING))    Debug.printf(fmt, ##__VA_ARGS__)
-#define _LOG_E_NO_FUNC(fmt, ...) if (Debug.isActive(Debug.ERROR))              Debug.printf(fmt, ##__VA_ARGS__)
+#define _LOG_A(fmt, ...) {if (Debug.isActive(Debug.ANY))        { Debug.printf("(%s)(C%d) " fmt, __func__, xPortGetCoreID(), ##__VA_ARGS__);}} // Always = Errors!!!
+#define _LOG_P(fmt, ...) {if (Debug.isActive(Debug.PROFILER))   { Debug.printf("(%s)(C%d) " fmt, __func__, xPortGetCoreID(), ##__VA_ARGS__);}} // Profiler
+#define _LOG_V(fmt, ...) {if (Debug.isActive(Debug.VERBOSE))    { Debug.printf("(%s)(C%d) " fmt, __func__, xPortGetCoreID(), ##__VA_ARGS__);}} // Verbose
+#define _LOG_D(fmt, ...) {if (Debug.isActive(Debug.DEBUG))      { Debug.printf("(%s)(C%d) " fmt, __func__, xPortGetCoreID(), ##__VA_ARGS__);}} // Debug
+#define _LOG_I(fmt, ...) {if (Debug.isActive(Debug.INFO))       { Debug.printf("(%s)(C%d) " fmt, __func__, xPortGetCoreID(), ##__VA_ARGS__);}} // Info
+#define _LOG_W(fmt, ...) {if (Debug.isActive(Debug.WARNING))    { Debug.printf("(%s)(C%d) " fmt, __func__, xPortGetCoreID(), ##__VA_ARGS__);}} // Warning
+#define _LOG_E(fmt, ...) {if (Debug.isActive(Debug.ERROR))      { Debug.printf("(%s)(C%d) " fmt, __func__, xPortGetCoreID(), ##__VA_ARGS__);}} // Error not used!
+#define _LOG_A_NO_FUNC(fmt, ...) {if (Debug.isActive(Debug.ANY))        { Debug.printf(fmt, ##__VA_ARGS__);}}
+#define _LOG_P_NO_FUNC(fmt, ...) {if (Debug.isActive(Debug.PROFILER))   { Debug.printf(fmt, ##__VA_ARGS__);}}
+#define _LOG_V_NO_FUNC(fmt, ...) {if (Debug.isActive(Debug.VERBOSE))    { Debug.printf(fmt, ##__VA_ARGS__);}}
+#define _LOG_D_NO_FUNC(fmt, ...) {if (Debug.isActive(Debug.DEBUG))      { Debug.printf(fmt, ##__VA_ARGS__);}}
+#define _LOG_I_NO_FUNC(fmt, ...) {if (Debug.isActive(Debug.INFO))       { Debug.printf(fmt, ##__VA_ARGS__);}}
+#define _LOG_W_NO_FUNC(fmt, ...) {if (Debug.isActive(Debug.WARNING))    { Debug.printf(fmt, ##__VA_ARGS__);}}
+#define _LOG_E_NO_FUNC(fmt, ...) {if (Debug.isActive(Debug.ERROR))      { Debug.printf(fmt, ##__VA_ARGS__);}}
 #include "RemoteDebug.h"  //https://github.com/JoaoLopesF/RemoteDebug
 extern RemoteDebug Debug;
 #endif
@@ -130,7 +130,7 @@ extern RemoteDebug Debug;
 #define _LOG_W(fmt, ... ) Serial.printf(EVSE_LOG_FORMAT(W, fmt), ##__VA_ARGS__)
 #define _LOG_W_NO_FUNC( ... ) Serial.printf ( __VA_ARGS__ )
 #else
-#define _LOG_W( ... ) 
+#define _LOG_W( ... )
 #define _LOG_W_NO_FUNC( ... )
 #endif
 #if LOG_LEVEL >= 3  // Info
@@ -144,14 +144,14 @@ extern RemoteDebug Debug;
 #define _LOG_D(fmt, ... ) Serial.printf(EVSE_LOG_FORMAT(D, fmt), ##__VA_ARGS__)
 #define _LOG_D_NO_FUNC( ... ) Serial.printf ( __VA_ARGS__ )
 #else
-#define _LOG_D( ... ) 
+#define _LOG_D( ... )
 #define _LOG_D_NO_FUNC( ... )
 #endif
 #if LOG_LEVEL >= 5  // Verbose
 #define _LOG_V(fmt, ... ) Serial.printf(EVSE_LOG_FORMAT(V, fmt), ##__VA_ARGS__)
 #define _LOG_V_NO_FUNC( ... ) Serial.printf ( __VA_ARGS__ )
 #else
-#define _LOG_V( ... ) 
+#define _LOG_V( ... )
 #define _LOG_V_NO_FUNC( ... )
 #endif
 #endif  // if DBG == 2
@@ -173,7 +173,7 @@ extern RemoteDebug Debug;
 // Pin definitions right side ESP32
 #define PIN_RS485_RX 23
 #define PIN_RS485_DIR 22
-//#define PIN_RXD 
+//#define PIN_RXD
 //#define PIN_TXD
 #define PIN_RS485_TX 21
 #define PIN_CP_OUT 19
@@ -203,7 +203,7 @@ extern RemoteDebug Debug;
 
 #define MAX_MAINS 25                                                            // max Current the Mains connection can supply
 #define MAX_SUMMAINS 0                                                          // only used for capacity rate limiting, max current over the sum of all phases
-#define MAX_SUMMAINSTIME 0
+#define MAX_SUMMAINSTIME 0                                                      // timelimit in minutes for capacity rate limiting
 #define MAX_CURRENT 13                                                          // max charging Current for the EV
 #ifndef MIN_CURRENT
 #define MIN_CURRENT 6                                                           // minimum Current the EV will accept
@@ -315,11 +315,11 @@ extern RemoteDebug Debug;
 #define PILOT_CONNECTED digitalWrite(PIN_CPOFF, LOW);
 #define PILOT_DISCONNECTED digitalWrite(PIN_CPOFF, HIGH);
 
-#define CONTACTOR1_ON _LOG_A("Switching Contactor1 ON.\n"); digitalWrite(PIN_SSR, HIGH);
-#define CONTACTOR1_OFF _LOG_A("Switching Contactor1 OFF.\n"); digitalWrite(PIN_SSR, LOW);
+#define CONTACTOR1_ON {_LOG_A("Switching Contactor1 ON.\n"); digitalWrite(PIN_SSR, HIGH);}
+#define CONTACTOR1_OFF {_LOG_A("Switching Contactor1 OFF.\n"); digitalWrite(PIN_SSR, LOW);}
 
-#define CONTACTOR2_ON _LOG_A("Switching Contactor2 ON.\n"); digitalWrite(PIN_SSR2, HIGH);
-#define CONTACTOR2_OFF _LOG_A("Switching Contactor2 OFF.\n"); digitalWrite(PIN_SSR2, LOW);
+#define CONTACTOR2_ON {_LOG_A("Switching Contactor2 ON.\n"); digitalWrite(PIN_SSR2, HIGH);}
+#define CONTACTOR2_OFF {_LOG_A("Switching Contactor2 OFF.\n"); digitalWrite(PIN_SSR2, LOW);}
 
 #define BACKLIGHT_ON digitalWrite(PIN_LCD_LED, HIGH);
 #define BACKLIGHT_OFF digitalWrite(PIN_LCD_LED, LOW);
@@ -498,9 +498,9 @@ extern uint8_t MenuItems[MENU_EXIT];
 
 enum EnableC2_t { NOT_PRESENT, ALWAYS_OFF, SOLAR_OFF, ALWAYS_ON, AUTO };
 const static char StrEnableC2[][12] = { "Not present", "Always Off", "Solar Off", "Always On", "Auto" };
-enum Single_Phase_t { FALSE, GOING_TO_SWITCH, AFTER_SWITCH };
-extern Single_Phase_t Switching_To_Single_Phase;
-extern uint8_t Nr_Of_Phases_Charging;
+enum Switch_Phase_t { NO_SWITCH, GOING_TO_SWITCH_1F, GOING_TO_SWITCH_3F, AFTER_SWITCH };
+extern Switch_Phase_t Switching_Phases_C2; // used for 1F->3F AND 3F->1F C2-Auto switching in solar mode
+extern uint8_t Nr_Of_Phases_Charging; // only valid in solar mode; otherwise assume 3F
 
 const struct {
     char LCD[10];
