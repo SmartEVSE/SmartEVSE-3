@@ -2589,6 +2589,7 @@ uint8_t PollEVNode = NR_EVSES, updated = 0;
                                 requestPowerMeasurement(Node[PollEVNode].EVMeter, Node[PollEVNode].EVAddress,EMConfig[Node[PollEVNode].EVMeter].PRegister);
                                 break;
                         }
+                        break;
                     }
                     ModbusRequest++;
                     // fall through

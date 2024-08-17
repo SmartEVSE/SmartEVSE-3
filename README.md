@@ -37,25 +37,14 @@ Communication between the SmartEVSE(s) / Sensorbox or kWh meters is done over RS
 
 # Connecting the SmartESVE to WiFi
 
-In order to connect the SmartEVSE to your local WiFi network, a temporarily hotspot is created by the SmartESVE to which you can connect using a phone/tablet.
-Here you can then scan for your local WiFi, and enter your Wifi network password. Then the SmartEVSE will use this information to connect to your local Wifi network.
-
-The steps to connect the SmartEVSE to Wifi are as follows:
-- in the SmartEVSE menu, go to the option WIFI, then select SetupWiFi.
-- after 10 seconds, a hotspot/access point SmartESVE-xxxx is started. (xxxx is the serial nr of your SmartEVSE)
-- Using a phone or tablet, connect to this access point.
-- You will be asked to enter a password. This password is visible on the top right corner of the SmartEVSE's display. (PW:xxxxxxxx)
-- Once connected you will be able to select your local WiFi network, and enter the password for this network.
-- click SAVE, the SmartEVSE will try to connect to your local WiFi network.
-- Enter the menu of your SmartEVSE again. The SmartEVSE should now display the IP address on the top row of the display.
-- use this IP address in a webbrowser to connect to the webserver of the controller. You can also use http://smartevse-xxxx.local  (replace xxxx with the serial nr of your controller)
+For connecting your device to your WiFi, follow the detailed instructions
+on the [Configuration page](docs/configuration.md#all-menu-options-on-the-lcd-screen) page, WIFI section.
 
 # Updating Firmware
 
 Connect the SmartEVSE controller to your WiFi network (using the menu of the SmartEVSE), and then browse to http://IPaddress/update where IPaddress is the IP which is shown on the display.
 You can also use http://smartevse-xxxx.local/update where xxxx is the serial nr of your controller.<br>
 Here you can select the firmware.bin and press update to update the firmware.<br>
-It's also possible to update the spiffs partition from this page. (for v3.0.1 this is not needed)<br>
 After updating the firmware, you can access the status page again using the normal url: http://smartevse-xxxx.local  (replace xxxx with the serial nr of your controller)<br>
 
 # Documentation
