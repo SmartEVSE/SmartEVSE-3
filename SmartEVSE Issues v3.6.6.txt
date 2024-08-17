@@ -31,4 +31,4 @@ src/evse.cpp:1219:44: warning: 'IsumImport' may be used uninitialized in this fu
 + Uninitialized var in CalcBalancedCurrent();
   change 	signed int IsumImport;
   to    	int IsumImport = 0;
-+ Contactor 2 (with its mode = Auto) when switched off in solar charge mode is never switched on, though SW thinks it is. Also other charge modes (with 3-phase charging) leave contactor 2 off, resulting effectively in 1F charge, while SW thinks it is doing 3F charge. Only a power-cycle fixes this!
++ Contactor 2 (with its mode = Auto) when switched off in solar charge mode is never switched on, though SW thinks it is. Also other charge modes (with 3-phase charging) leave contactor 2 off, resulting effectively in 1F charge, while SW thinks it is doing 3F charge. Changing to different charge mode (Normal or Smart) keeps charging at 1F. Only a power-cycle fixes this!
