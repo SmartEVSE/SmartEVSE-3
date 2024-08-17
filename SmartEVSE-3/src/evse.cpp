@@ -3827,7 +3827,7 @@ CV4Ks2dH/hzg1cEo70qLRDEmBDeNiXQ2Lu+lIg+DdEmSx/cQwgwp+7e9un/jX9Wf
 // downloadUrl -- global pointer to null terminated string with the url where this version can be downloaded
 bool getLatestVersion(String owner_repo, String asset_name, char *version) {
     HTTPClient httpClient;
-    String useURL = "https://api.github.com/repos/" + owner_repo + "/releases/latest";
+    String useURL = String("https://api.github.com/repos/") + owner_repo + "/releases/latest";
     httpClient.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
 
     const char* url = useURL.c_str();
@@ -4603,7 +4603,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         int errorId = getErrorId(ErrorFlags);
 
         if (ErrorFlags & NO_SUN) {
-            evstate += " - " + error;
+            evstate += String(" - ") + error;
             error = "None";
             errorId = 0;
         }
@@ -5096,9 +5096,11 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
                     MainsMeter.Irms[2] = request->getParam("L3")->value().toInt();
 
                     CalcIsum();
+                    char ln[4] = "L0";
                     for (int x = 0; x < 3; x++) {
-                        doc["original"]["L" + x] = IrmsOriginal[x];
-                        doc["L" + x] = MainsMeter.Irms[x];
+                        ln[1] = '0' + x;
+                        doc["original"][ln] = IrmsOriginal[x];
+                        doc[ln] = MainsMeter.Irms[x];
                     }
                     doc["TOTAL"] = Isum;
 
@@ -5124,8 +5126,11 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
                 EVMeter.Irms[2] = request->getParam("L3")->value().toInt();
                 EVMeter.CalcImeasured();
                 EVMeter.Timeout = COMM_EVTIMEOUT;
-                for (int x = 0; x < 3; x++)
-                    doc["ev_meter"]["currents"]["L" + x] = EVMeter.Irms[x];
+                char ln[4] = "L0";
+                for (int x = 0; x < 3; x++) {
+                    ln[1] = '0' + x;
+                    doc["ev_meter"]["currents"][ln] = EVMeter.Irms[x];
+                }
                 doc["ev_meter"]["currents"]["TOTAL"] = EVMeter.Irms[0] + EVMeter.Irms[1] + EVMeter.Irms[2];
             }
 
