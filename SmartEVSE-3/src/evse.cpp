@@ -2065,14 +2065,14 @@ void RecomputeSoC(void) {
             TimeUntilFull = -1;
         } else {
             int EnergyRemaining = -1;
-            int TargetEnergyCapacity = (FullSoC / 100.f) * EnergyCapacity;
+            int TargetEnergyCapacity = (FullSoC * EnergyCapacity + 50) / 100;
 
             if (EnergyRequest > 0) {
                 // Attempt to use EnergyRequest to determine SoC with greater accuracy
                 EnergyRemaining = EVMeter.EnergyCharged > 0 ? (EnergyRequest - EVMeter.EnergyCharged) : EnergyRequest;
             } else {
                 // We use a rough estimation based on FullSoC and EnergyCapacity
-                EnergyRemaining = TargetEnergyCapacity - (EVMeter.EnergyCharged + (InitialSoC / 100.f) * EnergyCapacity);
+                EnergyRemaining = TargetEnergyCapacity - (EVMeter.EnergyCharged + ((InitialSoC * EnergyCapacity + 50) / 100));
             }
 
             RemainingSoC = ((FullSoC * EnergyRemaining) / TargetEnergyCapacity);
@@ -2750,6 +2750,7 @@ uint8_t PollEVNode = NR_EVSES, updated = 0;
                                 requestPowerMeasurement(Node[PollEVNode].EVMeter, Node[PollEVNode].EVAddress,EMConfig[Node[PollEVNode].EVMeter].PRegister);
                                 break;
                         }
+                        break;
                     }
                     ModbusRequest++;
                     // fall through
