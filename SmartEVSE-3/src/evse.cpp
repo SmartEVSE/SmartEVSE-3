@@ -1881,7 +1881,11 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
             WIFImode = val;
             break;
         case MENU_AUTOUPDATE:
+        #if AUTOUPDATE
             AutoUpdate = val;
+        #else
+            AutoUpdate = 0; //[rob040: never autoupdate]
+        #endif
             break;
 
         // Status writeable
@@ -6238,7 +6242,7 @@ void loop() {
                 setAccess(0);                         //switch to OFF
             }
         }
-
+#if AUTOUPDATE
         //_LOG_A("FWU: firmwareUpdateTimer just before decrement=%i.\n", firmwareUpdateTimer);
         if (AutoUpdate && !shouldReboot) {                                      // we don't want to autoupdate if we are on the verge of rebooting
             firmwareUpdateTimer--;
@@ -6267,6 +6271,7 @@ void loop() {
                 }
             }
         } // AutoUpdate
+#endif // AUTOUPDATE
         /////end of non-time critical stuff
     }
 
