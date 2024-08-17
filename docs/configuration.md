@@ -37,6 +37,20 @@ PWR SHARE  ; formerly known as LOADBALANCING.
   <Master>	Set the first SmartEVSE to Master. Make sure there is only one Master.
   <Node1-7>	And the other SmartEVSE's to Node 1-7.
 
+PRIORITY (only appears when PWR SHARE set to <Master>)
+        Determines the priority when multiple EVSEs are asking for power and there is
+        not enough current to provide them all with MinCurrent.
+  <NodeNr>      Priority is given to already charging EV's, with highest priority to Master,
+                then to Node1, then to Node2 etc.
+  <FirstConn>   Priority is given to already charging EV's, with highest priority to the EV
+                that was first connected to its EVSE.
+                The thought is: "First come, first serve"
+  <LastConn>    Priority is given to already charging EV's, with highest priority to the EV
+                that was last connected to its EVSE.
+                The thought is: the EV that is connected the longest, has already the most
+                charge; a charge from 5% -> 15% is more valuable to that EV
+                than a charge from 80% -> 90% .
+
 MAINSMET Set type of MAINS meter (only appears in Smart or Solar mode):
   <Disabled>    No MAINS meter connected; only Normal mode possible
   <Sensorbox>   the Sensorbox will send measurement data to the SmartEVSE
@@ -90,6 +104,8 @@ SWITCH  Set the function of an external switch connected to pin SW
   <Access S>    A toggle switch is used to enable/disable access to the charging station
   <Sma-Sol B>   A momentary push Button is used to switch between Smart and Solar modes
   <Sma-Sol S>   A toggle switch is used to switch between Smart and Solar modes
+  <Grid Relay>  A relay, provided by your energy provider, is connected; when the relay is open, power usage
+                is limited to 4.2kW, as per par 14a of the Energy Industry Act.
 
 RCMON   RCM14-03 Residual Current Monitor is plugged into connector P1
   <Disabled>    The RCD option is not used
@@ -120,7 +136,11 @@ WIFI          Enable wifi connection to your LAN
               and configure your Wifi password
               v.3.6.4 and newer: On your smartphone:
               -connect your smartphone to the wifi network you want your SmartEVSE connected to
-              -download and run the ESPTouch app from your appstore (both Android and Apple),
+              -download and run the ESPTouch app from your favourite appstore
+.              [Android](https://play.google.com/store/apps/details?id=com.fyent.esptouch.android&hl=en_US:)
+.              (please ignore the strange Author name) or
+.              [Apple](https://apps.apple.com/us/app/espressif-esptouch/id1071176700) or
+.              [Github](https://github.com/EspressifApp/EsptouchForAndroid) (for source code).
               -choose EspTouch V2,
               -fill in the password of the wifi network,
               -fill in "1" in device count for provisioning,
@@ -315,4 +335,13 @@ For versions older than v3.6.0:
 * Compile spiffs.bin: platformio run -t buildfs
 
 If you are not using the webserver /update endpoint:
+* Windows users: install USB drivers https://www.silabs.com/de...o-uart-bridge-vcp-drivers
 * Upload via USB configured in platformio.ini: platformio run --target upload
+
+# I think I bricked my SmartEVSE
+Luckily for you, there are no known instances of people who actually bricked their SmartEVSE.
+But if all else fails, connect your SmartEVSE via USB-C to your laptop and follow the instruction https://github.com/dingo35/SmartEVSE-3.5/issues/79
+
+Another tool can be found here: https://github.com/marcelstoer/nodemcu-pyflasher
+
+Remember to flash to both partitions, 0x10000 and 0x1c0000  !!!
