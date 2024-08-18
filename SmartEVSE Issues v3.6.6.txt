@@ -7,9 +7,8 @@
 - org values wrong
 - target values good
 
-- REST API calls return JSON content. This is undocumented in API.
--------------
-code: evse.cpp line 5152
+- REST API calls return JSON content. This is undocumented in API. Thuis has at least the following issue:
+  code: evse.cpp line 5152
 
                     DynamicJsonDocument doc(200);
                     for (int x = 0; x < 3; x++) {
@@ -32,3 +31,10 @@ src/evse.cpp:1219:44: warning: 'IsumImport' may be used uninitialized in this fu
   change 	signed int IsumImport;
   to    	int IsumImport = 0;
 + Contactor 2 (with its mode = Auto) when switched off in solar charge mode is never switched on, though SW thinks it is. Also other charge modes (with 3-phase charging) leave contactor 2 off, resulting effectively in 1F charge, while SW thinks it is doing 3F charge. Only a power-cycle fixes this!
+
++ /status json output shows some floating point numbers in evmeter section with lots of decimals that are intended to be suppressed:
+  "ev_meter":{...,"total_kwh":235.6999969,"charged_kwh":1.600000024,...}
+  The code intends to convert an Wh integer value into a kWh value with one decimal, using "round(float/100)/10". Due to lack in precision, the extra digits are produced.
+  My favourite solution is to get rid of floats, and output the integer values, with W and Wh units, but that would result in backwards compatibility, that could be mitigated by generating different topic names, like change "total_kwh":<float> into "total_wh":<int>
+  The alternative is to use double precision, and use fp constants, as in: "round(double/100.0)/10.0"
+  Issue was already present in v3.5.1, see #71, and possibly others.
