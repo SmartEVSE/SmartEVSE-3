@@ -4578,6 +4578,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
           preferences.end();
         }
         ESP.restart();
+#if AUTOUPDATE //[rob040: don't autoupdate]
     } else if (mg_http_match_uri(hm, "/autoupdate")) {
         char owner[40];
         char buf[8];
@@ -4595,6 +4596,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         String json;
         serializeJson(doc, json);
         mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\n", json.c_str());    // Yes. Respond JSON
+ #endif
     } else if (mg_http_match_uri(hm, "/update")) {
         //modified version of mg_http_upload
         char buf[20] = "0", file[40];
