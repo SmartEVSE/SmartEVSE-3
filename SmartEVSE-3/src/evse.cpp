@@ -1001,7 +1001,7 @@ char IsCurrentAvailable(void) {
     bool must_be_single_phase_charging = (EnableC2 == ALWAYS_OFF || (Mode == MODE_SOLAR && EnableC2 == SOLAR_OFF) ||
             (Mode == MODE_SOLAR && EnableC2 == AUTO && Nr_Of_Phases_Charging == 1));
     int Phases = must_be_single_phase_charging ? 1 : 3;
-    if ((MaxSumMains && Phases * ActiveEVSE * (MinCurrent * 10) + Isum) > (MaxSumMains * 10)) {
+    if ((MaxSumMains != 0) && (((Phases * ActiveEVSE * MinCurrent * 10) + Isum) > (MaxSumMains * 10))) {
         _LOG_D("#%d MaxSumMains. ActiveEVSE=%i, MinCurrent=%iA, Isum=%.1fA, MaxSumMains=%iA.\n", __LINE__, ActiveEVSE, MinCurrent,  (float)Isum/10, MaxSumMains);
         return 0;                                                           // Not enough current available!, return with error
     }
@@ -1088,10 +1088,10 @@ char IsCurrentAvailable(void) {
 // only runs on the Master or when loadbalancing Disabled
 void CalcBalancedCurrent(char mod) {
     int Average, MaxBalanced;
-    int Idifference = 0;   // FIXME: too generic name; This is the headroom of mains current per phase between actual and max allowed [dA]
+    int Iheadroom = 0;   //This is the headroom of mains current per phase, between actual and max allowed [dA] [rob040 20240819] was named Idifference
     int Baseload_EV;
     int ActiveEVSE = 0;
-    int IsumImport = 0; // rob040 fix uninitialized variable warning 20240805
+    int IsumImport = 0; // [rob040 20240805] fix uninitialized variable warning
     int ActiveMax = 0, TotalCurrent = 0, Baseload;
     char CurrentSet[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};
     uint8_t n;
@@ -1190,13 +1190,13 @@ void CalcBalancedCurrent(char mod) {
         _LOG_D("State %d Mode %d starting %d phases charging %d phases\n", State, Mode, Nr_Of_Phases_Charging, Temp_Phases);
         if ((LoadBl == 0 && EVMeter.Type) || LoadBl == 1) {                     // Conditions in which MaxCircuit has to be considered;
                                                                                 // mode = Smart/Solar so don't test for that
-            Idifference = min((MaxMains * 10) - MainsMeter.Imeasured, (MaxCircuit * 10) - EVMeter.Imeasured);
+            Iheadroom = min((MaxMains * 10) - MainsMeter.Imeasured, (MaxCircuit * 10) - EVMeter.Imeasured);
         }
         else {
-            Idifference = (MaxMains * 10) - MainsMeter.Imeasured;
+            Iheadroom = (MaxMains * 10) - MainsMeter.Imeasured;
         }
-        if (MaxSumMains && Idifference > ((MaxSumMains * 10) - Isum)/Temp_Phases) {
-            Idifference = ((MaxSumMains * 10) - Isum)/Temp_Phases;
+        if ((MaxSumMains != 0) && (Iheadroom > (((MaxSumMains * 10) - Isum)/Temp_Phases))) {
+            Iheadroom = ((MaxSumMains * 10) - Isum)/Temp_Phases;
             LimitedByMaxSumMains = true;
             _LOG_V("Current is limited by MaxSumMains: MaxSumMains=%iA, Isum=%.1fA, Temp_Phases=%i.\n", MaxSumMains, (float)Isum/10, Temp_Phases);
         }
@@ -1205,27 +1205,27 @@ void CalcBalancedCurrent(char mod) {
                                                                                 // For Smart mode, no new EVSE asking for current
             if (phasesLastUpdateFlag) {                                         // only increase or decrease current if measurements are updated
                 _LOG_V("phaseLastUpdate=%02u:%02u:%02u, %d s ago\n", (phasesLastUpdate/3600)%24+2, (phasesLastUpdate/60)%60, phasesLastUpdate%60, (int)time(NULL) - phasesLastUpdate );
-                if (Idifference > 0) {
-                    if (Mode == MODE_SMART) IsetBalanced += (Idifference / 4);  // increase with 1/4th of difference (slowly increase current)
+                if (Iheadroom > 0) {
+                    if (Mode == MODE_SMART) IsetBalanced += (Iheadroom / 4);  // increase with 1/4th of difference (slowly increase current)
                 }                                                               // in Solar mode we compute increase of current later on!
                 else
-                    IsetBalanced += Idifference;                                // last PWM setting + difference (immediately decrease current) (Smart and Solar mode)
+                    IsetBalanced += Iheadroom;                                // last PWM setting + difference (immediately decrease current) (Smart and Solar mode)
             }
 
             if (IsetBalanced < 0) IsetBalanced = 0;
             if (IsetBalanced > 800) IsetBalanced = 800;                         // hard limit 80A (added 11-11-2017)
         }
-        _LOG_V("Checkpoint 2 Isetbalanced=%.1f A, Idifference=%.1f, mod=%i.\n", (float)IsetBalanced/10, (float)Idifference/10, mod);
+        _LOG_V("Checkpoint 2 Isetbalanced=%.1f A, Iheadroom=%.1f, mod=%i.\n", (float)IsetBalanced/10, (float)Iheadroom/10, mod);
 
         if (Mode == MODE_SOLAR)                                                 // Solar version
         {
             IsumImport = Isum - (10 * ImportCurrent);                           // Allow Import of power from the grid when solar charging
             // when there is NO charging, do not change the setpoint (IsetBalanced)
-            if (State == STATE_C && Idifference > 0) {                          // so we had some room for power as far as MaxCircuit and MaxMains are concerned
+            if (State == STATE_C && Iheadroom > 0) {                          // so we had some room for power as far as MaxCircuit and MaxMains are concerned
                 if (phasesLastUpdateFlag) {                                     // only increase or decrease current if measurements are updated.
                     if (IsumImport < 0) {
                         // negative, we have surplus (solar) power available
-                        if (IsumImport < -10 && Idifference > 10)
+                        if (IsumImport < -10 && Iheadroom > 10)
                             IsetBalanced = IsetBalanced + 5;                        // more then 1A available, increase Balanced charge current with 0.5A
                         else
                             IsetBalanced = IsetBalanced + 1;                        // less then 1A available, increase with 0.1A
@@ -1260,9 +1260,9 @@ void CalcBalancedCurrent(char mod) {
 
     // guard MaxCircuit
     if (((LoadBl == 0 && EVMeter.Type && Mode != MODE_NORMAL) || LoadBl == 1)    // Conditions in which MaxCircuit has to be considered
-       && (IsetBalanced > (MaxCircuit * 10) - Baseload_EV))
+       && (IsetBalanced > (MaxCircuit * 10) - Baseload_EV)) {
         IsetBalanced = MaxCircuit * 10 - Baseload_EV; //limiting is per phase so no Nr_Of_Phases_Charging here!
-
+    }
     _LOG_V("Checkpoint 4 Isetbalanced=%.1f A.\n", (float)IsetBalanced/10);
 
     // ############### the rest of the work we only do if there are ActiveEVSEs #################
@@ -1428,7 +1428,7 @@ void CalcBalancedCurrent(char mod) {
     CSVsetState();
     CSVsetMode();
     csvout.phases = Nr_Of_Phases_Charging;
-    csvout.Iset = IsetBalanced, csvout.Iheadrm = Idifference, csvout.Import = IsumImport;
+    csvout.Iset = IsetBalanced, csvout.Iheadrm = Iheadroom, csvout.Import = IsumImport;
     csvout.CHdly = ChargeDelay, csvout.SolTim = SolarStopTimer;
     csvout.L1 = MainsMeter.Irms[0], csvout.L2 = MainsMeter.Irms[1], csvout.L3 = MainsMeter.Irms[2], csvout.LA = Isum;
     csvout.EVM.L1 = EVMeter.Irms[0], csvout.EVM.L2 = EVMeter.Irms[1], csvout.EVM.L3 = EVMeter.Irms[2], csvout.EVM.PA = EVMeter.PowerMeasured;
@@ -1485,33 +1485,33 @@ void BroadcastCurrent(void) {
  * EVSE Register 0x02*: System configuration (same on all SmartEVSE in a LoadBalancing setup)
  * TODO not sure if this is used anywhere in the code?
 Regis   Access  Description                                           Unit  Values
-0x0200  R/W   EVSE mode                                             0:Normal / 1:Smart / 2:Solar
-0x0201  R/W   EVSE Circuit max Current                          A   10 - 160
-0x0202  R/W   Grid type to which the Sensorbox is connected             0:4Wire / 1:3Wire
-0x0203  R/W   CT calibration value                                  0.01  Multiplier
-0x0204  R/W   Max Mains Current                                   A   10 - 200
-0x0205  R/W   Surplus energy start Current                          A   1 - 16
-0x0206  R/W   Stop solar charging at 6A after this time           min   0:Disable / 1 - 60
-0x0207  R/W   Allow grid power when solar charging                  A   0 - 6
-0x0208  R/W   Type of Mains electric meter                    *
-0x0209  R/W   Address of Mains electric meter                     10 - 247
-//0x020A  R/W   What does Mains electric meter measure                    0:Mains (Home+EVSE+PV) / 1:Home+EVSE
-0x020B  R/W   Type of PV electric meter                     *
-0x020C  R/W   Address of PV electric meter                            10 - 247
-0x020D  R/W   Byte order of custom electric meter                     0:LBF & LWF / 1:LBF & HWF / 2:HBF & LWF / 3:HBF & HWF
-0x020E  R/W   Data type of custom electric meter                    0:Integer / 1:Double
+0x0200  R/W   EVSE mode                                                     0:Normal / 1:Smart / 2:Solar
+0x0201  R/W   EVSE Circuit max Current                                  A   10 - 160
+0x0202  R/W   Grid type to which the Sensorbox is connected                 0:4Wire / 1:3Wire
+0x0203  R/W   CT calibration value                                          0.01  Multiplier
+0x0204  R/W   Max Mains Current                                         A   10 - 200
+0x0205  R/W   Surplus energy start Current                              A   1 - 16
+0x0206  R/W   Stop solar charging at 6A after this time                 min   0:Disable / 1 - 60
+0x0207  R/W   Allow grid power when solar charging                      A   0 - 6
+0x0208  R/W   Type of Mains electric meter                              *
+0x0209  R/W   Address of Mains electric meter                               10 - 247
+//0x020A  R/W   What does Mains electric meter measure                      0:Mains (Home+EVSE+PV) / 1:Home+EVSE
+0x020B  R/W   Type of PV electric meter                                 *
+0x020C  R/W   Address of PV electric meter                                  10 - 247
+0x020D  R/W   Byte order of custom electric meter                           0:LBF & LWF / 1:LBF & HWF / 2:HBF & LWF / 3:HBF & HWF
+0x020E  R/W   Data type of custom electric meter                            0:Integer / 1:Double
 0x020F  R/W   Modbus Function (3/4) of custom electric meter
-0x0210  R/W   Register for Voltage (V) of custom electric meter     0 - 65530
-0x0211  R/W   Divisor for Voltage (V) of custom electric meter  10x   0 - 7
-0x0212  R/W   Register for Current (A) of custom electric meter     0 - 65530
-0x0213  R/W   Divisor for Current (A) of custom electric meter  10x   0 - 7
-0x0214  R/W   Register for Power (W) of custom electric meter     0 - 65534
+0x0210  R/W   Register for Voltage (V) of custom electric meter             0 - 65530
+0x0211  R/W   Divisor for Voltage (V) of custom electric meter        10x   0 - 7
+0x0212  R/W   Register for Current (A) of custom electric meter             0 - 65530
+0x0213  R/W   Divisor for Current (A) of custom electric meter        10x   0 - 7
+0x0214  R/W   Register for Power (W) of custom electric meter               0 - 65534
 0x0215  R/W   Divisor for Power (W) of custom electric meter          10x   0 - 7 /
-0x0216  R/W   Register for Energy (kWh) of custom electric meter    0 - 65534
-0x0217  R/W   Divisor for Energy (kWh) of custom electric meter   10x   0 - 7
+0x0216  R/W   Register for Energy (kWh) of custom electric meter            0 - 65534
+0x0217  R/W   Divisor for Energy (kWh) of custom electric meter       10x   0 - 7
 0x0218  R/W   Maximum register read (Not implemented)
 0x0219  R/W   WiFi mode
-0x021A  R/W   Limit max current draw on MAINS (sum of phases)   A   9:Disable / 10 - 200
+0x021A  R/W   Limit max current draw on MAINS (sum of phases)           A   9:Disable / 10 - 200
 **/
 
 /**
@@ -1527,17 +1527,17 @@ void requestNodeConfig(uint8_t NodeNr) {
 /**
  * EVSE Node Config layout
  *
-Reg   Access  Description                           Unit  Values
-0x0100  R/W   Configuration                             0:Socket / 1:Fixed Cable
-0x0101  R/W   Cable lock                            0:Disable / 1:Solenoid / 2:Motor
-0x0102  R/W   MIN Charge Current the EV will accept   A   6 - 16
-0x0103  R/W   MAX Charge Current for this EVSE  A   6 - 80
-0x0104  R/W   Load Balance                            0:Disabled / 1:Master / 2-8:Node
-0x0105  R/W   External Switch on pin SW             0:Disabled / 1:Access Push-Button / 2:Access Switch / 3:Smart-Solar Push-Button / 4:Smart-Solar Switch
-0x0106  R/W   Residual Current Monitor on pin RCM     0:Disabled / 1:Enabled
-0x0107  R/W   Use RFID reader                     0:Disabled / 1:Enabled
-0x0108  R/W   Type of EV electric meter             *
-0x0109  R/W   Address of EV electric meter            10 - 247
+Reg   Access  Description                             Unit  Values
+0x0100  R/W   Configuration                                 0:Socket / 1:Fixed Cable
+0x0101  R/W   Cable lock                                    0:Disable / 1:Solenoid / 2:Motor
+0x0102  R/W   MIN Charge Current the EV will accept     A   6 - 16
+0x0103  R/W   MAX Charge Current for this EVSE          A   6 - 80
+0x0104  R/W   Load Balance                                  0:Disabled / 1:Master / 2-8:Node
+0x0105  R/W   External Switch on pin SW                     0:Disabled / 1:Access Push-Button / 2:Access Switch / 3:Smart-Solar Push-Button / 4:Smart-Solar Switch
+0x0106  R/W   Residual Current Monitor on pin RCM           0:Disabled / 1:Enabled
+0x0107  R/W   Use RFID reader                               0:Disabled / 1:Enabled
+0x0108  R/W   Type of EV electric meter                 *
+0x0109  R/W   Address of EV electric meter                  10 - 247
 **/
 
 /**
@@ -1597,25 +1597,25 @@ void requestNodeStatus(uint8_t NodeNr) {
  * EVSE Node status layout
  *
 Regist  Access  Description           Unit  Values
-0x0000  R/W   State                     0:A / 1:B / 2:C / 3:D / 4:Node request B / 5:Master confirm B / 6:Node request C /
+0x0000  R/W   State                         0:A / 1:B / 2:C / 3:D / 4:Node request B / 5:Master confirm B / 6:Node request C /
                                                 7:Master confirm C / 8:Activation mode / 9:B1 / 10:C1
 0x0001  R/W   Error                   Bit   1:LESS_6A / 2:NO_COMM / 4:TEMP_HIGH / 8:EV_NOCOMM / 16:RCD / 32:NO_SUN
-0x0002  R/W   Charging current        0.1 A   0:no current available / 6-80
-0x0003  R/W   EVSE mode (without saving)      0:Normal / 1:Smart / 2:Solar
-0x0004  R/W   Solar Timer           s
-0x0005  R/W   Access bit            0:No Access / 1:Access
+0x0002  R/W   Charging current      0.1 A   0:no current available / 6-80
+0x0003  R/W   EVSE mode (without saving)    0:Normal / 1:Smart / 2:Solar
+0x0004  R/W   Solar Timer               s
+0x0005  R/W   Access bit                    0:No Access / 1:Access
 0x0006  R/W   Configuration changed (Not implemented)
-0x0007  R   Maximum charging current A
+0x0007  R   Maximum charging current    A
 0x0008  R/W   Number of used phases (Not implemented) 0:Undetected / 1 - 3
 0x0009  R   Real charging current (Not implemented) 0.1 A
-0x000A  R   Temperature           K
+0x000A  R   Temperature                 K
 0x000B  R   Serial number
 0x0020 - 0x0027
         W   Broadcast charge current. SmartEVSE uses only one value depending on the "Load Balancing" configuration
-                                        0.1 A   0:no current available
+                                    0.1 A   0:no current available
 0x0028 - 0x0030
         W   Broadcast MainsMeter currents L1 - L3.
-                                        0.1 A
+                                    0.1 A
 **/
 
 /**
@@ -2065,14 +2065,14 @@ void RecomputeSoC(void) {
             TimeUntilFull = -1;
         } else {
             int EnergyRemaining = -1;
-            int TargetEnergyCapacity = (FullSoC / 100.f) * EnergyCapacity;
+            int TargetEnergyCapacity = (FullSoC * EnergyCapacity + 50) / 100;
 
             if (EnergyRequest > 0) {
                 // Attempt to use EnergyRequest to determine SoC with greater accuracy
                 EnergyRemaining = EVMeter.EnergyCharged > 0 ? (EnergyRequest - EVMeter.EnergyCharged) : EnergyRequest;
             } else {
                 // We use a rough estimation based on FullSoC and EnergyCapacity
-                EnergyRemaining = TargetEnergyCapacity - (EVMeter.EnergyCharged + (InitialSoC / 100.f) * EnergyCapacity);
+                EnergyRemaining = TargetEnergyCapacity - (EVMeter.EnergyCharged + ((InitialSoC * EnergyCapacity + 50) / 100));
             }
 
             RemainingSoC = ((FullSoC * EnergyRemaining) / TargetEnergyCapacity);
@@ -4578,6 +4578,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
           preferences.end();
         }
         ESP.restart();
+#if AUTOUPDATE //[rob040: don't autoupdate]
     } else if (mg_http_match_uri(hm, "/autoupdate")) {
         char owner[40];
         char buf[8];
@@ -4595,6 +4596,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         String json;
         serializeJson(doc, json);
         mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\n", json.c_str());    // Yes. Respond JSON
+ #endif
     } else if (mg_http_match_uri(hm, "/update")) {
         //modified version of mg_http_upload
         char buf[20] = "0", file[40];
@@ -4882,25 +4884,29 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         doc["home_battery"]["current"] = homeBatteryCurrent;
         doc["home_battery"]["last_update"] = homeBatteryLastUpdate;
 
+        //[rob040 20240819] Fixed: the net effect of "round(float/100)/10" is a Json value like 235.6999969 or 1.600000024; i.e. result in many decimals, i.s.o. just one.
+        // When using FP constants, like "round(float/100.0)/10.0", no such rounding errors do occurr.
         doc["ev_meter"]["description"] = EMConfig[EVMeter.Type].Desc;
         doc["ev_meter"]["address"] = EVMeter.Address;
-        doc["ev_meter"]["import_active_power"] = round((float)EVMeter.PowerMeasured / 100)/10; //in kW, precision 1 decimal
-        doc["ev_meter"]["total_kwh"] = round((float)EVMeter.Energy / 100)/10; //in kWh, precision 1 decimal
-        doc["ev_meter"]["charged_kwh"] = round((float)EVMeter.EnergyCharged / 100)/10; //in kWh, precision 1 decimal
+        doc["ev_meter"]["import_active_power"] = round((float)EVMeter.PowerMeasured / 100.0)/10.0; //in kW, precision 1 decimal
+        doc["ev_meter"]["total_kwh"] = round((float)EVMeter.Energy / 100.0)/10.0; //in kWh, precision 1 decimal
+        doc["ev_meter"]["charged_kwh"] = round((float)EVMeter.EnergyCharged / 100.0)/10.0; //in kWh, precision 1 decimal
         doc["ev_meter"]["currents"]["TOTAL"] = EVMeter.Irms[0] + EVMeter.Irms[1] + EVMeter.Irms[2];
         doc["ev_meter"]["currents"]["L1"] = EVMeter.Irms[0];
         doc["ev_meter"]["currents"]["L2"] = EVMeter.Irms[1];
         doc["ev_meter"]["currents"]["L3"] = EVMeter.Irms[2];
-        doc["ev_meter"]["import_active_energy"] = round((float)EVMeter.Import_active_energy / 100)/10; //in kWh, precision 1 decimal
-        doc["ev_meter"]["export_active_energy"] = round((float)EVMeter.Export_active_energy / 100)/10; //in kWh, precision 1 decimal
+        doc["ev_meter"]["import_active_energy"] = round((float)EVMeter.Import_active_energy / 100.0)/10.0; //in kWh, precision 1 decimal
+        doc["ev_meter"]["export_active_energy"] = round((float)EVMeter.Export_active_energy / 100.0)/10.0; //in kWh, precision 1 decimal
 
-        doc["mains_meter"]["import_active_energy"] = round((float)MainsMeter.Import_active_energy / 100)/10; //in kWh, precision 1 decimal
-        doc["mains_meter"]["export_active_energy"] = round((float)MainsMeter.Export_active_energy / 100)/10; //in kWh, precision 1 decimal
+        //[rob040] MainsMeter import/export energy cannot be set via REST or MQTT API , only when an modbus energy meter is used as mainsMeter, which is quite unlikely: disabled this.
+        //doc["mains_meter"]["import_active_energy"] = round((float)MainsMeter.Import_active_energy / 100)/10; //in kWh, precision 1 decimal
+        //doc["mains_meter"]["export_active_energy"] = round((float)MainsMeter.Export_active_energy / 100)/10; //in kWh, precision 1 decimal
 
         doc["phase_currents"]["TOTAL"] = MainsMeter.Irms[0] + MainsMeter.Irms[1] + MainsMeter.Irms[2];
         doc["phase_currents"]["L1"] = MainsMeter.Irms[0];
         doc["phase_currents"]["L2"] = MainsMeter.Irms[1];
         doc["phase_currents"]["L3"] = MainsMeter.Irms[2];
+        doc["phase_currents"]["last_data_update"] = phasesLastUpdate;      // [rob040] used in index.html/js
         doc["phase_currents"]["age"] = (int)time(NULL) - phasesLastUpdate; // [rob] MainsMeter age is more important than 10-digit timestamp
         doc["phase_currents"]["original_data"]["TOTAL"] = IrmsOriginal[0] + IrmsOriginal[1] + IrmsOriginal[2];
         doc["phase_currents"]["original_data"]["L1"] = IrmsOriginal[0];

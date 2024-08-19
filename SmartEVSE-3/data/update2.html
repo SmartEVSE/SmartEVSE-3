@@ -11,89 +11,18 @@
       #wrapper { margin-top: 1em; }
     </style>
     <script>
-        let OWNER_FACT="SmartEVSE";
-        let REPO_FACT="SmartEVSE-3";
-        let OWNER_COMM="rob040";
-        let REPO_COMM="SmartEVSE-3";
-        let update_url="";
         // Helper function to display upload status
         var setStatus = function(text) {
           document.getElementById('el3').innerText = text;
         };
 
-        function fetchProgress() {
-          fetch('/autoupdate')
-            .then(res => res.json())
-            .then(data => {
-              // code to handle the response
-              if (data.progress == -1) { //sucess
-                setStatus('Firmware update succesfully completed, will reboot as soon as no EV is connected.');
-              }
-              else {
-                if (data.progress == -2) { //fail
-                    setStatus('ERROR: Firmware update fail.');
-                } else {
-                    setStatus('Firmware update progress: ' + data.progress + '/' + data.size);
-                }
-              }
-            })
-            .catch(err => {
-              console.error('Error: ', err)
-            })
-        }
-        function update_fw(owner, debug) {
-          fetch("/autoupdate?owner=" + owner + "&debug=" + debug)
-            .then(res => res.json())
-            .then(data => {
-              setStatus('Firmware update progress: ' + data.progress + '/' + data.size);
-              // code to handle the response
-              var fetchInterval = 1000; // 1 seconds.
-              // Invoke the request every 1 seconds.
-              setInterval(fetchProgress, fetchInterval);
-            })
-            .catch(err => {
-              console.error('Error: ', err)
-            })
-        }
     </script>
   </head>
   <body onload="loadData()">
     <div id="container">
       <div id="info">
           Current version: <span id="version"></span>
-          =======================================================
-          DOWNLOADING
-          <br><br>
-          <table style='text-align: left'>
-            <tr>
-              <th>Distribution:</th>
-              <th>Status:</th>
-              <th>Github repo:</th>
-              <th>Latest version:</th>
-              <th>Flash:</th>
-            </tr>
-            <tr>
-              <td>Factory</td>
-              <td>stable</td>
-              <td><a href="https://github.com/"
-                     onclick="location.href=this.href + OWNER_FACT + '/' + REPO_FACT + '/releases';return false;"><script>document.write(OWNER_FACT)</script></a></td>
-              <td><div id="latest_fact"></div></td>
-              <td><button onclick="update_fw(OWNER_FACT, 0)" style="width: 100px; display:inline-block;">Standard</button>
-              <td><button onclick="update_fw(OWNER_FACT, 1)" style="width: 100px; display:inline-block;">Debug</button>
-            </tr>
-            <tr>
-                <td>Community&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp</td>
-              <td>bleeding edge&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp</td>
-              <td><a href="https://github.com/"
-                     onclick="location.href=this.href + OWNER_COMM + '/' + REPO_COMM + '/releases';return false;"><script>document.write(OWNER_COMM)</script></a></td>
-              <td><div id="latest_comm"></div></td>
-              <td><button onclick="update_fw(OWNER_COMM, 0)" style="width: 100px; display:inline-block;">Standard</button>
-              <td><button onclick="update_fw(OWNER_COMM, 1)" style="width: 100px; display:inline-block;">Debug</button>
-            </tr>
-          </table>
-          <br>
-          =======================================================
-          <br>
+          <br><br><br>
           FLASHING
           <br><br>
           Flash one of:<ul>
@@ -105,48 +34,18 @@
       </div>
       <div id="wrapper">
         <input type="file" id="el1" style="display: none"/>
-        <button id="el2">choose file...</button>
+        <button id="el2">  Select file ...  </button>
         <div id="el3"></div>
       </div>
     </div>
   </body>
 
   <script type="module">
-// Octokit.js
-// https://github.com/octokit/core.js#readme
-import { Octokit } from "https://esm.sh/@octokit/core";
 window.loadData=loadData;
 
 function loadData() {
     document.getElementById("version").innerHTML = sessionStorage.getItem("version");
-    getLatestVersion(OWNER_FACT, REPO_FACT, 'latest_fact');
-    getLatestVersion(OWNER_COMM, REPO_COMM, 'latest_comm');
 }
-
-async function getLatestVersion(owner, repo, element) {
-    const octokit = new Octokit({
-    })
-
-    try {
-        const result = await octokit.request('GET /repos/{owner}/{repo}/releases/latest', {
-          owner: owner,
-          repo: repo,
-          headers: {
-            'X-GitHub-Api-Version': '2022-11-28'
-          }
-        })
-
-        //asset_id=result.data.assets.filter(function(entry){ return entry.name==="firmware.signed.bin";})[0].id;
-        //console.log(asset_id);
-        //console.log(JSON.stringify(result.data.assets));
-        document.getElementById(element).innerHTML = result.data.tag_name;
-    } catch (error) {
-        console.error(error.message);
-    }
-}
-
-// Copyright (c) 2020 Cesanta Software Limited
-// All rights reserved
 
 // When user clicks on a button, trigger file selection dialog
 var button = document.getElementById('el2');
