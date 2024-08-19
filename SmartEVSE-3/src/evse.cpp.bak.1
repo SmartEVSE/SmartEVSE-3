@@ -1485,33 +1485,33 @@ void BroadcastCurrent(void) {
  * EVSE Register 0x02*: System configuration (same on all SmartEVSE in a LoadBalancing setup)
  * TODO not sure if this is used anywhere in the code?
 Regis   Access  Description                                           Unit  Values
-0x0200  R/W   EVSE mode                                                     0:Normal / 1:Smart / 2:Solar
-0x0201  R/W   EVSE Circuit max Current                                  A   10 - 160
-0x0202  R/W   Grid type to which the Sensorbox is connected                 0:4Wire / 1:3Wire
-0x0203  R/W   CT calibration value                                          0.01  Multiplier
-0x0204  R/W   Max Mains Current                                         A   10 - 200
-0x0205  R/W   Surplus energy start Current                              A   1 - 16
-0x0206  R/W   Stop solar charging at 6A after this time                 min   0:Disable / 1 - 60
-0x0207  R/W   Allow grid power when solar charging                      A   0 - 6
-0x0208  R/W   Type of Mains electric meter                              *
-0x0209  R/W   Address of Mains electric meter                               10 - 247
-//0x020A  R/W   What does Mains electric meter measure                      0:Mains (Home+EVSE+PV) / 1:Home+EVSE
-0x020B  R/W   Type of PV electric meter                                 *
-0x020C  R/W   Address of PV electric meter                                  10 - 247
-0x020D  R/W   Byte order of custom electric meter                           0:LBF & LWF / 1:LBF & HWF / 2:HBF & LWF / 3:HBF & HWF
-0x020E  R/W   Data type of custom electric meter                            0:Integer / 1:Double
+0x0200  R/W   EVSE mode                                             0:Normal / 1:Smart / 2:Solar
+0x0201  R/W   EVSE Circuit max Current                          A   10 - 160
+0x0202  R/W   Grid type to which the Sensorbox is connected             0:4Wire / 1:3Wire
+0x0203  R/W   CT calibration value                                  0.01  Multiplier
+0x0204  R/W   Max Mains Current                                   A   10 - 200
+0x0205  R/W   Surplus energy start Current                          A   1 - 16
+0x0206  R/W   Stop solar charging at 6A after this time           min   0:Disable / 1 - 60
+0x0207  R/W   Allow grid power when solar charging                  A   0 - 6
+0x0208  R/W   Type of Mains electric meter                    *
+0x0209  R/W   Address of Mains electric meter                     10 - 247
+//0x020A  R/W   What does Mains electric meter measure                    0:Mains (Home+EVSE+PV) / 1:Home+EVSE
+0x020B  R/W   Type of PV electric meter                     *
+0x020C  R/W   Address of PV electric meter                            10 - 247
+0x020D  R/W   Byte order of custom electric meter                     0:LBF & LWF / 1:LBF & HWF / 2:HBF & LWF / 3:HBF & HWF
+0x020E  R/W   Data type of custom electric meter                    0:Integer / 1:Double
 0x020F  R/W   Modbus Function (3/4) of custom electric meter
-0x0210  R/W   Register for Voltage (V) of custom electric meter             0 - 65530
-0x0211  R/W   Divisor for Voltage (V) of custom electric meter        10x   0 - 7
-0x0212  R/W   Register for Current (A) of custom electric meter             0 - 65530
-0x0213  R/W   Divisor for Current (A) of custom electric meter        10x   0 - 7
-0x0214  R/W   Register for Power (W) of custom electric meter               0 - 65534
+0x0210  R/W   Register for Voltage (V) of custom electric meter     0 - 65530
+0x0211  R/W   Divisor for Voltage (V) of custom electric meter  10x   0 - 7
+0x0212  R/W   Register for Current (A) of custom electric meter     0 - 65530
+0x0213  R/W   Divisor for Current (A) of custom electric meter  10x   0 - 7
+0x0214  R/W   Register for Power (W) of custom electric meter     0 - 65534
 0x0215  R/W   Divisor for Power (W) of custom electric meter          10x   0 - 7 /
-0x0216  R/W   Register for Energy (kWh) of custom electric meter            0 - 65534
-0x0217  R/W   Divisor for Energy (kWh) of custom electric meter       10x   0 - 7
+0x0216  R/W   Register for Energy (kWh) of custom electric meter    0 - 65534
+0x0217  R/W   Divisor for Energy (kWh) of custom electric meter   10x   0 - 7
 0x0218  R/W   Maximum register read (Not implemented)
 0x0219  R/W   WiFi mode
-0x021A  R/W   Limit max current draw on MAINS (sum of phases)           A   9:Disable / 10 - 200
+0x021A  R/W   Limit max current draw on MAINS (sum of phases)   A   9:Disable / 10 - 200
 **/
 
 /**
@@ -1527,17 +1527,17 @@ void requestNodeConfig(uint8_t NodeNr) {
 /**
  * EVSE Node Config layout
  *
-Reg   Access  Description                             Unit  Values
-0x0100  R/W   Configuration                                 0:Socket / 1:Fixed Cable
-0x0101  R/W   Cable lock                                    0:Disable / 1:Solenoid / 2:Motor
-0x0102  R/W   MIN Charge Current the EV will accept     A   6 - 16
-0x0103  R/W   MAX Charge Current for this EVSE          A   6 - 80
-0x0104  R/W   Load Balance                                  0:Disabled / 1:Master / 2-8:Node
-0x0105  R/W   External Switch on pin SW                     0:Disabled / 1:Access Push-Button / 2:Access Switch / 3:Smart-Solar Push-Button / 4:Smart-Solar Switch
-0x0106  R/W   Residual Current Monitor on pin RCM           0:Disabled / 1:Enabled
-0x0107  R/W   Use RFID reader                               0:Disabled / 1:Enabled
-0x0108  R/W   Type of EV electric meter                 *
-0x0109  R/W   Address of EV electric meter                  10 - 247
+Reg   Access  Description                           Unit  Values
+0x0100  R/W   Configuration                             0:Socket / 1:Fixed Cable
+0x0101  R/W   Cable lock                            0:Disable / 1:Solenoid / 2:Motor
+0x0102  R/W   MIN Charge Current the EV will accept   A   6 - 16
+0x0103  R/W   MAX Charge Current for this EVSE  A   6 - 80
+0x0104  R/W   Load Balance                            0:Disabled / 1:Master / 2-8:Node
+0x0105  R/W   External Switch on pin SW             0:Disabled / 1:Access Push-Button / 2:Access Switch / 3:Smart-Solar Push-Button / 4:Smart-Solar Switch
+0x0106  R/W   Residual Current Monitor on pin RCM     0:Disabled / 1:Enabled
+0x0107  R/W   Use RFID reader                     0:Disabled / 1:Enabled
+0x0108  R/W   Type of EV electric meter             *
+0x0109  R/W   Address of EV electric meter            10 - 247
 **/
 
 /**
@@ -1597,25 +1597,25 @@ void requestNodeStatus(uint8_t NodeNr) {
  * EVSE Node status layout
  *
 Regist  Access  Description           Unit  Values
-0x0000  R/W   State                         0:A / 1:B / 2:C / 3:D / 4:Node request B / 5:Master confirm B / 6:Node request C /
+0x0000  R/W   State                     0:A / 1:B / 2:C / 3:D / 4:Node request B / 5:Master confirm B / 6:Node request C /
                                                 7:Master confirm C / 8:Activation mode / 9:B1 / 10:C1
 0x0001  R/W   Error                   Bit   1:LESS_6A / 2:NO_COMM / 4:TEMP_HIGH / 8:EV_NOCOMM / 16:RCD / 32:NO_SUN
-0x0002  R/W   Charging current      0.1 A   0:no current available / 6-80
-0x0003  R/W   EVSE mode (without saving)    0:Normal / 1:Smart / 2:Solar
-0x0004  R/W   Solar Timer               s
-0x0005  R/W   Access bit                    0:No Access / 1:Access
+0x0002  R/W   Charging current        0.1 A   0:no current available / 6-80
+0x0003  R/W   EVSE mode (without saving)      0:Normal / 1:Smart / 2:Solar
+0x0004  R/W   Solar Timer           s
+0x0005  R/W   Access bit            0:No Access / 1:Access
 0x0006  R/W   Configuration changed (Not implemented)
-0x0007  R   Maximum charging current    A
+0x0007  R   Maximum charging current A
 0x0008  R/W   Number of used phases (Not implemented) 0:Undetected / 1 - 3
 0x0009  R   Real charging current (Not implemented) 0.1 A
-0x000A  R   Temperature                 K
+0x000A  R   Temperature           K
 0x000B  R   Serial number
 0x0020 - 0x0027
         W   Broadcast charge current. SmartEVSE uses only one value depending on the "Load Balancing" configuration
-                                    0.1 A   0:no current available
+                                        0.1 A   0:no current available
 0x0028 - 0x0030
         W   Broadcast MainsMeter currents L1 - L3.
-                                    0.1 A
+                                        0.1 A
 **/
 
 /**
@@ -1895,7 +1895,7 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
         case STATUS_ERROR:
             ErrorFlags = val;
             if (ErrorFlags) {                                                   // Is there an actual Error? Maybe the error got cleared?
-                // [rob040 20240807]: check this; possible unwanted interaction with mainsMeter; results in unclear error message on LCD
+                // [rob040 20240807]: FIXME: check this; possible unwanted interaction with mainsMeter; results in unclear error message on LCD
                 if (ErrorFlags & CT_NOCOMM) MainsMeter.Timeout = 0;             // clear MainsMeter.Timeout on a CT_NOCOMM error, so the error will be immediate.
                 setStatePowerUnavailable();
                 ChargeDelay = CHARGEDELAY;
@@ -4885,12 +4885,12 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         doc["home_battery"]["last_update"] = homeBatteryLastUpdate;
 
         //[rob040 20240819] Fixed: the net effect of "round(float/100)/10" is a Json value like 235.6999969 or 1.600000024; i.e. result in many decimals, i.s.o. just one.
-        // When using FP constants, like "round(float/100.0)/10.0", no such rounding errors do occurr.
+        // When using FP constants, like 100.0, no rounding errors do occurr.
         doc["ev_meter"]["description"] = EMConfig[EVMeter.Type].Desc;
         doc["ev_meter"]["address"] = EVMeter.Address;
         doc["ev_meter"]["import_active_power"] = round((float)EVMeter.PowerMeasured / 100.0)/10.0; //in kW, precision 1 decimal
         doc["ev_meter"]["total_kwh"] = round((float)EVMeter.Energy / 100.0)/10.0; //in kWh, precision 1 decimal
-        doc["ev_meter"]["charged_kwh"] = round((float)EVMeter.EnergyCharged / 100.0)/10.0; //in kWh, precision 1 decimal
+        doc["ev_meter"]["charged_kwh"] = round((float)EVMeter.EnergyCharged / 100.0)/10.0; //in kWh, precision 1 decimal => result in many decimals!
         doc["ev_meter"]["currents"]["TOTAL"] = EVMeter.Irms[0] + EVMeter.Irms[1] + EVMeter.Irms[2];
         doc["ev_meter"]["currents"]["L1"] = EVMeter.Irms[0];
         doc["ev_meter"]["currents"]["L2"] = EVMeter.Irms[1];
@@ -4898,7 +4898,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         doc["ev_meter"]["import_active_energy"] = round((float)EVMeter.Import_active_energy / 100.0)/10.0; //in kWh, precision 1 decimal
         doc["ev_meter"]["export_active_energy"] = round((float)EVMeter.Export_active_energy / 100.0)/10.0; //in kWh, precision 1 decimal
 
-        //[rob040] MainsMeter import/export energy cannot be set via REST or MQTT API , only when an modbus energy meter is used as mainsMeter, which is quite unlikely: disabled this.
+        //[rob040] MainsMeter import/export energy cannot be set via REST or MQTT API , only when an modbus energy meter is used as mainsMeter, which is quite unlikely
         //doc["mains_meter"]["import_active_energy"] = round((float)MainsMeter.Import_active_energy / 100)/10; //in kWh, precision 1 decimal
         //doc["mains_meter"]["export_active_energy"] = round((float)MainsMeter.Export_active_energy / 100)/10; //in kWh, precision 1 decimal
 
@@ -4906,7 +4906,6 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         doc["phase_currents"]["L1"] = MainsMeter.Irms[0];
         doc["phase_currents"]["L2"] = MainsMeter.Irms[1];
         doc["phase_currents"]["L3"] = MainsMeter.Irms[2];
-        doc["phase_currents"]["last_data_update"] = phasesLastUpdate;      // [rob040] used in index.html/js
         doc["phase_currents"]["age"] = (int)time(NULL) - phasesLastUpdate; // [rob] MainsMeter age is more important than 10-digit timestamp
         doc["phase_currents"]["original_data"]["TOTAL"] = IrmsOriginal[0] + IrmsOriginal[1] + IrmsOriginal[2];
         doc["phase_currents"]["original_data"]["L1"] = IrmsOriginal[0];
