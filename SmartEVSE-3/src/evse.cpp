@@ -1153,6 +1153,9 @@ void CalcBalancedCurrent(char mod) {
     // ############### make sure the calculated IsetBalanced doesnt exceed any boundaries #################
 
 
+    // guard MaxMains
+    if (MainsMeter.Type && Mode != MODE_NORMAL)    // Conditions in which MaxCircuit has to be considered
+        IsetBalanced = min((int) IsetBalanced, (MaxMains * 10) - Baseload); //limiting is per phase so no Nr_Of_Phases_Charging here!
     // guard MaxCircuit
     if (((LoadBl == 0 && EVMeter.Type && Mode != MODE_NORMAL) || LoadBl == 1)    // Conditions in which MaxCircuit has to be considered
        && (IsetBalanced > (MaxCircuit * 10) - Baseload_EV))
