@@ -1088,10 +1088,10 @@ char IsCurrentAvailable(void) {
 // only runs on the Master or when loadbalancing Disabled
 void CalcBalancedCurrent(char mod) {
     int Average, MaxBalanced;
-    int Idifference = 0;   // FIXME: too generic name; This is the headroom of mains current per phase between actual and max allowed [dA]
+    int Iheadroom = 0;   //This is the headroom of mains current per phase, between actual and max allowed [dA] [rob040 20240819] was named Idifference
     int Baseload_EV;
     int ActiveEVSE = 0;
-    int IsumImport = 0; // rob040 fix uninitialized variable warning 20240805
+    int IsumImport = 0; // [rob040 20240805] fix uninitialized variable warning
     int ActiveMax = 0, TotalCurrent = 0, Baseload;
     char CurrentSet[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};
     uint8_t n;
@@ -1190,13 +1190,13 @@ void CalcBalancedCurrent(char mod) {
         _LOG_D("State %d Mode %d starting %d phases charging %d phases\n", State, Mode, Nr_Of_Phases_Charging, Temp_Phases);
         if ((LoadBl == 0 && EVMeter.Type) || LoadBl == 1) {                     // Conditions in which MaxCircuit has to be considered;
                                                                                 // mode = Smart/Solar so don't test for that
-            Idifference = min((MaxMains * 10) - MainsMeter.Imeasured, (MaxCircuit * 10) - EVMeter.Imeasured);
+            Iheadroom = min((MaxMains * 10) - MainsMeter.Imeasured, (MaxCircuit * 10) - EVMeter.Imeasured);
         }
         else {
-            Idifference = (MaxMains * 10) - MainsMeter.Imeasured;
+            Iheadroom = (MaxMains * 10) - MainsMeter.Imeasured;
         }
-        if (MaxSumMains && Idifference > ((MaxSumMains * 10) - Isum)/Temp_Phases) {
-            Idifference = ((MaxSumMains * 10) - Isum)/Temp_Phases;
+        if (MaxSumMains && Iheadroom > ((MaxSumMains * 10) - Isum)/Temp_Phases) {
+            Iheadroom = ((MaxSumMains * 10) - Isum)/Temp_Phases;
             LimitedByMaxSumMains = true;
             _LOG_V("Current is limited by MaxSumMains: MaxSumMains=%iA, Isum=%.1fA, Temp_Phases=%i.\n", MaxSumMains, (float)Isum/10, Temp_Phases);
         }
@@ -1205,27 +1205,27 @@ void CalcBalancedCurrent(char mod) {
                                                                                 // For Smart mode, no new EVSE asking for current
             if (phasesLastUpdateFlag) {                                         // only increase or decrease current if measurements are updated
                 _LOG_V("phaseLastUpdate=%02u:%02u:%02u, %d s ago\n", (phasesLastUpdate/3600)%24+2, (phasesLastUpdate/60)%60, phasesLastUpdate%60, (int)time(NULL) - phasesLastUpdate );
-                if (Idifference > 0) {
-                    if (Mode == MODE_SMART) IsetBalanced += (Idifference / 4);  // increase with 1/4th of difference (slowly increase current)
+                if (Iheadroom > 0) {
+                    if (Mode == MODE_SMART) IsetBalanced += (Iheadroom / 4);  // increase with 1/4th of difference (slowly increase current)
                 }                                                               // in Solar mode we compute increase of current later on!
                 else
-                    IsetBalanced += Idifference;                                // last PWM setting + difference (immediately decrease current) (Smart and Solar mode)
+                    IsetBalanced += Iheadroom;                                // last PWM setting + difference (immediately decrease current) (Smart and Solar mode)
             }
 
             if (IsetBalanced < 0) IsetBalanced = 0;
             if (IsetBalanced > 800) IsetBalanced = 800;                         // hard limit 80A (added 11-11-2017)
         }
-        _LOG_V("Checkpoint 2 Isetbalanced=%.1f A, Idifference=%.1f, mod=%i.\n", (float)IsetBalanced/10, (float)Idifference/10, mod);
+        _LOG_V("Checkpoint 2 Isetbalanced=%.1f A, Iheadroom=%.1f, mod=%i.\n", (float)IsetBalanced/10, (float)Iheadroom/10, mod);
 
         if (Mode == MODE_SOLAR)                                                 // Solar version
         {
             IsumImport = Isum - (10 * ImportCurrent);                           // Allow Import of power from the grid when solar charging
             // when there is NO charging, do not change the setpoint (IsetBalanced)
-            if (State == STATE_C && Idifference > 0) {                          // so we had some room for power as far as MaxCircuit and MaxMains are concerned
+            if (State == STATE_C && Iheadroom > 0) {                          // so we had some room for power as far as MaxCircuit and MaxMains are concerned
                 if (phasesLastUpdateFlag) {                                     // only increase or decrease current if measurements are updated.
                     if (IsumImport < 0) {
                         // negative, we have surplus (solar) power available
-                        if (IsumImport < -10 && Idifference > 10)
+                        if (IsumImport < -10 && Iheadroom > 10)
                             IsetBalanced = IsetBalanced + 5;                        // more then 1A available, increase Balanced charge current with 0.5A
                         else
                             IsetBalanced = IsetBalanced + 1;                        // less then 1A available, increase with 0.1A
@@ -1428,7 +1428,7 @@ void CalcBalancedCurrent(char mod) {
     CSVsetState();
     CSVsetMode();
     csvout.phases = Nr_Of_Phases_Charging;
-    csvout.Iset = IsetBalanced, csvout.Iheadrm = Idifference, csvout.Import = IsumImport;
+    csvout.Iset = IsetBalanced, csvout.Iheadrm = Iheadroom, csvout.Import = IsumImport;
     csvout.CHdly = ChargeDelay, csvout.SolTim = SolarStopTimer;
     csvout.L1 = MainsMeter.Irms[0], csvout.L2 = MainsMeter.Irms[1], csvout.L3 = MainsMeter.Irms[2], csvout.LA = Isum;
     csvout.EVM.L1 = EVMeter.Irms[0], csvout.EVM.L2 = EVMeter.Irms[1], csvout.EVM.L3 = EVMeter.Irms[2], csvout.EVM.PA = EVMeter.PowerMeasured;
