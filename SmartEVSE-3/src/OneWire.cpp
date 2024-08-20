@@ -107,7 +107,7 @@ void expandUIDArray(unsigned char* oldArray, unsigned char* newArray, uint16_t o
     int oldIdx = 0;
     int newIdx = 0;
 
-    while (oldIdx < oldSize && newIdx < RFIDSIZE) {
+    while (oldIdx <= oldSize - 6 && newIdx <= RFIDSIZE - 7) {
         memcpy(&newArray[newIdx], &oldArray[oldIdx], 6);
 
         newArray[newIdx + 6] = 0xff;
@@ -172,7 +172,7 @@ uint16_t MatchRFID(void) {
         if (RFID[0] == 0x01) {  // old reader 6 byte UID starts at RFID[1]
             r = memcmp(RFID + 1, RFIDlist + offset, 6);                        // compare only 6 bytes
         } else {                // new reader 7 byte UID starts ar RFID[0]
-            r = memcmp(RFID, RFIDlist + offset, 6);                            // compare only 6 bytes
+            r = memcmp(RFID, RFIDlist + offset, 7);                            // compare 7 bytes
         }
         offset += 7;
     } while (r !=0 && offset < RFIDSIZE-7);
@@ -194,7 +194,7 @@ unsigned char StoreRFID(void) {
     if ( MatchRFID() ) return 2;                                                // already stored, that's ok.
 
     do {
-        r = memcmp(empty, RFIDlist + offset, 6);
+        r = memcmp(empty, RFIDlist + offset, 7);
         offset += 7;
     } while (r !=0 && offset < RFIDSIZE);
     if (r != 0) return 0;                                                       // no more room to store RFID
