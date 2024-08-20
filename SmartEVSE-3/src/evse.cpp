@@ -4601,14 +4601,14 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
             } else //end of firmware.signed.bin
             if (!memcmp(file,"rfid.txt", sizeof("rfid.txt"))) {
                 if (offset != 0) {
-                    mg_http_reply(c, 400, "", "rfid.txt too big, only 120 rfid's allowed!");
+                    mg_http_reply(c, 400, "", "rfid.txt too big, only 100 rfid's allowed!");
                 }
                 else {
                     //we are overwriting all stored RFID's with the ones uploaded
                     DeleteAllRFID();
                     res = offset + hm->body.len;
                     unsigned int RFID_UID[8] = {1, 0, 0, 0, 0, 0, 0, 0};
-                    char RFIDtxtstring[18];                                     // 17 characters + NULL terminator
+                    char RFIDtxtstring[20];                                     // 17 characters + NULL terminator
                     int r, pos = 0;
                     int beginpos = 0;
                     while (pos <= hm->body.len) {
@@ -4616,13 +4616,23 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
                         c = *(hm->body.buf + pos);
                         //_LOG_A_NO_FUNC("%c", c);
                         if (c == '\n' || pos == hm->body.len) {
-                            strncpy(RFIDtxtstring, hm->body.buf + beginpos, 17);         // in case of DOS the 0x0D is stripped off here
-                            RFIDtxtstring[17] = '\0';
-                            r = sscanf(RFIDtxtstring,"%02x%02x%02x%02x%02x%02x", &RFID_UID[1], &RFID_UID[2], &RFID_UID[3], &RFID_UID[4], &RFID_UID[5], &RFID_UID[6]);
+                            strncpy(RFIDtxtstring, hm->body.buf + beginpos, 19);         // in case of DOS the 0x0D is stripped off here
+                            RFIDtxtstring[19] = '\0';
+                            r = sscanf(RFIDtxtstring,"%02X%02x%02x%02x%02x%02x%02x", &RFID_UID[0], &RFID_UID[1], &RFID_UID[2], &RFID_UID[3], &RFID_UID[4], &RFID_UID[5], &RFID_UID[6]);
                             RFID_UID[7]=crc8((unsigned char *) RFID_UID,7);
-                            if (r == 6) {
-                                _LOG_A("Store RFID_UID %02x%02x%02x%02x%02x%02x, crc=%02x.\n", RFID_UID[1], RFID_UID[2], RFID_UID[3], RFID_UID[4], RFID_UID[5], RFID_UID[6], RFID_UID[7]);
+                            if (r == 7) {
+                                _LOG_A("Store RFID_UID %02x%02x%02x%02x%02x%02x%02x, crc=%02x.\n", RFID_UID[0], RFID_UID[1], RFID_UID[2], RFID_UID[3], RFID_UID[4], RFID_UID[5], RFID_UID[6], RFID_UID[7]);
                                 LoadandStoreRFID(RFID_UID);
+                            } else {
+                                strncpy(RFIDtxtstring, hm->body.buf + beginpos, 17);         // in case of DOS the 0x0D is stripped off here
+                                RFIDtxtstring[17] = '\0';
+                                RFID_UID[0] = 0x01;
+                                r = sscanf(RFIDtxtstring,"%02x%02x%02x%02x%02x%02x", &RFID_UID[1], &RFID_UID[2], &RFID_UID[3], &RFID_UID[4], &RFID_UID[5], &RFID_UID[6]);
+                                RFID_UID[7]=crc8((unsigned char *) RFID_UID,7);
+                                if (r == 6) {
+                                    _LOG_A("Store RFID_UID %02x%02x%02x%02x%02x%02x, crc=%02x.\n", RFID_UID[1], RFID_UID[2], RFID_UID[3], RFID_UID[4], RFID_UID[5], RFID_UID[6], RFID_UID[7]);
+                                    LoadandStoreRFID(RFID_UID);
+                                }
                             }
                             beginpos = pos + 1;
                         }
@@ -4704,8 +4714,12 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         doc["evse"]["error_id"] = errorId;
         doc["evse"]["rfid"] = !RFIDReader ? "Not Installed" : RFIDstatus >= 8 ? "NOSTATUS" : StrRFIDStatusWeb[RFIDstatus];
         if (RFIDReader && RFIDReader != 6) { //RFIDLastRead not updated in Remote/OCPP mode
-            char buf[13];
-            sprintf(buf, "%02X%02X%02X%02X%02X%02X", RFID[1], RFID[2], RFID[3], RFID[4], RFID[5], RFID[6]);
+            char buf[15];
+            if (RFID[0] == 0x01) {  // old reader 6 byte UID starts at RFID[1]
+                sprintf(buf, "%02X%02X%02X%02X%02X%02X", RFID[1], RFID[2], RFID[3], RFID[4], RFID[5], RFID[6]);
+            } else {
+                sprintf(buf, "%02X%02X%02X%02X%02X%02X%02X", RFID[0], RFID[1], RFID[2], RFID[3], RFID[4], RFID[5], RFID[6]);
+            }
             doc["evse"]["rfid_lastread"] = buf;
         }
 
