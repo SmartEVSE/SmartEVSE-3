@@ -27,8 +27,12 @@ OneWire32::OneWire32(uint8_t pin, uint8_t tx, uint8_t rx, uint8_t parasite){
 		.gpio_num           = owpin,
 		.clk_div            = 80,
 		.mem_block_num      = 1,
+		.flags 				= 0,
 		.tx_config          = {
+			.carrier_freq_hz = 38000,
+			.carrier_level  = RMT_CARRIER_LEVEL_HIGH,
 			.idle_level     = RMT_IDLE_LEVEL_HIGH,
+			.carrier_duty_percent = 33,
 			.carrier_en     = false,
 			.loop_en        = false,
 			.idle_output_en = true,
@@ -44,6 +48,7 @@ OneWire32::OneWire32(uint8_t pin, uint8_t tx, uint8_t rx, uint8_t parasite){
 				.gpio_num                = owpin,
 				.clk_div                 = 80,
 				.mem_block_num           = 1,
+				.flags 					 = 0, 
 				.rx_config               = {
 					.idle_threshold      = OW_DURATION_RX_IDLE,
 					.filter_ticks_thresh = 30,
