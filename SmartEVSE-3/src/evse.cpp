@@ -1035,7 +1035,7 @@ void Set_Nr_of_Phases_Charging(void) {
 void CalcBalancedCurrent(char mod) {
     int Average, MaxBalanced, Idifference, Baseload_EV;
     int ActiveEVSE = 0;
-    signed int IsumImport;
+    signed int IsumImport = 0;
     int ActiveMax = 0, TotalCurrent = 0, Baseload;
     char CurrentSet[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};
     uint8_t n;
@@ -4390,7 +4390,7 @@ static void fn_mqtt(struct mg_connection *c, int ev, void *ev_data) {
     } else if (ev == MG_EV_CONNECT) {
         // If target URL is SSL/TLS, command client connection to use TLS
         if (mg_url_is_ssl(s_mqtt_url)) {
-            struct mg_tls_opts opts = {.ca = empty, .cert = empty, .key = empty, .name = mg_url_host(s_mqtt_url)};
+            struct mg_tls_opts opts = {.ca = empty, .cert = empty, .key = empty, .name = mg_url_host(s_mqtt_url), .skip_verification = 0};
             //struct mg_tls_opts opts = {.ca = empty};
             mg_tls_init(c, &opts);
         }
@@ -4444,7 +4444,7 @@ static void timer_fn(void *arg) {
 // fn_data is NULL for plain HTTP, and non-NULL for HTTPS
 static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
   if (ev == MG_EV_ACCEPT && c->fn_data != NULL) {
-    struct mg_tls_opts opts = { .ca = empty, .cert = mg_unpacked("/data/cert.pem"), .key = mg_unpacked("/data/key.pem"), .name = empty};
+    struct mg_tls_opts opts = { .ca = empty, .cert = mg_unpacked("/data/cert.pem"), .key = mg_unpacked("/data/key.pem"), .name = empty, .skip_verification = 0};
     mg_tls_init(c, &opts);
   } else if (ev == MG_EV_CLOSE) {
     if (c == HttpListener80) {
