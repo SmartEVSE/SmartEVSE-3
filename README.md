@@ -17,6 +17,22 @@ Communication between the SmartEVSE(s) / Sensorbox or kWh meters is done over RS
 
 This repo provides the software (firmware) for the controller.
 
+
+# SmartEVSE Operating Modes
+
+1. **NORMAL**
+   The most basic mode of EV charging; It supplies as much current as configured, taking the mains fuses, the charge cable capacity and EV max into account. The other home consumers and supplies are __not__ taken into account.
+   
+2. **SMART**
+   Similar to NORMAL, but takes other home consumers and supplies into account. This assures that at no time the main fuses are overloaded due to multiple active high power consumers being active. The user has also more control over limiting the current draw by the charging car.
+   
+3. **SOLAR**
+   In this mode, the car is charged with Solar surplus power, that is, after all home consumers are supplied with Solar power and net zero power is send to or consumed from the power company.
+   The EVSE uses 1-phase charging (typically 6A - 16A = 1.4 kW - 3.6 kW) and 3-phase charging (typically 3x6 - 3x16A = 4.1 kW - 11kW) whenever possible, using an extra 2-phase contactor.
+   
+For SMART and SOLAR modes, an extra sensorbox or one of many alternative methods of providing Mains phase current information is necessary.
+
+
 # Features
 
 - Fits into a standard DIN rail enclosure.
