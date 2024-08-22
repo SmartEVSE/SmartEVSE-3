@@ -703,8 +703,14 @@ void GLCD(void) {
                             GLCD_sendbuf(7, 1);
                         }
                     } else {
-                        GLCD_print_buf2(2, (const char *) "ACCESS");
-                        GLCD_print_buf2(4, (const char *) "DENIED");
+                        // The "ACCESS DENIED" is only appliccable when RFID is used to gain access, but then it shows "PRESENT RFID CARD".
+                        // For normal use, just say "OFF", much more friendlier statement
+                        //GLCD_print_buf2(2, (const char *) "ACCESS");
+                        //GLCD_print_buf2(4, (const char *) "DENIED");
+
+                        GLCD_print_buf2(2, ""); // clear line 2 (double height)
+                        GLCD_print_buf2(4, ""); // clear line 4 (double height)
+                        GLCD_print_buf2(3, "OFF");
                     }
                 }
             }
