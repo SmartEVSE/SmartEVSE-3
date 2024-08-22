@@ -1251,16 +1251,16 @@ void CalcBalancedCurrent(char mod) {
                     }
                 }
             }                                                                   // we already corrected Isetbalance in case of NOT enough power MaxCircuit/MaxMains
-            _LOG_V("Checkpoint 3 Isetbalanced=%.1f A, IsumImport=%.1f, Isum=%.1f, ImportCurrent=%i.\n", (float)IsetBalanced/10, (float)IsumImport/10, (float)Isum/10, ImportCurrent);
+            _LOG_V("Checkpoint 3 Solar Isetbalanced=%.1f A, IsumImport=%.1f, Isum=%.1f, ImportCurrent=%i.\n", (float)IsetBalanced/10, (float)IsumImport/10, (float)Isum/10, ImportCurrent);
         } //end MODE_SOLAR
         else { // MODE_SMART
         // New EVSE charging, and only if we have active EVSE's
             if (mod && ActiveEVSE) {                                            // if we have an ActiveEVSE and mod=1, we must be Master, so MaxCircuit has to be
                                                                                 // taken into account
-
                 IsetBalanced = min((MaxMains * 10) - Baseload, (MaxCircuit * 10 ) - Baseload_EV ); //assume the current should be available on all 3 phases
                 if (MaxSumMains)
                     IsetBalanced = min((int) IsetBalanced, ((MaxSumMains * 10) - Isum)/3); //assume the current should be available on all 3 phases
+                _LOG_V("Checkpoint 3 Smart Isetbal=%.1f A, Isum=%.1f, MaxMains-BL=%.1f, MaxCirc-BL_EV=%.1f\n", (float)IsetBalanced/10.0, (float)Isum/10.0, (float)((MaxMains * 10) - Baseload)/10.0,  (float)((MaxCircuit * 10 ) - Baseload_EV)/10.0);
             }
         } //end MODE_SMART
     } // end MODE_SOLAR || MODE_SMART
@@ -1268,13 +1268,19 @@ void CalcBalancedCurrent(char mod) {
     // ############### make sure the calculated IsetBalanced doesnt exceed any boundaries #################
 
 
-    // guard MaxCircuit
-    if (MainsMeter.Type && Mode != MODE_NORMAL)    // Conditions in which MaxCircuit has to be considered
-        IsetBalanced = min((int) IsetBalanced, (MaxMains * 10) - Baseload); //limiting is per phase so no Nr_Of_Phases_Charging here!
+    // guard MaxMains
+    if (MainsMeter.Type && Mode != MODE_NORMAL) {   // Conditions in which MaxMains has to be considered
+        // IsetBalanced = min((int) IsetBalanced, (MaxMains * 10) - Baseload); //limiting is per phase so no Nr_Of_Phases_Charging here!
+        if (IsetBalanced > (MaxMains * 10) - Baseload) {
+            IsetBalanced = (MaxMains * 10) - Baseload;
+            _LOG_V("Isetbalanced guard MaxMains %.1f A\n", (float)IsetBalanced/10.0);
+        }
+    }
     // guard MaxCircuit
     if (((LoadBl == 0 && EVMeter.Type && Mode != MODE_NORMAL) || LoadBl == 1)    // Conditions in which MaxCircuit has to be considered
        && (IsetBalanced > (MaxCircuit * 10) - Baseload_EV)) {
         IsetBalanced = MaxCircuit * 10 - Baseload_EV; //limiting is per phase so no Nr_Of_Phases_Charging here!
+        _LOG_V("Isetbalanced guard MaxCircuit %.1f A\n", (float)IsetBalanced/10.0);
     }
     _LOG_V("Checkpoint 4 Isetbalanced=%.1f A.\n", (float)IsetBalanced/10);
 
