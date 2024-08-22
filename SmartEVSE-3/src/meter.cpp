@@ -330,8 +330,8 @@ void Meter::ResponseToMeasurement() {
                 if (receiveCurrentMeasurement(MB.Data)) {
                     Timeout = COMM_EVTIMEOUT;
                 }
+                CalcImeasured();
             }
-            CalcImeasured();
         } else if (MB.Register == EMConfig[Type].PRegister) {
             PowerMeasured = receivePowerMeasurement(MB.Data);
         } else if (MB.Register == EMConfig[Type].ERegister) {
