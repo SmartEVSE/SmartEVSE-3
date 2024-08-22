@@ -6,8 +6,9 @@
 - string texts wrong
 - org values wrong
 - target values good
+v Fixed.
 
-- REST API calls return JSON content. This is undocumented in API. Thuis has at least the following issue:
+v REST API calls return JSON content. This is undocumented in API. This has at least the following issue:
   code: evse.cpp line 5152
 
                     DynamicJsonDocument doc(200);
@@ -17,24 +18,49 @@
                     }
                     doc["TOTAL"] = Isum;
 
-the "L"+x is an increment on const char *, not a String with a number appended
-This happens one more time.
+  the "L"+x is an increment on const char *, not a String with a number appended
+  This happens one more time.
+  > fixed
 
-+warning uninitialized variable
-src/evse.cpp: In function 'void CalcBalancedCurrent(char)':
-src/evse.cpp:1219:44: warning: 'IsumImport' may be used uninitialized in this function [-Wmaybe-uninitialized]
+v warning uninitialized variable
+  src/evse.cpp: In function 'void CalcBalancedCurrent(char)':
+  src/evse.cpp:1219:44: warning: 'IsumImport' may be used uninitialized in this function [-Wmaybe-uninitialized]
+  > fixed
 
-+ hangups too often!
-+ pressing the charge on/off buttons on faceplate refresh display in fast succession, where its impossible to see what action is taken.
-+ Normal mode somehow limited to 6A, while everything says 16A
-+ Uninitialized var in CalcBalancedCurrent();
+x hangups too often!
+  This was mainly in some error condition...
+  dificult / not possible? to reproduce.
+  does not occur in normal operation
+  > not reproducible
+  > Monitor free heap size (where/how?)
+
+x pressing the charge on/off buttons on faceplate refresh display in fast succession, where its
+  impossible to see what action is taken.
+  > not reproducible
+
+x Normal mode somehow limited to 6A, while everything says 16A
+  > not reproducible
+
+v Uninitialized var in CalcBalancedCurrent();
   change 	signed int IsumImport;
   to    	int IsumImport = 0;
-+ Contactor 2 (with its mode = Auto) when switched off in solar charge mode is never switched on, though SW thinks it is. Also other charge modes (with 3-phase charging) leave contactor 2 off, resulting effectively in 1F charge, while SW thinks it is doing 3F charge. Changing to different charge mode (Normal or Smart) keeps charging at 1F. Only a power-cycle fixes this!
+  > fixed
 
-+ /status json output shows some floating point numbers in evmeter section with lots of decimals that are intended to be suppressed:
+v Contactor 2 (with its mode = Auto) when switched off in solar charge mode is never switched on,
+  though SW thinks it is. Also other charge modes (with 3-phase charging) leave contactor 2 off,
+  resulting effectively in 1F charge, while SW thinks it is doing 3F charge. Changing to different
+  charge mode (Normal or Smart) keeps charging at 1F. Only a power-cycle fixes this!
+  > fixed
+
+v /status json output shows some floating point numbers in evmeter section with lots of decimals
+  that are intended to be suppressed:
   "ev_meter":{...,"total_kwh":235.6999969,"charged_kwh":1.600000024,...}
-  The code intends to convert an Wh integer value into a kWh value with one decimal, using "round(float/100)/10". Due to lack in precision, the extra digits are produced.
-  My favourite solution is to get rid of floats, and output the integer values, with W and Wh units, but that would result in backwards compatibility, that could be mitigated by generating different topic names, like change "total_kwh":<float> into "total_wh":<int>
+  The code intends to convert an Wh integer value into a kWh value with one decimal, using
+  "round(float/100)/10". Due to lack in precision, the extra digits are produced.
+  My favourite solution is to get rid of floats, and output the integer values, with W and Wh
+  units, but that would result in backwards compatibility issues, that could be mitigated by
+  generating different topic names, like change "total_kwh":<float> into "total_wh":<int>
   The alternative is to use double precision, and use fp constants, as in: "round(double/100.0)/10.0"
   Issue was already present in v3.5.1, see #71, and possibly others.
+  > fixed
+
