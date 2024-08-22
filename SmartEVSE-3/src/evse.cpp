@@ -925,7 +925,7 @@ void setAccess(bool Access) {
  *
  * Example:
  * homeBatteryCharge == 1000 --> Battery is charging using Solar
- * P1 = -500 --> Solar injection to the net but nut sufficient for charging
+ * P1 = -500 --> Solar injection to the net but not sufficient for charging
  *
  * If the P1 value is added with the inverse battery charge it will inform the EVSE logic there is enough Solar --> -500 + -1000 = -1500
  *
@@ -2147,6 +2147,7 @@ void CalcIsum(void) {
         MainsMeter.Irms[x] -= batteryPerPhase;
         Isum = Isum + MainsMeter.Irms[x];
     }
+    MainsMeter.CalcImeasured();
 }
 
 
