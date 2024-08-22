@@ -241,11 +241,15 @@ volatile uint8_t sampleidx = 0;
 char str[20];
 bool LocalTimeSet = false;
 
-int phasesLastUpdate = 0;
-bool phasesLastUpdateFlag = false;
+uint32_t phasesLastUpdate; // Time in milliseconds
+uint32_t phasesLastUpdateDelay;
+uint32_t phasesLastUpdateInterval;
+bool phasesLastUpdateFlag;
 int16_t IrmsOriginal[3]={0, 0, 0};
 int homeBatteryCurrent = 0;
-int homeBatteryLastUpdate = 0; // Time in milliseconds
+uint32_t homeBatteryLastUpdate; // Time in milliseconds
+uint32_t homeBatteryLastUpdateDelay;
+uint32_t homeBatteryLastUpdateInterval;
 char *downloadUrl = NULL;
 int downloadProgress = 0;
 int downloadSize = 0;
@@ -933,13 +937,18 @@ void setAccess(bool Access) {
  */
 //
 int getBatteryCurrent(void) {
-    int currentTime = time(NULL) - 60; // The data should not be older than 1 minute
+    // The data should not be older than 1 minute
 
-    if (Mode == MODE_SOLAR && homeBatteryLastUpdate > (currentTime)) {
+    if (Mode == MODE_SOLAR && (homeBatteryLastUpdate > (millis()-60000))) {
+        if (phasesLastUpdateFlag && homeBatteryLastUpdate) {
+            homeBatteryLastUpdateDelay = millis() - homeBatteryLastUpdate;
+        }
         return homeBatteryCurrent;
     } else {
         homeBatteryCurrent = 0;
         homeBatteryLastUpdate = 0;
+        homeBatteryLastUpdateDelay = 0;
+        homeBatteryLastUpdateInterval = 0;
         return 0;
     }
 }
@@ -1204,7 +1213,8 @@ void CalcBalancedCurrent(char mod) {
         if (!mod) {                                                             // no new EVSE's charging
                                                                                 // For Smart mode, no new EVSE asking for current
             if (phasesLastUpdateFlag) {                                         // only increase or decrease current if measurements are updated
-                _LOG_V("phaseLastUpdate=%02u:%02u:%02u, %d s ago\n", (phasesLastUpdate/3600)%24+2, (phasesLastUpdate/60)%60, phasesLastUpdate%60, (int)time(NULL) - phasesLastUpdate );
+                //_LOG_V("phaseLastUpdate=%02u:%02u:%02u, %d s ago\n", (phasesLastUpdate/3600)%24+2, (phasesLastUpdate/60)%60, phasesLastUpdate%60, (int)time(NULL) - phasesLastUpdate );
+                _LOG_V("phaseLastUpdate %d ms ago, %d ms interval, proc delay %d ms\n", (int)(millis()-phasesLastUpdate), (int)phasesLastUpdateInterval, (int)phasesLastUpdateDelay);
                 if (Iheadroom > 0) {
                     if (Mode == MODE_SMART) IsetBalanced += (Iheadroom / 4);  // increase with 1/4th of difference (slowly increase current)
                 }                                                               // in Solar mode we compute increase of current later on!
@@ -1409,7 +1419,8 @@ void CalcBalancedCurrent(char mod) {
         MaxSumMainsTimer = 0;
         NoCurrent = 0;
     }
-
+    if (phasesLastUpdateFlag)
+        phasesLastUpdateDelay = millis() - phasesLastUpdate;
     // Reset flag that keeps track of new MainsMeter measurements
     phasesLastUpdateFlag = false;
 
@@ -2128,7 +2139,8 @@ void DisconnectEvent(void){
 }
 
 void CalcIsum(void) {
-    phasesLastUpdate = time(NULL);
+    if (phasesLastUpdate)   phasesLastUpdateInterval = millis() - phasesLastUpdate;
+    phasesLastUpdate = millis();
     phasesLastUpdateFlag = true;                        // Set flag if a new Irms measurement is received.
     int batteryPerPhase = getBatteryCurrent() / 3;
     Isum = 0;
@@ -2953,7 +2965,9 @@ void mqtt_receive_callback(const String topic, const String payload) {
         if (LoadBl >= 2)
             return;
         homeBatteryCurrent = payload.toInt();
-        homeBatteryLastUpdate = time(NULL);
+        if (homeBatteryLastUpdate)
+            homeBatteryLastUpdateInterval = millis() - homeBatteryLastUpdate;
+        homeBatteryLastUpdate = millis();
     } else if (topic == MQTTprefix + "/Set/RequiredEVCCID") {
         strncpy(RequiredEVCCID, payload.c_str(), sizeof(RequiredEVCCID));
         if (preferences.begin("settings", false) ) {                        //false = write mode
@@ -4883,7 +4897,15 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
 #endif //ENABLE_OCPP
 
         doc["home_battery"]["current"] = homeBatteryCurrent;
-        doc["home_battery"]["last_update"] = homeBatteryLastUpdate;
+        doc["home_battery"]["last_update"] = homeBatteryLastUpdate;   // [rob040] used in index.html/js
+        uint32_t hbage = 0;
+        if (homeBatteryLastUpdate != 0) {
+            hbage = millis()-homeBatteryLastUpdate;
+            if (homeBatteryLastUpdateInterval > hbage) hbage = homeBatteryLastUpdateInterval;
+        }
+        doc["home_battery"]["age"] = hbage;
+        doc["home_battery"]["delay"] = homeBatteryLastUpdateDelay;
+
 
         //[rob040 20240819] Fixed: the net effect of "round(float/100)/10" is a Json value like 235.6999969 or 1.600000024; i.e. result in many decimals, i.s.o. just one.
         // When using FP constants, like "round(float/100.0)/10.0", no such rounding errors do occurr.
@@ -4907,8 +4929,10 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         doc["phase_currents"]["L1"] = MainsMeter.Irms[0];
         doc["phase_currents"]["L2"] = MainsMeter.Irms[1];
         doc["phase_currents"]["L3"] = MainsMeter.Irms[2];
-        doc["phase_currents"]["last_data_update"] = phasesLastUpdate;      // [rob040] used in index.html/js
-        doc["phase_currents"]["age"] = (int)time(NULL) - phasesLastUpdate; // [rob] MainsMeter age is more important than 10-digit timestamp
+        //doc["phase_currents"]["last_data_update"] = phasesLastUpdate;      // [rob040] used in index.html/js
+        uint32_t age = millis()-phasesLastUpdate;
+        doc["phase_currents"]["age"] = max(age, phasesLastUpdateInterval); // [rob] MainsMeter age is more important than 10-digit timestamp
+        doc["phase_currents"]["delay"] = phasesLastUpdateDelay;
         doc["phase_currents"]["original_data"]["TOTAL"] = IrmsOriginal[0] + IrmsOriginal[1] + IrmsOriginal[2];
         doc["phase_currents"]["original_data"]["L1"] = IrmsOriginal[0];
         doc["phase_currents"]["original_data"]["L2"] = IrmsOriginal[1];
@@ -5250,7 +5274,9 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         if(request->hasParam("battery_current")) {
             if (LoadBl < 2) {
                 homeBatteryCurrent = request->getParam("battery_current")->value().toInt();
-                homeBatteryLastUpdate = time(NULL);
+                if (homeBatteryLastUpdate)
+                    homeBatteryLastUpdateInterval = millis() - homeBatteryLastUpdate;
+                homeBatteryLastUpdate = millis();
                 doc["battery_current"] = homeBatteryCurrent;
             } else
                 doc["battery_current"] = "not allowed on slave";

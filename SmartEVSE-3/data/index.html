@@ -39,6 +39,7 @@
               $('#version').append(data.version);
               sessionStorage.setItem("version",JSON.stringify(data.version));
               $('#serialnr').append(data.serialnr);
+              sessionStorage.setItem("serialnr",JSON.stringify(data.serialnr));
 
               let minCurrent=parseInt(data.settings.current_min.toFixed(1));
               let maxCurrent=parseInt(data.settings.current_max.toFixed(1));
@@ -188,9 +189,7 @@
             else {
                 $('#repeat').text("none");
             }
-            $('#battery_current').text((data.home_battery.current/10).toFixed(1) + "A");
-            $('#battery_last_update_time').text(new Date(data.home_battery.last_update * 1000).toLocaleTimeString());
-            $('#battery_last_update_date').text(new Date(data.home_battery.last_update * 1000).toLocaleDateString());
+            $('#battery_current').text((data.home_battery.current/10).toFixed(1) + " A");
 
             $('#phase_total').text((data.phase_currents.TOTAL/10).toFixed(1) + " A");
             $('#phase_1').text((data.phase_currents.L1/10).toFixed(1) + " A");
@@ -206,21 +205,36 @@
             $('#phase_original_1').text((data.phase_currents.original_data.L1/10).toFixed(1) + " A");
             $('#phase_original_2').text((data.phase_currents.original_data.L2/10).toFixed(1) + " A");
             $('#phase_original_3').text((data.phase_currents.original_data.L3/10).toFixed(1) + " A");
-
-            if(data.phase_currents.last_data_update > 0) {
-              $('#p1_data_time').text(new Date(data.phase_currents.last_data_update * 1000).toLocaleTimeString());
-              $('#p1_data_date').text(new Date(data.phase_currents.last_data_update * 1000).toLocaleDateString());
-              $('[id=with_p1_api_data_date]').show();
-              $('[id=with_p1_api_data_time]').show();
+            if(data.phase_currents.age) {
+              $('#p1_data_age').text((data.phase_currents.age/1000).toFixed(1) + " s");
+              $('[id=with_p1_api_data_age]').show();
             } else {
-              $('[id=with_p1_api_data_date]').hide();
-              $('[id=with_p1_api_data_time]').hide();
+              $('[id=with_p1_api_data_age]').hide();
+            }
+            if(data.phase_currents.delay) {
+              $('#p1_data_delay').text((data.phase_currents.delay/1000).toFixed(1) + " s");
+              $('[id=with_p1_api_data_delay]').show();
+            } else {
+              $('[id=with_p1_api_data_delay]').hide();
             }
 
-            if(data.home_battery.last_update == 0) {
-              $('[id=with_homebattery]').hide();
+            if(data.home_battery.age) {
+              $('#homebattery_age').text((data.home_battery.age/1000).toFixed(1) + " s");
+              $('[id=with_homebattery_age]').show();
             } else {
+              $('[id=with_homebattery_age]').hide();
+            }
+            if(data.home_battery.delay) {
+              $('#homebattery_delay').text((data.home_battery.delay/1000).toFixed(1) + " s");
+              $('[id=with_homebattery_delay]').show();
+            } else {
+              $('[id=with_homebattery_delay]').hide();
+            }
+
+            if(data.home_battery.last_update) {
               $('[id=with_homebattery]').show();
+            } else {
+              $('[id=with_homebattery]').hide();
             }
 
             if(data.home_battery.current == 0) {
@@ -582,7 +596,7 @@
                         <div class="card-body">
                             <div class="row no-gutters align-items-center">
                                 <div class="col mr-2">
-                                    <div class="text-xl font-weight-bold text-info text-uppercase mb-1">Phase Details</div>
+                                    <div class="text-xl font-weight-bold text-info text-uppercase mb-1">Mains Phase Details</div>
                                     <div class="row no-gutters align-items-center">
                                       <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
                                           Total:
@@ -615,21 +629,21 @@
                                           <div class="h5 mb-0 mr-3 text-gray-800" id="phase_3" style="text-align: right;"></div>
                                         </div>
                                     </div>
-                                    <div class="row no-gutters align-items-center" id="with_p1_api_data_date">
+                                    <div class="row no-gutters align-items-center" id="with_p1_api_data_age" style="display:none;">
                                       <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
-                                          Date:
-                                        </div>
-                                        <div class="col">
-                                          <div class="h5 mb-0 mr-3 text-gray-800" id="p1_data_date" style="text-align: right;"></div>
-                                        </div>
+                                        Interval:
+                                      </div>
+                                      <div class="col">
+                                        <div class="h5 mb-0 mr-3 text-gray-800" id="p1_data_age" style="text-align: right;"></div>
+                                      </div>
                                     </div>
-                                    <div class="row no-gutters align-items-center" id="with_p1_api_data_time">
+                                    <div class="row no-gutters align-items-center" id="with_p1_api_data_delay" style="display:none;">
                                       <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
-                                          Time:
-                                        </div>
-                                        <div class="col">
-                                          <div class="h5 mb-0 mr-3 text-gray-800" id="p1_data_time" style="text-align: right;"></div>
-                                        </div>
+                                        Delay:
+                                      </div>
+                                      <div class="col">
+                                        <div class="h5 mb-0 mr-3 text-gray-800" id="p1_data_delay" style="text-align: right;"></div>
+                                      </div>
                                     </div>
                                 </div>
                                 <div class="col-auto">
@@ -644,7 +658,7 @@
                     </div>
                 </div>
 
-                <div class="col-xl-4 col-md-6 mb-4" id="with_homebattery">
+                <div class="col-xl-4 col-md-6 mb-4" id="with_homebattery" style="display:none;">
                   <div class="card border-left-success shadow h-100 py-2">
                       <div class="card-body">
                           <div class="row no-gutters align-items-center">
@@ -693,7 +707,6 @@
                           </div>
                       </div>
                   </div>
-
               </div>
 
 
@@ -800,7 +813,7 @@
                 </div>
               </div>
 
-              <div class="col-xl-4 col-md-6 mb-4" id="with_homebattery" style="display: none;">
+              <div class="col-xl-4 col-md-6 mb-4" id="with_homebattery" style="display:none;">
                 <div class="card border-left-warning shadow h-100 py-2">
                     <div class="card-body">
                         <div class="row no-gutters align-items-center">
@@ -822,23 +835,23 @@
                                       <div class="h5 mb-0 mr-3 text-gray-800" id="battery_current" style="text-align: right;"></div>
                                     </div>
                                 </div>
-                                <div class="row no-gutters align-items-center">
+                                <div class="row no-gutters align-items-center" id="with_homebattery_age">
                                   <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
-                                      Date:
-                                    </div>
-                                    <div class="col">
-                                      <div class="h5 mb-0 mr-3 text-gray-800" id="battery_last_update_date" style="text-align: right;"></div>
-                                    </div>
+                                    Interval:
+                                  </div>
+                                  <div class="col">
+                                    <div class="h5 mb-0 mr-3 text-gray-800" id="homebattery_age" style="text-align: right;"></div>
+                                  </div>
                                 </div>
-                                <div class="row no-gutters align-items-center">
+                                <div class="row no-gutters align-items-center" id="with_homebattery_delay">
                                   <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
-                                      Time:
-                                    </div>
-                                    <div class="col">
-                                      <div class="h5 mb-0 mr-3 text-gray-800" id="battery_last_update_time" style="text-align: right;"></div>
-                                    </div>
+                                    Delay:
+                                  </div>
+                                  <div class="col">
+                                    <div class="h5 mb-0 mr-3 text-gray-800" id="homebattery_delay" style="text-align: right;"></div>
+                                  </div>
                                 </div>
-                            </div>
+                              </div>
                             <div class="col-auto">
                                 <i class="fas fa-clipboard-list fa-2x text-gray-300">
                                   <svg style="width:48px;height:48px" viewBox="0 0 24 24">
@@ -997,7 +1010,7 @@
                                           <span id="loadbl_text_master">Master node - control changes are propagated to Slave node(s).</span>
                                       </div>
                                     </div>
--->                                    
+-->
                                     <div class="row no-gutters align-items-center">
                                       <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
                                           Mode:
