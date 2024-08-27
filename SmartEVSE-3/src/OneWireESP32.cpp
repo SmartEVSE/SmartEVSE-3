@@ -17,72 +17,77 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 
 OneWire32::OneWire32(uint8_t pin, uint8_t tx, uint8_t rx, uint8_t parasite){
-	owpin = static_cast<gpio_num_t>(pin);
-	owtx = static_cast<rmt_channel_t>(tx);
-	owrx = static_cast<rmt_channel_t>(rx);
-	power_default = parasite;
-	rmt_config_t rmt_tx = {
-		.rmt_mode           = RMT_MODE_TX,
-		.channel            = owtx,
-		.gpio_num           = owpin,
-		.clk_div            = 80,
-		.mem_block_num      = 1,
-		.tx_config          = {
-			.idle_level     = RMT_IDLE_LEVEL_HIGH,
-			.carrier_en     = false,
-			.loop_en        = false,
-			.idle_output_en = true,
-		}
-	};
-	if(rmt_config(&rmt_tx) == ESP_OK){
-		if(rmt_driver_install(owtx, 0, ESP_INTR_FLAG_LOWMED | ESP_INTR_FLAG_IRAM | ESP_INTR_FLAG_SHARED) == ESP_OK){
-			drvtx = 1;
-			rmt_set_source_clk(owtx, RMT_BASECLK_APB);
-			rmt_config_t rmt_rx = {
-				.rmt_mode                = RMT_MODE_RX,
-				.channel                 = owrx,
-				.gpio_num                = owpin,
-				.clk_div                 = 80,
-				.mem_block_num           = 1,
-				.rx_config               = {
-					.idle_threshold      = OW_DURATION_RX_IDLE,
-					.filter_ticks_thresh = 30,
-					.filter_en           = true,
-				}
-			};
-			if(rmt_config(&rmt_rx) == ESP_OK){
-				if(rmt_driver_install(owrx, 512, ESP_INTR_FLAG_LOWMED | ESP_INTR_FLAG_IRAM | ESP_INTR_FLAG_SHARED) == ESP_OK){
-					drvrx = 1;
-					rmt_set_source_clk(owrx, RMT_BASECLK_APB);
-					rmt_get_ringbuf_handle(owrx, &owbuf);
-					#if !ESP32
-						#error ESP8266 not supported
-					#elif ESP32 == 4 || ESP32 == 5 || ESP32 == 6
-						//ESP32C3, ESP32C6, ESP32H2
-						GPIO.enable_w1ts.val = (0x1 << owpin);
-					#else
-						if(owpin < 32){
-							GPIO.enable_w1ts = (0x1 << owpin);
-						}else{
-							GPIO.enable1_w1ts.data = (0x1 << (owpin - 32));
-						}
-					#endif
-					rmt_set_gpio(owrx, RMT_MODE_RX, owpin, false);
-					rmt_set_gpio(owtx, RMT_MODE_TX, owpin, false);
-					PIN_INPUT_ENABLE(GPIO_PIN_MUX_REG[owpin]);
-					GPIO.pin[owpin].pad_driver = 1;
-					return;// true;
-				}else{
-					return;// false;
-				}
-			}else{
-				return;// false;
-			}
-			drvtx = 0;
-			rmt_driver_uninstall(owtx);
-		}
-	}
-	return;// false;
+    owpin = static_cast<gpio_num_t>(pin);
+    owtx = static_cast<rmt_channel_t>(tx);
+    owrx = static_cast<rmt_channel_t>(rx);
+    power_default = parasite;
+    rmt_config_t rmt_tx = {
+        .rmt_mode           = RMT_MODE_TX,
+        .channel            = owtx,
+        .gpio_num           = owpin,
+        .clk_div            = 80,
+        .mem_block_num      = 1,
+        .flags              = 0,
+        .tx_config          = {
+            .carrier_freq_hz = 38000,
+            .carrier_level  = RMT_CARRIER_LEVEL_HIGH,
+            .idle_level     = RMT_IDLE_LEVEL_HIGH,
+            .carrier_duty_percent = 33,
+            .carrier_en     = false,
+            .loop_en        = false,
+            .idle_output_en = true,
+        }
+    };
+    if(rmt_config(&rmt_tx) == ESP_OK){
+        if(rmt_driver_install(owtx, 0, ESP_INTR_FLAG_LOWMED | ESP_INTR_FLAG_IRAM | ESP_INTR_FLAG_SHARED) == ESP_OK){
+            drvtx = 1;
+            rmt_set_source_clk(owtx, RMT_BASECLK_APB);
+            rmt_config_t rmt_rx = {
+                .rmt_mode                = RMT_MODE_RX,
+                .channel                 = owrx,
+                .gpio_num                = owpin,
+                .clk_div                 = 80,
+                .mem_block_num           = 1,
+                .flags                   = 0,
+                .rx_config               = {
+                    .idle_threshold      = OW_DURATION_RX_IDLE,
+                    .filter_ticks_thresh = 30,
+                    .filter_en           = true,
+                }
+            };
+            if(rmt_config(&rmt_rx) == ESP_OK){
+                if(rmt_driver_install(owrx, 512, ESP_INTR_FLAG_LOWMED | ESP_INTR_FLAG_IRAM | ESP_INTR_FLAG_SHARED) == ESP_OK){
+                    drvrx = 1;
+                    rmt_set_source_clk(owrx, RMT_BASECLK_APB);
+                    rmt_get_ringbuf_handle(owrx, &owbuf);
+                    #if !ESP32
+                        #error ESP8266 not supported
+                    #elif ESP32 == 4 || ESP32 == 5 || ESP32 == 6
+                        //ESP32C3, ESP32C6, ESP32H2
+                        GPIO.enable_w1ts.val = (0x1 << owpin);
+                    #else
+                        if(owpin < 32){
+                            GPIO.enable_w1ts = (0x1 << owpin);
+                        }else{
+                            GPIO.enable1_w1ts.data = (0x1 << (owpin - 32));
+                        }
+                    #endif
+                    rmt_set_gpio(owrx, RMT_MODE_RX, owpin, false);
+                    rmt_set_gpio(owtx, RMT_MODE_TX, owpin, false);
+                    PIN_INPUT_ENABLE(GPIO_PIN_MUX_REG[owpin]);
+                    GPIO.pin[owpin].pad_driver = 1;
+                    return;// true;
+                }else{
+                    return;// false;
+                }
+            }else{
+                return;// false;
+            }
+            drvtx = 0;
+            rmt_driver_uninstall(owtx);
+        }
+    }
+    return;// false;
 }// begin
 
 
