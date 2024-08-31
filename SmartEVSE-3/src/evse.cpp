@@ -924,7 +924,6 @@ char IsCurrentAvailable(void) {
     if (ActiveEVSE > NR_EVSES) ActiveEVSE = NR_EVSES;
     Baseload = MainsMeter.Imeasured - TotalCurrent;                         // Calculate Baseload (load without any active EVSE)
     Baseload_EV = EVMeter.Imeasured - TotalCurrent;                         // Load on the EV subpanel excluding any active EVSE
-    if (Baseload < 0) Baseload = 0;
     if (Baseload_EV < 0) Baseload_EV = 0;                                   // so Baseload_EV = 0 when no EVMeter installed
 
     // Check if the lowest charge current(6A) x ActiveEV's + baseload would be higher then the MaxMains.
@@ -1068,8 +1067,6 @@ void CalcBalancedCurrent(char mod) {
     if (Baseload_EV < 0)
         Baseload_EV = 0;
     Baseload = MainsMeter.Imeasured - TotalCurrent;                             // Calculate Baseload (load without any active EVSE)
-    if (Baseload < 0)
-        Baseload = 0;
 
     // ############### now calculate IsetBalanced #################
 
