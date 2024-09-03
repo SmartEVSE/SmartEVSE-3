@@ -111,7 +111,6 @@ void ReadRFIDlist(void) {
                 //we are now going to convert from RFIDlist 120bytes to RFIDlist 600bytes
                 for (int i = 120; i < 600; i++) RFIDlist[i] = 0xff;
                 preferences.remove("RFID");
-                preferences.end();
                 WriteRFIDlist();
                 break;
             case 0:
@@ -120,9 +119,9 @@ void ReadRFIDlist(void) {
                 break;
             case 2:                                                             // extended RFIDlist with room for 100tags of 6 bytes = 600 bytes
                 preferences.getBytes("RFID", RFIDlist, 600);                    // read 600 bytes from storage
-                preferences.end();
                 break;
         }
+        preferences.end();
 
     } else {
         _LOG_A("Error opening preferences!\n") ;
