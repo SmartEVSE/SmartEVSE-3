@@ -3033,7 +3033,7 @@ void mqttPublishData() {
 #endif
         if (EVMeter.Type) {
             MQTTclient.publish(MQTTprefix + "/EVChargePower", String(EVMeter.PowerMeasured), false, 0);
-            MQTTclient.publish(MQTTprefix + "/EVEVMeterEnergyCharged", String(EVMeter.EnergyCharged), true, 0);
+            MQTTclient.publish(MQTTprefix + "/EVEnergyCharged", String(EVMeter.EnergyCharged), true, 0);
             MQTTclient.publish(MQTTprefix + "/EVTotalEnergyCharged", String(EVMeter.Energy), false, 0);
         }
         if (homeBatteryLastUpdate)
