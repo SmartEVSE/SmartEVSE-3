@@ -67,7 +67,7 @@ String MQTTprefix;
 String MQTTHost = "";
 uint16_t MQTTPort;
 mg_timer *MQTTtimer;
-uint8_t lastMqttUpdate = 0;
+//uint8_t lastMqttUpdate = 0;
 #endif
 
 // SSID and PW for your Router
@@ -728,7 +728,7 @@ void setMode(uint8_t NewMode) {
 
 #if MQTT
     // Update MQTT faster
-    lastMqttUpdate = 10;
+    //lastMqttUpdate = 10;
 #endif
 
     if (NewMode == MODE_SMART) {
@@ -895,7 +895,7 @@ void setState(uint8_t NewState) {
 
 #if MQTT
     // Update MQTT faster
-    lastMqttUpdate = 10;
+    //lastMqttUpdate = 10;
 #endif
 
     // BacklightTimer = BACKLIGHT;                                                 // Backlight ON
@@ -918,7 +918,7 @@ void setAccess(bool Access) {
 
 #if MQTT
     // Update MQTT faster
-    lastMqttUpdate = 10;
+    //lastMqttUpdate = 10;
 #endif
 }
 
@@ -2986,7 +2986,7 @@ void mqtt_receive_callback(const String topic, const String payload) {
     }
 
     // Make sure MQTT updates directly to prevent debounces
-    lastMqttUpdate = 10;
+    //lastMqttUpdate = 10;
 }
 
 //wrapper so MQTTClient::Publish works
@@ -3161,60 +3161,203 @@ void SetupMQTTClient() {
 }
 
 void mqttPublishData() {
-    lastMqttUpdate = 0;
+    //lastMqttUpdate = 0;
+    uint32_t u; // temporary value
+    static uint32_t s_uptime_10s;
+    static int16_t s_mm_irms[3]={-1,-1,-1};
+    static int16_t s_evm_irms[3]={-1,-1,-1};
+    static int16_t s_SolarStopTimer;
+    static int16_t s_MaxCurrent;
+    static int16_t s_ChargeCurrent;
+    static int16_t s_ChargeCurrentOverride;
+    static int8_t s_Access;
+    static int8_t s_RFIDstatus;
+    static int8_t s_RFIDtag[8];
+    static int8_t s_temp_evse;
+    static int8_t s_access_mode = -1;
+    static int8_t s_state;
+    static int8_t s_error=-1;
+    static int8_t s_plugstate;
+    static int8_t s_wifirssi;
+    static int s_wifirssi_update10s;
+    static String s_wifissid, s_wifiBssid;
+    static int s_homeBatteryCurrent=-1;
+    static int s_evm_power;
+    static int32_t s_evm_energyCharged=-1;
+    static int32_t s_evm_energyTotal;
+#if MODEM
+    static int s_cppwm;
+    static int32_t s_cppwmoverride;
+    static int8_t s_InitialSoC, s_FullSoC, s_ComputedSoC, s_RemainingSoC;
+    static uint32_t s_TimeUntilFull, s_EnergyCapacity, s_EnergyRequest;
+    static char s_EVCCID[32], s_reqEVCCID[32];
+#endif
+#if ENABLE_OCPP
+    static uint8_t s_OcppMode, s_OcppWsClientConnected;
+#endif
 
-        if (MainsMeter.Type) {
+        if (MainsMeter.Type &&
+            (s_mm_irms[0] != MainsMeter.Irms[0] || s_mm_irms[1] != MainsMeter.Irms[1] || s_mm_irms[2] != MainsMeter.Irms[2]))
+        {
+            s_mm_irms[0] = MainsMeter.Irms[0];
+            s_mm_irms[1] = MainsMeter.Irms[1];
+            s_mm_irms[2] = MainsMeter.Irms[2];
             MQTTclient.publish(MQTTprefix + "/MainsCurrentL1", String(MainsMeter.Irms[0]), false, 0);
             MQTTclient.publish(MQTTprefix + "/MainsCurrentL2", String(MainsMeter.Irms[1]), false, 0);
             MQTTclient.publish(MQTTprefix + "/MainsCurrentL3", String(MainsMeter.Irms[2]), false, 0);
         }
-        if (EVMeter.Type) {
+        if (EVMeter.Type &&
+            (s_evm_irms[0] != EVMeter.Irms[0] || s_evm_irms[1] != EVMeter.Irms[1] || s_evm_irms[2] != EVMeter.Irms[2]))
+        {
+            s_evm_irms[0] = EVMeter.Irms[0];
+            s_evm_irms[1] = EVMeter.Irms[1];
+            s_evm_irms[2] = EVMeter.Irms[2];
             MQTTclient.publish(MQTTprefix + "/EVCurrentL1", String(EVMeter.Irms[0]), false, 0);
             MQTTclient.publish(MQTTprefix + "/EVCurrentL2", String(EVMeter.Irms[1]), false, 0);
             MQTTclient.publish(MQTTprefix + "/EVCurrentL3", String(EVMeter.Irms[2]), false, 0);
         }
-        MQTTclient.publish(MQTTprefix + "/ESPUptime", String((esp_timer_get_time() / 1000000)), false, 0);
-        MQTTclient.publish(MQTTprefix + "/ESPTemp", String(TempEVSE), false, 0);
-        MQTTclient.publish(MQTTprefix + "/Mode", Access_bit == 0 ? "Off" : Mode > 3 ? "N/A" : StrMode[Mode], true, 0);
-        MQTTclient.publish(MQTTprefix + "/MaxCurrent", String(MaxCurrent * 10), true, 0);
-        MQTTclient.publish(MQTTprefix + "/ChargeCurrent", String(Balanced[0]), true, 0);
-        MQTTclient.publish(MQTTprefix + "/ChargeCurrentOverride", String(OverrideCurrent), true, 0);
-        MQTTclient.publish(MQTTprefix + "/Access", String(StrAccessBit[Access_bit]), true, 0);
-        MQTTclient.publish(MQTTprefix + "/RFID", !RFIDReader ? "Not Installed" : RFIDstatus >= 8 ? "NOSTATUS" : StrRFIDStatusWeb[RFIDstatus], true, 0);
-        if (RFIDReader && RFIDReader != 6) { //RFIDLastRead not updated in Remote/OCPP mode
+        if (s_uptime_10s != (u = (uint32_t)(esp_timer_get_time() / 10000000))) {
+            s_uptime_10s = u; // publish no more often than every 10 s; perform 64-bit divide only once
+            MQTTclient.publish(MQTTprefix + "/ESPUptime", String(s_uptime_10s * 10), false, 0);
+        }
+        if (s_temp_evse != TempEVSE) {
+            s_temp_evse = TempEVSE;
+            MQTTclient.publish(MQTTprefix + "/ESPTemp", String(TempEVSE), false, 0);
+        }
+        if (s_access_mode != ((Access_bit << 4) | Mode)) {
+            s_access_mode = (Access_bit << 4) | Mode;
+            MQTTclient.publish(MQTTprefix + "/Mode", Access_bit == 0 ? "Off" : Mode > 3 ? "N/A" : StrMode[Mode], true, 0);
+        }
+        if (s_MaxCurrent != MaxCurrent) {
+            s_MaxCurrent = MaxCurrent;
+            MQTTclient.publish(MQTTprefix + "/MaxCurrent", String(MaxCurrent * 10), true, 0);
+        }
+        if (s_ChargeCurrent != Balanced[0]) {
+            s_ChargeCurrent = Balanced[0];
+            MQTTclient.publish(MQTTprefix + "/ChargeCurrent", String(Balanced[0]), true, 0);
+        }
+        if (s_ChargeCurrentOverride != OverrideCurrent) {
+            s_ChargeCurrentOverride = OverrideCurrent;
+            MQTTclient.publish(MQTTprefix + "/ChargeCurrentOverride", String(OverrideCurrent), true, 0);
+        }
+        if (s_Access != Access_bit) {
+            s_Access = Access_bit;
+            MQTTclient.publish(MQTTprefix + "/Access", String(StrAccessBit[Access_bit]), true, 0);
+        }
+        if (s_RFIDstatus != ((RFIDReader << 4) | RFIDstatus)) {
+            s_RFIDstatus = (RFIDReader << 4) | RFIDstatus;
+            MQTTclient.publish(MQTTprefix + "/RFID", !RFIDReader ? "Not Installed" : RFIDstatus >= 8 ? "NOSTATUS" : StrRFIDStatusWeb[RFIDstatus], true, 0);
+        }
+        if (RFIDReader && RFIDReader != 6 && memcmp(s_RFIDtag, RFID, sizeof(s_RFIDtag)) == 0) { //RFIDLastRead not updated in Remote/OCPP mode
             char buf[13];
+            memcpy(s_RFIDtag, RFID, sizeof(s_RFIDtag));
             sprintf(buf, "%02X%02X%02X%02X%02X%02X", RFID[1], RFID[2], RFID[3], RFID[4], RFID[5], RFID[6]);
             MQTTclient.publish(MQTTprefix + "/RFIDLastRead", buf, true, 0);
         }
-        MQTTclient.publish(MQTTprefix + "/State", getStateNameWeb(State), true, 0);
-        MQTTclient.publish(MQTTprefix + "/Error", getErrorNameWeb(ErrorFlags), true, 0);
-        MQTTclient.publish(MQTTprefix + "/EVPlugState", (pilot != PILOT_12V) ? "Connected" : "Disconnected", true, 0);
-        MQTTclient.publish(MQTTprefix + "/WiFiSSID", String(WiFi.SSID()), true, 0);
-        MQTTclient.publish(MQTTprefix + "/WiFiBSSID", String(WiFi.BSSIDstr()), true, 0);
-        MQTTclient.publish(MQTTprefix + "/WiFiRSSI", String(WiFi.RSSI()), false, 0);
+        if (s_state != State) {
+            s_state = State;
+            MQTTclient.publish(MQTTprefix + "/State", getStateNameWeb(State), true, 0);
+        }
+        if (s_error != ErrorFlags) {
+            s_error = ErrorFlags;
+            MQTTclient.publish(MQTTprefix + "/Error", getErrorNameWeb(ErrorFlags), true, 0);
+        }
+        if (s_plugstate != pilot) {
+            s_plugstate = pilot;
+            MQTTclient.publish(MQTTprefix + "/EVPlugState", (pilot != PILOT_12V) ? "Connected" : "Disconnected", true, 0);
+        }
+        if (s_wifissid != WiFi.SSID()) {
+            s_wifissid = WiFi.SSID();
+            MQTTclient.publish(MQTTprefix + "/WiFiSSID", WiFi.SSID(), true, 0);
+        }
+        if (s_wifiBssid != WiFi.BSSIDstr()) {
+            s_wifiBssid = WiFi.BSSIDstr();
+            MQTTclient.publish(MQTTprefix + "/WiFiBSSID", WiFi.BSSIDstr(), true, 0);
+        }
+        if ((++s_wifirssi_update10s >= 10) && s_wifirssi != (u = WiFi.RSSI())) {
+            // do not post _every_ change, but limit to every 10s
+            s_wifirssi_update10s = 0;
+            s_wifirssi = (int8_t)u;
+            MQTTclient.publish(MQTTprefix + "/WiFiRSSI", String(s_wifirssi), false, 0);
+        }
+        if (s_SolarStopTimer != SolarStopTimer) {
+            s_SolarStopTimer = SolarStopTimer;
+            MQTTclient.publish(MQTTprefix + "/SolarStopTimer", String(SolarStopTimer), false, 0);
+        }
+
 #if MODEM
+        if (s_cppwm != CurrentPWM) {
+            s_cppwm = CurrentPWM;
             MQTTclient.publish(MQTTprefix + "/CPPWM", String(CurrentPWM), false, 0);
+        }
+        if (s_cppwmoverride != ((CPDutyOverride << 15) | CurrentPWM)) {
+            s_cppwmoverride = (CPDutyOverride << 15) | CurrentPWM;
             MQTTclient.publish(MQTTprefix + "/CPPWMOverride", String(CPDutyOverride ? String(CurrentPWM) : "-1"), true, 0);
+        }
+        if (s_InitialSoC != InitialSoC) {
+            s_InitialSoC = InitialSoC;
             MQTTclient.publish(MQTTprefix + "/EVInitialSoC", String(InitialSoC), true, 0);
+        }
+        if (s_FullSoC != FullSoC) {
+            s_FullSoC = FullSoC;
             MQTTclient.publish(MQTTprefix + "/EVFullSoC", String(FullSoC), true, 0);
+        }
+        if (s_ComputedSoC != ComputedSoC) {
+            s_ComputedSoC = ComputedSoC;
             MQTTclient.publish(MQTTprefix + "/EVComputedSoC", String(ComputedSoC), true, 0);
+        }
+        if (s_RemainingSoC != RemainingSoC) {
+            s_RemainingSoC = RemainingSoC;
             MQTTclient.publish(MQTTprefix + "/EVRemainingSoC", String(RemainingSoC), true, 0);
+        }
+        if (s_TimeUntilFull != TimeUntilFull) {
+            s_TimeUntilFull = TimeUntilFull;
             MQTTclient.publish(MQTTprefix + "/EVTimeUntilFull", String(TimeUntilFull), false, 0);
+        }
+        if (s_EnergyCapacity != EnergyCapacity) {
+            s_EnergyCapacity = EnergyCapacity;
             MQTTclient.publish(MQTTprefix + "/EVEnergyCapacity", String(EnergyCapacity), true, 0);
+        }
+        if (s_EnergyRequest != EnergyRequest) {
+            s_EnergyRequest = EnergyRequest;
             MQTTclient.publish(MQTTprefix + "/EVEnergyRequest", String(EnergyRequest), true, 0);
+        }
+        if (memcmp(s_EVCCID, EVCCID, sizeof(EVCCID)) != 0) {
+            memcpy(s_EVCCID, EVCCID, sizeof(EVCCID));
             MQTTclient.publish(MQTTprefix + "/EVCCID", String(EVCCID), true, 0);
+        }
+        if (memcmp(s_reqEVCCID, RequiredEVCCID, sizeof(RequiredEVCCID)) != 0) {
+            memcpy(s_reqEVCCID, RequiredEVCCID, sizeof(RequiredEVCCID));
             MQTTclient.publish(MQTTprefix + "/RequiredEVCCID", String(RequiredEVCCID), true, 0);
+        }
 #endif
         if (EVMeter.Type) {
-            MQTTclient.publish(MQTTprefix + "/EVChargePower", String(EVMeter.PowerMeasured), false, 0);
-            MQTTclient.publish(MQTTprefix + "/EVEVMeterEnergyCharged", String(EVMeter.EnergyCharged), true, 0);
-            MQTTclient.publish(MQTTprefix + "/EVTotalEnergyCharged", String(EVMeter.Energy), false, 0);
+            if (s_evm_power != EVMeter.PowerMeasured) {
+                s_evm_power = EVMeter.PowerMeasured;
+                MQTTclient.publish(MQTTprefix + "/EVChargePower", String(EVMeter.PowerMeasured), false, 0);
+            }
+            if (s_evm_energyCharged != EVMeter.EnergyCharged) {
+                s_evm_energyCharged = EVMeter.EnergyCharged;
+                MQTTclient.publish(MQTTprefix + "/EVEnergyCharged", String(EVMeter.EnergyCharged), true, 0);
+            }
+            if (s_evm_energyTotal != EVMeter.Energy) {
+                s_evm_energyTotal = EVMeter.Energy;
+                MQTTclient.publish(MQTTprefix + "/EVTotalEnergyCharged", String(EVMeter.Energy), false, 0);
+            }
         }
-        if (homeBatteryLastUpdate)
+        if (homeBatteryLastUpdate && s_homeBatteryCurrent != homeBatteryCurrent) {
+            s_homeBatteryCurrent = homeBatteryCurrent;
             MQTTclient.publish(MQTTprefix + "/HomeBatteryCurrent", String(homeBatteryCurrent), false, 0);
+        }
 #if ENABLE_OCPP
-        MQTTclient.publish(MQTTprefix + "/OCPP", OcppMode ? "Enabled" : "Disabled", true, 0);
-        MQTTclient.publish(MQTTprefix + "/OCPPConnection", (OcppWsClient && OcppWsClient->isConnected()) ? "Connected" : "Disconnected", false, 0);
+        if (s_OcppMode != OcppMode) {
+            s_OcppMode = OcppMode;
+            MQTTclient.publish(MQTTprefix + "/OCPP", OcppMode ? "Enabled" : "Disabled", true, 0);
+        }
+        if (s_OcppWsClientConnected != (OcppWsClient && OcppWsClient->isConnected())) {
+            s_OcppWsClientConnected = (OcppWsClient && OcppWsClient->isConnected());
+            MQTTclient.publish(MQTTprefix + "/OCPPConnection", (OcppWsClient && OcppWsClient->isConnected()) ? "Connected" : "Disconnected", false, 0);
+        }
 #endif //ENABLE_OCPP
 }
 #endif
@@ -3451,11 +3594,11 @@ void Timer1S(void * parameter) {
 
 
 #if MQTT
-        if (lastMqttUpdate++ >= 10) {
+        //if (lastMqttUpdate++ >= 10) {
             // Publish latest data, every 10 seconds
             // We will try to publish data faster if something has changed
-            mqttPublishData();
-        }
+        // Publish latest data when something has changed
+        mqttPublishData();
 #endif
 
         // Pause the task for 1 Sec
