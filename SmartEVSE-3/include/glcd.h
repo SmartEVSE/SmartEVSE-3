@@ -37,6 +37,6 @@ extern void GLCD(void);
 extern void GLCDMenu(unsigned char Buttons);
 extern void GLCD_init(void);
 extern void GLCD_version(void);
+extern bool GridRelayOpen;
 
-
-#endif // #ifndef __GLCD_H 
+#endif // #ifndef __GLCD_H

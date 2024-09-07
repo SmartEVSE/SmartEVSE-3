@@ -968,10 +968,6 @@ char IsCurrentAvailable(void) {
         _LOG_D("No current available MaxSumMains line %d. ActiveEVSE=%i, MinCurrent=%iA, Isum=%.1fA, MaxSumMains=%iA.\n", __LINE__, ActiveEVSE, MinCurrent,  (float)Isum/10, MaxSumMains);
         return 0;                                                           // Not enough current available!, return with error
     }
-    if (GridRelayOpen && ((Phases * ActiveEVSE * MinCurrent * 10) + Isum > 3 * GridRelayMaxSumMains * 10)) { // the GridRelayMaxSumMains is allowed on all 3 phases
-        _LOG_D("No current available GridRelay line %d. ActiveEVSE=%i, MinCurrent=%iA, Isum=%.1fA, GridRelayMaxSumMains=%iA.\n", __LINE__, ActiveEVSE, MinCurrent,  (float)Isum/10, GridRelayMaxSumMains);
-        return 0;                                                           // Not enough current available!, return with error
-    }
 
 // Use OCPP Smart Charging if Load Balancing is turned off
 #if ENABLE_OCPP
