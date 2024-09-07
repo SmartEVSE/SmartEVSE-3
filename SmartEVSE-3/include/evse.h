@@ -204,7 +204,7 @@ extern RemoteDebug Debug;
 #define MAX_MAINS 25                                                            // max Current the Mains connection can supply
 #define MAX_SUMMAINS 0                                                          // only used for capacity rate limiting, max current over the sum of all phases
 #define MAX_SUMMAINSTIME 0
-#define GRID_RELAY_MAX_SUMMAINS 6                                               // only used for rate limiting by grid switched relay,
+#define GRID_RELAY_MAX_SUMMAINS 18                                              // only used for rate limiting by grid switched relay,
                                                                                 // max current over the sum of all phases
                                                                                 // 6A * 3 phases * 230V = 4140W, law says 4.2kW ...
 #define MAX_CURRENT 13                                                          // max charging Current for the EV

@@ -986,7 +986,8 @@ char IsCurrentAvailable(void) {
 
 // Set global var Nr_Of_Phases_Charging
 // 0 = undetected, 1 - 3 nr of phases we are charging
-void Set_Nr_of_Phases_Charging(void) {
+// returns nr of phases we are charging, and 3 if undetected
+int Set_Nr_of_Phases_Charging(void) {
     uint32_t Max_Charging_Prob = 0;
     uint32_t Charging_Prob=0;                                        // Per phase, the probability that Charging is done at this phase
     Nr_Of_Phases_Charging = 0;
@@ -1038,6 +1039,9 @@ void Set_Nr_of_Phases_Charging(void) {
     }
 
     _LOG_A("Charging at %i phases.\n", Nr_Of_Phases_Charging);
+    if (Nr_Of_Phases_Charging == 0)
+        return 3;
+    return Nr_Of_Phases_Charging;
 }
 
 // Calculates Balanced PWM current for each EVSE
@@ -1183,9 +1187,9 @@ void CalcBalancedCurrent(char mod) {
     if ((LoadBl == 0 && EVMeter.Type && Mode != MODE_NORMAL) || LoadBl == 1)    // Conditions in which MaxCircuit has to be considered
         IsetBalanced = min((int) IsetBalanced, (MaxCircuit * 10) - Baseload_EV); //limiting is per phase so no Nr_Of_Phases_Charging here!
     // guard GridRelay
-    if (GridRelayOpen)
-        IsetBalanced = min((int) IsetBalanced, ((GridRelayMaxSumMains * 10) - Isum)/3); //assume the current should be available on all 3 phases
-
+    if (GridRelayOpen) {
+        IsetBalanced = min((int) IsetBalanced, (GridRelayMaxSumMains * 10)/Set_Nr_of_Phases_Charging()); //assume the current should be available on all 3 phases
+    }
     _LOG_V("Checkpoint 4 Isetbalanced=%.1f A.\n", (float)IsetBalanced/10);
 
     // ############### the rest of the work we only do if there are ActiveEVSEs #################
