@@ -72,11 +72,11 @@ There is a simple timer implemented on the webserver, for Delayed Charging.
     - if your StopTime is AFTER your StartTime+24Hours, untested territories are entered. Please enter values that make sense.
 
 # EU Capacity Rate Limiting
-An EU directive gives electricity providers the possibility to charge end consumers by a "capacity rate", so consumers will be stimulated to flatten their usage curve.
-Currently the only known country that has this active is Belgium.
-For more details see https://github.com/serkri/SmartEVSE-3/issues/215
+A European Union directive allows electricity providers to charge consumers based on a "capacity rate," encouraging users to balance their energy consumption more evenly throughout the day. This model incentivizes consumers to reduce peak energy usage and flatten their usage curve.
 
-* In the Menu screen an item "SumMains" is now available, default set at 600A
-* This setting will only be of use in Smart or Solar mode
-* Apart from all other limits (Mains, MaxCirCuit), the charge current will be limited so that the sum of all phases of the Mains currents will not be exceeding the SumMains setting
-* If you don't understand this setting, or don't live in Belgium, leave this setting at its default value
+For more information, visit https://github.com/serkri/SmartEVSE-3/issues/215
+
+* A new menu option, "SumMains," has been introduced with a default setting of 600A.
+* This setting is applicable in Smart or Solar mode only.
+* In addition to existing limits (Mains, MaxCircuit), the charging current will be restricted so that the sum of all mains phase currents does not exceed the SumMains setting.
+* If you're unsure how to configure this, it is recommended to leave the setting at its default value.
