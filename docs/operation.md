@@ -72,7 +72,7 @@ There is a simple timer implemented on the webserver, for Delayed Charging.
     - if your StopTime is AFTER your StartTime+24Hours, untested territories are entered. Please enter values that make sense.
 
 # EU Capacity Rate Limiting
-A European Union directive allows electricity providers to charge consumers based on a "capacity rate," encouraging users to balance their energy consumption more evenly throughout the day. This model incentivizes consumers to reduce peak energy usage and flatten their usage curve.
+A EU directive allows electricity providers to charge consumers based on a "capacity rate," encouraging users to balance their energy consumption more evenly throughout the day. This model incentivizes consumers to reduce peak energy usage and flatten their usage curve.
 
 For more information, visit https://github.com/serkri/SmartEVSE-3/issues/215
 
