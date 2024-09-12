@@ -173,7 +173,7 @@ MAX TEMP      Maximum allowed temperature for your SmartEVSE; 40-75C, default 65
 
 CAPACITY      (only appears when a MAINSMET is configured):
               Maximum allowed Mains Current summed over all phases: 10-600A
-              This is used for the EU Capacity rate limiting, currently only in Belgium
+              This is used for the EU Capacity rate limiting.
 CAP STOP      (only appears when a SUMMAINS is configured):
               Timer in minutes; if set, if SUMMAINS is exceeded, we do not immediately stop
               charging but wait until the timer expires.
