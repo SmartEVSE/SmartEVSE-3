@@ -129,7 +129,7 @@ to your curl POST command. -d ''
 * current_max_sum_mains
 
 &emsp;&emsp;The Maximum allowed Mains Current summed over all phases: 10-600A
-<br>&emsp;&emsp;This is used for the EU Capacity rate limiting, currently only in Belgium.
+<br>&emsp;&emsp;This is used for the EU Capacity rate limiting.
 <br>&emsp;&emsp;Usually you should leave this setting at its default value (600A)
 <br>&emsp;&emsp;since your electricity provider probably does not supports this.
 
