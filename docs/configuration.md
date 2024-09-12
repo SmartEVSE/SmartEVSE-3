@@ -308,14 +308,17 @@ There are three options to integrate SmartEVSE with Home Assistant:
     If you don't like the integration, e.g. because it only updates its data every 60 seconds, you might like to interface through MQTT; updates are done as soon as values change.... you can even mix it up by using both the integration AND the MQTT interface at the same time!
 
 # EU Capacity Rate Limiting
-An EU directive gives electricity providers the possibility to charge end consumers by a "capacity rate", so consumers will be stimulated to flatten their usage curve.
-Currently the only known country that has this active is Belgium.
-For more details see https://github.com/serkri/SmartEVSE-3/issues/215
 
-* In the Menu screen an item "SumMains" is now available, default set at 600A
-* This setting will only be of use in Smart or Solar mode
-* Apart from all other limits (Mains, MaxCirCuit), the charge current will be limited so that the sum of all phases of the Mains currents will not be exceeding the SumMains setting
-* If you don't understand this setting, or don't live in Belgium, leave this setting at its default value
+In line with a EU directive, electricity providers can implement a "capacity rate" for consumers, encouraging more balanced energy consumption. This approach aims to smooth out usage patterns and reduce peak demand.
+
+For further details, please refer to [serkri#215](https://github.com/serkri/SmartEVSE-3/issues/215).
+
+## Updates include:
+
+* A new menu item, "SumMains," is now available with a default setting of 600A.
+* This setting applies only in Smart or Solar mode.
+* Beyond existing limits (Mains, MaxCircuit), the charging current will be controlled to ensure that the total of all Mains phase currents does not exceed the SumMains setting.
+* If you are unfamiliar with this setting or do not fall under the applicable regulations, it is advisable to keep the setting at its default value.
 
 # Building the firmware
 You can get the latest release off of https://github.com/dingo35/SmartEVSE-3.5/releases, but if you want to build it yourself:
