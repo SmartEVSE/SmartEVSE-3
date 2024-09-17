@@ -1174,15 +1174,16 @@ void CalcBalancedCurrent(char mod) {
                 Switching_Phases_C2 = GOING_TO_SWITCH_3F;
                 Nr_Of_Phases_Charging = 3;
                 _LOG_D("Solar starting in 3-phase mode\n");
-            } else if (-Isum >= (10*MinCurrent+2)) {
+            } else /*if (-Isum >= (10*MinCurrent+2))*/ {
                 Switching_Phases_C2 = GOING_TO_SWITCH_1F;
                 Nr_Of_Phases_Charging = 1;
                 _LOG_D("Solar starting in 1-phase mode\n");
-            } else {
+            } /*else {
                 Switching_Phases_C2 = NO_SWITCH;
                 // Not enough current;
                 // TODO: we should return to STATE_A
-            }
+                //setState(STATE_A);
+            }*/
         } else {
             if (Force_Single_Phase_Charging() && (Nr_Of_Phases_Charging != 1)) {
                 Nr_Of_Phases_Charging = 1;
@@ -1299,15 +1300,21 @@ void CalcBalancedCurrent(char mod) {
             //so now we have a shortage of power
             if (Mode == MODE_SOLAR) {
                 // ----------- Check to see if we have to continue charging on solar power alone ----------
-                if (ActiveEVSE && StopTime && (IsumImport > 0)) {
+                if (ActiveEVSE && (IsumImport > 0)) {
                     //TODO maybe enable solar switching for loadbl = 1
                     //if (EnableC2 == AUTO && LoadBl == 0)
                     //    Set_Nr_of_Phases_Charging();
                     if (Nr_Of_Phases_Charging > 1 && EnableC2 == AUTO && LoadBl == 0 && State == STATE_C) {
                         // not enough current for 3-phase operation; we can switch to 1-phase after some time
                         // start solar stop timer
-                        if (SolarStopTimer == 0) SolarStopTimer = 60;
-                        // near end of solar stop timer, instruct to go to 1F charging
+                        if (SolarStopTimer == 0) {
+                            // for a small current deficiency, we wait full StopTime, to try to stay in 3F mode
+                            if (IsumImport < (10 * MinCurrent)) {
+                                SolarStopTimer = StopTime * 60; // Convert minutes into seconds
+                            }
+                            if (SolarStopTimer == 0) SolarStopTimer = 30; // minimum stop time
+                        }
+                        // near end of solar stop timer, instruct to go to 1F charging and restart
                         if (SolarStopTimer <= 2) {
                             _LOG_A("Switching to single phase.\n");
                             Switching_Phases_C2 = GOING_TO_SWITCH_1F;
@@ -1317,6 +1324,7 @@ void CalcBalancedCurrent(char mod) {
                     }
                     else {
                         if (SolarStopTimer == 0) SolarStopTimer = StopTime * 60; // Convert minutes into seconds
+                        if (SolarStopTimer == 0) SolarStopTimer = 30; // minimum stop time
                     }
                 } else {
                     _LOG_D("Checkpoint a: Resetting SolarStopTimer, IsetBalanced=%.1fA, ActiveEVSE=%i.\n", (float)IsetBalanced/10, ActiveEVSE);
@@ -1338,8 +1346,9 @@ void CalcBalancedCurrent(char mod) {
             // ############### no shortage of power  #################
 
             // Solar mode with C2=AUTO and enough power for switching from 1F to 3F solar charge?
-            if (Mode == MODE_SOLAR && Nr_Of_Phases_Charging == 1 && EnableC2 == AUTO && LoadBl == 0 && State == STATE_C) {
-                if ((IsetBalanced+8) >= MaxCurrent*10) {
+            if (Mode == MODE_SOLAR && Nr_Of_Phases_Charging == 1 && EnableC2 == AUTO && LoadBl == 0 && State == STATE_C &&
+                (IsetBalanced+8) >= MaxCurrent*10)
+            {
                     // are we at max regulation at 1F (Iset hovers at 15.2-16.0A on 16A MaxCurrent)(warning: Iset can also be at max when EV limits current)
                     // and is there enough spare that we can go to 3F charging?
                     // Can it take the step from 1x16A to 3x7A (in regular config)?
@@ -1352,19 +1361,29 @@ void CalcBalancedCurrent(char mod) {
                         if (SolarStopTimer == 0) SolarStopTimer = 63;
                         // near end of solar stop timer, instruct to go to 3F charging
                         if (SolarStopTimer <= 3) {
-                            _LOG_A("Switching to three phase.\n");
+                            _LOG_A("Solar charge: Switching to 3F.\n");
                             Switching_Phases_C2 = GOING_TO_SWITCH_3F;
                             setState(STATE_C1);               // tell EV to stop charging
                             SolarStopTimer = 0;
                         }
+                        else {
+                            _LOG_D("Solar charge: we can switch 1F->3F; Isum=%.1fA, spare=%dA\n", (float)-Isum/10, spareCurrent);
+                        }
                     }
-                }
-            }
+                    else {
+                        // not enough spare current to switch to 3F
+                        SolarStopTimer = 0;
+                        _LOG_D("Solar charge: not enough spare current to switch to 3F; Isum=%.1fA, spare=%dA\n", (float)-Isum/10, spareCurrent);
+                    }
 
-            _LOG_D("Checkpoint b: Resetting SolarStopTimer, MaxSumMainsTimer, IsetBalanced=%.1fA, ActiveEVSE=%i.\n", (float)IsetBalanced/10, ActiveEVSE);
-            SolarStopTimer = 0;
-            MaxSumMainsTimer = 0;
-            NoCurrent = 0;
+            }
+            else {
+
+                _LOG_D("Checkpoint b: Resetting SolarStopTimer, MaxSumMainsTimer, IsetBalanced=%.1fA, ActiveEVSE=%i.\n", (float)IsetBalanced/10, ActiveEVSE);
+                SolarStopTimer = 0;
+                MaxSumMainsTimer = 0;
+                NoCurrent = 0;
+            }
         }
 
         // ############### we now distribute the calculated IsetBalanced over the EVSEs  #################
