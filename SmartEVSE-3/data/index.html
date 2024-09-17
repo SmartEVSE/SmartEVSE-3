@@ -26,6 +26,10 @@
       let initiated=false;
       let mqttEditMode = false;
       let ocppEditMode = false;
+      let solarinputfocus = false;
+      let last_solar_start_current = -1;
+      let last_solar_max_import_current = -1;
+      let last_solar_stop_time = -1;
 
       $(document).ready(loadData());
 
@@ -59,18 +63,32 @@
                 }
               }
               $('#required_evccid').val(data.settings.required_evccid || "");
+              last_solar_start_current = data.settings.solar_start_current;
+              last_solar_max_import_current = data.settings.solar_max_import_current;
+              last_solar_stop_time = data.settings.solar_stop_time;
             }
             for(let x=0; x<=3; x++) {
+              //mode = 'mode'+x;
               if(x == data.mode_id) {
-                $('#mode_' + x).css("background-color", "#1CC88A");
+                $('#mode_' + x).css("background-color", "#1CC88A"); // active mode: GREEN
+                //document.getElementById(mode).classList.add("ui-btn-active");
+                //$('#mode_' + x).classList.add("ui-btn-active");
               } else {
-                $('#mode_' + x).css("background-color", "#EDEDED");
+                $('#mode_' + x).css("background-color", ""); //remove background-color style, so that mouseover works! was "#EDEDED"
+                //document.getElementById(mode).classList.delete("ui-btn-active");
+                //$('#mode_' + x).classList.delete("ui-btn-active");
               }
             }
-            $('#mode_' + data.mode_id).css("background-color", "#1CC88A");
+            //todo: iso above change style, do change class list and add "ui-btn-active"
+            //$('#mode_' + data.mode_id).css("background-color", "#1CC88A");
 
             $('#mode').text(data.mode);
             $('#dutycycle').text((data.evse.pwm*100/1024).toFixed(0) + " %");
+            if(data.mode_id == 2) {
+              $('.with_solar').show();
+            } else {
+              $('.with_solar').hide();
+            }
 
             if (data.ev_state) {
               let full_soc = data.ev_state.full_soc;
@@ -111,6 +129,7 @@
               //$('[id=form_mode] :input').prop('disabled',true);
               $('[id=mode_2]').show();
               $('[id=mode_3]').show();
+              $('.with_solar').hide();
               //$('[id=mode_override_current]').prop('disabled',true);
               $('[id=override_current_box]').hide();
               $('[id=override_current_box2]').hide();
@@ -126,6 +145,7 @@
               //$('[id=form_mode] :input').prop('disabled',false);
               $('[id=mode_2]').show();
               $('[id=mode_3]').show();
+              $('.with_solar').hide();
               //$('[id=mode_override_current]').prop('disabled',false);
               $('[id=form_pwm] :input').prop('disabled',false);
             } else {
@@ -141,7 +161,6 @@
               //$('[id=mode_override_current]').prop('disabled',false);
               $('[id=form_pwm] :input').prop('disabled',false);
             }
-
             $('#car_connected').text(data.car_connected ? "Yes" : "No");
             $('#state').text(data.evse.state);
             $('#temp').text(data.evse.temp + " °C / " + data.evse.temp_max + " °C");
@@ -258,7 +277,14 @@
               $('#evmeter_total_kwh').text(data.ev_meter.total_kwh.toFixed(1) + " kWh");
               $('#evmeter_charged_kwh').text(data.ev_meter.charged_kwh.toFixed(1) + " kWh");
             }
-
+            if (!solarinputfocus) {
+              last_solar_start_current = data.settings.solar_start_current;
+              last_solar_max_import_current = data.settings.solar_max_import_current;
+              last_solar_stop_time = data.settings.solar_stop_time;
+              $('#solar_start_current').val(last_solar_start_current);
+              $('#solar_max_import_current').val(data.settings.solar_max_import);
+              $('#solar_stop_time').val(last_solar_stop_time);
+            }
             if(data.settings.modem == "Experiment") {
               $('.with_modem').show();
             } else {
@@ -319,13 +345,13 @@
 
   <!-- Page Wrapper -->
   <div id="wrapper">
-      <!-- Content Wrapper -->
-      <div id="content-wrapper" class="d-flex flex-column">
-          <!-- Main Content -->
-          <div id="content">
-              <!-- Begin Page Content -->
-              <div class="container-fluid">
-                  <div style="margin-bottom: 20px;">
+    <!-- Content Wrapper -->
+    <div id="content-wrapper" class="d-flex flex-column">
+      <!-- Main Content -->
+      <div id="content">
+        <!-- Begin Page Content -->
+        <div class="container-fluid">
+            <div style="margin-bottom: 20px;">
                     <div class="card bg-success text-white shadow">
                         <div class="card-body">
                           <h1 class="h3 mb-0 text-white-800">Smart EVSE V3</h1>
@@ -333,11 +359,9 @@
                           <h1 id="serialnr" class="h5 mb-0 text-white-800">SmartEVSE-</h1>
                         </div>
                     </div>
-                </div>
+            </div>
 
-                  <div class="row">
-
-                    <!-- Earnings (Monthly) Card Example -->
+            <div class="row">
                     <div style="margin-bottom: 20px;">
                         <div class="card border-left-primary shadow h-100 py-2">
                             <div class="card-body">
@@ -345,7 +369,7 @@
                                     <div class="col mr-2">
                                         <div class="text font-weight-bold text-primary text-uppercase mb-1">EVSE</div>
                                         <div class="row no-gutters align-items-center">
-                                          <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 140px;">
+                                            <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 140px;">
                                               Mode:
                                             </div>
                                             <div class="col">
@@ -369,7 +393,7 @@
                                             </div>
                                         </div>
                                         <div class="row no-gutters align-items-center">
-                                          <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 140px;">
+                                            <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 140px;">
                                               Connected:
                                             </div>
                                             <div class="col">
@@ -377,7 +401,7 @@
                                             </div>
                                         </div>
                                         <div class="row no-gutters align-items-center">
-                                          <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 140px;">
+                                            <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 140px;">
                                               State:
                                             </div>
                                             <div class="col">
@@ -385,7 +409,7 @@
                                             </div>
                                         </div>
                                         <div class="row no-gutters align-items-center" id="with_errors">
-                                          <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 140px;">
+                                            <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 140px;">
                                               Error:
                                             </div>
                                             <div class="col">
@@ -393,7 +417,7 @@
                                             </div>
                                         </div>
                                         <div class="row no-gutters align-items-center" id="show_rfid">
-                                          <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 140px;">
+                                            <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 140px;">
                                               RFID:
                                             </div>
                                             <div class="col">
@@ -401,7 +425,7 @@
                                             </div>
                                         </div>
                                         <div class="row no-gutters align-items-center">
-                                          <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 140px;">
+                                            <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 140px;">
                                               Charge:
                                             </div>
                                             <div class="col">
@@ -409,7 +433,7 @@
                                             </div>
                                         </div>
                                         <div class="row no-gutters align-items-center">
-                                          <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 140px;">
+                                            <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 140px;">
                                               Temp:
                                             </div>
                                             <div class="col">
@@ -423,9 +447,9 @@
                                           <div class="col">
                                               <div class="h5 mb-0 mr-3 text-gray-800" id="mqtt"></div>
                                           </div>
-                                      </div>
+                                        </div>
                                         <div class="row no-gutters align-items-center" id="contactor2">
-                                          <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 140px;">
+                                            <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 140px;">
                                               Contactor 2:
                                             </div>
                                             <div class="col">
@@ -433,7 +457,7 @@
                                             </div>
                                         </div>
                                         <div class="row no-gutters align-items-center">
-                                          <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 140px;">
+                                            <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 140px;">
                                               StartTime:
                                             </div>
                                             <div class="col">
@@ -444,7 +468,7 @@
                                             </div>
                                         </div>
                                         <div class="row no-gutters align-items-center">
-                                          <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 140px;">
+                                            <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 140px;">
                                               StopTime:
                                             </div>
                                             <div class="col">
@@ -455,7 +479,7 @@
                                             </div>
                                         </div>
                                         <div class="row no-gutters align-items-center">
-                                          <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 140px;">
+                                            <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 140px;">
                                               Repeat:
                                             </div>
                                             <div class="col">
@@ -474,14 +498,11 @@
                             </div>
                         </div>
                     </div>
+            </div>
+            <!-- END ROW -->
+            <div class="row">
 
-
-
-                    </div>
-                    <!-- END ROW -->
-                    <div class="row">
-
-                    <div class="col-xl-4 col-md-6 mb-4 with_modem">
+              <div class="col-xl-4 col-md-6 mb-4 with_modem">
                         <div class="card border-left-danger shadow h-100 py-2">
                             <div class="card-body">
                                 <div class="row no-gutters align-items-center">
@@ -542,20 +563,20 @@
                                          <path fill="currentColor" d="m28.09 45.183c0.0041 2.4411-1.9714 4.4234-4.4125 4.4275h-19.25c-2.4418-0.008231-4.4193-1.9857-4.4275-4.4275l5e-14 -34.794c-0.0013809-2.4535 1.9865-4.4436 4.44-4.445h19.25c2.447 0.0055 4.4238 1.998 4.41 4.445zm-23.65 2.9275h19.215c1.6244 0.0028 2.9454-1.3081 2.955-2.9325v-34.794c-0.0055-1.6297-1.3253-2.9495-2.955-2.955h-19.215c-1.6346 0.0014-2.9597 1.3254-2.9625 2.96v34.794c0.012382 1.6253 1.3371 2.9344 2.9625 2.9275zm20.682-2.9325c0.0042 0.81657-0.65592 1.4811-1.4725 1.4825h-19.217c-0.816 0-1.4775-0.6615-1.4775-1.4775v-20.361c0.00138-0.81462 0.66288-1.4739 1.4775-1.4725h19.217c0.81267 0.0014 1.4711 0.65983 1.4725 1.4725zm-16.255-40.712c0.074087-2.7158 2.4778-4.7733 5.1725-4.4275 2.6969-0.34712 5.1042 1.7095 5.1825 4.4275z" />
                                         </svg>
                                       </i>
-                                  </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
+              </div>
 
-                    <div class="col-xl-4 col-md-6 mb-4">
+              <div class="col-xl-4 col-md-6 mb-4">
                       <div class="card border-left-info shadow h-100 py-2">
                           <div class="card-body">
                               <div class="row no-gutters align-items-center">
                                   <div class="col mr-2">
                                       <div class="text-xl font-weight-bold text-info text-uppercase mb-1">Current Details</div>
                                       <div class="row no-gutters align-items-center">
-                                        <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
+                                          <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
                                             Override:
                                           </div>
                                           <div class="col">
@@ -563,7 +584,7 @@
                                           </div>
                                       </div>
                                       <div class="row no-gutters align-items-center">
-                                        <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
+                                          <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
                                             Min:
                                           </div>
                                           <div class="col">
@@ -589,16 +610,16 @@
                               </div>
                           </div>
                       </div>
-                  </div>
+              </div>
 
-                  <div class="col-xl-4 col-md-6 mb-4" id="with_mainsmeter" style="display: none;">
+              <div class="col-xl-4 col-md-6 mb-4" id="with_mainsmeter" style="display: none;">
                     <div class="card border-left-success shadow h-100 py-2">
                         <div class="card-body">
                             <div class="row no-gutters align-items-center">
                                 <div class="col mr-2">
                                     <div class="text-xl font-weight-bold text-info text-uppercase mb-1">Mains Phase Details</div>
                                     <div class="row no-gutters align-items-center">
-                                      <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
+                                        <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
                                           Total:
                                         </div>
                                         <div class="col">
@@ -606,7 +627,7 @@
                                         </div>
                                     </div>
                                     <div class="row no-gutters align-items-center">
-                                      <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
+                                        <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
                                           L1:
                                         </div>
                                         <div class="col">
@@ -614,7 +635,7 @@
                                         </div>
                                     </div>
                                     <div class="row no-gutters align-items-center">
-                                      <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
+                                        <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
                                           L2:
                                         </div>
                                         <div class="col">
@@ -622,7 +643,7 @@
                                         </div>
                                     </div>
                                     <div class="row no-gutters align-items-center">
-                                      <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
+                                        <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
                                           L3:
                                         </div>
                                         <div class="col">
@@ -656,16 +677,16 @@
                             </div>
                         </div>
                     </div>
-                </div>
+              </div>
 
-                <div class="col-xl-4 col-md-6 mb-4" id="with_homebattery" style="display:none;">
+              <div class="col-xl-4 col-md-6 mb-4" id="with_homebattery" style="display:none;">
                   <div class="card border-left-success shadow h-100 py-2">
                       <div class="card-body">
                           <div class="row no-gutters align-items-center">
                               <div class="col mr-2">
                                   <div class="text-xl font-weight-bold text-info text-uppercase mb-1">Phase Details (Original)</div>
                                   <div class="row no-gutters align-items-center">
-                                    <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
+                                      <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
                                         Total:
                                       </div>
                                       <div class="col">
@@ -673,7 +694,7 @@
                                       </div>
                                   </div>
                                   <div class="row no-gutters align-items-center">
-                                    <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
+                                      <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
                                         L1:
                                       </div>
                                       <div class="col">
@@ -681,7 +702,7 @@
                                       </div>
                                   </div>
                                   <div class="row no-gutters align-items-center">
-                                    <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
+                                      <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
                                         L2:
                                       </div>
                                       <div class="col">
@@ -689,7 +710,7 @@
                                       </div>
                                   </div>
                                   <div class="row no-gutters align-items-center">
-                                    <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
+                                      <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
                                         L3:
                                       </div>
                                       <div class="col">
@@ -769,7 +790,7 @@
                             <div class="col mr-2">
                                 <div class="text-xl font-weight-bold text-info text-uppercase mb-1">EV Meter currents</div>
                                 <div class="row no-gutters align-items-center">
-                                  <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                    <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
                                       Total:
                                     </div>
                                     <div class="col">
@@ -777,7 +798,7 @@
                                     </div>
                                 </div>
                                 <div class="row no-gutters align-items-center">
-                                  <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                    <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
                                       L1:
                                     </div>
                                     <div class="col">
@@ -785,7 +806,7 @@
                                     </div>
                                 </div>
                                 <div class="row no-gutters align-items-center">
-                                  <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                    <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
                                       L2:
                                     </div>
                                     <div class="col">
@@ -793,7 +814,7 @@
                                     </div>
                                 </div>
                                 <div class="row no-gutters align-items-center">
-                                  <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                    <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
                                       L3:
                                     </div>
                                     <div class="col">
@@ -820,7 +841,7 @@
                             <div class="col mr-2">
                                 <div class="text-xl font-weight-bold text-info text-uppercase mb-1">Home Battery</div>
                                 <div class="row no-gutters align-items-center">
-                                  <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
+                                    <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
                                       Status:
                                     </div>
                                     <div class="col">
@@ -828,7 +849,7 @@
                                     </div>
                                 </div>
                                 <div class="row no-gutters align-items-center">
-                                  <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
+                                    <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
                                       Current:
                                     </div>
                                     <div class="col">
@@ -851,7 +872,7 @@
                                     <div class="h5 mb-0 mr-3 text-gray-800" id="homebattery_delay" style="text-align: right;"></div>
                                   </div>
                                 </div>
-                              </div>
+                            </div>
                             <div class="col-auto">
                                 <i class="fas fa-clipboard-list fa-2x text-gray-300">
                                   <svg style="width:48px;height:48px" viewBox="0 0 24 24">
@@ -865,9 +886,46 @@
               </div>
             </div>
             <!-- END ROW -->
-              <div class="row">
+            <div class="row">
 
                 <script>
+                  function focusSolCurr() {
+                    solarinputfocus = true;
+                  }
+                  function postSolStartCurr() {
+                    if (solarinputfocus) {
+                      let val = $('#solar_start_current').val();
+                      if (last_solar_start_current != val) {
+                        last_solar_start_current = val;
+                        //alert("/settings?solar_start_current=" + val);
+                        $.post( "/settings?solar_start_current=" + val);
+                      }
+                      solarinputfocus = false;
+                    }
+                  }
+                  function postSolImportCurr() {
+                    if (solarinputfocus) {
+                      let val = $('#solar_max_import_current').val();
+                      if (last_solar_max_import_current != val) {
+                        last_solar_max_import_current = val;
+                        //alert("/settings?solar_max_import=" + val);
+                        $.post( "/settings?solar_max_import=" + val);
+                      }
+                      solarinputfocus = false;
+                    }
+                  }
+                  function postSolStopTime() {
+                    if (solarinputfocus) {
+                      let val = $('#solar_stop_time').val();
+                      if (last_solar_stop_time != val) {
+                        last_solar_stop_time = val;
+                        //alert("/settings?stop_timer=" + val);
+                        $.post( "/settings?stop_timer=" + val);
+                      }
+                      solarinputfocus = false;
+                    }
+                  }
+
                     function activate(mode) {
                       var starttime = document.querySelector('input[name="starttime"]').value;
                       var stoptime = document.querySelector('input[name="stoptime"]').value;
@@ -993,30 +1051,15 @@
                      }
                 </script>
 
-                <!-- Earnings (Monthly) Card Example -->
                 <div style="margin-bottom: 20px;">
                     <div class="card border-left-primary shadow h-100 py-2">
                         <div class="card-body">
                             <div class="row no-gutters align-items-center">
                                 <div class="col mr-2">
                                     <div class="text font-weight-bold text-primary text-uppercase mb-1">Control</div>
-<!--
-                                      <div class="row no-gutters align-items-center" id="loadbl_text">
-                                        <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
-                                         Load Balance:
-                                        </div>
-                                      <div class="col h5 mb-0 mr-3 font-weight-bold text-gray-800">
-                                          <span id="loadbl_text_slave">Slave node - control is disabled, perform changes on Master node.</span>
-                                          <span id="loadbl_text_master">Master node - control changes are propagated to Slave node(s).</span>
-                                      </div>
-                                    </div>
--->
                                     <div class="row no-gutters align-items-center">
-                                      <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
-                                          Mode:
-                                        </div>
+                                        <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">Mode:</div>
                                         <div class="col">
-                                          <form class="form-inline" id="form_mode">
                                             <button id="mode_0" onclick="activate('0')" style="width: 100px; display:inline-block;">OFF</button>
                                             <button id="mode_1" onclick="activate('1')" style="width: 120px; display:inline-block;">NORMAL</button>
                                             <div id="with_mainsmeter" style="display: inline">
@@ -1024,15 +1067,19 @@
                                               <button id="mode_3" onclick="activate('3')" style="width: 100px; display:inline-block;">SMART</button>
                                             </div>
                                             <div class="form-group">
-                                              <label for="starttime">...STARTING: </label>
-                                              <div class="input-group">
-                                                <input type="datetime-local" id="starttime" name="starttime" class="form-control" style="max-width: 220px;">
+                                              <div class="d-inline-flex align-items-center">
+                                                <label style="width:100px;" for="starttime" title="For delayed start, fill START and END date+time, then press NORMAL/SOLAR/SMART button to initiate.">STARTING:</label>
+                                                <div class="input-group">
+                                                  <input type="datetime-local" id="starttime" name="starttime" class="form-control" style="max-width: 220px;">
+                                                </div>
                                               </div>
                                             </div>
                                             <div class="form-group" id="stoptime_group">
-                                              <label for="stoptime"> ENDING:</label>
-                                              <div class="input-group">
-                                                <input type="datetime-local" id="stoptime" name="stoptime" class="form-control" style="max-width: 220px;">
+                                              <div class="d-inline-flex align-items-center">
+                                                <label style="width:100px;" for="stoptime">ENDING:</label>
+                                                <div class="input-group">
+                                                  <input type="datetime-local" id="stoptime" name="stoptime" class="form-control" style="max-width: 220px;">
+                                                </div>
                                               </div>
                                             </div>
                                             <div class="form-group" id="daily_repeat_group">
@@ -1041,14 +1088,21 @@
                                                 <input type="checkbox" id="daily_repeat" name="daily_repeat" class="form-control" value="daily" style="max-width: 60px;">
                                               </div>
                                             </div>
-                                          </form>
                                         </div>
+                                    </div>
+                                    <div class="row no-gutters align-items-center with_solar">
+                                      <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">Solar:</div>
+                                      <div class="col">
+                                        <div class="mb-0"><div class="d-inline-flex align-items-center"><label style="width:100px;" for="solar_start_current">Start Current   </label><input type="number" onfocus="focusSolCurr()" onfocusout="postSolStartCurr()" id="solar_start_current" name="solar_start_current" min="0" max="16" style="width:80px;" class="ui-corner-all ui-shadow-inset"/>&nbsp;A</div></div>
+                                        <div class="mb-0"><div class="d-inline-flex align-items-center"><label style="width:100px;" for="solar_max_import_current">Max Import </label><input type="number" onfocus="focusSolCurr()" onfocusout="postSolImportCurr()" id="solar_max_import_current" name="solar_max_import_current" min="0" max="16" style="width:80px;" class="ui-corner-all ui-shadow-inset"/>&nbsp;A</div></div>
+                                        <div class="mb-0"><div class="d-inline-flex align-items-center"><label style="width:100px;" for="solar_stop_time">Stop Time           </label><input type="number" onfocus="focusSolCurr()" onfocusout="postSolStopTime()" id="solar_stop_time" name="solar_stop_time" min="0" style="width:80px;" class="ui-corner-all ui-shadow-inset"/>&nbsp;minutes</div></div>
+                                      </div>
                                     </div>
                                     <div class="row no-gutters align-items-center">
                                       <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;" id="override_current_box">
-                                          Current:
+                                          Override Current:
                                         </div>
-                                        <div class="col" id="override_current_box2">
+                                        <div class="col" id="override_current_box2" style="max-width:425px;">
                                           <select id="mode_override_current">
                                               <option id="mode_overide_current_text" value="0">Ampere (press NORMAL/SMART to set)</option>
                                           </select>
@@ -1088,21 +1142,18 @@
                                         </form>
                                       </div>
                                     </div>
-                                  </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                  <div style="margin-bottom: 20px;" class="config">
+                    <div style="margin-bottom: 20px;" class="config">
                       <div class="card border-left-primary shadow h-100 py-2">
                         <div class="card-body">
                             <div class="row no-gutters align-items-center">
                                 <div class="col mr-2">
                                     <div class="text font-weight-bold text-primary text-uppercase mb-1">Config</div>
                                     <div class="row no-gutters align-items-center" id="mqtt_config">
-                                        <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
-                                            MQTT:
-                                        </div>
+                                        <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">MQTT:</div>
                                         <div class="col">
                                             <button onclick="toggleMqttEdit()" style="display:inline-block;" id="edit_mqtt_button">Edit Settings</button>
                                             <div class="mqtt_settings" style="display:none">
@@ -1115,10 +1166,10 @@
                                             </div>
                                         </div>
                                     </div>
-                                  </div>
                                 </div>
                             </div>
                         </div>
+                      </div>
                     </div>
                     <div id="ocpp_config_outer" style="margin-bottom: 20px;" class="config">
                       <div class="card border-left-primary shadow h-100 py-2">
@@ -1169,6 +1220,7 @@
             </div>
         </div>
       </div>
+    </div>
   </div>
   <script>
     // Get the current date and time
