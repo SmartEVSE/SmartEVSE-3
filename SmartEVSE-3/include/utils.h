@@ -23,7 +23,7 @@
  */
 
 // This is a guard condition so that contents of this file are not included
-// more than once.  
+// more than once.
 #ifndef UTILS_H
 #define	UTILS_H
 

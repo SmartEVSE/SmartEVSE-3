@@ -238,7 +238,6 @@ uint8_t Meter::receiveCurrentMeasurement(uint8_t *buf) {
     // Convert Irms from mA to deciAmpère (A * 10)
     for (x = 0; x < 3; x++) {
         Irms[x] = (var[x] / 100);            // Convert to AMPERE * 10
-        _LOG_A("DINGO: Meter=%s, Power[%i]=%i.\n", EMConfig[Type].Desc, x, Power[x]);
     }
 
     // all OK

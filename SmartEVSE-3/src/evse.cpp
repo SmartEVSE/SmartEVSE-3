@@ -924,7 +924,6 @@ char IsCurrentAvailable(void) {
     if (ActiveEVSE > NR_EVSES) ActiveEVSE = NR_EVSES;
     Baseload = MainsMeter.Imeasured - TotalCurrent;                         // Calculate Baseload (load without any active EVSE)
     Baseload_EV = EVMeter.Imeasured - TotalCurrent;                         // Load on the EV subpanel excluding any active EVSE
-    if (Baseload < 0) Baseload = 0;
     if (Baseload_EV < 0) Baseload_EV = 0;                                   // so Baseload_EV = 0 when no EVMeter installed
 
     // Check if the lowest charge current(6A) x ActiveEV's + baseload would be higher then the MaxMains.
@@ -1068,8 +1067,6 @@ void CalcBalancedCurrent(char mod) {
     if (Baseload_EV < 0)
         Baseload_EV = 0;
     Baseload = MainsMeter.Imeasured - TotalCurrent;                             // Calculate Baseload (load without any active EVSE)
-    if (Baseload < 0)
-        Baseload = 0;
 
     // ############### now calculate IsetBalanced #################
 
@@ -1154,7 +1151,10 @@ void CalcBalancedCurrent(char mod) {
 
 
     // guard MaxCircuit
-    if (MainsMeter.Type && Mode != MODE_NORMAL)    // Conditions in which MaxCircuit has to be considered
+    // HARD shortage of power: boundaries are exceeded, we must stop charging!
+    // SOFT shortage of power: we have timers running to stop charging in the future
+    // guard MaxMains
+    if (MainsMeter.Type && Mode != MODE_NORMAL)
         IsetBalanced = min((int) IsetBalanced, (MaxMains * 10) - Baseload); //limiting is per phase so no Nr_Of_Phases_Charging here!
     // guard MaxCircuit
     if (((LoadBl == 0 && EVMeter.Type && Mode != MODE_NORMAL) || LoadBl == 1)    // Conditions in which MaxCircuit has to be considered
@@ -1175,7 +1175,6 @@ void CalcBalancedCurrent(char mod) {
             // ############### shortage of power  #################
 
             IsetBalanced = ActiveEVSE * MinCurrent * 10;                        // retain old software behaviour: set minimal "MinCurrent" charge per active EVSE
-            //so now we have a shortage of power
             if (Mode == MODE_SOLAR) {
                 // ----------- Check to see if we have to continue charging on solar power alone ----------
                 if (ActiveEVSE && StopTime && (IsumImport > 0)) {
@@ -1199,13 +1198,26 @@ void CalcBalancedCurrent(char mod) {
             }
 
             //the expiring of both SolarStopTimer and MaxSumMinsTimer is handled in the Timer1s loop
+            // IsetBalanced is already set to the minimum needed power to charge all Nodes
+            bool hardShortage = false;
+            // guard MaxMains
+            if (MainsMeter.Type && Mode != MODE_NORMAL)
+                if (IsetBalanced > (MaxMains * 10) - Baseload)
+                    hardShortage = true;
+            // guard MaxCircuit
+            if (((LoadBl == 0 && EVMeter.Type && Mode != MODE_NORMAL) || LoadBl == 1) // Conditions in which MaxCircuit has to be considered
+                && (IsetBalanced > (MaxCircuit * 10) - Baseload_EV))
+                    hardShortage = true;
+            if (hardShortage && Switching_To_Single_Phase != GOING_TO_SWITCH) { // because switching to single phase might solve the shortage
+                // ############ HARD shortage of power
+                NoCurrent++;                                                    // Flag NoCurrent left
+                _LOG_I("No Current!!\n");
+            } else {
+                // ############ soft shortage of power
+                // the expiring of both SolarStopTimer and MaxSumMainsTimer is handled in the Timer1s loop
             if (LimitedByMaxSumMains && MaxSumMainsTime) {
                 if (MaxSumMainsTimer == 0)                                      // has expired, so set timer
                     MaxSumMainsTimer = MaxSumMainsTime * 60;
-            } else {
-                if (!(Mode == MODE_SOLAR && SolarStopTimer)) {                  // in that case the SolarStopTimer in Timer1s loop will take care of no power
-                    NoCurrent++;                                                    // Flag NoCurrent left
-                    _LOG_I("No Current!!\n");
                 }
             }
         } else {                                                                // we have enough current
@@ -3022,7 +3034,7 @@ void mqttPublishData() {
 #endif
         if (EVMeter.Type) {
             MQTTclient.publish(MQTTprefix + "/EVChargePower", String(EVMeter.PowerMeasured), false, 0);
-            MQTTclient.publish(MQTTprefix + "/EVEVMeterEnergyCharged", String(EVMeter.EnergyCharged), true, 0);
+            MQTTclient.publish(MQTTprefix + "/EVEnergyCharged", String(EVMeter.EnergyCharged), true, 0);
             MQTTclient.publish(MQTTprefix + "/EVTotalEnergyCharged", String(EVMeter.Energy), false, 0);
         }
         if (homeBatteryLastUpdate)

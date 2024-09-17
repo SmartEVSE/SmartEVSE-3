@@ -39,4 +39,4 @@ extern void GLCD_init(void);
 extern void GLCD_version(void);
 
 
-#endif // #ifndef __GLCD_H 
+#endif // #ifndef __GLCD_H
