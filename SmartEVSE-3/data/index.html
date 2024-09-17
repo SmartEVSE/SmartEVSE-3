@@ -189,18 +189,14 @@
             $('#override_current').text((data.settings.override_current/10).toFixed(1) + " A");
             $('#enable_C2').text(data.settings.enable_C2);
             if (data.settings.starttime) {
-                $('#starttime_date').text(new Date(data.settings.starttime * 1000).toLocaleDateString());
-                $('#starttime_time').text(new Date(data.settings.starttime * 1000).toLocaleTimeString());
+                $('#starttime_date_time').text(new Date(data.settings.starttime * 1000).toLocaleDateString() + " " + new Date(data.settings.starttime * 1000).toLocaleTimeString());
             } else {
-                $('#starttime_date').text("none");
-                $('#starttime_time').text("");
+                $('#starttime_date_time').text("none");
             }
             if (data.settings.stoptime) {
-                $('#stoptime_date').text(new Date(data.settings.stoptime * 1000).toLocaleDateString());
-                $('#stoptime_time').text(new Date(data.settings.stoptime * 1000).toLocaleTimeString());
+                $('#stoptime_date_time').text(new Date(data.settings.stoptime * 1000).toLocaleDateString() + " " + new Date(data.settings.stoptime * 1000).toLocaleTimeString());
             } else {
-                $('#stoptime_date').text("none");
-                $('#stoptime_time').text("");
+                $('#stoptime_date_time').text("none");
             }
             if (data.settings.repeat == 1) {
                 $('#repeat').text("Daily");
@@ -461,10 +457,7 @@
                                               StartTime:
                                             </div>
                                             <div class="col">
-                                              <div class="h5 mb-0 mr-3 text-gray-800" id="starttime_date"></div>
-                                            </div>
-                                            <div class="col">
-                                              <div class="h5 mb-0 mr-3 text-gray-800" id="starttime_time"></div>
+                                              <div class="h5 mb-0 mr-3 text-gray-800" id="starttime_date_time"></div>
                                             </div>
                                         </div>
                                         <div class="row no-gutters align-items-center">
@@ -472,10 +465,7 @@
                                               StopTime:
                                             </div>
                                             <div class="col">
-                                              <div class="h5 mb-0 mr-3 text-gray-800" id="stoptime_date"></div>
-                                            </div>
-                                            <div class="col">
-                                              <div class="h5 mb-0 mr-3 text-gray-800" id="stoptime_time"></div>
+                                              <div class="h5 mb-0 mr-3 text-gray-800" id="stoptime_date_time"></div>
                                             </div>
                                         </div>
                                         <div class="row no-gutters align-items-center">
