@@ -15,5 +15,7 @@ SmartEVSE-3/src/packed_fs.c
 *.bak
 *.-
 *.???-
+*.zip
 TODO*.txt
 Releases/
+backup/
