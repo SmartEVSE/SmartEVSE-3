@@ -5683,8 +5683,6 @@ void onWifiEvent(WiFiEvent_t event) {
             if (!MQTTtimer) {
                MQTTtimer = mg_timer_add(&mgr, 3000, MG_TIMER_REPEAT | MG_TIMER_RUN_NOW, timer_fn, &mgr);
             }
-
-            mg_timer_add(&mgr, 3000, MG_TIMER_REPEAT | MG_TIMER_RUN_NOW, timer_fn, &mgr);
 #endif
             mg_log_set(MG_LL_NONE);
             //mg_log_set(MG_LL_VERBOSE);
