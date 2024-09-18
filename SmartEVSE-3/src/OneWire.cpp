@@ -256,16 +256,12 @@ void CheckRFID(void) {
 #if ENABLE_OCPP
             if (OcppMode && RFIDReader == 6) {                                      // Remote authorization via OCPP?
                 // Use OCPP
-
-                static unsigned long lastread;
-                if (OcppMode && millis() - lastread > 1500) {                       // Debounce 1500ms
+                if (!RFIDstatus) {
                     if (RFID[0] == 0x01) {
                         ocppUpdateRfidReading(RFID + 1, 6); // UID starts at RFID+1; Pad / truncate UID to 6-bytes for now
                     } else {
                         ocppUpdateRfidReading(RFID, 7); // UID starts at RFID; 7 byte UID
                     }
-
-                    lastread = millis();
                 }
                 RFIDstatus = 1;
             } else
