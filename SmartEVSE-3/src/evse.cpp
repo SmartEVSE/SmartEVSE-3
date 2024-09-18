@@ -5575,13 +5575,13 @@ void ocppInit() {
     });
 
     addMeterValueInput([] () {
-            return (float) (EVMeter.Irms[0] + EVMeter.Irms[1] + EVMeter.Irms[2]);
+            return (float) (EVMeter.Irms[0] + EVMeter.Irms[1] + EVMeter.Irms[2])/10;
         },
         "Current.Import",
         "A");
 
     addMeterValueInput([] () {
-            return (float) EVMeter.Irms[0];
+            return (float) EVMeter.Irms[0]/10;
         },
         "Current.Import",
         "A",
@@ -5589,7 +5589,7 @@ void ocppInit() {
         "L1");
 
     addMeterValueInput([] () {
-            return (float) EVMeter.Irms[1];
+            return (float) EVMeter.Irms[1]/10;
         },
         "Current.Import",
         "A",
@@ -5597,7 +5597,7 @@ void ocppInit() {
         "L2");
 
     addMeterValueInput([] () {
-            return (float) EVMeter.Irms[2];
+            return (float) EVMeter.Irms[2]/10;
         },
         "Current.Import",
         "A",
