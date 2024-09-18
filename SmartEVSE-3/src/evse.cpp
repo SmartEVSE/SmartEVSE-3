@@ -3164,6 +3164,9 @@ void SetupMQTTClient() {
     announce("OCPPConnection", "sensor");
 #endif //ENABLE_OCPP
 
+    // announce SolarStopTimer sensor
+    optional_payload = jsna("device_class", "duration") + jsna("unit_of_measurement", "s");
+    announce("SolarStopTimer", "sensor");
     //set the parameters for and announce diagnostic sensor entities:
     optional_payload = jsna("entity_category","diagnostic");
     announce("Error", "sensor");
