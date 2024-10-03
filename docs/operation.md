@@ -1,82 +1,107 @@
-# Improved starting/stopping through the LCD screen
-* When pressing o button longer then 2 seconds you will enter the Menu screen
-* When pressing < button shorter then 2 seconds, you will toggle between Smart/Solar mode
-* When pressing < button longer then 2 seconds the access will be denied, i.e. the mode will be set to "Off" and charging will stop
-* When pressing > button longer then 2 seconds the access will be granted, i.e. the previously set mode will be activated and charging will start
+# Improved Start/Stop Functionality via LCD Screen
 
-Pressing < and > buttons at the same time will refresh the LCD screen.
+* Pressing the "O" button for longer than 2 seconds will open the Menu screen.
+* Pressing the "<" button for less than 2 seconds will toggle between Smart and Solar modes.
+* Pressing the "<" button for longer than 2 seconds will deny access, setting the mode to "Off" and stopping charging.
+* Pressing the ">" button for longer than 2 seconds will grant access, activating the previously set mode and resuming charging.
 
-# Webserver
-After configuration of your Wifi parameters, your SmartEVSE will present itself on your LAN via a webserver. This webserver can be accessed through:
-* http://ip-address/
-* http://smartevse-xxxx.local/ where xxxx is the serial number of your SmartEVSE. It can be found on a sticker on the bottom of your SmartEVSE. It might be necessary that mDNS is configured on your LAN.
-* http://smartevse-xxxx.lan/ where xxxx is the serial number of your SmartEVSE. It can be found on a sticker on the bottom of your SmartEVSE. It might be necessary that mDNS is configured on your LAN.
-* OTA update of your firmware:
-    - surf to http://your-smartevse/update or press the UPDATE button on the webserver
-    - select the firmware.bin from this archive, OR if you want the debug version (via telnet over your wifi),
- rename firmware.debug.bin to firmware.bin and select that. YOU CANNOT FLASH A FILE WITH ANOTHER NAME!
-    - if you get FAIL, check your wifi connection and try again;
-    - after OK, wait 10-30 seconds and your new firmware including the webserver should be online!
-* Added wifi-debugging: if you flashed the debug version, telnet http://your-smartevse/ will bring you to a debugger that shows you whats going on!
-* OTA upload of rfid lists:
-    - via the "update" button or the /update endpoint you can upload a file called rfid.txt;
-    - file layout: every line is supposed to contain one RFID (=NFC) TAG UID of size bytes in hex format:
-'''
-112233445566
-0A3B123FFFA0
-'''
-    - before upload all existing RFID's are deleted in the SmartEVSE you are uploading to
-    - if you have PWR SHARE enabled (master/slave configuration), you must upload to every single SmartEVSE; this enables you to maintain different lists for different SmartEVSEs.
+Simultaneously pressing both "<" and ">" buttons will refresh the LCD screen.
 
-# Mode switching when PWR SHARE is activated
-* If you switch mode on the Master, the Slaves will follow that mode switch
-* If you switch mode on one Slave, and your Master does not have a Smart/Solar toggle switch configured, the Master and all the other slaves will follow
-* If you have a Smart/Solar toggle switch you have to guard yourself that Master and Slaves are all in the same mode. We recommend replacing that toggle switch by a pushbutton switch.
+---
+
+# Webserver Features
+
+Once your Wi-Fi parameters are configured, your SmartEVSE will be accessible on your local network through a built-in webserver. Access the webserver via:
+
+* `http://<ip-address>/`
+* `http://smartevse-xxxx.local/` where `xxxx` is the serial number of your SmartEVSE (found on a sticker at the bottom). Ensure mDNS is configured on your LAN.
+* `http://smartevse-xxxx.lan/` where `xxxx` is the serial number of your SmartEVSE. mDNS may need to be configured for this.
+
+### Firmware Updates (OTA)
+
+* Navigate to `http://<your-smartevse>/update` or press the "UPDATE" button on the webserver.
+* Upload the `firmware.bin` file from this archive, or use `firmware.debug.bin` renamed to `firmware.bin` for a debug version (accessible via Telnet). Ensure the file name is correct; otherwise, flashing will fail.
+* In case of failure (FAIL), check your Wi-Fi connection and retry.
+* After a successful update (OK), wait 10-30 seconds for the firmware, including the webserver, to go online.
+
+### Wi-Fi Debugging
+
+* If the debug version is flashed, you can access the debugger via Telnet at `http://<your-smartevse>/` to monitor system activity.
+
+### RFID List Uploads (OTA)
+
+* Upload RFID lists via the "update" button or the `/update` endpoint by submitting a file named `rfid.txt`.
+* Each line should contain one RFID (NFC) tag UID in hex format (size bytes):
+    ```
+    112233445566
+    0A3B123FFFA0
+    ```
+* All existing RFID tags are deleted upon upload.
+* If Power Share (Master/Slave configuration) is enabled, upload the list to each SmartEVSE device individually to maintain separate lists for each.
+
+---
+
+# Power Share Mode Switching
+
+* When switching the mode on the Master device, the Slaves will automatically switch modes accordingly.
+* If you change the mode on a Slave and the Master is not configured with a Smart/Solar toggle switch, the Master and all other Slaves will follow the mode change.
+* If a Smart/Solar toggle switch is present, ensure that the Master and all Slaves are set to the same mode. We recommend replacing the toggle switch with a pushbutton switch for ease of use.
+
+---
 
 # Error Messages
-If an error occurs, the SmartEVSE will stop charging, and display one of the following messages:
-* ERROR NO SERIAL COM	  CHECK WIRING<br>No signal from the Sensorbox or other SmartEVSE (when load balancing is used) has been received for 11 seconds. Please check the wiring to the Sensorbox or other SmartEVSE.
-* ERROR NO CURRENT<br>There is not enough current available to start charging, or charging was interrupted because there was not enough current available to keep charging. The SmartEVSE will try again in 60 seconds.
-* ERROR	HIGH TEMP<br>The temperature inside the module has reached 65º Celsius. Charging is stopped.
-Once the temperature has dropped below 55ºC charging is started again.
-* RESIDUAL FAULT CURRENT DETECTED<br>An optional DC Residual Current Monitor has detected a fault current, the Contactor is switched off.
-The error condition can be reset by pressing any button on the SmartEVSE.
 
-# Changes with regards to the original firmware
-* Endpoint to send L1/2/3 data, this removed the need for a SensorBox
-  * Note: Set MainsMeter to the new 'API' option in the config menu when sending L1/2/3
-* Endpoint to send EvMeter L1/2/3 data (and energy/power)
-  * Note: Set EvMeter to the new 'API' option in the config menu when sending L1/2/3
-* Callable API endpoints for easy integration (see [REST_API](REST_API.md) and [Home Assistant Integration](configuration.md#integration-with-home-assistant))
-  * Change charging mode
-  * Override charge current
-  * Pass in current measurements (p1, battery, ...) - this eliminates having to use additional hardware
-  * Switch between single- and three phase power (requires extra 2P relais on the c2 connecor, see [Second Contactor](installation.md#second-contactor-c2))
+If an error occurs, SmartEVSE will stop charging and display one of the following error messages:
 
-# Simple Timer
+* **ERROR: NO SERIAL COM** – No signal has been received from the Sensorbox or another SmartEVSE (used for load balancing) for 11 seconds. Please check the wiring.
+* **ERROR: NO CURRENT** – Insufficient current is available to start or maintain charging. The system will retry in 60 seconds.
+* **ERROR: HIGH TEMP** – The internal temperature has reached 65°C, stopping charging. Charging will resume once the temperature drops below 55°C.
+* **RESIDUAL FAULT CURRENT DETECTED** – A DC Residual Current Monitor has detected a fault, and the Contactor has been switched off. Press any button to reset the error.
 
-There is a simple timer implemented on the webserver, for Delayed Charging.
-* Upon refreshing your webpage, the StartTime field (next to the Mode buttons) will be filled with the current system time.
-* If you press any of the Mode buttons, your charging session will start immediately;
-* If you choose to enter a StartTime that is in the future, a StopTime field will open up;
-  If you leave this to the default value it is considered to be empty; now if you press Normal, Solar or Smart mode
-    - the StartTime will be registered,
-    - the mode will switch to OFF,
-    - a charging session will be started at StartTime, at either Normal or Smart mode;
-    - the SmartEVSE will stay on indefinitely.
-* If you enter a StopTime, a checkbox named "Daily" will open up; if you check this, the startime/stoptime combination will be used on a daily basis,
-  starting on the date you entered at the StartTime.
-* To clear StartTime, StopTime and Repeat, refresh your webpage and choose either Normal, Solar or Smart mode.
-* Know bugs:
-    - if your NTP time is not synchronized yet (e.g. after a reboot), results will be unpredictable. WAIT until time is settled.
-    - if your StopTime is AFTER your StartTime+24Hours, untested territories are entered. Please enter values that make sense.
+---
+
+# Firmware Enhancements
+
+* New endpoints for sending L1/2/3 data, removing the need for a SensorBox.
+    * **Note**: Set MainsMeter to the 'API' option in the config menu when sending L1/2/3 data.
+* New endpoints for sending EvMeter L1/2/3 data (including energy/power).
+    * **Note**: Set EvMeter to the 'API' option in the config menu when sending L1/2/3 data.
+* Callable API endpoints for integration with third-party systems (e.g., REST API and Home Assistant). These allow you to:
+    * Change the charging mode.
+    * Override the charge current.
+    * Pass current measurements (e.g., p1, battery) without additional hardware.
+    * Switch between single- and three-phase power (requires an extra 2P relay on the C2 connector).
+
+---
+
+# Simple Timer for Delayed Charging
+
+A simple timer for delayed charging is available via the webserver.
+
+* Upon refreshing the webpage, the "StartTime" field (next to the mode buttons) will display the current system time.
+* If you press any mode button, charging will start immediately.
+* If you set a future "StartTime," a "StopTime" field will appear. If you leave "StopTime" at the default, it will be ignored. Pressing Normal, Solar, or Smart mode will:
+    - Register the StartTime.
+    - Switch the mode to "Off."
+    - Start the charging session at the designated StartTime, either in Normal or Smart mode.
+    - Continue the charging session indefinitely.
+* Entering a "StopTime" will enable a "Daily" checkbox, allowing the StartTime/StopTime combination to repeat daily starting from the selected date.
+* To clear StartTime, StopTime, and Repeat, refresh the webpage and select Normal, Solar, or Smart mode.
+
+### Known Bugs
+
+* If the NTP time is not yet synchronized (e.g., after a reboot), results may be unpredictable. Wait until the system time settles.
+* If the StopTime is set more than 24 hours after the StartTime, results are untested. Ensure that values make sense.
+
+---
 
 # EU Capacity Rate Limiting
-An EU directive gives electricity providers the possibility to charge end consumers by a "capacity rate", so consumers will be stimulated to flatten their usage curve.
-Currently the only known country that has this active is Belgium.
-For more details see https://github.com/serkri/SmartEVSE-3/issues/215
 
-* In the Menu screen an item "SumMains" is now available, default set at 600A
-* This setting will only be of use in Smart or Solar mode
-* Apart from all other limits (Mains, MaxCirCuit), the charge current will be limited so that the sum of all phases of the Mains currents will not be exceeding the SumMains setting
-* If you don't understand this setting, or don't live in Belgium, leave this setting at its default value
+A European Union directive allows electricity providers to charge consumers based on a "capacity rate," encouraging users to balance their energy consumption more evenly and reduce peak usage.
+
+For more information, visit [this link](https://github.com/serkri/SmartEVSE-3/issues/215).
+
+* A new menu option, "SumMains," has been added with a default setting of 600A.
+* This setting applies in Smart or Solar mode only.
+* In addition to other limits (Mains, MaxCircuit), the charging current will be restricted to ensure that the total current across all phases does not exceed the SumMains setting.
+* If you are unsure how to configure this, it is recommended to leave the setting at its default value.
