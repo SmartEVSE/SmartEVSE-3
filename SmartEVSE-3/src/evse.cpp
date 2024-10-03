@@ -769,6 +769,7 @@ void setState(uint8_t NewState) {
                 ErrorFlags &= ~NO_SUN;
                 ErrorFlags &= ~LESS_6A;
                 ChargeDelay = 0;
+                Switching_To_Single_Phase = FALSE;
                 // Reset Node
                 Node[0].Timer = 0;
                 Node[0].IntTimer = 0;

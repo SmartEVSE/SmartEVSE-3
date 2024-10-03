@@ -808,14 +808,13 @@ void GLCD(void) {
         } else if (State != STATE_C) {
                 switch (Switching_To_Single_Phase) {
                     case FALSE:
+                    case AFTER_SWITCH:
                         sprintf(Str, "READY %u", ChargeDelay);
                         if (!ChargeDelay) Str[5] = '\0';
                         break;
                     case GOING_TO_SWITCH:
                         sprintf(Str, "3F -> 1F %u", ChargeDelay);
                         if (!ChargeDelay) Str[7] = '\0';
-                        break;
-                    case AFTER_SWITCH:                                          // never getting here, just preventing compiler warning
                         break;
                 }
                 GLCD_print_buf2(5, Str);
