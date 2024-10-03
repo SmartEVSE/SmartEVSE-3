@@ -133,6 +133,15 @@ to your curl POST command. -d ''
 <br>&emsp;&emsp;Usually you should leave this setting at its default value (600A)
 <br>&emsp;&emsp;since your electricity provider probably does not supports this.
 
+# POST: /color_off
+
+* R, G, B
+
+<br>&emsp;&emsp;R, G and B must be send all together otherwise the data won't be registered.
+```
+    curl -X POST 'http://ipaddress/color_off?R=0&G=0&B=255' -d ''
+```
+
 # POST: /currents
 
 * battery_current
