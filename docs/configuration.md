@@ -20,38 +20,37 @@ MODE:
   <Solar>       The EV will charge on solar power
 
 CONFIG  Configure EVSE with Type 2 Socket or fixed cable:
-  <Socket>      Your SmartEVSE is connected to a socket, so it will need to sense the
-                cable used for its maximum capacity
-  <Fixed>       Your SmartEVSE is connected to a fixed cable, so MAX will determine your
-                maximum charge current
+  <Socket>    Your SmartEVSE is connected to a socket, so it will need to sense the
+              cable used for its maximum capacity
+  <Fixed>     Your SmartEVSE is connected to a fixed cable, so MAX will determine your
+              maximum charge current
 
 LOCK    (only appears when CONFIG is set to <Socket>)
         Enable or disable the locking actuator (config = socket)
-  <Disabled>    No lock is used
-  <Solenoid>	Dostar, DUOSIDA DSIEC-ELB or Ratio lock
-  <Motor>	Signal wire reversed, DUOSIDA DSIEC-EL or Phoenix Contact
+  <Disabled>  No lock is used
+  <Solenoid>  Dostar, DUOSIDA DSIEC-ELB / ELM or Ratio lock
+  <Motor>	  Signal wire reversed, DUOSIDA DSIEC-EL or Phoenix Contact
 
-PWR SHARE  ; formerly known as LOADBALANCING.
-        2 to 8 EVSE’s can be connected via modbus, and their load will be balanced
-  <Disabled>	Single SmartEVSE
-  <Master>	Set the first SmartEVSE to Master. Make sure there is only one Master.
-  <Node1-7>	And the other SmartEVSE's to Node 1-7.
+PWR SHARE  Power Share (used to be called LOAD BAL)
+        2 to 8 EVSE’s can be connected via modbus, and the available power will be shared.
+  <Disabled>  Power sharing is not used (single SmartEVSE)
+  <Master>    Set the first SmartEVSE to Master. Make sure there is only one Master.
+  <Node1-7>   And the other SmartEVSE's to Node 1-7.
 
 MAINSMET Set type of MAINS meter (only appears in Smart or Solar mode):
-  <Disabled>    No MAINS meter connected; only Normal mode possible
-  <Sensorbox>   The Sensorbox will send measurement data to the SmartEVSE
-  <API>         The MAINS meter data will be fed through the REST API or the MQTT API.
+  <Disabled>  No MAINS meter connected; only Normal mode possible
+  <Sensorbox> The Sensorbox will send measurement data to the SmartEVSE
+  <API>       The MAINS meter data will be fed through the REST API or the MQTT API.
   <Phoenix C> / <Finder> / <...> / <Custom> a Modbus kWh meter is used
 
   Note that Eastron1P is for single-phase Eastron meters, Eastron3P for Eastron three-phase
   meters and InvEastron is for Eastron three-phase meter that is fed from below (inverted).
   If MAINSMET is not <Disabled> and not <API>, these settings appear:
-  MAINSADR  Set the Modbus address for the kWh meter
-  GRID      (only appears when Sensorbox with CT’s is used)
-            3 or 4 wire
-  CAL	    Calibrate CT1. CT2 and CT3 will use the same cal value.
-	    6.0-99.9A	A minimum of 6A is required to change this value.
-            Hold both ▼ and ▲ buttons to reset to default settings.
+
+  MAINSADR    Set the Modbus address for the kWh meter
+  GRID        3 or 4 wire (only appears when Sensorbox with CT’s is used)
+    <4Wire>     star connection with 3 phase wires and neutral.          
+    <3Wire>     delta connection with 3 phase wires without neutral.
 
 EV METER Set type of EV kWh meter (measures power and charged energy)
   <Disabled>  No EV meter connected.
@@ -61,6 +60,7 @@ EV METER Set type of EV kWh meter (measures power and charged energy)
   Note that Eastron1P is for single-phase Eastron meters, Eastron3P for Eastron three-phase
   meters and InvEastron is for Eastron's three-phase meter that is fed from below (inverted).
   If EV METER is not <Disabled> and not <API>, this setting appears:
+
   EV ADR   Set the Modbus address for the EV Meter
 
 MAINS	(only appears when a MAINSMET is configured):
@@ -73,32 +73,25 @@ MAX	Set MAX charge current for the EV: 10-80A (per phase)
         If CONFIG is set to <Fixed>, configure MAX lower or equal to the maximum current
         that your fixed cable can carry.
 
-CIRCUIT
-        If PWR SHARE set to <Disabled>:
+CIRCUIT Set the max current the EVSE circuit can handle (power sharing): 10-200A
+        If PWR SHARE is set to <Disabled>:
         Only appears when an EV METER is configured, in Smart or Solar mode.
-        Set the max current the EVSE circuit can handle (load balancing): 10-200A
-        Not obeyed in Normal mode.
-        (see also sub panel wiring)
 
-        If PWR SHARE set to <Master>:
-        Set the max current the EVSE circuit can handle (load balancing): 10-200A
-        Obeyed in all modes!
-
-SWITCH  Set the function of an external switch connected to pin SW
-  <Disabled>    A push button on io pin SW can be used to STOP charging
+SWITCH  Set the function of an external switch (pin SW or connector P2)
+  <Disabled>    A push button can be used to STOP charging
   <Access B>    A momentary push Button is used to enable/disable access to the charging station
   <Access S>    A toggle switch is used to enable/disable access to the charging station
   <Sma-Sol B>   A momentary push Button is used to switch between Smart and Solar modes
   <Sma-Sol S>   A toggle switch is used to switch between Smart and Solar modes
-  <Grid Relay>  A relay, provided by your energy provider, is connected; when the relay is open, power usage
-                is limited to 4.2kW, as per par 14a of the Energy Industry Act.
+  <Grid Relay>  A relay, provided by your energy provider, is connected; when the relay is open, power usage is limited to 4.2kW, as per par 14a of the Energy Industry Act.
 
 RCMON   RCM14-03 Residual Current Monitor is plugged into connector P1
   <Disabled>    The RCD option is not used
-  <Enabled>     When a fault current is detected, the contactor will be opened
+  <Enabled>     When a fault current is detected, the contactor will be opened.
 
-RFID    use an RFID card reader to enable/disable access to the EVSE
-        A maximum of 20 RFID cards can be stored.
+RFID    use a RFID card reader to enable/disable access to the EVSE
+        A maximum of 100 RFID cards can be stored.
+        Note that only a push button can be used simultaneously with the RFID reader.
   <Disabled>  RFID reader turned off
   <EnableAll> Accept all learned cards for enabling/disabling the SmartEVSE
   <EnableOne> Only allow a single (learned) card to be used for enabling/disabling the
@@ -116,7 +109,7 @@ RFID    use an RFID card reader to enable/disable access to the EVSE
               OCPP server in this mode only
 
 WIFI          Enable wifi connection to your LAN
-  <Disabled>  No wifi connection
+  <Disabled>  Wifi connection is disabled
   <SetupWifi> v3.6.3 or older: The SmartEVSE presents itself as a Wifi Acces Point "smartevse-xxxx";
               connect with your phone to that access point, go to http://192.168.4.1/
               and configure your Wifi password
@@ -144,77 +137,80 @@ WIFI          Enable wifi connection to your LAN
               a backup procedure:
               -connect your SmartEVSE with a USB cable to your PC
               -install the USB driver (Windows) or not (Linux) for ESP32 chipset
-              -connect your favorite serial terminal to the appropriate port
+              -connect your favorite serial terminal to the appropriate port,
+               use the following settings: 115200bps, 8 bits, no parity, 1 stopbit
               -on the SmartEVSE LCD screen, select "Wifi", select "SetupWifi",
               -press the middle button to start the configuration procedure,
-              -wait for 120s ; then press enter on your serial terminal; you will be prompted for your WiFi
-               network name and password.
+              -on your terminal window you should see a request to enter your
+               WiFi access point name and password. 
+              -the controller should now connect to WiFi.
   <Enabled>   Connect to your LAN via Wifi.
 
-OCPP          Enable OCPP
-              See the OCPP section in the SmartEVSE dashboard for setting up identifiers and configuring
-              the OCPP interface.
-  <Disabled>  No OCPP functionality including OCPP access control and load management
-  <Enabled>   Connect to the OCPP server using the credentials set up in the SmartEVSE dashboard. To use
-              the RFID reader with OCPP, set the mode Rmt/OCPP in the RFID menu. Note that the other
-              RFID modes overrule the OCPP access control. OCPP SmartCharging requires the SmartEVSE
-              internal load balancing means to be turned off.
-
 AUTOUPDAT     (only appears when WIFI is Enabled):
-              Automatic update of your firmware
+              Automatic update of the SmartEVSE firmware
   <Disabled>  No automatic update
-  <Enabled>   Checks every 18 hours if there is a new stable firmware version available;
-              If so, downloads and flashes it, and reboots as soon as no EV is connected.
+  <Enabled>   Checks every day if there is a new stable firmware version available.
+              It will download and install it once there is no EV connected.
               DOES NOT WORK if your current version is not one of the format vx.y.z, e.g. v3.6.1
               So locally compiled versions, or RCx versions, will NOT Autoupdate!
 
 MAX TEMP      Maximum allowed temperature for your SmartEVSE; 40-75C, default 65.
+              Charging will stop once the internal temperature has reached this threshold.
+              Charging will resume once the temperature has dropped to 55°C.
               You can increase this if your SmartEVSE is in direct sunlight.
 
 CAPACITY      (only appears when a MAINSMET is configured):
               Maximum allowed Mains Current summed over all phases: 10-600A
               This is used for the EU Capacity rate limiting.
-CAP STOP      (only appears when a SUMMAINS is configured):
-              Timer in minutes; if set, if SUMMAINS is exceeded, we do not immediately stop
+CAP STOP      (only appears when CAPACITY is configured):
+              Timer in minutes; if CAPACITY is exceeded, we do not immediately stop
               charging but wait until the timer expires.
 
-The following options are only shown when Mode set to <Solar> and
+The following options are only shown when MODE is set to <Solar> and
 PWR SHARE set to <Disabled> or <Master>:
 START         set the current on which the EV should start Solar charging:
               -0  -48A (sum of all phases)
 STOP          Stop charging when there is not enough solar power available:
               Disabled - 60 minutes (Disabled = never stop charging)
-IMPORT        Allow additional grid power when solar charging: 0-20A (summed over all phases)
-              NOTE: A setting of IMPORT lower than START + MIN makes NO SENSE and will
-              result in a non-charging SmartEVSE when in Solar mode.
-              You even need to set IMPORT at least a few Amps higher than START + MIN to get
-              a desired charging behavior if you are charging at 1 phase.
-              You even need to set IMPORT at least a few Amps higher than START + 3 * MIN to get
-              a desired charging behavior if you are charging at 3 phases.
-              NOTE2: Note that START and IMPORT are summed over all phases, and MIN is per phase!
-CONTACT2      One can add a second contactor (C2) that switches off 2 of the 3 phases of a
-              3 phase Mains installation; this can be useful if one wants to charge of off
-              Solar; EV's have a minimal charge current of 6A, so switching off 2 phases
-              allows you to charge with a current of 6-18A, while 3 phases have a
-              minimum current of 3x6A=18A.
-              This way you can still charge solar-only on smaller solar installations.
-<br>
-              IMPORTANT NOTE: You WILL have to wire your C2 contactor according to the schematics
-              in [Hardware installation](docs/installation.md). If you invent your own wiring
-              your installation will be UNSAFE!
+IMPORT        Allow additional grid power when solar charging: 0-20A (sum of all phases)
+              This option can be used when you do not have enough solar power
+              installed, but still want to use as much of it to charge your EV.
+              As the MIN charge current is usually 6A per phase, you will need
+              6A x 3 x 230V = ~4140W of power to keep charging at 3 phases.
+              Use this option to allow some power taken from the grid.
+              NOTE: Note that START and IMPORT are summed over all phases, and MIN is per phase!
+              Another option is to use a second contactor, and only charge at one 
+              phase when solar charging. See next menu option.
 
-  <Not present> No second contactor C2 is present (default);
+CONTACT2      Use a second contactor (C2) that switches phases L2 and L3
+              EV's have a minimal charge current of 6A. Switching off 2 phases
+              in solar mode allows for a much smoother charging session, as the 
+              minimum charge current drops from 18A (6A three phase) to 6A.
+
+              IMPORTANT NOTE: Wire your C2 contactor according to the schematics
+              in [Hardware installation](docs/installation.md). 
+
+  <Not present> The second contactor C2 is not present
                 In this case, SmartEVSE will assume 3-phase charging, which is the "worst case"
   <Always Off>  C2 is always off, so you are single-phase charging
-                You can use this setting if you want SmartEVSE to assume 1 phase charging in its calculations
-  <Always On>   C2 is always on, so you are three-phase charging (if your Mains are three-phase and your EV
-                supports it)
+                You can use this setting if you want SmartEVSE to assume 1 phase charging 
+                in its calculations
+  <Always On>   C2 is always on, so you are three-phase charging (if your Mains are 
+                three-phase and your EV supports it) (default)
   <Solar Off>   C2 is always on except in Solar Mode where it is always off
   <Auto>        SmartEVSE starts charging at 3phase, but when in Solar mode and not enough
                 current available for 3 phases, switches off C2 so it will continue on 1 phase
+                Only works when Power Sharing is disabled.
 
 
 ```
+# OCPP
+See the OCPP section in the SmartEVSE dashboard for setting up identifiers and configuring the OCPP interface.
+Connect to the OCPP server using the credentials set up in the SmartEVSE dashboard. To use
+the RFID reader with OCPP, set the mode Rmt/OCPP in the RFID menu. Note that the other
+RFID modes overrule the OCPP access control. OCPP SmartCharging requires the SmartEVSE
+internal load balancing means to be turned off.
+
 # REST API
 
 For the specification of the REST API, see [REST API](REST_API.md)
@@ -258,7 +254,7 @@ Up to eight SmartEVSE modules can share one mains supply.
   - Hardware connections
     - Connect the A, B and GND connections from the Master to the Node(s).
     - So A connects to A, B goes to B etc.
-    - If you are using Smart/Solar mode, you should connect the A, B , +12V and GND wires from the sensorbox to the same screw terminals of the SmartEVSE! Make sure that the +12V  wire from the sensorbox is connected to only  -one– SmartEVSE.
+    - If you are using Smart/Solar mode, you should connect the A, B , +12V and GND wires from the sensorbox to the same screw terminals of the SmartEVSE! Make sure that the +12V wire from the sensorbox is connected to only -one– SmartEVSE.
 
   - Software configuration
     - Set one SmartEVSE PWR SHARE setting to MASTER, and the others to NODE 1-7. Make sure there is only one Master, and the Node numbers are unique.
@@ -275,13 +271,14 @@ Up to eight SmartEVSE modules can share one mains supply.
       - MAX 		 Set the maximum charging current for the EV connected to -this- SmartEVSE (per phase).
 
 # Home Battery Integration
-In a normal EVSE setup, a sensorbox is used to read the P1 information to deduce if there is sufficient solar energy available. This however can give unwanted results when also using a home battery as this will result in one battery charging the other one. <br/>
+In a normal EVSE setup, a sensorbox is used to read the P1 information to deduce if there is sufficient solar energy available. This however can give unwanted results when also using a home battery as this will result in one battery charging the other one.
 
 For this purpose the settings endpoint allows you to pass through the battery current information:
 * A positive current means the battery is charging
 * A negative current means the battery is discharging
 
-The EVSE will use the battery current to neutralize the impact of a home battery on the P1 information.<br>
+The EVSE will use the battery current to neutralize the impact of a home battery on the P1 information.
+
 **Regular updates from the consumer are required to keep this working as values cannot be older than 11 seconds.**
 
 ### Example
@@ -296,15 +293,15 @@ The sender has several options when sending the home battery current:
 
 # Integration with Home Assistant
 There are three options to integrate SmartEVSE with Home Assistant:
-* through the HA-integration - the easy way<br />
+* through the HA-integration - the easy way
 
     If you want to integrate your SmartEVSE with Home Assistant, please have a look at [the SmartEVSE `custom_component` for Home Assistant](https://github.com/dingo35/ha-SmartEVSEv3). This `custom_component` uses the API to share data from the SmartEVSE to Home Assistant, and enables you to set SmartEVSE settings from Home Assistant. You will need firmware version 1.5.2 or higher to use this integration.
 
-* by manually configuring your configuration.yaml<br />
+* by manually configuring your configuration.yaml
 
     It's a lot of work, but you can have everything exactly your way. See examples in the integrations directory of our GitHub repository.
 
-* by MQTT<br />
+* by MQTT
 
     If you don't like the integration, e.g. because it only updates its data every 60 seconds, you might like to interface through MQTT; updates are done as soon as values change.... you can even mix it up by using both the integration AND the MQTT interface at the same time!
 
@@ -314,25 +311,26 @@ In line with a EU directive, electricity providers can implement a "capacity rat
 
 For further details, please refer to [serkri#215](https://github.com/serkri/SmartEVSE-3/issues/215).
 
-## Updates include:
 
-* A new menu item, "SumMains," is now available with a default setting of 600A.
+
+* The menu item "Capacity" can be set from 10-600A. (sum of all phases)
 * This setting applies only in Smart or Solar mode.
-* Beyond existing limits (Mains, MaxCircuit), the charging current will be controlled to ensure that the total of all Mains phase currents does not exceed the SumMains setting.
-* If you are unfamiliar with this setting or do not fall under the applicable regulations, it is advisable to keep the setting at its default value.
+* Beyond existing limits (Mains, MaxCircuit), the charging current will be controlled to ensure that the total of all Mains phase currents does not exceed the Capacity setting.
+* If you are unfamiliar with this setting or do not fall under the applicable regulations, it is advisable to keep the setting at its default setting. (disabled)
 
 # Building the firmware
 You can get the latest release off of https://github.com/dingo35/SmartEVSE-3.5/releases, but if you want to build it yourself:
 * Install platformio-core https://docs.platformio.org/en/latest/core/installation/methods/index.html
 * Clone this github project, cd to the smartevse directory where platformio.ini is located
-* Compile firmware.bin: platformio run
-* If your want to give special compiler options, e.g. lower the minimum current to 5A:  PLATFORMIO_BUILD_FLAGS='-DDBG=1 -DMIN_CURRENT=5' pio run
-For versions older than v3.6.0:
-* Compile spiffs.bin: platformio run -t buildfs
+* Compile firmware.bin: `platformio run` (or `pio run`)
 
-If you are not using the webserver /update endpoint:
+For versions older than v3.6.0, build the spiffs filesystem:
+* Compile spiffs.bin: `platformio run -t buildfs`
+
+If you are not using the webserver /update endpoint to upload the firmware:
 * Windows users: install USB drivers https://www.silabs.com/de...o-uart-bridge-vcp-drivers
-* Upload via USB configured in platformio.ini: platformio run --target upload
+* Upload (flash) via USB configured in platformio.ini: `platformio run --target upload`
+* Upload spiffs.bin: `platformio run --target uploadfs` (not required for current versions)
 
 # I think I bricked my SmartEVSE
 Luckily, there are no known instances of people who bricked their SmartEVSE.
@@ -340,4 +338,4 @@ But if all else fails, connect your SmartEVSE via USB-C to your laptop and follo
 
 Another tool can be found here: https://github.com/marcelstoer/nodemcu-pyflasher
 
-Remember to flash to both partitions, 0x10000 and 0x1c0000  !!!
+Remember to flash to both partitions, `0x10000` and `0x1c0000` !!!
