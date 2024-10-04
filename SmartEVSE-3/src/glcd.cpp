@@ -85,6 +85,7 @@ uint8_t GLCDbuf[512];                                                       // G
 tm DelayedStartTimeTM;
 time_t DelayedStartTime_Old;
 uint8_t MenuItems[MENU_EXIT];
+extern void CheckSwitch(bool force = false);
 
 void st7565_command(unsigned char data) {
     _A0_0;
@@ -1174,11 +1175,15 @@ void GLCDMenu(uint8_t Buttons) {
                         } while (value > 0 && value < 10);
                         setItemValue(LCDNav, value);
                         break;
-                    case MENU_SWITCH:                                           // do not display the Sensorbox or unused slots here
+                    case MENU_SWITCH:
                         do {
                             value = MenuNavInt(Buttons, value, MenuStr[LCDNav].Min, MenuStr[LCDNav].Max);
                         } while (LoadBl >=2 && value == 5);                     // do not allow GridRelay on Slave
                         setItemValue(LCDNav, value);
+                        if (value == 5)
+                            CheckSwitch(true);
+                        else
+                            GridRelayOpen = false;                              // so we don't have limiting current when not on GridRelay
                         break;
                     default:
                         value = MenuNavInt(Buttons, value, MenuStr[LCDNav].Min, MenuStr[LCDNav].Max);
