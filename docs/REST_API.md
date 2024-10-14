@@ -137,9 +137,40 @@ to your curl POST command. -d ''
 
 * R, G, B
 
+&emsp;&emsp;Sets the color of the connected switch while the EVSE is in Off mode (and overrides the default setting (0, 0, 0).
 <br>&emsp;&emsp;R, G and B must be send all together otherwise the data won't be registered.
 ```
     curl -X POST 'http://ipaddress/color_off?R=0&G=0&B=255' -d ''
+```
+
+# POST: /color_normal
+
+* R, G, B
+
+&emsp;&emsp;Sets the color of the connected switch while the EVSE is in Normal mode (and overrides the default green setting (0, 255, 0).
+<br>&emsp;&emsp;R, G and B must be send all together otherwise the data won't be registered.
+```
+    curl -X POST 'http://ipaddress/color_normal?R=0&G=0&B=255' -d ''
+```
+
+# POST: /color_smart
+
+* R, G, B
+
+&emsp;&emsp;Sets the color of the connected switch while the EVSE is in Smart mode (and overrides the default green setting (0, 255, 0).
+<br>&emsp;&emsp;R, G and B must be send all together otherwise the data won't be registered.
+```
+    curl -X POST 'http://ipaddress/color_smart?R=0&G=0&B=255' -d ''
+```
+
+# POST: /color_solar
+
+* R, G, B
+
+&emsp;&emsp;Sets the color of the connected switch while the EVSE is in Solar mode (and overrides the default yellow setting (255, 170, 0).
+<br>&emsp;&emsp;R, G and B must be send all together otherwise the data won't be registered.
+```
+    curl -X POST 'http://ipaddress/color_solar?R=0&G=0&B=255' -d ''
 ```
 
 # POST: /currents

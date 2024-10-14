@@ -240,6 +240,9 @@ Valid topics you can publish to are:
 /Set/HomeBatteryCurrent
 /Set/RequiredEVCCID
 /Set/ColorOff
+/Set/ColorNormal
+/Set/ColorSmart
+/Set/ColorSolar
 ```
 Your MainsMeter can be fed with:
 ```
