@@ -428,6 +428,34 @@ void GLCD(void) {
             else if (RFIDstatus == 6) GLCD_print_buf(0, (const char*) "Card storage full!");
             else glcd_clrln(0, 0x00);                                           // Clear line
             LCDTimer = 0;                                                       // reset timer, so it will not exit the menu when learning/deleting cards
+        // Sensorbox 2 WiFi settings
+        } else if (LCDNav == MENU_SB2_WIFI) {
+            // wait for sensorbox to switch to selected mode
+            if ( (SB2.WIFImode != SB2_WIFImode) && SubMenu && SB2_WIFImode !=2) {
+                GLCD_write_buf_str(0,0, "one moment please...", GLCD_ALIGN_LEFT);
+
+            } else if (SB2_WIFImode == 1) {         // Enable WiFi on Sensorbox 2
+
+                if (SB2.WiFiConnected) {
+                    sprintf(Str, "SB2: %u.%u.%u.%u",SB2.IP[0],SB2.IP[1],SB2.IP[2],SB2.IP[3]);
+                    GLCD_write_buf_str(0,0, Str, GLCD_ALIGN_LEFT);
+                } else GLCD_write_buf_str(0,0, "Not connected to WiFi", GLCD_ALIGN_LEFT);
+
+            } else if (SB2_WIFImode == 2) {         // Enable Portal on Sensorbox 2
+                if (SubMenu) {
+                    sprintf(Str, "O button starts config");
+                    GLCD_write_buf_str(0,0, Str, GLCD_ALIGN_LEFT);
+                } else {
+                    // Show Portal Password
+                    sprintf(Str, "Password: %s", SB2.APpassword);
+                    GLCD_write_buf_str(0, 0, Str, GLCD_ALIGN_LEFT);
+                    GLCD_sendbuf(7, 1);
+                    GLCD_buffer_clr();
+                    sprintf(Str, "Now connect to portal");
+                    GLCD_write_buf_str(0, 0, Str, GLCD_ALIGN_LEFT);
+                }
+            }        
+        
         } else {
             // When connected to Wifi, display IP and time in top row
             uint8_t WIFImode = getItemValue(MENU_WIFI);
@@ -990,6 +1018,7 @@ const char * getMenuItemOption(uint8_t nav) {
         case MENU_RFIDREADER:
             return StrRFIDReader[value];
         case MENU_WIFI:
+        case MENU_SB2_WIFI:
             return StrWiFi[value];
         case MENU_EXIT:
             return StrExitMenu;
@@ -1019,6 +1048,9 @@ uint8_t getMenuItems (void) {
             MenuItems[m++] = MENU_MAINSMETER;                                   // - - Type of Mains electric meter (0: Disabled / Constants EM_*)
             if (MainsMeter.Type == EM_SENSORBOX) {                              // - - ? Sensorbox?
                 if (GridActive == 1) MenuItems[m++] = MENU_GRID;
+                if (SB2.SoftwareVer >= 0x01) {
+                    MenuItems[m++] = MENU_SB2_WIFI;                             // Sensorbox-2 Wifi  0:Disabled / 1:Enabled / 2:Portal
+                }
             } else if (MainsMeter.Type && MainsMeter.Type != EM_API) {          // - - ? Other?
                 MenuItems[m++] = MENU_MAINSMETERADDRESS;                        // - - - Address of Mains electric meter (9 - 247)
             }

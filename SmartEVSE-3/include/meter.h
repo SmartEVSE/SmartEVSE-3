@@ -31,6 +31,7 @@
 
 extern struct EMstruct EMConfig[EM_CUSTOM + 1];
 extern struct ModBus MB;
+extern struct Sensorbox SB2;
 
 class Meter {
   public:

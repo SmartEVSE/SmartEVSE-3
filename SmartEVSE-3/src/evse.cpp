@@ -146,6 +146,7 @@ struct DelayedTimeStruct DelayedStartTime;
 struct DelayedTimeStruct DelayedStopTime;
 uint8_t DelayedRepeat;                                                      // 0 = no repeat, 1 = daily repeat
 uint8_t Grid = GRID;                                                        // Type of Grid connected to Sensorbox (0:4Wire / 1:3Wire )
+uint8_t SB2_WIFImode = SB2_WIFI_MODE;                                       // Sensorbox-2 WiFi Mode (0:Disabled / 1:Enabled / 2:Start Portal)
 uint8_t RFIDReader = RFID_READER;                                           // RFID Reader (0:Disabled / 1:Enabled / 2:Enable One / 3:Learn / 4:Delete / 5:Delete All / 6: Remote via OCPP)
 #if FAKE_RFID
 uint8_t Show_RFID = 0;
@@ -1387,7 +1388,7 @@ Regis 	Access 	Description 	                                        Unit 	Values
 0x0200 	R/W 	EVSE mode 		                                        0:Normal / 1:Smart / 2:Solar
 0x0201 	R/W 	EVSE Circuit max Current 	                        A 	10 - 160
 0x0202 	R/W 	Grid type to which the Sensorbox is connected 		        0:4Wire / 1:3Wire
-0x0203 	R/W 	CT calibration value 	                                0.01 	Multiplier
+0x0203 	R/W 	Sensorbox 2 WiFi Mode                                   0:Disabled / 1:Enabled / 2:Portal
 0x0204 	R/W 	Max Mains Current 	                                A 	10 - 200
 0x0205 	R/W 	Surplus energy start Current 	                        A 	1 - 16
 0x0206 	R/W 	Stop solar charging at 6A after this time 	        min 	0:Disable / 1 - 60
@@ -1728,6 +1729,9 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
         case MENU_GRID:
             Grid = val;
             break;
+        case MENU_SB2_WIFI:
+            SB2_WIFImode = val;
+            break;    
         case MENU_MAINSMETER:
             MainsMeter.Type = val;
             break;
@@ -1866,6 +1870,8 @@ uint16_t getItemValue(uint8_t nav) {
             return RCmon;
         case MENU_GRID:
             return Grid;
+        case MENU_SB2_WIFI:
+            return SB2_WIFImode;
         case MENU_MAINSMETER:
             return MainsMeter.Type;
         case MENU_MAINSMETERADDRESS:
@@ -3328,6 +3334,7 @@ void Timer1S(void * parameter) {
                 // but in Normal mode we just want to charge ChargeCurrent, irrespective of communication problems.
                 ErrorFlags |= CT_NOCOMM;
                 setStatePowerUnavailable();
+                SB2.SoftwareVer = 0;
                 _LOG_W("Error, MainsMeter communication error!\n");
             } else {
                 if (MainsMeter.Timeout) MainsMeter.Timeout--;
@@ -3774,6 +3781,7 @@ void read_settings() {
         StopTime = preferences.getUShort("StopTime", STOP_TIME); 
         ImportCurrent = preferences.getUShort("ImportCurrent",IMPORT_CURRENT);
         Grid = preferences.getUChar("Grid",GRID);
+        SB2_WIFImode = preferences.getUChar("SB2WIFImode",SB2_WIFI_MODE);
         RFIDReader = preferences.getUChar("RFIDReader",RFID_READER);
 
         MainsMeter.Type = preferences.getUChar("MainsMeter", MAINS_METER);
@@ -3852,6 +3860,7 @@ void write_settings(void) {
     preferences.putUShort("StopTime", StopTime); 
     preferences.putUShort("ImportCurrent", ImportCurrent);
     preferences.putUChar("Grid", Grid);
+    preferences.putUChar("SB2WIFImode", SB2_WIFImode);
     preferences.putUChar("RFIDReader", RFIDReader);
 
     preferences.putUChar("MainsMeter", MainsMeter.Type);

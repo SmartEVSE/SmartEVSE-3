@@ -255,6 +255,7 @@ extern RemoteDebug Debug;
 #define SOLARSTARTTIME 40                                                       // Seconds to keep chargecurrent at 6A
 #define OCPP_MODE 0
 #define AUTOUPDATE 0                                                            // default for Automatic Firmware Update: 0 = disabled, 1 = enabled
+#define SB2_WIFI_MODE 0
 
 // Mode settings
 #define MODE_NORMAL 0
@@ -385,7 +386,7 @@ extern RemoteDebug Debug;
 #define MENU_MODE 12                                                            // 0x0200: EVSE mode
 #define MENU_CIRCUIT 13                                                         // 0x0201: EVSE Circuit max Current
 #define MENU_GRID 14                                                            // 0x0202: Grid type to which the Sensorbox is connected
-#define MENU_UNUSED 15                                                          // 0x0203: Unused
+#define MENU_SB2_WIFI 15                                                        // 0x0203: WiFi mode of the Sensorbox 2
 #define MENU_MAINS 16                                                           // 0x0204: Max Mains Current
 #define MENU_START 17                                                           // 0x0205: Surplus energy start Current
 #define MENU_STOP 18                                                            // 0x0206: Stop solar charging at 6A after this time
@@ -465,6 +466,7 @@ extern struct tm timeinfo;
 extern uint8_t Mode;                                                            // EVSE mode
 extern uint8_t LoadBl;                                                          // Load Balance Setting (Disable, Master or Node)
 extern uint8_t Grid;
+extern uint8_t SB2_WIFImode;
 #if FAKE_RFID
 extern uint8_t Show_RFID;
 #endif
@@ -531,7 +533,7 @@ const struct {
     {"MODE",    "Normal, Smart or Solar EVSE mode",                   0, 2, MODE},
     {"CIRCUIT", "EVSE Circuit max Current",                           10, 160, MAX_CIRCUIT},
     {"GRID",    "Grid type to which the Sensorbox is connected",      0, 1, GRID},
-    {"Unused",  "Unused",                                             0, 1, 0},
+    {"SB2 WIFI","Connect Sensorbox-2 to WiFi",                        0, 2, SB2_WIFI_MODE},
     {"MAINS",   "Max MAINS Current (per phase)",                      10, 200, MAX_MAINS},
     {"START",   "Surplus energy start Current (sum of phases)",       0, 48, START_CURRENT},
     {"STOP",    "Stop solar charging at 6A after this time",          0, 60, STOP_TIME},
@@ -550,7 +552,7 @@ const struct {
     {"ENE REGI","Register for Energy (kWh) of custom electric meter", 0, 65534, EMCUSTOM_EREGISTER},
     {"ENE DIVI","Divisor for Energy (kWh) of custom electric meter",  0, 7, EMCUSTOM_EDIVISOR},
     {"READ MAX","Max register read at once of custom electric meter", 3, 255, 3},
-    {"WIFI",    "Use ESPTouch APP on your phone",                       0, 2, WIFI_MODE},
+    {"WIFI",    "Connect SmartEVSE to WiFi",                          0, 2, WIFI_MODE},
     {"AUTOUPDAT","Automatic Firmware Update",                         0, 1, AUTOUPDATE},
     {"CONTACT 2","Contactor2 (C2) behaviour",                          0, sizeof(StrEnableC2) / sizeof(StrEnableC2[0])-1, ENABLE_C2},
     {"MAX TEMP","Maximum temperature for the EVSE module",            40, 75, MAX_TEMPERATURE},
@@ -586,6 +588,15 @@ struct DelayedTimeStruct {
                             // we avoid using epoch so we don't need expensive 64bits arithmetics with difftime
                             // and we can store dates until 7/2/2159
     int32_t diff;           // StartTime minus current time in seconds
+};
+
+struct Sensorbox {
+    uint8_t SoftwareVer;        // Sensorbox 2 software version
+    uint8_t WiFiConnected;      // 0:not connected / 1:connected to WiFi
+    uint8_t WiFiAPSTA;          // 0:no portal /  1: portal active
+    uint8_t WIFImode;           // 0:Wifi Off / 1:WiFi On / 2: Portal Start
+    uint8_t IP[4];
+    uint8_t APpassword[8];
 };
 
 #define EPOCH2_OFFSET 1672531200

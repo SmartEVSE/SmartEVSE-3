@@ -335,7 +335,9 @@ void requestCurrentMeasurement(uint8_t Meter, uint8_t Address) {
         case EM_API:
             break;
         case EM_SENSORBOX:
-            ModbusReadInputRequest(Address, 4, 0, 20);
+            if (SB2.SoftwareVer >= 1) {
+                ModbusReadInputRequest(Address, 4, 0, 32);
+            } else ModbusReadInputRequest(Address, 4, 0, 20);
             break;
         case EM_EASTRON1P:
         case EM_EASTRON3P:
