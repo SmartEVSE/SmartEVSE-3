@@ -198,6 +198,7 @@ uint8_t Meter::receiveCurrentMeasurement(uint8_t *buf) {
                 for (x = 0; x < 8; x++) {
                     SB2.APpassword[7-x] = buf[56 + x];
                 }
+                SB2.APpassword[8] = '\0';
 
                 if (SB2_WIFImode == 2 && SB2.WiFiConnected && !SubMenu) {
                     SB2_WIFImode = 1;                                       // Portal active and connected? Switch back to Enabled.
