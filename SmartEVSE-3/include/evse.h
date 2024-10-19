@@ -522,7 +522,7 @@ const struct {
     {"MIN",     "MIN Charge Current the EV will accept (per phase)",  MIN_CURRENT, 16, MIN_CURRENT},
     {"MAX",     "MAX Charge Current for this EVSE (per phase)",       6, 80, MAX_CURRENT},
     {"PWR SHARE", "Share Power between multiple SmartEVSEs (2-8)",    0, NR_EVSES, LOADBL},
-    {"SWITCH",  "Switch function control on pin SW",                  0, 5, SWITCH},
+    {"SWITCH",  "Switch function control on pin SW",                  0, 7, SWITCH},
     {"RCMON",   "Residual Current Monitor on pin RCM",                0, 1, RC_MON},
     {"RFID",    "RFID reader, learn/remove cards",                    0, 5 + (ENABLE_OCPP ? 1 : 0), RFID_READER},
     {"EV METER","Type of EV electric meter",                          0, EM_CUSTOM, EV_METER},

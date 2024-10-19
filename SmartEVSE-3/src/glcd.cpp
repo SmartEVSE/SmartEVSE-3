@@ -918,7 +918,7 @@ const char * getMenuItemOption(uint8_t nav) {
     const static char StrMotor[]   = "Motor";
     const static char StrDisabled[] = "Disabled";
     const static char StrLoadBl[9][9]  = {"Disabled", "Master", "Node 1", "Node 2", "Node 3", "Node 4", "Node 5", "Node 6", "Node 7"};
-    const static char StrSwitch[6][11] = {"Disabled", "Access B", "Access S", "Sma-Sol B", "Sma-Sol S", "Grid Relay"};
+    const static char StrSwitch[8][11] = {"Disabled", "Access B", "Access S", "Sma-Sol B", "Sma-Sol S", "Grid Relay", "Custom B", "Custom S"};
     const static char StrGrid[2][10] = {"4Wire", "3Wire"};
     const static char StrEnabled[] = "Enabled";
     const static char StrExitMenu[] = "MENU";

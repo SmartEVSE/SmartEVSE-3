@@ -84,6 +84,8 @@ SWITCH  Set the function of an external switch (pin SW or connector P2)
   <Sma-Sol B>   A momentary push Button is used to switch between Smart and Solar modes
   <Sma-Sol S>   A toggle switch is used to switch between Smart and Solar modes
   <Grid Relay>  A relay, provided by your energy provider, is connected; when the relay is open, power usage is limited to 4.2kW, as per par 14a of the Energy Industry Act.
+  <Custom B>    A momentary push Button can be used by external integrations
+  <Custom S>    A toggle switch can be used by external integrations
 
 RCMON   RCM14-03 Residual Current Monitor is plugged into connector P1
   <Disabled>    The RCD option is not used

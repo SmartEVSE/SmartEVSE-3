@@ -115,6 +115,7 @@ uint16_t GridRelayMaxSumMains = GRID_RELAY_MAX_SUMMAINS;                    // M
                                                                             // When the relay opens its contacts, power will be reduced to 4.2kW
                                                                             // The relay is only allowed on the Master
 bool GridRelayOpen = false;                                                 // The read status of the relay
+bool CustomButton = false;                                                  // The status of the custom button
 uint16_t MaxCurrent = MAX_CURRENT;                                          // Max Charge current (A)
 uint16_t MinCurrent = MIN_CURRENT;                                          // Minimal current the EV is happy with (A)
 uint8_t Mode = MODE;                                                        // EVSE mode (0:Normal / 1:Smart / 2:Solar)
@@ -135,7 +136,8 @@ uint16_t MaxCircuit = MAX_CIRCUIT;                                          // M
 uint8_t Config = CONFIG;                                                    // Configuration (0:Socket / 1:Fixed Cable)
 uint8_t LoadBl = LOADBL;                                                    // Load Balance Setting (0:Disable / 1:Master / 2-8:Node)
 uint8_t Switch = SWITCH;                                                    // External Switch (0:Disable / 1:Access B / 2:Access S / 
-                                                                            // 3:Smart-Solar B / 4:Smart-Solar S / 5: Grid Relay)
+                                                                            // 3:Smart-Solar B / 4:Smart-Solar S / 5: Grid Relay
+                                                                            // 6:Custom B / 7:Custom S)
                                                                             // B=momentary push <B>utton, S=toggle <S>witch
 uint8_t RCmon = RC_MON;                                                     // Residual Current Monitor (0:Disable / 1:Enable)
 uint8_t AutoUpdate = AUTOUPDATE;                                            // Automatic Firmware Update (0:Disable / 1:Enable)
@@ -261,6 +263,7 @@ uint8_t ColorOff[3] = {0, 0, 0};          // off
 uint8_t ColorNormal[3] = {0, 255, 0};   // Green
 uint8_t ColorSmart[3] = {0, 255, 0};    // Green
 uint8_t ColorSolar[3] = {255, 170, 0};    // Orange
+uint8_t ColorCustom[3] = {0, 0, 255};    // Blue
 
 //#define FW_UPDATE_DELAY 30        //DINGO TODO                                            // time between detection of new version and actual update in seconds
 #define FW_UPDATE_DELAY 3600                                                    // time between detection of new version and actual update in seconds
@@ -415,14 +418,18 @@ void BlinkLed(void * parameter) {
                 if (LedCount > 230) LedPwm = WAITING_LED_BRIGHTNESS;            // LED 10% of time on, full brightness
                 else LedPwm = 0;
 
-                if (Mode == MODE_SOLAR) {                                       // Orange for Solar, unless configured otherwise
+                if (CustomButton) {                                             // Blue for Custom, unless configured otherwise
+                    RedPwm = LedPwm * ColorCustom[0] / 255;
+                    GreenPwm = LedPwm * ColorCustom[1] / 255;
+                    BluePwm = LedPwm * ColorCustom[2] / 255;
+                } else if (Mode == MODE_SOLAR) {                                // Orange for Solar, unless configured otherwise
                     RedPwm = LedPwm * ColorSolar[0] / 255;
                     GreenPwm = LedPwm * ColorSolar[1] / 255;
                     BluePwm = LedPwm * ColorSolar[2] / 255;
                 } else if (Mode == MODE_SMART) {                                // Green for Smart, unless configured otherwise
-                    RedPwm = LedPwm * ColorNormal[0] / 255;
-                    GreenPwm = LedPwm * ColorNormal[1] / 255;
-                    BluePwm = LedPwm * ColorNormal[2] / 255;
+                    RedPwm = LedPwm * ColorSmart[0] / 255;
+                    GreenPwm = LedPwm * ColorSmart[1] / 255;
+                    BluePwm = LedPwm * ColorSmart[2] / 255;
                 } else {                                                        // Green for Normal, unless configured otherwise
                     RedPwm = LedPwm * ColorNormal[0] / 255;
                     GreenPwm = LedPwm * ColorNormal[1] / 255;
@@ -466,6 +473,10 @@ void BlinkLed(void * parameter) {
             GreenPwm = 0;
             BluePwm = 0;
 #endif //ENABLE_OCPP
+        } else if (Access_bit == 0 && CustomButton) {
+            RedPwm = ColorCustom[0];
+            GreenPwm = ColorCustom[1];
+            BluePwm = ColorCustom[2];
         } else if (Access_bit == 0 || State == STATE_MODEM_DENIED) {
             RedPwm = ColorOff[0];
             GreenPwm = ColorOff[1];
@@ -485,14 +496,18 @@ void BlinkLed(void * parameter) {
                 LedPwm = ease8InOutQuad(triwave8(LedCount));                    // pre calculate new LedPwm value
             }
 
-            if (Mode == MODE_SOLAR) {                                       // Orange for Solar, unless configured otherwise
+            if (CustomButton) {                                             // Blue for Custom, unless configured otherwise
+                RedPwm = LedPwm * ColorCustom[0] / 255;
+                GreenPwm = LedPwm * ColorCustom[1] / 255;
+                BluePwm = LedPwm * ColorCustom[2] / 255;
+            } else if (Mode == MODE_SOLAR) {                                // Orange for Solar, unless configured otherwise
                 RedPwm = LedPwm * ColorSolar[0] / 255;
                 GreenPwm = LedPwm * ColorSolar[1] / 255;
                 BluePwm = LedPwm * ColorSolar[2] / 255;
             } else if (Mode == MODE_SMART) {                                // Green for Smart, unless configured otherwise
-                RedPwm = LedPwm * ColorNormal[0] / 255;
-                GreenPwm = LedPwm * ColorNormal[1] / 255;
-                BluePwm = LedPwm * ColorNormal[2] / 255;
+                RedPwm = LedPwm * ColorSmart[0] / 255;
+                GreenPwm = LedPwm * ColorSmart[1] / 255;
+                BluePwm = LedPwm * ColorSmart[2] / 255;
             } else {                                                        // Green for Normal, unless configured otherwise
                 RedPwm = LedPwm * ColorNormal[0] / 255;
                 GreenPwm = LedPwm * ColorNormal[1] / 255;
@@ -2090,6 +2105,12 @@ void CheckSwitch(bool force = false)
                     case 5: // Grid relay
                         GridRelayOpen = false;
                         break;
+                    case 6: // Custom button B
+                        CustomButton = !CustomButton;
+                        break;
+                    case 7: // Custom button S
+                        CustomButton = true;
+                        break;                                                
                     default:
                         if (State == STATE_C) {                             // Menu option Access is set to Disabled
                             setState(STATE_C1);
@@ -2134,6 +2155,11 @@ void CheckSwitch(bool force = false)
                     case 5: // Grid relay
                         GridRelayOpen = true;
                         break;
+                    case 6: // Custom button B
+                        break;
+                    case 7: // Custom button S
+                        CustomButton = false;
+                        break;                          
                     default:
                         break;
                 }
@@ -2772,6 +2798,12 @@ void mqtt_receive_callback(const String topic, const String payload) {
             OverrideCurrent = 0;
             setMode(MODE_SMART);
         }
+    } else if (topic == MQTTprefix + "/Set/CustomButton") {
+        if (payload == "On") {
+            CustomButton = true;
+        } else {
+            CustomButton = false;
+        }
     } else if (topic == MQTTprefix + "/Set/CurrentOverride") {
         uint16_t RequestedCurrent = payload.toInt();
         if (RequestedCurrent == 0) {
@@ -2862,7 +2894,7 @@ void mqtt_receive_callback(const String topic, const String payload) {
         }
     } else if (topic == MQTTprefix + "/Set/ColorOff") {
         int32_t R, G, B;
-        int n = sscanf(payload.c_str(), "%d:%d:%d", &R, &G, &B);
+        int n = sscanf(payload.c_str(), "%d,%d,%d", &R, &G, &B);
 
         // R,G,B is between 0..255
         if (n == 3 && (R >= 0 && R < 256) && (G >= 0 && G < 256) && (B >= 0 && B < 256)) {
@@ -2872,7 +2904,7 @@ void mqtt_receive_callback(const String topic, const String payload) {
         }
     } else if (topic == MQTTprefix + "/Set/ColorNormal") {
         int32_t R, G, B;
-        int n = sscanf(payload.c_str(), "%d:%d:%d", &R, &G, &B);
+        int n = sscanf(payload.c_str(), "%d,%d,%d", &R, &G, &B);
 
         // R,G,B is between 0..255
         if (n == 3 && (R >= 0 && R < 256) && (G >= 0 && G < 256) && (B >= 0 && B < 256)) {
@@ -2882,7 +2914,7 @@ void mqtt_receive_callback(const String topic, const String payload) {
         }
     } else if (topic == MQTTprefix + "/Set/ColorSmart") {
         int32_t R, G, B;
-        int n = sscanf(payload.c_str(), "%d:%d:%d", &R, &G, &B);
+        int n = sscanf(payload.c_str(), "%d,%d,%d", &R, &G, &B);
 
         // R,G,B is between 0..255
         if (n == 3 && (R >= 0 && R < 256) && (G >= 0 && G < 256) && (B >= 0 && B < 256)) {
@@ -2892,13 +2924,23 @@ void mqtt_receive_callback(const String topic, const String payload) {
         }
     } else if (topic == MQTTprefix + "/Set/ColorSolar") {
         int32_t R, G, B;
-        int n = sscanf(payload.c_str(), "%d:%d:%d", &R, &G, &B);
+        int n = sscanf(payload.c_str(), "%d,%d,%d", &R, &G, &B);
 
         // R,G,B is between 0..255
         if (n == 3 && (R >= 0 && R < 256) && (G >= 0 && G < 256) && (B >= 0 && B < 256)) {
             ColorSolar[0] = R;
             ColorSolar[1] = G;
             ColorSolar[2] = B;
+        }
+    } else if (topic == MQTTprefix + "/Set/ColorCustom") {
+        int32_t R, G, B;
+        int n = sscanf(payload.c_str(), "%d,%d,%d", &R, &G, &B);
+
+        // R,G,B is between 0..255
+        if (n == 3 && (R >= 0 && R < 256) && (G >= 0 && G < 256) && (B >= 0 && B < 256)) {
+            ColorCustom[0] = R;
+            ColorCustom[1] = G;
+            ColorCustom[2] = B;
         }
     }
 
@@ -3041,6 +3083,22 @@ void SetupMQTTClient() {
     announce("State", "sensor");
     announce("RFID", "sensor");
     announce("RFIDLastRead", "sensor");
+
+    optional_payload = jsna("state_topic", String(MQTTprefix + "/LEDColorOff")) + jsna("command_topic", String(MQTTprefix + "/Set/ColorOff"));
+    announce("LED Color Off", "text");
+    optional_payload = jsna("state_topic", String(MQTTprefix + "/LEDColorNormal")) + jsna("command_topic", String(MQTTprefix + "/Set/ColorNormal"));
+    announce("LED Color Normal", "text");
+    optional_payload = jsna("state_topic", String(MQTTprefix + "/LEDColorSmart")) + jsna("command_topic", String(MQTTprefix + "/Set/ColorSmart"));
+    announce("LED Color Smart", "text");
+    optional_payload = jsna("state_topic", String(MQTTprefix + "/LEDColorSolar")) + jsna("command_topic", String(MQTTprefix + "/Set/ColorSolar"));
+    announce("LED Color Solar", "text");
+    optional_payload = jsna("state_topic", String(MQTTprefix + "/LEDColorCustom")) + jsna("command_topic", String(MQTTprefix + "/Set/ColorCustom"));
+    announce("LED Color Custom", "text");
+    
+    optional_payload = jsna("state_topic", String(MQTTprefix + "/CustomButton")) + jsna("command_topic", String(MQTTprefix + "/Set/CustomButton"));
+    optional_payload += String(R"(, "options" : ["On", "Off"])");
+    announce("Custom Button", "select");
+
 #if ENABLE_OCPP
     announce("OCPP", "sensor");
     announce("OCPPConnection", "sensor");
@@ -3097,6 +3155,7 @@ void mqttPublishData() {
         MQTTclient.publish(MQTTprefix + "/ESPTemp", TempEVSE, false, 0);
         MQTTclient.publish(MQTTprefix + "/Mode", Access_bit == 0 ? "Off" : Mode > 3 ? "N/A" : StrMode[Mode], true, 0);
         MQTTclient.publish(MQTTprefix + "/MaxCurrent", MaxCurrent * 10, true, 0);
+        MQTTclient.publish(MQTTprefix + "/CustomButton", CustomButton ? "On" : "Off", false, 0);
         MQTTclient.publish(MQTTprefix + "/ChargeCurrent", Balanced[0], true, 0);
         MQTTclient.publish(MQTTprefix + "/ChargeCurrentOverride", OverrideCurrent, true, 0);
         MQTTclient.publish(MQTTprefix + "/Access", StrAccessBit[Access_bit], true, 0);
@@ -3140,6 +3199,7 @@ void mqttPublishData() {
         MQTTclient.publish(MQTTprefix + "/LEDColorNormal", String(ColorNormal[0])+","+String(ColorNormal[1])+","+String(ColorNormal[2]), true, 0);
         MQTTclient.publish(MQTTprefix + "/LEDColorSmart", String(ColorSmart[0])+","+String(ColorSmart[1])+","+String(ColorSmart[2]), true, 0);
         MQTTclient.publish(MQTTprefix + "/LEDColorSolar", String(ColorSolar[0])+","+String(ColorSolar[1])+","+String(ColorSolar[2]), true, 0);
+        MQTTclient.publish(MQTTprefix + "/LEDColorCustom", String(ColorCustom[0])+","+String(ColorCustom[1])+","+String(ColorCustom[2]), true, 0);
 }
 #endif
 
@@ -4782,6 +4842,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         doc["evse"]["mode"] = Mode;
         doc["evse"]["loadbl"] = LoadBl;
         doc["evse"]["pwm"] = CurrentPWM;
+        doc["evse"]["custombutton"] = CustomButton;
         doc["evse"]["solar_stop_timer"] = SolarStopTimer;
         doc["evse"]["state"] = evstate;
         doc["evse"]["state_id"] = State;
@@ -4905,6 +4966,9 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         doc["color"]["solar"]["R"] = ColorSolar[0];
         doc["color"]["solar"]["G"] = ColorSolar[1];
         doc["color"]["solar"]["B"] = ColorSolar[2];
+        doc["color"]["custom"]["R"] = ColorCustom[0];
+        doc["color"]["custom"]["G"] = ColorCustom[1];
+        doc["color"]["custom"]["B"] = ColorCustom[2];
 
         String json;
         serializeJson(doc, json);
@@ -4954,6 +5018,11 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         if(request->hasParam("disable_override_current")) {
             OverrideCurrent = 0;
             doc["disable_override_current"] = "OK";
+        }
+
+        if(request->hasParam("custombutton")) {
+            CustomButton = request->getParam("custombutton")->value().toInt() > 0;
+            doc["custombutton"] = CustomButton;
         }
 
         if(request->hasParam("mode")) {
@@ -5318,6 +5387,29 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
                 doc["color"]["solar"]["R"] = ColorSolar[0];
                 doc["color"]["solar"]["G"] = ColorSolar[1];
                 doc["color"]["solar"]["B"] = ColorSolar[2];
+            }
+        }
+
+        String json;
+        serializeJson(doc, json);
+        mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", json.c_str());    // Yes. Respond JSON
+
+    } else if (mg_http_match_uri(hm, "/color_custom") && !memcmp("POST", hm->method.buf, hm->method.len)) {
+        DynamicJsonDocument doc(200);
+        
+        if (request->hasParam("R") && request->hasParam("G") && request->hasParam("B")) {
+            int32_t R = request->getParam("R")->value().toInt();
+            int32_t G = request->getParam("G")->value().toInt();
+            int32_t B = request->getParam("B")->value().toInt();
+
+            // R,G,B is between 0..255
+            if ((R >= 0 && R < 256) && (G >= 0 && G < 256) && (B >= 0 && B < 256)) {
+                ColorCustom[0] = R;
+                ColorCustom[1] = G;
+                ColorCustom[2] = B;
+                doc["color"]["custom"]["R"] = ColorCustom[0];
+                doc["color"]["custom"]["G"] = ColorCustom[1];
+                doc["color"]["custom"]["B"] = ColorCustom[2];
             }
         }
 
