@@ -86,6 +86,8 @@ tm DelayedStartTimeTM;
 time_t DelayedStartTime_Old;
 uint8_t MenuItems[MENU_EXIT];
 extern void CheckSwitch(bool force = false);
+extern void handleWIFImode(void *s  = &Serial);
+extern char SmartConfigKey[16];
 
 void st7565_command(unsigned char data) {
     _A0_0;

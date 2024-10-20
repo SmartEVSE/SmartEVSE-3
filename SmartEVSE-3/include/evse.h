@@ -25,6 +25,10 @@
 
 #define __EVSE_MAIN
 
+#ifndef SMARTEVSE_VERSION
+#define SMARTEVSE_VERSION 3
+#endif
+
 #ifndef DBG
 //the wifi-debugger is available by telnetting to your SmartEVSE device
 #define DBG 0  //comment or set to 0 for production release, 0 = no debug 1 = debug over telnet, 2 = debug over usb serial
@@ -614,7 +618,6 @@ uint16_t getItemValue(uint8_t nav);
 void ConfigureModbusMode(uint8_t newmode);
 
 void setMode(uint8_t NewMode) ;
-void handleWIFImode(void);
 
 #if ENABLE_OCPP
 void ocppUpdateRfidReading(const unsigned char *uuid, size_t uuidLen);
