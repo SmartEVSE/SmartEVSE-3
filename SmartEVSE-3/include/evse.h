@@ -68,6 +68,8 @@
 #define ENABLE_OCPP 0
 #endif
 
+#include <Arduino.h>
+
 #if ENABLE_OCPP
 #include <MicroOcpp/Model/ConnectorBase/Notification.h>
 #endif

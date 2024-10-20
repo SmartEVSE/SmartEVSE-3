@@ -30,7 +30,6 @@ struct tm timeinfo;
 bool LocalTimeSet = false;
 
 //mongoose stuff
-#include "mongoose.h"
 #include "esp_log.h"
 struct mg_mgr mgr;  // Mongoose event manager. Holds all connections
 // end of mongoose stuff

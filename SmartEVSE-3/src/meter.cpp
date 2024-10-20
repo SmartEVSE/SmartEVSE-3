@@ -1,4 +1,3 @@
-#include <Arduino.h>
 #include <meter.h>
 #include <modbus.h>
 
