@@ -26,6 +26,7 @@
 #define __EVSE_NETWORK
 
 #include "mongoose.h"
+#include <ArduinoJson.h>
 
 #ifndef MQTT
 #define MQTT 1  // Uncomment or set to 0 to disable MQTT support in code

@@ -1,17 +1,12 @@
 #include <WiFi.h>
 //#include "esp_ota_ops.h"
 #include "mbedtls/md_internal.h"
-#ifdef SENSORBOX_VERSION
-#include "radix.h"
-#else
 #include "utils.h"
-#endif
 #include "network.h"
 
 #include <HTTPClient.h>
 #include <ESPmDNS.h>
 #include <Update.h>
-#include <ArduinoJson.h>
 #include <Preferences.h>
 
 #include "main.h"
