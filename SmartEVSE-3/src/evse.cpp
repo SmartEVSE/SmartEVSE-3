@@ -32,13 +32,6 @@
 #include "modbus.h"
 #include "meter.h"
 
-#ifndef DEBUG_DISABLED
-RemoteDebug Debug;
-#endif
-
-#define SNTP_GET_SERVERS_FROM_DHCP 1
-#include <esp_sntp.h>
-
 //OCPP includes
 #if ENABLE_OCPP
 #include <MicroOcpp.h>
@@ -4024,6 +4017,9 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
         mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\n", json.c_str());    // Yes. Respond JSON
         return true;
       } else if (!memcmp("POST", hm->method.buf, hm->method.len)) {                     // if POST
+        if(request->hasParam("mqtt_update")) {
+            return false;                                                       // handled in network.cpp
+        }
         DynamicJsonDocument doc(512); // https://arduinojson.org/v6/assistant/
 
         if(request->hasParam("backlight")) {
@@ -4236,49 +4232,6 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
                 doc["required_evccid"] = "EVCCID too long (max 32 char)";
             }
         }
-
-#if MQTT
-        if(request->hasParam("mqtt_update")) {
-            if (request->getParam("mqtt_update")->value().toInt() == 1) {
-
-                if(request->hasParam("mqtt_host")) {
-                    MQTTHost = request->getParam("mqtt_host")->value();
-                    doc["mqtt_host"] = MQTTHost;
-                }
-
-                if(request->hasParam("mqtt_port")) {
-                    MQTTPort = request->getParam("mqtt_port")->value().toInt();
-                    if (MQTTPort == 0) MQTTPort = 1883;
-                    doc["mqtt_port"] = MQTTPort;
-                }
-
-                if(request->hasParam("mqtt_topic_prefix")) {
-                    MQTTprefix = request->getParam("mqtt_topic_prefix")->value();
-                    if (!MQTTprefix || MQTTprefix == "") {
-                        MQTTprefix = APhostname;
-                    }
-                    doc["mqtt_topic_prefix"] = MQTTprefix;
-                }
-
-                if(request->hasParam("mqtt_username")) {
-                    MQTTuser = request->getParam("mqtt_username")->value();
-                    if (!MQTTuser || MQTTuser == "") {
-                        MQTTuser.clear();
-                    }
-                    doc["mqtt_username"] = MQTTuser;
-                }
-
-                if(request->hasParam("mqtt_password")) {
-                    MQTTpassword = request->getParam("mqtt_password")->value();
-                    if (!MQTTpassword || MQTTpassword == "") {
-                        MQTTpassword.clear();
-                    }
-                    doc["mqtt_password_set"] = (MQTTpassword != "");
-                }
-                write_settings();
-            }
-        }
-#endif
 
 #if ENABLE_OCPP
         if(request->hasParam("ocpp_update")) {
@@ -5127,28 +5080,6 @@ void setup() {
         _LOG_A_NO_FUNC("not programmed!!!\n");
     }
     
-    // We might need some sort of authentication in the future.
-    // SmartEVSE v3 have programmed ECDSA-256 keys stored in nvs
-    // Unused for now.
-    if (preferences.begin("KeyStorage", true) ) {                               // true = readonly
-//prevent compiler warning
-#if DBG == 1 || (DBG == 2 && LOG_LEVEL != 0)
-        uint16_t hwversion = preferences.getUShort("hwversion");                // 0x0101 (01 = SmartEVSE,  01 = hwver 01)
-#endif
-        serialnr = preferences.getUInt("serialnr");      
-        String ec_private = preferences.getString("ec_private");
-        String ec_public = preferences.getString("ec_public");
-        preferences.end(); 
-
-        _LOG_A("hwversion %04x serialnr:%u \n",hwversion, serialnr);
-        //_LOG_A(ec_public);
-    } else {
-        _LOG_A("No KeyStorage found in nvs!\n");
-        if (!serialnr) serialnr = MacId() & 0xffff;                             // when serialnr is not programmed (anymore), we use the Mac address
-    }
-    // overwrite APhostname if serialnr is programmed
-    APhostname = "SmartEVSE-" + String( serialnr & 0xffff, 10);                 // SmartEVSE access point Name = SmartEVSE-xxxxx
-    WiFi.setHostname(APhostname.c_str());
 
     // Read all settings from non volatile memory; MQTTprefix will be overwritten if stored in NVS
     read_settings();                                                            // initialize with default data when starting for the first time
@@ -5247,14 +5178,11 @@ bool fwNeedsUpdate(char * version) {
 
 void loop() {
 
+    network_loop();
     static unsigned long lastCheck = 0;
     if (millis() - lastCheck >= 1000) {
         lastCheck = millis();
         //this block is for non-time critical stuff that needs to run approx 1 / second
-        getLocalTime(&timeinfo, 1000U);
-        if (!LocalTimeSet && WIFImode == 1) {
-            _LOG_A("Time not synced with NTP yet.\n");
-        }
 
         // a reboot is requested, but we kindly wait until no EV connected
         if (shouldReboot && State == STATE_A) {                                 //slaves in STATE_C continue charging when Master reboots
@@ -5325,8 +5253,6 @@ void loop() {
         /////end of non-time critical stuff
     }
 
-    mg_mgr_poll(&mgr, 100);                                                     // TODO increase this parameter to up to 1000 to make loop() less greedy
-
     //OCPP lifecycle management
 #if ENABLE_OCPP
     if (OcppMode && !getOcppContext()) {
@@ -5339,10 +5265,5 @@ void loop() {
         ocppLoop();
     }
 #endif //ENABLE_OCPP
-
-#ifndef DEBUG_DISABLED
-    // Remote debug over WiFi
-    Debug.handle();
-#endif
 
 }

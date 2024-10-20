@@ -70,8 +70,6 @@ String TZinfo = "";                                                         // c
 char *downloadUrl = NULL;
 int downloadProgress = 0;
 int downloadSize = 0;
-//#define FW_UPDATE_DELAY 30        //DINGO TODO                                            // time between detection of new version and actual update in seconds
-#define FW_UPDATE_DELAY 3600                                                    // time between detection of new version and actual update in seconds
 
 bool isValidInput(String input) {
   // Check if the input contains only alphanumeric characters, underscores, and hyphens
@@ -1026,82 +1024,10 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
 #endif
                 mg_http_reply(c, 200, "", "%ld", res);
             }
-/*        } else if (mg_http_match_uri(hm, "/currents") && !memcmp("POST", hm->method.buf, hm->method.len)) {
-            DynamicJsonDocument doc(200);
-    
-            if(request->hasParam("battery_current")) {
-                if (LoadBl < 2) {
-                    homeBatteryCurrent = request->getParam("battery_current")->value().toInt();
-                    homeBatteryLastUpdate = time(NULL);
-                    doc["battery_current"] = homeBatteryCurrent;
-                } else
-                    doc["battery_current"] = "not allowed on slave";
-            }
-    
-            if(MainsMeter.Type == EM_API) {
-                if(request->hasParam("L1") && request->hasParam("L2") && request->hasParam("L3")) {
-                    if (LoadBl < 2) {
-                        MainsMeter.Irms[0] = request->getParam("L1")->value().toInt();
-                        MainsMeter.Irms[1] = request->getParam("L2")->value().toInt();
-                        MainsMeter.Irms[2] = request->getParam("L3")->value().toInt();
-    
-                        CalcIsum();
-                        for (int x = 0; x < 3; x++) {
-                            doc["original"]["L" + x] = IrmsOriginal[x];
-                            doc["L" + x] = MainsMeter.Irms[x];
-                        }
-                        doc["TOTAL"] = Isum;
-    
-                        MainsMeter.Timeout = COMM_TIMEOUT;
-    
-                    } else
-                        doc["TOTAL"] = "not allowed on slave";
-                }
-            }
-    
-            String json;
-            serializeJson(doc, json);
-            mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", json.c_str());    // Yes. Respond JSON
-    
-        } else if (mg_http_match_uri(hm, "/ev_meter") && !memcmp("POST", hm->method.buf, hm->method.len)) {
-            DynamicJsonDocument doc(200);
-    
-            if(EVMeter.Type == EM_API) {
-                if(request->hasParam("L1") && request->hasParam("L2") && request->hasParam("L3")) {
-    
-                    EVMeter.Irms[0] = request->getParam("L1")->value().toInt();
-                    EVMeter.Irms[1] = request->getParam("L2")->value().toInt();
-                    EVMeter.Irms[2] = request->getParam("L3")->value().toInt();
-                    EVMeter.CalcImeasured();
-                    EVMeter.Timeout = COMM_EVTIMEOUT;
-                    for (int x = 0; x < 3; x++)
-                        doc["ev_meter"]["currents"]["L" + x] = EVMeter.Irms[x];
-                    doc["ev_meter"]["currents"]["TOTAL"] = EVMeter.Irms[0] + EVMeter.Irms[1] + EVMeter.Irms[2];
-                }
-    
-                if(request->hasParam("import_active_energy") && request->hasParam("export_active_energy") && request->hasParam("import_active_power")) {
-    
-                    EVMeter.Import_active_energy = request->getParam("import_active_energy")->value().toInt();
-                    EVMeter.Export_active_energy = request->getParam("export_active_energy")->value().toInt();
-    
-                    EVMeter.PowerMeasured = request->getParam("import_active_power")->value().toInt();
-                    EVMeter.UpdateEnergies();
-                    doc["ev_meter"]["import_active_power"] = EVMeter.PowerMeasured;
-                    doc["ev_meter"]["import_active_energy"] = EVMeter.Import_active_energy;
-                    doc["ev_meter"]["export_active_energy"] = EVMeter.Export_active_energy;
-                    doc["ev_meter"]["total_kwh"] = EVMeter.Energy;
-                    doc["ev_meter"]["charged_kwh"] = EVMeter.EnergyCharged;
-                }
-            }
-    
-            String json;
-            serializeJson(doc, json);
-            mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", json.c_str());    // Yes. Respond JSON
-    
-    */    } else if (mg_http_match_uri(hm, "/reboot") && !memcmp("POST", hm->method.buf, hm->method.len)) {
+        } else if (mg_http_match_uri(hm, "/reboot") && !memcmp("POST", hm->method.buf, hm->method.len)) {
             shouldReboot = true;
             mg_http_reply(c, 200, "", "Rebooting....");
-          } else if (mg_http_match_uri(hm, "/settings") && !memcmp("POST", hm->method.buf, hm->method.len)) {
+        } else if (mg_http_match_uri(hm, "/settings") && !memcmp("POST", hm->method.buf, hm->method.len)) {
             DynamicJsonDocument doc(64);
 #if MQTT
             if (request->hasParam("mqtt_update") && request->getParam("mqtt_update")->value().toInt() == 1) {
@@ -1156,51 +1082,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
             String json;
             serializeJson(doc, json);
             mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", json.c_str());    // Yes. Respond JSON
-    /*
-    
-    #if FAKE_RFID
-        //this can be activated by: http://smartevse-xxx.lan/debug?showrfid=1
-        } else if (mg_http_match_uri(hm, "/debug") && !memcmp("GET", hm->method.buf, hm->method.len)) {
-            if(request->hasParam("showrfid")) {
-                Show_RFID = strtol(request->getParam("showrfid")->value().c_str(),NULL,0);
-            }
-            _LOG_A("DEBUG: Show_RFID=%u.\n",Show_RFID);
-            mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", ""); //json request needs json response
-    #endif
-    
-    #if AUTOMATED_TESTING
-        //this can be activated by: http://smartevse-xxx.lan/automated_testing?current_max=100
-        //WARNING: because of automated testing, no limitations here!
-        //THAT IS DANGEROUS WHEN USED IN PRODUCTION ENVIRONMENT
-        //FOR SMARTEVSE's IN A TESTING BENCH ONLY!!!!
-        } else if (mg_http_match_uri(hm, "/automated_testing") && !memcmp("POST", hm->method.buf, hm->method.len)) {
-            if(request->hasParam("current_max")) {
-                MaxCurrent = strtol(request->getParam("current_max")->value().c_str(),NULL,0);
-            }
-            if(request->hasParam("current_main")) {
-                MaxMains = strtol(request->getParam("current_main")->value().c_str(),NULL,0);
-            }
-            if(request->hasParam("current_max_circuit")) {
-                MaxCircuit = strtol(request->getParam("current_max_circuit")->value().c_str(),NULL,0);
-            }
-            if(request->hasParam("mainsmeter")) {
-                MainsMeter.Type = strtol(request->getParam("mainsmeter")->value().c_str(),NULL,0);
-            }
-            if(request->hasParam("evmeter")) {
-                EVMeter.Type = strtol(request->getParam("evmeter")->value().c_str(),NULL,0);
-            }
-            if(request->hasParam("config")) {
-                Config = strtol(request->getParam("config")->value().c_str(),NULL,0);
-                setState(STATE_A);                                                  // so the new value will actually be read
-            }
-            if(request->hasParam("loadbl")) {
-                int LBL = strtol(request->getParam("loadbl")->value().c_str(),NULL,0);
-                ConfigureModbusMode(LBL);
-                LoadBl = LBL;
-            }
-            mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", ""); //json request needs json response
-    #endif
-    */    } else {                                                                    // if everything else fails, serve static page
+        } else {                                                                    // if everything else fails, serve static page
             struct mg_http_serve_opts opts = {.root_dir = "/data", .ssi_pattern = NULL, .extra_headers = NULL, .mime_types = NULL, .page404 = NULL, .fs = &mg_fs_packed };
             //opts.fs = NULL;
             mg_http_serve_dir(c, hm, &opts);
@@ -1437,8 +1319,6 @@ void WiFiSetup(void) {
     WiFi.setAutoReconnect(true);                                                //actually does nothing since this is the default value
     //WiFi.persistent(true);
     WiFi.onEvent(onWifiEvent);
-//WIFImode = 2; //TODO test only
-WIFImode = 1; //TODO test only
     handleWIFImode();                                                           //go into the mode that was saved in nonvolatile memory
 
     // Init and get the time
@@ -1451,13 +1331,11 @@ WIFImode = 1; //TODO test only
 
     // Set random AES Key for SmartConfig provisioning, first 8 positions are 0
     // This key is displayed on the LCD, and should be entered when using the EspTouch app.
-/*#ifndef SENSORBOX_VERSION
+#ifndef SENSORBOX_VERSION
     for (uint8_t i=0; i<8 ;i++) {
         SmartConfigKey[i+8] = random(9) + '1';
     }
-#endif*///TODO
-    firmwareUpdateTimer = random(FW_UPDATE_DELAY, 0xffff);
-    //firmwareUpdateTimer = random(FW_UPDATE_DELAY, 120); // DINGO TODO debug max 2 minutes
+#endif
 
     if (preferences.begin("settings", false) ) {
 #if MQTT == 0
@@ -1481,50 +1359,6 @@ WIFImode = 1; //TODO test only
 #endif
 
 #endif //MQTT
-}
-
-
-/*
-// returns true if current and latest version can be detected correctly and if the latest version is newer then current
-// this means that ANY home compiled version, which has version format "11:20:03@Jun 17 2024", will NEVER be automatically updated!!
-// same goes for current version with an -RC extension: this will NEVER be automatically updated!
-// same goes for latest version with an -RC extension: this will NEVER be automatically updated! This situation should never occur since
-// we only update from the "stable" repo !!
-bool fwNeedsUpdate(char * version) {
-    // version NEEDS to be in the format: vx.y.z[-RCa] where x, y, z, a are digits, multiple digits are allowed.
-    // valid versions are v3.6.10   v3.17.0-RC13
-    int latest_major, latest_minor, latest_patch, latest_rc, cur_major, cur_minor, cur_patch, cur_rc;
-    int hit = sscanf(version, "v%i.%i.%i-RC%i", &latest_major, &latest_minor, &latest_patch, &latest_rc);
-    _LOG_A("Firmware version detection hit=%i, LATEST version detected=v%i.%i.%i-RC%i.\n", hit, latest_major, latest_minor, latest_patch, latest_rc);
-    int hit2 = sscanf(VERSION, "v%i.%i.%i-RC%i", &cur_major, &cur_minor, &cur_patch, &cur_rc);
-    _LOG_A("Firmware version detection hit=%i, CURRENT version detected=v%i.%i.%i-RC%i.\n", hit2, cur_major, cur_minor, cur_patch, cur_rc);
-    if (hit != 3 || hit2 != 3)                                                  // we couldnt detect simple vx.y.z version nrs, either current or latest
-        return false;
-    if (cur_major > latest_major)
-        return false;
-    if (cur_major < latest_major)
-        return true;
-    if (cur_major == latest_major) {
-        if (cur_minor > latest_minor)
-            return false;
-        if (cur_minor < latest_minor)
-            return true;
-        if (cur_minor == latest_minor)
-            return (cur_patch < latest_patch);
-    }
-    return false;
-}
-*/
-void loop2() {
-
-    static unsigned long lastCheck = 0;
-    if (millis() - lastCheck >= 1000) {
-        lastCheck = millis();
-        //this block is for non-time critical stuff that needs to run approx 1 / second
-        /////end of non-time critical stuff
-    }
-
-    mg_mgr_poll(&mgr, 100);                                                     // TODO increase this parameter to up to 1000 to make loop() less greedy
 }
 
 
