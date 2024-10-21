@@ -1049,7 +1049,7 @@ uint8_t getMenuItems (void) {
             MenuItems[m++] = MENU_MAINSMETER;                                   // - - Type of Mains electric meter (0: Disabled / Constants EM_*)
             if (MainsMeter.Type == EM_SENSORBOX) {                              // - - ? Sensorbox?
                 if (GridActive == 1) MenuItems[m++] = MENU_GRID;
-                if (SB2.SoftwareVer >= 0x01) {
+                if (SB2.SoftwareVer == 0x01) {
                     MenuItems[m++] = MENU_SB2_WIFI;                             // Sensorbox-2 Wifi  0:Disabled / 1:Enabled / 2:Portal
                 }
             } else if (MainsMeter.Type && MainsMeter.Type != EM_API) {          // - - ? Other?

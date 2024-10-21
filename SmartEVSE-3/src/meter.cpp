@@ -184,7 +184,7 @@ uint8_t Meter::receiveCurrentMeasurement(uint8_t *buf) {
             SB2.SoftwareVer = buf[0];
             // Make sure the version and datalength are correct before processing the data.
             // the version alone does not indicate that we have read the extended registers.
-            if (SB2.SoftwareVer >= 1 && MB.DataLength == 64) {
+            if (SB2.SoftwareVer == 1 && MB.DataLength == 64) {
                 // Read Status, IP, AP Password from Sensorbox
                 SB2.WiFiConnected = buf[40]>>1 & 1;
                 SB2.WiFiAPSTA = buf[40]>>2 & 1;
