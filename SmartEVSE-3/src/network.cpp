@@ -81,9 +81,12 @@ static uint8_t CliState = 0;
 void ProvisionCli(HardwareSerial &s) {
 //void ProvisionCli(HardwareSerial &s = &Serial) {
 #else
+#if SMARTEVSE_VERSION == 3
 void ProvisionCli(void) {
     HardwareSerial &s = Serial;
-//void ProvisionCli(HWCDC &s = &Serial) {
+#else
+void ProvisionCli(HWCDC &s = Serial) {
+#endif
 #endif
     // SSID and PW for your Router
     static String Router_SSID, Router_Pass;
