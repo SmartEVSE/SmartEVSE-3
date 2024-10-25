@@ -662,9 +662,7 @@ void GLCD(void) {
                         case ChargePointStatus_Charging:
                         case ChargePointStatus_SuspendedEVSE:
                         case ChargePointStatus_SuspendedEV:
-                            // Should not be reached (Access_bit or STATE_C above prevail)
-                            GLCD_print_buf2(2, (const char *) "CHARGING");
-                            GLCD_print_buf2(4, (const char *) "IN PROGRESS");
+                            // Should not be reached (Access_bit or STATE_C above prevail). Do not update the display but keep previous text
                             break;
                         case ChargePointStatus_Finishing:
                             if (ocppLockingTxDefined()) {
