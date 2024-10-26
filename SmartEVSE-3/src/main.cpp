@@ -2919,6 +2919,11 @@ void SetupMQTTClient() {
     announce("RFID", "sensor");
     announce("RFIDLastRead", "sensor");
 
+#if ENABLE_OCPP
+    announce("OCPP", "sensor");
+    announce("OCPPConnection", "sensor");
+#endif //ENABLE_OCPP
+
     optional_payload = jsna("state_topic", String(MQTTprefix + "/LEDColorOff")) + jsna("command_topic", String(MQTTprefix + "/Set/ColorOff"));
     announce("LED Color Off", "text");
     optional_payload = jsna("state_topic", String(MQTTprefix + "/LEDColorNormal")) + jsna("command_topic", String(MQTTprefix + "/Set/ColorNormal"));
@@ -2933,11 +2938,6 @@ void SetupMQTTClient() {
     optional_payload = jsna("state_topic", String(MQTTprefix + "/CustomButton")) + jsna("command_topic", String(MQTTprefix + "/Set/CustomButton"));
     optional_payload += String(R"(, "options" : ["On", "Off"])");
     announce("Custom Button", "select");
-
-#if ENABLE_OCPP
-    announce("OCPP", "sensor");
-    announce("OCPPConnection", "sensor");
-#endif //ENABLE_OCPP
 
     optional_payload = jsna("device_class","duration") + jsna("unit_of_measurement","s");
     announce("SolarStopTimer", "sensor");
