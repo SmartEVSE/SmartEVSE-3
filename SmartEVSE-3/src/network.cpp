@@ -1022,7 +1022,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
 #endif
                 mg_http_reply(c, 200, "", "%ld", res);
             }
-        } else if (mg_http_match_uri(hm, "/reboot") && !memcmp("POST", hm->method.buf, hm->method.len)) {
+        } else if (mg_http_match_uri(hm, "/reboot")) {
             shouldReboot = true;
             mg_http_reply(c, 200, "", "Rebooting....");
         } else if (mg_http_match_uri(hm, "/settings") && !memcmp("POST", hm->method.buf, hm->method.len)) {
