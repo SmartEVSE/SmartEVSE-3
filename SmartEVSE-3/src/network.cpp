@@ -855,7 +855,12 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
             mg_http_get_var(&hm->query, "debug", buf, sizeof(buf));
             debug = strtol(buf, NULL, 0);
             if (!memcmp(owner, OWNER_FACT, sizeof(OWNER_FACT)) || (!memcmp(owner, OWNER_COMM, sizeof(OWNER_COMM)))) {
-                asprintf(&downloadUrl, "%s/%s_sensorboxv2_firmware.%ssigned.bin", FW_DOWNLOAD_PATH, owner, debug ? "debug.": ""); //will be freed in FirmwareUpdate() ; format: http://s3.com/fact_sensorboxv2_firmware.debug.signed.bin
+#ifdef SENSORBOX_VERSION
+                asprintf(&downloadUrl, "%s/%s_sensorboxv2_firmware.%ssigned.bin", FW_DOWNLOAD_PATH, owner, debug ? "debug.": ""); //will be freed in FirmwareUpdate() ; format: http://s3.com/dingo35_sensorboxv2_firmware.debug.signed.bin
+#else
+                asprintf(&downloadUrl, "%s/%s_firmware.%ssigned.bin", FW_DOWNLOAD_PATH, owner, debug ? "debug.": ""); //will be freed in FirmwareUpdate() ; format: http://s3.com/dingo35_firmware.debug.signed.bin
+
+#endif
                 RunFirmwareUpdate();
             }                                                                       // after the first call we just report progress
             DynamicJsonDocument doc(64); // https://arduinojson.org/v6/assistant/
