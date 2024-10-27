@@ -129,7 +129,7 @@ void ReadRFIDlist(void) {
     uint8_t initialized = 0;
     unsigned char RFIDold[600];                                                 // old RFID buffer
 
-    if (preferences.begin("RFIDlist", true) ) {                                 // read only
+    if (preferences.begin("RFIDlist", false) ) {                                // read/write
         initialized = preferences.getUChar("RFIDinit", 0);
         switch (initialized) {
             case 1:                                                             // we were initialized to old 120 bytes mode
@@ -137,9 +137,11 @@ void ReadRFIDlist(void) {
                 //we are now going to convert from RFIDold 120bytes to RFIDlist 700bytes
                 expandUIDArray(RFIDold, RFIDlist, 120);
                 preferences.remove("RFID");
+                preferences.end();
                 WriteRFIDlist();
                 break;
             case 0:
+                preferences.end();
                 DeleteAllRFID();                                                // when unitialized, delete all cardIDs
                 setItemValue(MENU_RFIDREADER, 0);                               // RFID Reader Disabled
                 break;
