@@ -204,6 +204,8 @@ CONTACT2      Use a second contactor (C2) that switches phases L2 and L3
                 current available for 3 phases, switches off C2 so it will continue on 1 phase
                 Only works when Power Sharing is disabled.
 
+                NOTE: EXPERIMENTAL!! Not switching from 1 phase to 3 phases!!!
+
 
 ```
 # OCPP
