@@ -66,6 +66,7 @@
 
 #include <Arduino.h>
 #include "debug.h"
+#include "stdint.h"
 
 #if ENABLE_OCPP
 #include <MicroOcpp/Model/ConnectorBase/Notification.h>
@@ -88,7 +89,7 @@
 #define PIN_SSR2 27
 #define PIN_LCD_LED 14
 #define PIN_LEDB 12
-#define PIN_RCM_FAULT 13
+#define PIN_RCM_FAULT 13 //TODO ok for v4?
 
 // Pin definitions right side ESP32
 #define PIN_RS485_RX 23
@@ -106,10 +107,12 @@
 #define PIN_LEDR 2
 #define PIN_CPOFF 15
 
+#if SMARTEVSE_VERSION == 3
 #define SPI_MOSI 33                                                             // SPI connections to LCD
 #define SPI_MISO -1
 #define SPI_SCK 26
 #define SPI_SS -1
+#endif //SMARTEVSE_VERSION
 
 #define CP_CHANNEL 0
 #define RED_CHANNEL 2                                                           // PWM channel 2 (0 and 1 are used by CP signal)
@@ -201,10 +204,15 @@
 #define STATE_ACTSTART 8                                                        // I Activation mode in progress
 #define STATE_B1 9                                                              // J Vehicle connected / EVSE not ready to deliver energy: no PWM signal
 #define STATE_C1 10                                                             // K Vehicle charging / EVSE not ready to deliver energy: no PWM signal (temp state when stopping charge from EVSE)
+//#if SMARTEVSE_VERSION == 3 TODO
 #define STATE_MODEM_REQUEST 11                                                          // L Vehicle connected / requesting ISO15118 communication, 0% duty
 #define STATE_MODEM_WAIT 12                                                          // M Vehicle connected / requesting ISO15118 communication, 5% duty
 #define STATE_MODEM_DONE 13                                                // Modem communication succesful, SoCs extracted. Here, re-plug vehicle
 #define STATE_MODEM_DENIED 14                                                // Modem access denied based on EVCCID, re-plug vehicle and try again
+//#else
+//#define STATE_E 11                  // disconnected pilot / powered down
+//#define STATE_F 12                  // -12V Fault condition
+//#endif
 
 #define NOSTATE 255
 
@@ -252,7 +260,7 @@
 #define ACTUATOR_UNLOCK { _LOG_A("Unlocking Actuator.\n"); digitalWrite(PIN_ACTB, LOW); digitalWrite(PIN_ACTA, HIGH); }
 #define ACTUATOR_OFF { digitalWrite(PIN_ACTB, HIGH); digitalWrite(PIN_ACTA, HIGH); }
 
-#define RCMFAULT digitalRead(PIN_RCM_FAULT)
+#define RCMFAULT digitalRead(PIN_RCM_FAULT) //TODO ok for v4?
 
 #define MODBUS_INVALID 0
 #define MODBUS_OK 1
@@ -364,7 +372,6 @@ typedef enum mb_datatype {
     MB_DATATYPE_INT16 = 2,
     MB_DATATYPE_MAX,
 } MBDataType;
-
 
 extern portMUX_TYPE rtc_spinlock;   //TODO: Will be placed in the appropriate position after the rtc module is finished.
 
@@ -538,4 +545,180 @@ MicroOcpp::TxNotification ocppGetTxNotification();
 bool ocppLockingTxDefined();
 #endif //ENABLE_OCPP
 
+#if SMARTEVSE_VERSION == 4
+// Pin definitions
+#define PIN_QCA700X_INT 9           // SPI connections to QCA7000X
+#define PIN_QCA700X_CS 11           // on ESP-S3 with OCTAL flash/PSRAM, GPIO pins 33-37 can not be used!
+#define SPI_MOSI 13
+#define SPI_MISO 12
+#define SPI_SCK 10
+#define PIN_QCA700X_RESETN 45
+
+#define USART_TX 43                 // comm bus to mainboard
+#define USART_RX 44
+
+#define BUTTON1 0                   // Navigation buttons
+//#define BUTTON2 1                   // renamed from prototype!
+#define BUTTON3 2
+
+#define RTC_SDA 6                   // RTC interface
+#define RTC_SCL 7
+#define RTC_INT 16
+
+// New top board
+#define WCH_NRST 8                  // microcontroller program interface
+#define WCH_SWDIO 17                // unconnected!!! pin on 16pin connector is used for LCD power
+#define WCH_SWCLK 18
+
+// Old prototype top board
+//#define WCH_NRST 18                  // microcontroller program interface
+//#define WCH_SWDIO 8
+//#define WCH_SWCLK 17
+
+#define LCD_SDA 38                  // LCD interface
+#define LCD_SCK 39
+#define LCD_A0_B2 40
+#define LCD_LED 41
+#define LCD_RST 42
+#define LCD_CS 1
+
+#define LCD_CHANNEL 5               // PWM channel
+
+#define LCD_RST_0 digitalWrite(LCD_RST, LOW);
+#define LCD_RST_1 digitalWrite(LCD_RST, HIGH);
+#define LCD_A0_0 digitalWrite(LCD_A0_B2, LOW);
+#define LCD_A0_1 digitalWrite(LCD_A0_B2, HIGH);
+
+
+// RTC power sources
+#define BATTERY 0x0C                // Trickle charger (TCE) disabled, Level Switching Mode (LSM) enabled.
+#define SUPERCAP 0x24               // Trickle charger (TCE) enabled, Direct Switching Mode (DSM) enabled.
+
+
+
+
+// ESP-WCH Communication States
+#define COMM_OFF 0
+#define COMM_VER_REQ 1              // Version Reqest           ESP -> WCH
+#define COMM_VER_RSP 2              // Version Response         ESP <- WCH
+#define COMM_CONFIG_SET 3           // Configuration Set        ESP -> WCH
+#define COMM_CONFIG_CNF 4           // Configuration confirm.   ESP <- WCH
+#define COMM_STATUS_REQ 5           // Status Request
+#define COMM_STATUS_RSP 6           // Status Response
+
+/*====================================================================*
+ *   SPI registers QCA700X
+ *--------------------------------------------------------------------*/
+
+#define QCA7K_SPI_READ (1 << 15)                // MSB(15) of each command (16 bits) is the read(1) or write(0) bit.
+#define QCA7K_SPI_WRITE (0 << 15)
+#define QCA7K_SPI_INTERNAL (1 << 14)            // MSB(14) sets the Internal Registers(1) or Data Buffer(0)
+#define QCA7K_SPI_EXTERNAL (0 << 14)
+
+#define	SPI_REG_BFR_SIZE        0x0100
+#define SPI_REG_WRBUF_SPC_AVA   0x0200
+#define SPI_REG_RDBUF_BYTE_AVA  0x0300
+#define SPI_REG_SPI_CONFIG      0x0400
+#define SPI_REG_INTR_CAUSE      0x0C00
+#define SPI_REG_INTR_ENABLE     0x0D00
+#define SPI_REG_RDBUF_WATERMARK 0x1200
+#define SPI_REG_WRBUF_WATERMARK 0x1300
+#define SPI_REG_SIGNATURE       0x1A00
+#define SPI_REG_ACTION_CTRL     0x1B00
+
+#define QCASPI_GOOD_SIGNATURE   0xAA55
+#define QCA7K_BUFFER_SIZE       3163
+
+#define SPI_INT_WRBUF_BELOW_WM (1 << 10)
+#define SPI_INT_CPU_ON         (1 << 6)
+#define SPI_INT_ADDR_ERR       (1 << 3)
+#define SPI_INT_WRBUF_ERR      (1 << 2)
+#define SPI_INT_RDBUF_ERR      (1 << 1)
+#define SPI_INT_PKT_AVLBL      (1 << 0)
+
+/*====================================================================*
+ *   Modem States
+ *--------------------------------------------------------------------*/
+
+#define MODEM_POWERUP 0
+#define MODEM_WRITESPACE 1
+#define MODEM_CM_SET_KEY_REQ 2
+#define MODEM_CM_SET_KEY_CNF 3
+#define MODEM_CONFIGURED 10
+#define SLAC_PARAM_REQ 20
+#define SLAC_PARAM_CNF 30
+#define MNBC_SOUND 40
+#define ATTEN_CHAR_IND 50
+#define ATTEN_CHAR_RSP 60
+#define SLAC_MATCH_REQ 70
+
+#define MODEM_LINK_STATUS 80
+#define MODEM_WAIT_LINK 90
+#define MODEM_GET_SW_REQ 100
+#define MODEM_WAIT_SW 110
+#define MODEM_LINK_READY 120
+
+
+/*====================================================================*
+ *   SLAC commands
+ *--------------------------------------------------------------------*/
+
+#define CM_SET_KEY 0x6008
+#define CM_GET_KEY 0x600C
+#define CM_SC_JOIN 0x6010
+#define CM_CHAN_EST 0x6014
+#define CM_TM_UPDATE 0x6018
+#define CM_AMP_MAP 0x601C
+#define CM_BRG_INFO 0x6020
+#define CM_CONN_NEW 0x6024
+#define CM_CONN_REL 0x6028
+#define CM_CONN_MOD 0x602C
+#define CM_CONN_INFO 0x6030
+#define CM_STA_CAP 0x6034
+#define CM_NW_INFO 0x6038
+#define CM_GET_BEACON 0x603C
+#define CM_HFID 0x6040
+#define CM_MME_ERROR 0x6044
+#define CM_NW_STATS 0x6048
+#define CM_SLAC_PARAM 0x6064
+#define CM_START_ATTEN_CHAR 0x6068
+#define CM_ATTEN_CHAR 0x606C
+#define CM_PKCS_CERT 0x6070
+#define CM_MNBC_SOUND 0x6074
+#define CM_VALIDATE 0x6078
+#define CM_SLAC_MATCH 0x607C
+#define CM_SLAC_USER_DATA 0x6080
+#define CM_ATTEN_PROFILE 0x6084
+#define CM_GET_SW 0xA000
+#define CM_LINK_STATUS 0xA0B8
+
+#define MMTYPE_REQ 0x0000   // request
+#define MMTYPE_CNF 0x0001   // confirmation = +1
+#define MMTYPE_IND 0x0002
+#define MMTYPE_RSP 0x0003
+
+// Frametypes
+
+#define FRAME_IPV6 0x86DD
+#define FRAME_HOMEPLUG 0x88E1
+
+/* V2GTP */
+#define V2GTP_HEADER_SIZE 8 /* header has 8 bytes */
+
+extern struct tm timeinfo;
+
+#include <stdint.h>
+#include "debug.h"
+
+struct rtcTime {
+    uint8_t Status;
+    uint8_t Hour;
+    uint8_t Minute;
+    uint8_t Second;
+    uint8_t Date;
+    uint8_t Month;
+    uint16_t Year;
+} ;
+
+#endif //SMARTEVSE_VERSION
 #endif

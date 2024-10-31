@@ -36,7 +36,12 @@ extern void GLCDHelp(void);
 extern void GLCD(void);
 extern void GLCDMenu(unsigned char Buttons);
 extern void GLCD_init(void);
-extern void GLCD_version(void);
 extern bool GridRelayOpen;
+
+#if SMARTEVSE_VERSION == 4
+#include <SPI.h>
+extern void glcd_clrln(unsigned char ln, unsigned char data);
+extern SPIClass LCD_SPI2;
+#endif
 
 #endif // #ifndef __GLCD_H

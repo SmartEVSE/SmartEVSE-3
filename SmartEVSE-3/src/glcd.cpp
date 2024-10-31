@@ -21,18 +21,15 @@
 ; OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 ; THE SOFTWARE.
  */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <SPI.h>
 #include <WiFi.h>
-
 #include "main.h"
 #include "glcd.h"
 #include "utils.h"
 #include "meter.h"
-
 #include "font.cpp"
 #include "font2.cpp"
 
@@ -40,6 +37,9 @@
 #include <MicroOcpp.h>
 #endif
 
+#if SMARTEVSE_VERSION == 4
+#include "Melopero_RV3028.h"
+#endif //SMARTEVSE_VERSION
 
 const unsigned char LCD_Flow [] = {
 0x00, 0x00, 0x98, 0xCC, 0x66, 0x22, 0x22, 0x22, 0xF2, 0xAA, 0x26, 0x2A, 0xF2, 0x22, 0x22, 0x22,
@@ -88,6 +88,8 @@ extern void CheckSwitch(bool force = false);
 extern void handleWIFImode(void *s  = &Serial);
 extern char SmartConfigKey[16];
 
+#if SMARTEVSE_VERSION == 3
+
 void st7565_command(unsigned char data) {
     _A0_0;
     SPI.transfer(data);
@@ -97,6 +99,31 @@ void st7565_data(unsigned char data) {
     _A0_1;
     SPI.transfer(data);
 }
+#else //SMARTEVSE_VERSION
+extern Melopero_RV3028 rtc;
+extern struct rtcTime rtcTS;
+
+void st7565_command(unsigned char data) {
+    LCD_A0_0;
+    digitalWrite(LCD_CS, LOW);
+    LCD_SPI2.transfer(data);
+    digitalWrite(LCD_CS, HIGH);
+}
+
+void st7565_data(unsigned char data) {
+    LCD_A0_1;
+    digitalWrite(LCD_CS, LOW);
+    LCD_SPI2.transfer(data);
+    digitalWrite(LCD_CS, HIGH);
+}
+
+void st7565_data_buf(unsigned char *data, unsigned char len) {
+    LCD_A0_1;
+    digitalWrite(LCD_CS, LOW);
+    LCD_SPI2.transfer(data, len);
+    digitalWrite(LCD_CS, HIGH);
+}
+#endif //SMARTEVSE_VERSION
 
 void goto_row(unsigned char y) {
     unsigned char pattern;
@@ -150,6 +177,7 @@ void GLCD_buffer_clr(void) {
     } while (x != 0);
 }
 
+#if SMARTEVSE_VERSION == 3
 void GLCD_sendbuf(unsigned char RowAdr, unsigned char Rows) {
     unsigned char i, y = 0;
     unsigned int x = 0;
@@ -159,6 +187,18 @@ void GLCD_sendbuf(unsigned char RowAdr, unsigned char Rows) {
         for (i = 0; i < 128; i++) st7565_data(GLCDbuf[x++]);                    // put data on data port
     } while (++y < Rows);
 }
+#else
+void GLCD_sendbuf(unsigned char RowAdr, unsigned char Rows) {
+    unsigned char y = 0;
+    unsigned int x = 0;
+
+    do {
+        goto_xy(0, RowAdr + y);
+        st7565_data_buf(GLCDbuf + x, 128);                                  // put data on data port
+        x += 128;
+    } while (++y < Rows);
+}
+#endif //SMARTEVSE_VERSION
 
 void GLCD_font_condense(unsigned char c, unsigned char *start, unsigned char *end, unsigned char space) {
     if(c >= '0' && c <= '9') return;
@@ -191,6 +231,7 @@ unsigned char GLCD_text_length2(const char *str) {
 
     while (str[i]) {
         length += font2[(int) str[i]][0] + 2;
+        //length += font2[(unsigned char)str[i]][0] + 2;
         i++;
     }
 
@@ -611,6 +652,7 @@ void GLCD(void) {
         if (ErrorFlags & LESS_6A) {
             GLCD_print_buf2(2, (const char *) "WAITING");
             GLCD_print_buf2(4, (const char *) "FOR POWER");
+#if MODEM
         } else if (State == STATE_MODEM_REQUEST || State == STATE_MODEM_WAIT || State == STATE_MODEM_DONE) {                                          // Modem states
 
             BacklightTimer = BACKLIGHT;
@@ -623,6 +665,7 @@ void GLCD(void) {
 
             GLCD_print_buf2(2, (const char *) "MODEM");
             GLCD_print_buf2(4, (const char *) "DENIED");
+#endif
         } else if (State == STATE_C) {                                          // STATE C
             
             BacklightTimer = BACKLIGHT;
@@ -662,7 +705,9 @@ void GLCD(void) {
                         case ChargePointStatus_Charging:
                         case ChargePointStatus_SuspendedEVSE:
                         case ChargePointStatus_SuspendedEV:
-                            // Should not be reached (Access_bit or STATE_C above prevail). Do not update the display but keep previous text
+                            // Should not be reached (Access_bit or STATE_C above prevail)
+                            GLCD_print_buf2(2, (const char *) "CHARGING");
+                            GLCD_print_buf2(4, (const char *) "IN PROGRESS");
                             break;
                         case ChargePointStatus_Finishing:
                             if (ocppLockingTxDefined()) {
@@ -834,8 +879,10 @@ void GLCD(void) {
             if (!LCDToggle) {
                 GLCD_print_buf2(5, (const char *) "WAITING");
             } else GLCD_print_buf2(5, (const char *) "FOR SOLAR");
+#if MODEM
         } else if (State == STATE_MODEM_REQUEST || State == STATE_MODEM_WAIT || State == STATE_MODEM_DONE) {                                          // Modem states
             GLCD_print_buf2(5, (const char *) "MODEM");
+#endif
         } else if (State != STATE_C) {
                 switch (Switching_To_Single_Phase) {
                     case FALSE:
@@ -1047,7 +1094,7 @@ uint8_t getMenuItems (void) {
             MenuItems[m++] = MENU_MAINSMETER;                                   // - - Type of Mains electric meter (0: Disabled / Constants EM_*)
             if (MainsMeter.Type == EM_SENSORBOX) {                              // - - ? Sensorbox?
                 if (GridActive == 1) MenuItems[m++] = MENU_GRID;
-                if (SB2.SoftwareVer == 0x01) {
+                if (SB2.SoftwareVer >= 0x01) {
                     MenuItems[m++] = MENU_SB2_WIFI;                             // Sensorbox-2 Wifi  0:Disabled / 1:Enabled / 2:Portal
                 }
             } else if (MainsMeter.Type && MainsMeter.Type != EM_API) {          // - - ? Other?
@@ -1314,6 +1361,7 @@ void GLCDMenu(uint8_t Buttons) {
 
 
 void GLCD_init(void) {
+#if SMARTEVSE_VERSION == 3
     delay(200);                                                                 // transients on the line could have garbled the LCD, wait 200ms then re-init.
     _A0_0;                                                                      // A0=0
     _RSTB_0;                                                                    // Reset GLCD module
@@ -1343,6 +1391,42 @@ void GLCD_init(void) {
     goto_col(0x00);                                                             // (4) Set column addr LSB
  
     st7565_command(0xAF);                                                       // (1) ON command
+#else //SMARTEVSE_VERSION
+    LCD_A0_0;                                                                   // A0=0
+    LCD_RST_0;                                                                 // Reset GLCD module
+    delayMicroseconds(4);
+    LCD_RST_1;                                                                 // Reset line high
+    delayMicroseconds(4);
 
+    st7565_command(0xA2);                                                       // (11) set bias at duty cycle 1.65 (0xA2=1.9 0xA3=1.6)
+    st7565_command(0xA0);                                                       // (8) SEG direction (0xA0 or 0xA1)
+    st7565_command(0xC8);                                                       // (15) comm direction normal =0xC0 comm reverse= 0xC8
+
+    st7565_command(0x20 | 0x04);                                                // (17) set Regulation Ratio (0-7)
+
+    st7565_command(0xF8);                                                       // (19) send Booster command
+    st7565_command(0x01);                                                       // set Booster value 00=4x 01=5x
+
+    st7565_command(0x81);                                                       // (18) send Electronic Volume command 0x81
+    st7565_command(0x24);                                                       // set Electronic volume (0x00-0x3f)
+
+    st7565_command(0xA6);                                                       // (9) Inverse display (0xA7=inverse 0xA6=normal)
+    st7565_command(0xA4);                                                       // (10) ALL pixel on (A4=normal, A5=all ON)
+
+    st7565_command(0x28 | 0x07);                                                // (16) ALL Power Control ON
+
+    glcd_clear();                                                               // clear internal GLCD buffer
+    goto_row(0x00);                                                             // (3) Set page address
+    goto_col(0x00);                                                             // (4) Set column addr LSB
+
+    st7565_command(0xAF);                                                       // (1) ON command
+
+    glcd_clrln(0, 0x00);
+    glcd_clrln(1, 0x04);                                                // horizontal line
+    GLCD_print_buf2(2, (const char *) "SmartEVSE 4");
+    GLCD_print_buf2(4, (const char *) "Prototype 1");
+    glcd_clrln(6, 0x10);                                                // horizontal line
+    glcd_clrln(7, 0x00);
+#endif
 }
 

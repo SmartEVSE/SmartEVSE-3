@@ -40,9 +40,86 @@
 #include <MicroOcpp/Core/Context.h>
 #endif //ENABLE_OCPP
 
+#if SMARTEVSE_VERSION == 4
+#include <esp_sleep.h>
+#include <driver/uart.h>
+
+#include "wchisp.h"
+#include "Melopero_RV3028.h"
+#include "qca.h"
+
+#define CIRCUIT_METER 0                                                         // Electric meter used for EVSE Circuit
+#define CIRCUIT_METER_ADDRESS 13
+#define INITIALIZED 0
+uint8_t Initialized = INITIALIZED;                                              // When first powered on, the settings need to be initialized.
+uint8_t CircuitMeter = CIRCUIT_METER;
+uint8_t CircuitMeterAddress = CIRCUIT_METER_ADDRESS;
+
+SPIClass QCA_SPI1(FSPI);  // The ESP32-S3 has two usable SPI busses FSPI and HSPI
+SPIClass LCD_SPI2(HSPI);
+
+Melopero_RV3028 rtc;
+
+/*    Commands send from ESP32 to CH32V203 over Uart
+/    cmd        Name           Answer/data        Comments
+/---------------------------------------------------------------------------------------------------------------------------------
+/    Ver?    Version           0001              Version of CH32 software
+/    Stat?   Status                              State, Amperage, PP pin, SSR outputs, ACT outputs, VCC enable, Lock input, RCM, Temperature, Error
+/    Amp:    Set AMP           160               Set Chargecurrent A (*10)
+/    Con:    Set Contactors    0-3               0= Both Off, 1= SSR1 ON, 2= SSR2 ON, 3= Both ON
+/    Vcc:    Set VCC           0-1               0= VCC Off, 1= VCC ON
+/    Sol:    Set Solenoid      0-3               0= Both Off, 1= LOCK_R ON, 2= LOCK_W ON, 3= Both ON (or only lock/unlock?)
+/    Led:    Set Led color                       RGB, Fade speed, Blink
+/    485:    Modbus data
+/
+/    Bij wegvallen ZC -> Solenoid unlock (indien locked)
+
+*/
+
+struct rtcTime rtcTS;
+
+uint8_t RTCBackupSource = BATTERY;
+uint8_t PwrPanic = 1;           // enabled
+uint8_t CommState = COMM_OFF;
+uint8_t ModemPwr = 1;           // Enable the power to the Modem
+
+uint8_t MainVersion = 0;        // Mainboard software version
+
+
+// Power Panic handler
+// Shut down ESP to conserve the power we have left. RTC will automatically store powerdown timestamp
+// We can store some important data in flash storage or the RTC chip (2 bytes)
+//
+void PowerPanicESP() {
+
+    _LOG_D("Power Panic!\n");
+    ledcWrite(LCD_CHANNEL, 0);                 // LCD Backlight off
+
+    // Stop SPI bus, and set all QCA data lines low
+    // TODO: store important information.
+
+    gpio_wakeup_enable(GPIO_NUM_8, GPIO_INTR_LOW_LEVEL);
+    esp_sleep_enable_gpio_wakeup();
+
+    esp_light_sleep_start();
+    // ESP32 is now in light sleep mode
+
+    // It will re-enable everything as soon it has woken up again.
+    // When using USB, you will have to unplug, and replug to re-establish the connection
+
+    _LOG_D("Power Back up!\n");
+
+    ledcWrite(LCD_CHANNEL, 50);                 // LCD Backlight on
+}
+
+
+#endif //SMARTEVSE_VERSION
+
+#if SMARTEVSE_VERSION == 3
 // Create a ModbusRTU server, client and bridge instance on Serial1
 ModbusServerRTU MBserver(2000, PIN_RS485_DIR);     // TCP timeout set to 2000 ms
 ModbusClientRTU MBclient(PIN_RS485_DIR);
+#endif //SMARTEVSE_VERSION
 
 hw_timer_t * timerA = NULL;
 Preferences preferences;
@@ -257,6 +334,7 @@ unsigned long OcppLastTxNotification;
 #endif //ENABLE_OCPP
 
 
+#if SMARTEVSE_VERSION == 3
 // Some low level stuff here to setup the ADC, and perform the conversion.
 //
 //
@@ -325,6 +403,7 @@ void IRAM_ATTR onTimerA() {
   if (sampleidx == 25) sampleidx = 0;
 }
 
+#endif //SMARTEVSE_VERSION
 
 // --------------------------- END of ISR's -----------------------------------------------------
 
@@ -521,6 +600,7 @@ uint16_t GetCurrent() {
 #endif //ENABLE_OCPP
 
 
+#if SMARTEVSE_VERSION == 3
 // Sample the Temperature sensor.
 //
 signed char TemperatureSensor() {
@@ -542,7 +622,6 @@ signed char TemperatureSensor() {
     
     return Temperature;
 }
-
 
 // Sample the Proximity Pin, and determine the maximum current the cable can handle.
 //
@@ -598,6 +677,7 @@ uint8_t Pilot() {
     if ((Min > 100) && (Max < 300)) return PILOT_DIODE;                     // Diode Check OK
     return PILOT_NOK;                                                       // Pilot NOT ok
 }
+#endif
 
 
 /**
@@ -1668,7 +1748,9 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
             ImportCurrent = val;
             break;
         case MENU_LOADBL:
+#if SMARTEVSE_VERSION == 3
             ConfigureModbusMode(val);
+#endif
             LoadBl = val;
             break;
         case MENU_MAINS:
@@ -2142,11 +2224,12 @@ void CheckSwitch(bool force = false)
 
 
 
+#if SMARTEVSE_VERSION == 3
 // Task that handles EVSE State Changes
 // Reads buttons, and updates the LCD.
 //
 // called every 10ms
-void EVSEStates(void * parameter) {
+void Timer10ms(void * parameter) {
 
     uint8_t DiodeCheck = 0; 
     uint16_t StateTimer = 0;                                                 // When switching from State B to C, make sure pilot is at 6v for 100ms 
@@ -2375,6 +2458,142 @@ void EVSEStates(void * parameter) {
         vTaskDelay(10 / portTICK_PERIOD_MS);
     } // while(1) loop
 }
+#else //SMARTEVSE_VERSION
+// Task that handles EVSE State Changes
+// Reads buttons, and updates the LCD.
+//
+// called every 10ms
+void Timer10ms(void * parameter) {
+
+uint16_t old_sec = 0;
+uint8_t RXbyte, idx = 0;
+char SerialBuf[256];
+uint8_t CommState = COMM_VER_REQ;
+uint8_t CommTimeout = 0;
+char *ret;
+uint8_t State = 0, NewState = 0;
+
+   // infinite loop
+    while(1) {
+
+
+        // Sample the three < o > buttons.
+
+        pinMode(LCD_A0_B2, INPUT_PULLUP);                   // Switch the shared pin for the middle button to input
+        if (digitalRead(BUTTON3)) ButtonState = 4;          // > (right)
+        else ButtonState = 0;
+        // sample the middle button
+        if (digitalRead(LCD_A0_B2)) ButtonState |= 2;       // o (middle)
+        pinMode(LCD_A0_B2, OUTPUT);                         // switch pin back to output
+        if (digitalRead(BUTTON1)) ButtonState |= 1;         // < (left)
+
+        if (timeinfo.tm_sec != old_sec) {
+            old_sec = timeinfo.tm_sec;
+            GLCD();
+
+        }
+
+        if (Serial1.available()) {
+            //Serial.printf("[<-] ");        // Data available from mainboard?
+            while (Serial1.available()) {
+                RXbyte = Serial1.read();
+                //Serial.printf("%c",RXbyte);
+                SerialBuf[idx] = RXbyte;
+                idx++;
+            }
+            SerialBuf[idx] = '\0'; //null terminate
+            _LOG_D("[<-] %s.\n", SerialBuf);
+        }
+        // process data from mainboard
+        if (idx > 5) {
+            if (memcmp(SerialBuf, "!Panic", 6) == 0) PowerPanicESP();
+
+            ret = strstr(SerialBuf, "Pilot:");
+            //  [<-] Pilot:6,State:0,ChargeDelay:0,Error:0,Temp:34,Lock:0,Mode:0,Access:1
+            if (ret != NULL) {
+                int hit = sscanf(SerialBuf, "Pilot:%u,State:%u,ChargeDelay:%u,Error:%u,Temp:%i,Lock:%u,Mode:%u, Access:%u", &pilot, &State, &ChargeDelay, &ErrorFlags, &TempEVSE, &Lock, &Mode, &Access_bit);
+                if (hit != 8)
+                    _LOG_A("ERROR parsing line from WCH, hit=%i, line=%s.\n", hit, SerialBuf);
+                else {
+                    _LOG_A("DINGO: pilot=%u, State=%u, ChargeDelay=%u, ErrorFlags = %u, TempEVSE=%i, Lock=%u, Mode=%u, Access_bit=%i.\n", pilot, State,ChargeDelay, ErrorFlags, TempEVSE, Lock, Mode, Access_bit);
+                }
+            }
+
+            ret = strstr(SerialBuf, "version:");
+            if (ret != NULL) {
+                MainVersion = atoi(ret+8);
+                Serial.printf("version %u received\n", MainVersion);
+                CommState = COMM_CONFIG_SET;
+            }
+
+            ret = strstr(SerialBuf, "Config:OK");
+            if (ret != NULL) {
+                Serial.printf("Config set\n");
+                CommState = COMM_STATUS_REQ;
+            }
+
+            ret = strstr(SerialBuf, "State:"); // current State (request) received from Wch
+            if (ret != NULL ) {
+                State = atoi(ret+6);
+
+                if (State == STATE_COMM_B) NewState = STATE_COMM_B_OK;
+                else if (State == STATE_COMM_C) NewState = STATE_COMM_C_OK;
+
+                if (NewState) {    // only send confirmation when state needs to change.
+                    Serial1.printf("WchState:%u\n",NewState );        // send confirmation back to WCH
+                    Serial.printf("[->] WchState:%u\n",NewState );    // send confirmation back to WCH
+                    NewState = 0;
+                }
+            } else {                                                            // unformatted message must be debug message, print it!
+                _LOG_V("WCH message:%s.\n,", SerialBuf);
+            }
+            memset(SerialBuf,0,idx);        // Clear buffer
+            idx = 0;
+        }
+
+        if (CommTimeout == 0) {
+            switch (CommState) {
+
+                case COMM_VER_REQ:
+                    CommTimeout = 10;
+                    Serial1.print("version?\n");            // send command to WCH ic
+                    Serial.print("[->] version?\n");        // send command to WCH ic
+                    break;
+
+                case COMM_CONFIG_SET:                       // Set mainboard configuration
+                    CommTimeout = 10;
+                    // send configuration to WCH IC
+                    Serial1.printf("Config:%u,Lock:%u,Mode:%u,LoadBl:%u,Current:%u,Switch:%u,RCmon:%u,PwrPanic:%u,RFIDReader:%u,ModemPwr:%u,Initialized:%u\n", Config, Lock, Mode, LoadBl, ChargeCurrent, Switch, RCmon, PwrPanic, RFIDReader, ModemPwr, Initialized);
+                    Serial.printf("[->] Config:%u,Lock:%u,Mode:%u,LoadBl:%u,Current:%u,Switch:%u,RCmon:%u,PwrPanic:%u,RFIDReader:%u,ModemPwr:%u\n", Config, Lock, Mode, LoadBl, ChargeCurrent, Switch, RCmon, PwrPanic, RFIDReader, ModemPwr);
+                    break;
+
+                case COMM_STATUS_REQ:                       // Ready to receive status from mainboard
+                    CommTimeout = 10;
+                    /*
+                    State: A
+                    Temp: 28
+                    Error: 0
+                    */
+            }
+        }
+
+
+        if (CommTimeout) CommTimeout--;
+
+        // When one or more button(s) are pressed, we call GLCDMenu
+        if ((ButtonState != 0x07) || (ButtonState != OldButtonState)) GLCDMenu(ButtonState);
+
+        // Update/Show Helpmenu
+        if (LCDNav > MENU_ENTER && LCDNav < MENU_EXIT && (ScrollTimer + 5000 < millis() ) && (!SubMenu)) GLCDHelp();
+
+        // Pause the task for 10ms
+        vTaskDelay(10 / portTICK_PERIOD_MS);
+    } // while(1) loop
+
+}
+
+
+#endif //SMARTEVSE_VERSION
 
 /**
  * Send Energy measurement request over modbus
@@ -3150,7 +3369,6 @@ void Timer1S(void * parameter) {
         }
 
         if (DisconnectTimeCounter > 3){
-            pilot = Pilot();
             if (pilot == PILOT_12V){
                 DisconnectTimeCounter = -1;
                 DisconnectEvent();
@@ -3160,10 +3378,12 @@ void Timer1S(void * parameter) {
         }
 #endif
 
+#if SMARTEVSE_VERSION == 3
         // once a second, measure temperature
         // range -40 .. +125C
         TempEVSE = TemperatureSensor();                                                             
 
+#endif
 
         // Check if there is a RFID card in front of the reader
         CheckRFID();
@@ -3281,8 +3501,10 @@ void Timer1S(void * parameter) {
             Broadcast = 1;                                                  // repeat every two seconds
         }
 
+#if SMARTEVSE_VERSION == 3
         // for Slave modbusrequest loop is never called, so we have to show debug info here...
         if (LoadBl > 1)
+#endif
             printStatus();  //for debug purposes
 
         //_LOG_A("Timer1S task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
@@ -3545,7 +3767,7 @@ void MBhandleError(Error error, uint32_t token)
 }
 
 
-  
+#if SMARTEVSE_VERSION == 3
 void ConfigureModbusMode(uint8_t newmode) {
 
     _LOG_A("changing LoadBl from %u to %u\n",LoadBl, newmode);
@@ -3595,6 +3817,7 @@ void ConfigureModbusMode(uint8_t newmode) {
     
 }
 
+#endif
 
 /**
  * Validate setting ranges and dependencies
@@ -3643,10 +3866,12 @@ void validate_settings(void) {
         EMConfig[EM_CUSTOM].ERegister = 0;
     }
 
+#if SMARTEVSE_VERSION == 3
     // If the address of the MainsMeter or EVmeter on a Node has changed, we must re-register the Modbus workers.
     if (LoadBl > 1) {
         if (EVMeter.Type && EVMeter.Type != EM_API) MBserver.registerWorker(EVMeter.Address, ANY_FUNCTION_CODE, &MBEVMeterResponse);
     }
+#endif
     MainsMeter.Timeout = COMM_TIMEOUT;
     EVMeter.Timeout = COMM_TIMEOUT;                                             // Short Delay, to clear the error message for ~10 seconds.
 
@@ -4595,7 +4820,9 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
         }
         if(request->hasParam("loadbl")) {
             int LBL = strtol(request->getParam("loadbl")->value().c_str(),NULL,0);
+#if SMARTEVSE_VERSION == 3
             ConfigureModbusMode(LBL);
+#endif
             LoadBl = LBL;
         }
         mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", ""); //json request needs json response
@@ -4850,8 +5077,6 @@ void ocppDeinit() {
 
 void ocppLoop() {
 
-    // Update pilot tracking variable (last measured positive part)
-    auto pilot = Pilot();
     if (pilot >= PILOT_12V && pilot <= PILOT_3V) {
         OcppTrackCPvoltage = pilot;
     }
@@ -4972,6 +5197,7 @@ void ocppLoop() {
 
 
 void setup() {
+#if SMARTEVSE_VERSION == 3
 
     pinMode(PIN_CP_OUT, OUTPUT);            // CP output
     //pinMode(PIN_SW_IN, INPUT);            // SW Switch input, handled by OneWire32 class
@@ -5097,6 +5323,197 @@ void setup() {
     }
     
 
+    firmwareUpdateTimer = random(FW_UPDATE_DELAY, 0xffff);
+    //firmwareUpdateTimer = random(FW_UPDATE_DELAY, 120); // DINGO TODO debug max 2 minutes
+    // Set eModbus LogLevel to 1, to suppress possible E5 errors
+    MBUlogLvl = LOG_LEVEL_CRITICAL;
+    ConfigureModbusMode(255);
+    CP_ON;           // CP signal ACTIVE
+#else //SMARTEVSE_VERSION
+    uint8_t writeValue;
+    uint8_t readValue;
+    uint16_t reg16;
+
+    //lower the CPU frequency to 160, 80, 40 MHz
+    setCpuFrequencyMhz(160);
+
+    pinMode(PIN_QCA700X_CS, OUTPUT);           // SPI_CS QCA7005
+    pinMode(PIN_QCA700X_INT, INPUT);           // SPI_INT QCA7005
+    pinMode(SPI_SCK, OUTPUT);
+    pinMode(SPI_MISO, INPUT);
+    pinMode(SPI_MOSI, OUTPUT);
+    pinMode(PIN_QCA700X_RESETN, OUTPUT);
+
+    pinMode(RTC_SCL, INPUT);                  // set to input for now...
+    pinMode(RTC_SDA, INPUT);
+    pinMode(RTC_INT, INPUT);
+
+    pinMode(BUTTON1, INPUT_PULLUP);
+    pinMode(BUTTON3, INPUT_PULLUP);
+
+    pinMode(LCD_LED, OUTPUT);               // LCD backlight
+    pinMode(LCD_RST, OUTPUT);               // LCD reset, active high
+    pinMode(LCD_SDA, OUTPUT);               // LCD Data
+    pinMode(LCD_SCK, OUTPUT);               // LCD Clock
+    pinMode(LCD_A0_B2, OUTPUT);             // Select button + A0 LCD
+    pinMode(LCD_CS, OUTPUT);
+
+    pinMode(WCH_SWDIO, INPUT);              // WCH-Link (unused/unconnected)
+    pinMode(WCH_SWCLK, INPUT);              // WCH-Link (unused) / BOOT0 select
+    pinMode(WCH_NRST, INPUT);               // WCH NRST
+
+
+    // shutdown QCA is done by the WCH32V, we set all IO pins low, so no current is flowing into the powered down chip.
+    digitalWrite(PIN_QCA700X_CS, LOW);
+    digitalWrite(PIN_QCA700X_RESETN, LOW);
+    digitalWrite(SPI_SCK, LOW);
+    digitalWrite(SPI_MOSI, LOW);
+
+
+    //digitalWrite(PIN_QCA700X_RESETN, HIGH);     // Active Low
+    //digitalWrite(PIN_QCA700X_CS, HIGH);
+
+    // configure SPI connection to QCA modem
+    QCA_SPI1.begin(SPI_SCK, SPI_MISO, SPI_MOSI, PIN_QCA700X_CS);
+    // SPI mode is MODE3 (Idle = HIGH, clock in on rising edge), we use a 10Mhz SPI clock
+    QCA_SPI1.beginTransaction(SPISettings(10000000, MSBFIRST, SPI_MODE3));
+    //attachInterrupt(digitalPinToInterrupt(PIN_QCA700X_INT), SPI_InterruptHandler, RISING);
+
+
+    // Setup SWDIO pin as Power Panic interrupt received from the WCH uC. (unused, we use serial comm)
+    //attachInterrupt(WCH_SWDIO, PowerPanicESP, FALLING);
+
+
+    Serial.begin();                                                     // Debug output on USB
+    Serial.setTxTimeoutMs(1);                                           // Workaround for Serial.print while unplugged USB.
+                                                                        // log_d does not have this issue?
+    Serial1.begin(115200, SERIAL_8N1, USART_RX, USART_TX, false);       // Serial connection to main board microcontroller
+    //Serial2.begin(115200, SERIAL_8N1, USART_TX, -1, false);
+    Serial.printf("\nSmartEVSE v4 powerup\n");
+
+    _LOG_D("Total heap: %u.\n", ESP.getHeapSize());
+    _LOG_D("Free heap: %u.\n", ESP.getFreeHeap());
+    _LOG_D("Flash Size: %u.\n", ESP.getFlashChipSize());
+    _LOG_D("Total PSRAM: %u.\n", ESP.getPsramSize());
+    _LOG_D("Free PSRAM: %u.\n", ESP.getFreePsram());
+
+
+
+    // configure SPI connection to LCD
+    // SPI_SCK, SPI_MOSI and LCD_CS pins are used.
+    LCD_SPI2.begin(LCD_SCK, -1, LCD_SDA, LCD_CS);
+    // the ST7567's max SPI Clock frequency is 20Mhz at 3.3V/25C
+    // We choose 10Mhz here, to reserve some room for error.
+    // SPI mode is MODE3 (Idle = HIGH, clock in on rising edge)
+    LCD_SPI2.beginTransaction(SPISettings(10000000, MSBFIRST, SPI_MODE3));
+    // Dummy transaction, to make sure SCLK idles high (IDF bug?)
+    LCD_SPI2.transfer(0);
+    _LOG_D("SPI for LCD configured.\n");
+
+    //GLCD_init();                                // Initialize LCD
+
+
+    ledcSetup(LCD_CHANNEL, 5000, 8);            // LCD channel 5, 5kHz, 8 bit
+    ledcAttachPin(LCD_LED, LCD_CHANNEL);
+    ledcWrite(LCD_CHANNEL, 255);                // Set LCD backlight brightness 0-255
+
+
+    //delay(3000);
+
+    // Initialize and create the RTC device
+    Wire.setPins(RTC_SDA, RTC_SCL);
+    Wire.begin();
+    rtc.initI2C();
+
+    // Read powerdown timestamp values from RTC
+    rtcTS = {
+        rtc.readFromRegister(STATUS_REGISTER_ADDRESS),
+        rtc.getTSHour(),
+        rtc.getTSMinute(),
+        rtc.getTSSecond(),
+        rtc.getTSDate(),
+        rtc.getTSMonth(),
+        rtc.getTSYear() };
+
+    // First power on, or backup power < 0.8V
+    if (rtcTS.Status & 0x01) _LOG_D("rtc power on Reset, data unitialized!\n");
+    // Event Flag set?
+    if (rtcTS.Status & 0x02) {
+        _LOG_D("Powerdown Timestamp %2u:%02u:%02u %u-%u-%u \n",rtcTS.Hour, rtcTS.Minute, rtcTS.Second, rtcTS.Date, rtcTS.Month, rtcTS.Year);
+    }
+
+    // Setup the device to use the EEPROM memory
+    rtc.useEEPROM(true);                                      // disable 24H EEprom refresh before modifying EEprom
+
+    rtc.writeToRegister(STATUS_REGISTER_ADDRESS, 0);          // reset Status register
+    rtc.writeToRegister(CONTROL2_REGISTER_ADDRESS, 0);        // TSE bit 0, EIE = 0, 24H clock
+    rtc.writeToRegister(0x13, 5);                             // Set TSR bit, to reset all Time Stamp registers to 00h.
+                                                              // TSS bit 1, Automatic Backup Switchover is selected as Time Stamp source.
+    rtc.writeToRegister(CONTROL2_REGISTER_ADDRESS, 0x80);     // TSE bit 1, enable the Time Stamp function
+
+    readValue = rtc.readFromRegister(0x37);                   // preserve MSB as it's part of the crystal calibration
+    writeValue = (readValue & 0x80) | RTCBackupSource;        // Level Switching Mode (LSM) is used when operating from Battery as Vbat > Vdd (Idd=115nA)
+                                                              // Direct Switching Mode (DSM) is used with the supercap
+                                                              // Trickle charge is only enabled when Supercap is used as backup source. (Idd=95nA)
+    if (writeValue != readValue) {
+
+        rtc.writeToRegister(0x37, writeValue);                // Write settings
+        //readValue = rtc.readFromRegister(0x37) & 0x7f;        // ignore msb
+
+        rtc.waitforEEPROM();                                  // wait for EEprom to be ready.
+
+        rtc.writeToRegister(EEPROM_COMMAND_ADDRESS, 0x00);    // Refresh Ram -> EEprom
+        rtc.writeToRegister(EEPROM_COMMAND_ADDRESS, 0x11);    // Refresh Ram -> EEprom
+    }
+    readValue = readValue & 0x7f;
+
+    if (readValue == SUPERCAP) _LOG_D("RTC: Charging capacitor.\n");
+    else if (readValue == BATTERY) _LOG_D("RTC: Battery configured.\n");
+    else _LOG_A("RTC: capacitor not Charging!\n");
+
+    rtc.andOrRegister(CONTROL1_REGISTER_ADDRESS, 0xf7, 0x00); // re-activate 24H EEprom refresh
+
+    // RTC time valid?
+    if ((rtcTS.Status & 0x01) == 0) {
+        _LOG_D("Powerup at %2u:%02u:%02u %u-%u-%u \n",rtc.getHour(), rtc.getMinute(), rtc.getSecond(), rtc.getDate(), rtc.getMonth(), rtc.getYear());
+
+        // read rtc, and update timeinfo struct
+        timeinfo.tm_year = rtc.getYear() -1900;
+        timeinfo.tm_mon = rtc.getMonth() -1;
+        timeinfo.tm_wday = rtc.getWeekday();
+        timeinfo.tm_mday = rtc.getDate();
+        timeinfo.tm_hour = rtc.getHour();
+        timeinfo.tm_min = rtc.getMinute();
+        timeinfo.tm_sec = rtc.getSecond();
+
+    }
+
+/*
+    if (WchFirmwareUpdate()) {
+        _LOG_A("Firmware update failed.\n");
+    } else _LOG_D("WCH programming done\n");
+*/
+    // should not be needed to reset the WCH ic at powerup/reset on the production version.
+    _LOG_D("reset WCH ic\n");
+    WchReset();
+
+
+    // After powerup request WCH version (version?)
+    // then send Configuration to WCH
+
+    Config = 0;         // Configuration (0:Socket / 1:Fixed Cable)
+    Mode = 1;           // EVSE mode (0:Normal / 1:Smart / 2:Solar)
+    Lock = 1;           // Cable lock (0:Disable / 1:Solenoid / 2:Motor)
+    Switch = 3;         // External Switch (0:Disable / 1:Access B / 2:Access S / 3:Smart-Solar B / 4:Smart-Solar S)
+    RFIDReader = 1;     // RFID Reader (0:Disabled / 1:Enabled / 2:Enable One / 3:Learn / 4:Delete / 5:Delete All)
+    RCmon = 0;          // Residual Current Monitor (0:Disable / 1:Enable)
+    PwrPanic = 0;       // Enable PowerPanic feature
+    LoadBl = 3;         // Set to Node 2
+    ModemPwr = 1;       // Modem Power ON
+    Initialized = 1;    // Set Initialized to 1
+
+
+#endif //SMARTEVSE_VERSION
     // Read all settings from non volatile memory; MQTTprefix will be overwritten if stored in NVS
     read_settings();                                                            // initialize with default data when starting for the first time
     validate_settings();
@@ -5104,14 +5521,15 @@ void setup() {
 
     // Create Task EVSEStates, that handles changes in the CP signal
     xTaskCreate(
-        EVSEStates,     // Function that should be called
-        "EVSEStates",   // Name of the task (for debugging)
+        Timer10ms,      // Function that should be called
+        "Timer10ms",    // Name of the task (for debugging)
         4096,           // Stack size (bytes)                              // printf needs atleast 1kb
         NULL,           // Parameter to pass
         5,              // Task priority - high
         NULL            // Task handle
     );
 
+#if SMARTEVSE_VERSION == 3
     // Create Task BlinkLed (10ms)
     xTaskCreate(
         BlinkLed,       // Function that should be called
@@ -5131,6 +5549,20 @@ void setup() {
         3,              // Task priority - medium
         NULL            // Task handle
     );
+#else //SMARTEVSE_VERSION
+    // Search for QCA modem
+    //
+    digitalWrite(PIN_QCA700X_RESETN, HIGH);         // get modem out of reset
+    _LOG_D("Searching for modem.. \n");
+
+    do {
+        reg16 = qcaspi_read_register16(SPI_REG_SIGNATURE);
+        if (reg16 == QCASPI_GOOD_SIGNATURE) {
+            _LOG_D("QCA700X modem found\n");
+        } else delay(500);
+    } while (reg16 != QCASPI_GOOD_SIGNATURE);
+
+#endif //SMARTEVSE_VERSION
 
     // Create Task Second Timer (1000ms)
     xTaskCreate(
@@ -5142,22 +5574,10 @@ void setup() {
         NULL            // Task handle
     );
 
-    // Setup WiFi, webserver and firmware OTA
-    // Please be aware that after doing a OTA update, its possible that the active partition is set to OTA1.
-    // Uploading a new firmware through USB will however update OTA0, and you will not notice any changes...
-    WiFiSetup();
-
-    // Set eModbus LogLevel to 1, to suppress possible E5 errors
-    MBUlogLvl = LOG_LEVEL_CRITICAL;
-    ConfigureModbusMode(255);
-  
     BacklightTimer = BACKLIGHT;
     GLCD_init();
 
-    CP_ON;           // CP signal ACTIVE
-
-    firmwareUpdateTimer = random(FW_UPDATE_DELAY, 0xffff);
-    //firmwareUpdateTimer = random(FW_UPDATE_DELAY, 120); // DINGO TODO debug max 2 minutes
+    WiFiSetup();
 }
 
 
@@ -5201,11 +5621,16 @@ void loop() {
         //this block is for non-time critical stuff that needs to run approx 1 / second
 
         // a reboot is requested, but we kindly wait until no EV connected
+#if SMARTEVSE_VERSION == 3 //TODO
         if (shouldReboot && State == STATE_A) {                                 //slaves in STATE_C continue charging when Master reboots
+#else  //SMARTEVSE_VERSION
+        if (shouldReboot) {
+#endif //SMARTEVSE_VERSION
             delay(5000);                                                        //give user some time to read any message on the webserver
             ESP.restart();
         }
 
+#if SMARTEVSE_VERSION == 3 //TODO
         // TODO move this to a once a minute loop?
         if (DelayedStartTime.epoch2 && LocalTimeSet) {
             // Compare the times
@@ -5266,6 +5691,7 @@ void loop() {
                 }
             }
         } // AutoUpdate
+#endif //SMARTEVSE_VERSION
         /////end of non-time critical stuff
     }
 
