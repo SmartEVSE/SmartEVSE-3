@@ -770,6 +770,7 @@ void setMode(uint8_t NewMode) {
         preferences.putUChar("Mode", Mode);
         preferences.putULong("DelayedStartTim", DelayedStartTime.epoch2); //epoch2 only needs 4 bytes
         preferences.putULong("DelayedStopTime", DelayedStopTime.epoch2);   //epoch2 only needs 4 bytes
+        preferences.putUShort("DelayedRepeat", DelayedRepeat);
         preferences.end();
     }
 }
@@ -3920,6 +3921,7 @@ void read_settings() {
         WIFImode = preferences.getUChar("WIFImode",WIFI_MODE);
         DelayedStartTime.epoch2 = preferences.getULong("DelayedStartTim", DELAYEDSTARTTIME); //epoch2 is 4 bytes long on arduino; NVS key has reached max size
         DelayedStopTime.epoch2 = preferences.getULong("DelayedStopTime", DELAYEDSTOPTIME);    //epoch2 is 4 bytes long on arduino
+        DelayedRepeat = preferences.getUShort("DelayedRepeat", 0);
         TZinfo = preferences.getString("TimezoneInfo","");
         if (TZinfo != "") {
             setenv("TZ",TZinfo.c_str(),1);
