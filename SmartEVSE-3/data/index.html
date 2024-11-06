@@ -1053,9 +1053,9 @@
                                           Actions:
                                         </div>
                                         <div class="col">
-                                          <button onclick="reboot()" style="width: 100px; display:inline-block;">Reboot</button>
-                                          <button onclick="update()" style="width: 100px; display:inline-block;">Update</button>
-                                          <button onclick="rawData()" style="width: 120px; display:inline-block;">Raw Data</button>
+                                          <button onclick="reboot()" style="width: 100px; display:inline-block;" title="Reboot your device">Reboot</button>
+                                          <button onclick="update()" style="width: 100px; display:inline-block;" title="Update your firmware">Update</button>
+                                          <button onclick="rawData()" style="width: 120px; display:inline-block;" title="Display your settings in JSON format">Raw Data</button>
                                         </div>
                                         <div class="col">
                                           <label for="lcdlock" style="width: 140px; display:inline-block;" title="Lock buttons on LCD screen">LCD Lock</label>
@@ -1104,10 +1104,10 @@
                                         <div class="col">
                                             <button onclick="toggleMqttEdit()" style="display:inline-block;" id="edit_mqtt_button">Edit Settings</button>
                                             <div class="mqtt_settings" style="display:none">
-                                                <label>Host: <input id="mqtt_host"></label>
+                                                <label>Host: <input id="mqtt_host" title="Leave empty to disable MQTT"></label>
                                                 <label>Port: <input id="mqtt_port"></label>
-                                                <label>Username: <input id="mqtt_username"></label>
-                                                <label>Password: <input id="mqtt_password"></label>
+                                                <label>Username: <input id="mqtt_username" title="Leave empty for anonymous MQTT"></label>
+                                                <label>Password: <input id="mqtt_password" title="Leave empty for anonymous MQTT"></label>
                                                 <label>Topic Prefix: <input id="mqtt_topic_prefix"></label>
                                                 <button onclick="configureMqtt()" style="display:inline-block;">Save</button>
                                             </div>
@@ -1129,7 +1129,7 @@
                                             OCPP:
                                         </div>
                                         <div class="col">
-                                          <input type="checkbox" class="form-check-input" id="enable_ocpp" onclick="toggleEnableOcpp()">
+                                          <input type="checkbox" class="form-check-input" id="enable_ocpp" onclick="toggleEnableOcpp()" title="Check to enable connection to a backoffice provider">
                                           <label class="form-check-label" for="enable_ocpp" id="enable_ocpp_label">Enable OCPP</label>
                                           <div id="ocpp_settings" style="display: none;">
                                               <div class="row no-gutters align-items-center" style="margin-top:20px;margin-bottom:10px">
@@ -1140,9 +1140,9 @@
                                                   <div class="h5 mb-0 mr-3 text-gray-800" id="ocpp_ws_status"></div>
                                                 </div>
                                               </div>
-                                              <label>Backend URL: <input id="ocpp_backend_url" class="ui-state-disabled"></label>
-                                              <label>Charge Box Id: <input id="ocpp_cb_id" class="ui-state-disabled"></label>
-                                              <label>Password(optional): <input id="ocpp_auth_key" class="ui-state-disabled"></label>
+                                              <label>Backend URL: <input id="ocpp_backend_url" class="ui-state-disabled" title="Enter URL that your provider provided, up until the last /"></label>
+                                              <label>Charge Box Id: <input id="ocpp_cb_id" class="ui-state-disabled" title="Identifies your charger; enter URL part after the last / of the URL your provider gave you"></label>
+                                              <label>Password(optional): <input id="ocpp_auth_key" class="ui-state-disabled" title="Only necessary for SP2 connections"></label>
                                               <div class="row no-gutters align-items-center" style="margin-top:20px;margin-bottom:10px">
                                                 <div class="col-auto mb-0 mr-3" style="width: 200px">
                                                   <input type="checkbox" class="form-check-input ui-state-disabled" id="ocpp_auto_auth" onclick="toggleEnableOcppAutoAuth()">
