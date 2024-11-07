@@ -42,7 +42,7 @@
 
               let minCurrent=parseInt(data.settings.current_min.toFixed(1));
               let maxCurrent=parseInt(data.settings.current_max.toFixed(1));
-              let lcdlock=parseInt(data.settings.LCDlock);
+              let lcdlock=parseInt(data.settings.lcdlock);
               if (lcdlock)
                 document.getElementById("lcdlock").checked = true;
 
@@ -912,7 +912,7 @@
                     }
                     function toggleLCDlock() {
                       var LCDlockCheckbox = document.getElementById("lcdlock");
-                      $.post( "/settings?LCDlock=" + (LCDlockCheckbox.checked == true ? 1 : 0));
+                      $.post( "/settings?lcdlock=" + (LCDlockCheckbox.checked == true ? 1 : 0));
                     }
                     function toggleEnableOcpp() {
                       var enableOcppCheckbox = document.getElementById("enable_ocpp");
@@ -1057,10 +1057,11 @@
                                           <button onclick="update()" style="width: 100px; display:inline-block;" title="Update your firmware">Update</button>
                                           <button onclick="rawData()" style="width: 120px; display:inline-block;" title="Display your settings in JSON format">Raw Data</button>
                                         </div>
-                                        <div class="col">
+<!--                                        <div class="col">
                                           <label for="lcdlock" style="width: 140px; display:inline-block;" title="Lock buttons on LCD screen">LCD Lock</label>
                                           <input type="checkbox" id="lcdlock" value="lcdlock" onclick="toggleLCDlock()">
                                         </div>
+-->                                        
                                     </div>
                                     <div class="row no-gutters align-items-center with_modem">
                                         <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
