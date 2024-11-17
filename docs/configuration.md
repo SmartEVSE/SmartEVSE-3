@@ -254,6 +254,14 @@ mosquitto_pub  -h ip-of-mosquitto-server -u username -P password -t 'SmartEVSE-x
 ```
 ...where L1 - L3 are the currents in deci-Ampères. So 100 means 10.0A.
 
+Your EVMeter can be fed with:
+```
+mosquitto_pub  -h ip-of-mosquitto-server -u username -P password -t 'SmartEVSE-xxxxx/Set/EVMeter' -m L1:L2:L3:P:E
+```
+...where L1 - L3 are the currents in deci-Ampères. So 100 means 10.0A.
+...where P is the Power in W,
+...where E is the Energy in Wh.
+
 You can find test scripts in the test directory that feed EV and MainsMeter data to your MQTT server.
 
 # Multiple SmartEVSE controllers on one mains supply (Power Share)
@@ -325,24 +333,3 @@ For further details, please refer to [serkri#215](https://github.com/serkri/Smar
 * Beyond existing limits (Mains, MaxCircuit), the charging current will be controlled to ensure that the total of all Mains phase currents does not exceed the Capacity setting.
 * If you are unfamiliar with this setting or do not fall under the applicable regulations, it is advisable to keep the setting at its default setting. (disabled)
 
-# Building the firmware
-You can get the latest release off of https://github.com/dingo35/SmartEVSE-3.5/releases, but if you want to build it yourself:
-* Install platformio-core https://docs.platformio.org/en/latest/core/installation/methods/index.html
-* Clone this github project, cd to the smartevse directory where platformio.ini is located
-* Compile firmware.bin: `platformio run` (or `pio run`)
-
-For versions older than v3.6.0, build the spiffs filesystem:
-* Compile spiffs.bin: `platformio run -t buildfs`
-
-If you are not using the webserver /update endpoint to upload the firmware:
-* Windows users: install USB drivers https://www.silabs.com/de...o-uart-bridge-vcp-drivers
-* Upload (flash) via USB configured in platformio.ini: `platformio run --target upload`
-* Upload spiffs.bin: `platformio run --target uploadfs` (not required for current versions)
-
-# I think I bricked my SmartEVSE
-Luckily, there are no known instances of people who bricked their SmartEVSE.
-But if all else fails, connect your SmartEVSE via USB-C to your laptop and follow the instruction https://github.com/dingo35/SmartEVSE-3.5/issues/79
-
-Another tool can be found here: https://github.com/marcelstoer/nodemcu-pyflasher
-
-Remember to flash to both partitions, `0x10000` and `0x1c0000` !!!

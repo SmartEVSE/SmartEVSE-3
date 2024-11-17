@@ -52,3 +52,4 @@ After updating the firmware, you can access the status page again using the norm
 [Hardware installation](docs/installation.md)<br>
 [Configuration](docs/configuration.md)<br>
 [Operation](docs/operation.md)<br>
+[Building and Flashing the firmware](docs/building_flashing.md)<br>
