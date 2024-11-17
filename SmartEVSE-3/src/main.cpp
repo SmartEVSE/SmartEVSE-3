@@ -5333,12 +5333,6 @@ void setup() {
     }
     
 
-    firmwareUpdateTimer = random(FW_UPDATE_DELAY, 0xffff);
-    //firmwareUpdateTimer = random(FW_UPDATE_DELAY, 120); // DINGO TODO debug max 2 minutes
-    // Set eModbus LogLevel to 1, to suppress possible E5 errors
-    MBUlogLvl = LOG_LEVEL_CRITICAL;
-    ConfigureModbusMode(255);
-    CP_ON;           // CP signal ACTIVE
 #else //SMARTEVSE_VERSION
     uint8_t writeValue;
     uint8_t readValue;
@@ -5596,10 +5590,22 @@ void setup() {
         NULL            // Task handle
     );
 
+    WiFiSetup();
+
+#if SMARTEVSE_VERSION == 3
+    // Set eModbus LogLevel to 1, to suppress possible E5 errors
+    MBUlogLvl = LOG_LEVEL_CRITICAL;
+    ConfigureModbusMode(255);
+#endif
+
     BacklightTimer = BACKLIGHT;
     GLCD_init();
 
-    WiFiSetup();
+#if SMARTEVSE_VERSION == 3
+    CP_ON;           // CP signal ACTIVE
+#endif
+
+    firmwareUpdateTimer = random(FW_UPDATE_DELAY, 0xffff);
 }
 
 
