@@ -69,8 +69,10 @@ public:
         default_opts.qos = 0;
         default_opts.retain = false;
     }
+    void disconnect(void) { mg_mqtt_disconnect(s_conn, &default_opts); };
 #else
     void connect(void);
+    void disconnect(void) { esp_mqtt_client_stop(client); };
 #endif
     void publish(const String &topic, const int32_t &payload, bool retained, int qos) { publish(topic, String(payload), retained, qos); };
     void publish(const String &topic, const String &payload, bool retained, int qos);
