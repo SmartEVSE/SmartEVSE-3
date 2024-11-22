@@ -12,8 +12,26 @@ cd SmartEVSE-3.5/SmartEVSE
 pio run
 ```
 
+To enable the telnet server that allows you to online view the debug logs, add the compile flag like this:
+```
+PLATFORMIO_BUILD_FLAGS='-DDBG=1' pio run
+```
+
+Other compile flags:
+* DDBG=0 : no logging (default)
+* DDBG=2 : log via USB-C connector
+* DMIN_CURRENT=5 ; decrease minimum allowed current from 6A to 5A ----> THIS IS NOT FOLLOWING THE PROTOCOLS SO AT YOUR OWN RISK !!!
+
 For versions older than v3.6.0, build the spiffs filesystem:
 * Compile spiffs.bin: `pio run -t buildfs`
+
+If you get all kinds of mongoose compile errors (mg_....), that means that your python environment is not installed correctly.
+If you execute:
+```
+python packfs.py
+```
+this should generate a fresh src/packed_fs.c file.
+
 
 # Flashing the firmware
 1. Almost always, even when your webserver seems not to be working, the http://ipaddress/update link will be working;
