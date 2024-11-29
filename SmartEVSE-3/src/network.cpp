@@ -670,7 +670,19 @@ void setTimeZone(void * parameter) {
     // lookup current timezone
     httpClient.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
     httpClient.begin("http://worldtimeapi.org/api/ip");
-    int httpCode = httpClient.GET();  //Make the request
+    int httpCode, i;
+    for (i=0; i<15; i++) {
+        httpCode = httpClient.GET();  //Make the request
+        // only handle 200/301, fail on everything else
+        if ( httpCode != HTTP_CODE_OK && httpCode != HTTP_CODE_MOVED_PERMANENTLY ) { //fail
+            //httpClient.end();
+            _LOG_A("Error on HTTP request (httpCode=%i), try=%i.\n", httpCode, i);
+            delay(1000);
+            //httpClient.begin("http://worldtimeapi.org/api/ip");
+        } else {
+            break;
+        }
+    }
 
     // only handle 200/301, fail on everything else
     if( httpCode != HTTP_CODE_OK && httpCode != HTTP_CODE_MOVED_PERMANENTLY ) {
