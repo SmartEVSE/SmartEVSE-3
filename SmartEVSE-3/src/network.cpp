@@ -659,6 +659,14 @@ void RunFirmwareUpdate(void) {
 
 void setTimeZone(void * parameter) {
     HTTPClient httpClient;
+    //we use lambda function because normal function collides with HTTPClient class
+    auto onErrorCloseTask = [&httpClient]() {
+        _LOG_A("Could not detect timezone, set it to CEST and retry next reboot.\n");
+        setenv("TZ","CET-1CEST,M3.5.0,M10.5.0/3",1);                            // CEST tzinfo string
+        tzset();
+        httpClient.end();
+        vTaskDelete(NULL);                                                      //end this task so it will not take up resources
+    };
     // lookup current timezone
     httpClient.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
     httpClient.begin("http://worldtimeapi.org/api/ip");
@@ -667,8 +675,7 @@ void setTimeZone(void * parameter) {
     // only handle 200/301, fail on everything else
     if( httpCode != HTTP_CODE_OK && httpCode != HTTP_CODE_MOVED_PERMANENTLY ) {
         _LOG_A("Error on HTTP request (httpCode=%i)\n", httpCode);
-        httpClient.end();
-        vTaskDelete(NULL);                                                          //end this task so it will not take up resources
+        onErrorCloseTask();
     }
 
     // The filter: it contains "true" for each value we want to keep
@@ -676,16 +683,16 @@ void setTimeZone(void * parameter) {
     filter["timezone"] = true;
     DynamicJsonDocument doc2(80);
     DeserializationError error = deserializeJson(doc2, httpClient.getStream(), DeserializationOption::Filter(filter));
-    httpClient.end();
     if (error) {
         _LOG_A("deserializeJson() failed: %s\n", error.c_str());
-        vTaskDelete(NULL);                                                          //end this task so it will not take up resources
+        onErrorCloseTask();
     }
     String tzname = doc2["timezone"];
     if (tzname == "") {
         _LOG_A("Could not detect Timezone.\n");
-        vTaskDelete(NULL);                                                          //end this task so it will not take up resources
+        onErrorCloseTask();
     }
+    httpClient.end();
     _LOG_A("Timezone detected: tz=%s.\n", tzname.c_str());
 
     // takes TZname (format: Europe/Berlin) , gets TZ_INFO (posix string, format: CET-1CEST,M3.5.0,M10.5.0/3) and sets and stores timezonestring accordingly
@@ -699,10 +706,9 @@ void setTimeZone(void * parameter) {
 
     // only handle 200/301, fail on everything else
     if( httpCode != HTTP_CODE_OK && httpCode != HTTP_CODE_MOVED_PERMANENTLY ) {
-        _LOG_A("Error on HTTP request (httpCode=%i)\n", httpCode);
-        httpClient.end();
+        _LOG_A("Error on zones.csv HTTP request (httpCode=%i)\n", httpCode);
         FREE(URL);
-        vTaskDelete(NULL);                                                          //end this task so it will not take up resources
+        onErrorCloseTask();
     }
 
     stream = httpClient.getStreamPtr();
@@ -720,6 +726,11 @@ void setTimeZone(void * parameter) {
             }
             break;
         }
+    }
+    if (TZinfo == "") {
+        _LOG_A("Could not find TZname %s in zones.csv.\n", tzname.c_str());
+        FREE(URL);
+        onErrorCloseTask();
     }
     httpClient.end();
     FREE(URL);
