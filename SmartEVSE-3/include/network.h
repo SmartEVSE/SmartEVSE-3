@@ -109,7 +109,6 @@ extern void network_loop(void);
 extern String APhostname;
 extern webServerRequest* request;
 extern struct mg_mgr mgr;
-extern String TZinfo;
 extern uint8_t WIFImode;
 extern char *downloadUrl;
 extern uint32_t serialnr;

@@ -1337,7 +1337,6 @@ void WiFiSetup(void) {
     WiFi.setAutoReconnect(true);                                                //actually does nothing since this is the default value
     //WiFi.persistent(true);
     WiFi.onEvent(onWifiEvent);
-    handleWIFImode();                                                           //go into the mode that was saved in nonvolatile memory
 
     // Init and get the time
     // First option to get time from local ntp server blocks the second fallback option since 2021:
@@ -1356,10 +1355,12 @@ void WiFiSetup(void) {
 #endif
 
     if (preferences.begin("settings", false) ) {
-#if MQTT == 0
-        preferences.end();
-    }
-#else
+        TZinfo = preferences.getString("TimezoneInfo","");
+        if (TZinfo != "") {
+            setenv("TZ",TZinfo.c_str(),1);
+            tzset();
+        }
+#if MQTT == 1
         MQTTpassword = preferences.getString("MQTTpassword");
         MQTTuser = preferences.getString("MQTTuser");
 #ifdef SENSORBOX_VERSION
@@ -1369,14 +1370,16 @@ void WiFiSetup(void) {
 #endif
         MQTTHost = preferences.getString("MQTTHost", "");
         MQTTPort = preferences.getUShort("MQTTPort", 1883);
+#endif //MQTT
         preferences.end();
     }
 
-#if MQTT_ESP == 1
+    handleWIFImode();                                                           //go into the mode that was saved in nonvolatile memory
+
+#if MQTT ==1 && MQTT_ESP == 1
     MQTTclient.connect();
 #endif
 
-#endif //MQTT
 }
 
 
