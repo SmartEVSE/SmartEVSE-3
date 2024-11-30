@@ -2224,7 +2224,39 @@ void CheckSwitch(bool force = false)
 
 }
 
+#if SMARTEVSE_VERSION == 3
+void getButtonState() {
+    // Sample the three < o > buttons.
+    // As the buttons are shared with the SPI lines going to the LCD,
+    // we have to make sure that this does not interfere by write actions to the LCD.
+    // Therefore updating the LCD is also done in this task.
 
+    pinMatrixOutDetach(PIN_LCD_SDO_B3, false, false);       // disconnect MOSI pin
+    pinMode(PIN_LCD_SDO_B3, INPUT);
+    pinMode(PIN_LCD_A0_B2, INPUT);
+    // sample buttons                                       < o >
+    if (digitalRead(PIN_LCD_SDO_B3)) ButtonState = 4;       // > (right)
+    else ButtonState = 0;
+    if (digitalRead(PIN_LCD_A0_B2)) ButtonState |= 2;       // o (middle)
+    if (digitalRead(PIN_IO0_B1)) ButtonState |= 1;          // < (left)
+
+    pinMode(PIN_LCD_SDO_B3, OUTPUT);
+    pinMatrixOutAttach(PIN_LCD_SDO_B3, VSPID_IN_IDX, false, false); // re-attach MOSI pin
+    pinMode(PIN_LCD_A0_B2, OUTPUT);
+}
+#else
+void getButtonState() {
+    // Sample the three < o > buttons.
+
+    pinMode(LCD_A0_B2, INPUT_PULLUP);                   // Switch the shared pin for the middle button to input
+    if (digitalRead(BUTTON3)) ButtonState = 4;          // > (right)
+    else ButtonState = 0;
+    // sample the middle button
+    if (digitalRead(LCD_A0_B2)) ButtonState |= 2;       // o (middle)
+    pinMode(LCD_A0_B2, OUTPUT);                         // switch pin back to output
+    if (digitalRead(BUTTON1)) ButtonState |= 1;         // < (left)
+}
+#endif
 
 #if SMARTEVSE_VERSION == 3
 // Task that handles EVSE State Changes
@@ -2239,25 +2271,7 @@ void Timer10ms(void * parameter) {
     // infinite loop
     while(1) { 
     
-        
-        // Sample the three < o > buttons.
-        // As the buttons are shared with the SPI lines going to the LCD,
-        // we have to make sure that this does not interfere by write actions to the LCD.
-        // Therefore updating the LCD is also done in this task.
-
-        pinMatrixOutDetach(PIN_LCD_SDO_B3, false, false);       // disconnect MOSI pin
-        pinMode(PIN_LCD_SDO_B3, INPUT);
-        pinMode(PIN_LCD_A0_B2, INPUT);
-        // sample buttons                                       < o >
-        if (digitalRead(PIN_LCD_SDO_B3)) ButtonState = 4;       // > (right)
-        else ButtonState = 0;
-        if (digitalRead(PIN_LCD_A0_B2)) ButtonState |= 2;       // o (middle)
-        if (digitalRead(PIN_IO0_B1)) ButtonState |= 1;          // < (left)
-
-        pinMode(PIN_LCD_SDO_B3, OUTPUT);
-        pinMatrixOutAttach(PIN_LCD_SDO_B3, VSPID_IN_IDX, false, false); // re-attach MOSI pin
-        pinMode(PIN_LCD_A0_B2, OUTPUT);
-
+        getButtonState();
 
         // When one or more button(s) are pressed, we call GLCDMenu
         if (((ButtonState != 0x07) || (ButtonState != OldButtonState)) && !LCDlock) GLCDMenu(ButtonState);
@@ -2479,15 +2493,7 @@ uint8_t State = 0, NewState = 0;
     while(1) {
 
 
-        // Sample the three < o > buttons.
-
-        pinMode(LCD_A0_B2, INPUT_PULLUP);                   // Switch the shared pin for the middle button to input
-        if (digitalRead(BUTTON3)) ButtonState = 4;          // > (right)
-        else ButtonState = 0;
-        // sample the middle button
-        if (digitalRead(LCD_A0_B2)) ButtonState |= 2;       // o (middle)
-        pinMode(LCD_A0_B2, OUTPUT);                         // switch pin back to output
-        if (digitalRead(BUTTON1)) ButtonState |= 1;         // < (left)
+        getButtonState();
 
         if (timeinfo.tm_sec != old_sec) {
             old_sec = timeinfo.tm_sec;
@@ -5524,18 +5530,16 @@ void setup() {
     read_settings();                                                            // initialize with default data when starting for the first time
     validate_settings();
     ReadRFIDlist();                                                             // Read all stored RFID's from storage
- 
+
+    getButtonState();
+/*     * @param Buttons: < o >
+ *          Value: 1 2 4
+ *            Bit: 0:Pressed / 1:Released         */
     // Sample middle+right button, and lock/unlock LCD buttons.
-    pinMatrixOutDetach(PIN_LCD_SDO_B3, false, false);                           // disconnect MOSI pin
-    pinMode(PIN_LCD_SDO_B3, INPUT);
-    pinMode(PIN_LCD_A0_B2, INPUT);
-    if ((digitalRead(PIN_LCD_A0_B2) == 0) && (digitalRead(PIN_LCD_SDO_B3) == 0)) {
+    if (ButtonState == 1) {
         LCDlock = !LCDlock;
         write_settings();
-    }    
-    pinMode(PIN_LCD_SDO_B3, OUTPUT);
-    pinMatrixOutAttach(PIN_LCD_SDO_B3, VSPID_IN_IDX, false, false);             // re-attach MOSI pin
-    pinMode(PIN_LCD_A0_B2, OUTPUT);
+    }
 
     // Create Task EVSEStates, that handles changes in the CP signal
     xTaskCreate(
