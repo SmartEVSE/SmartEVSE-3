@@ -258,7 +258,6 @@ uint8_t OldButtonState = 0x0f;                                              // H
 uint8_t LCDNav = 0;
 uint8_t SubMenu = 0;
 uint32_t ScrollTimer = 0;
-uint8_t LCDupdate = 0;                                                      // flag to update the LCD every 1000ms
 uint8_t ChargeDelay = 0;                                                    // Delays charging at least 60 seconds in case of not enough current available.
 uint8_t C1Timer = 0;
 uint8_t ModemStage = 0;                                                     // 0: Modem states will be executed when Modem is enabled 1: Modem stages will be skipped, as SoC is already extracted
@@ -2258,16 +2257,23 @@ void getButtonState() {
 }
 #endif
 
-#if SMARTEVSE_VERSION == 3
 // Task that handles EVSE State Changes
 // Reads buttons, and updates the LCD.
 //
 // called every 10ms
 void Timer10ms(void * parameter) {
-
+    uint16_t old_sec = 0;
+#if SMARTEVSE_VERSION == 3
     uint8_t DiodeCheck = 0; 
     uint16_t StateTimer = 0;                                                 // When switching from State B to C, make sure pilot is at 6v for 100ms 
-
+#else
+    uint8_t RXbyte, idx = 0;
+    char SerialBuf[256];
+    uint8_t CommState = COMM_VER_REQ;
+    uint8_t CommTimeout = 0;
+    char *ret;
+    uint8_t State = 0, NewState = 0;
+#endif
     // infinite loop
     while(1) { 
     
@@ -2279,6 +2285,12 @@ void Timer10ms(void * parameter) {
         // Update/Show Helpmenu
         if (LCDNav > MENU_ENTER && LCDNav < MENU_EXIT && (ScrollTimer + 5000 < millis() ) && (!SubMenu)) GLCDHelp();
 
+        if (timeinfo.tm_sec != old_sec) {
+            old_sec = timeinfo.tm_sec;
+            GLCD();
+        }
+
+#if SMARTEVSE_VERSION == 3
         // Check the external switch and RCM sensor
         CheckSwitch();
 
@@ -2461,45 +2473,8 @@ void Timer10ms(void * parameter) {
             } else StateTimer = 0;
     
         } // end of State C code
-
-        // update LCD (every 1000ms) when not in the setup menu
-        if (LCDupdate) {
-            // This is also the ideal place for debug messages that should not be printed every 10ms
-            //_LOG_A("EVSEStates task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
-            GLCD();
-            LCDupdate = 0;
-        }    
       
-        // Pause the task for 10ms
-        vTaskDelay(10 / portTICK_PERIOD_MS);
-    } // while(1) loop
-}
 #else //SMARTEVSE_VERSION
-// Task that handles EVSE State Changes
-// Reads buttons, and updates the LCD.
-//
-// called every 10ms
-void Timer10ms(void * parameter) {
-
-uint16_t old_sec = 0;
-uint8_t RXbyte, idx = 0;
-char SerialBuf[256];
-uint8_t CommState = COMM_VER_REQ;
-uint8_t CommTimeout = 0;
-char *ret;
-uint8_t State = 0, NewState = 0;
-
-   // infinite loop
-    while(1) {
-
-
-        getButtonState();
-
-        if (timeinfo.tm_sec != old_sec) {
-            old_sec = timeinfo.tm_sec;
-            GLCD();
-
-        }
 
         if (Serial1.available()) {
             //Serial.printf("[<-] ");        // Data available from mainboard?
@@ -2588,20 +2563,12 @@ uint8_t State = 0, NewState = 0;
 
         if (CommTimeout) CommTimeout--;
 
-        // When one or more button(s) are pressed, we call GLCDMenu
-        if ((ButtonState != 0x07) || (ButtonState != OldButtonState)) GLCDMenu(ButtonState);
-
-        // Update/Show Helpmenu
-        if (LCDNav > MENU_ENTER && LCDNav < MENU_EXIT && (ScrollTimer + 5000 < millis() ) && (!SubMenu)) GLCDHelp();
+#endif //SMARTEVSE_VERSION
 
         // Pause the task for 10ms
         vTaskDelay(10 / portTICK_PERIOD_MS);
     } // while(1) loop
-
 }
-
-
-#endif //SMARTEVSE_VERSION
 
 /**
  * Send Energy measurement request over modbus
@@ -3495,9 +3462,6 @@ void Timer1S(void * parameter) {
             setStatePowerUnavailable();
             ChargeDelay = CHARGEDELAY;                                      // Set Chargedelay
         }
-
-        // set flag to update the LCD once every second
-        LCDupdate = 1;
 
         // Every two seconds request measurement data from sensorbox/kwh meters.
         // and send broadcast to Node controllers.

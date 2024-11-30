@@ -404,7 +404,6 @@ extern uint16_t BacklightTimer;                                                 
 extern uint8_t ButtonState;                                                     // Holds latest push Buttons state (LSB 2:0)
 extern uint8_t OldButtonState;                                                  // Holds previous push Buttons state (LSB 2:0)
 extern uint8_t LCDNav;
-extern uint8_t LCDupdate;
 extern uint8_t SubMenu;
 extern uint32_t ScrollTimer;
 extern uint8_t ChargeDelay;                                                     // Delays charging in seconds.
