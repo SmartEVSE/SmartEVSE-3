@@ -1261,7 +1261,7 @@ void CalcBalancedCurrent(char mod) {
             IsetBalanced = ActiveEVSE * MinCurrent * 10;                        // retain old software behaviour: set minimal "MinCurrent" charge per active EVSE
             if (Mode == MODE_SOLAR) {
                 // ----------- Check to see if we have to continue charging on solar power alone ----------
-                if (ActiveEVSE && StopTime && (IsumImport > 0)) {
+                if (ActiveEVSE && StopTime && IsumImport > 0 && Isum > ((uint16_t)MinCurrent - (uint16_t)StartCurrent) * 10) {
                     //TODO maybe enable solar switching for loadbl = 1
                     if (EnableC2 == AUTO && LoadBl == 0)
                         Set_Nr_of_Phases_Charging();
