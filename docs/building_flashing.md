@@ -26,6 +26,13 @@ For versions older than v3.6.0, build the spiffs filesystem:
 * Compile spiffs.bin: `pio run -t buildfs`
 
 If you get all kinds of mongoose compile errors (mg_....), that means that your python environment is not installed correctly.
+Usually a link from python python3 solves the problem:
+```
+whereis python3
+cd /usr/bin
+sudo ln -s /usr/bin/python3 /usr/bin/python
+```
+
 If you execute:
 ```
 python packfs.py
