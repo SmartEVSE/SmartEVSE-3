@@ -2519,9 +2519,9 @@ void Timer10ms(void * parameter) {
             //  [<-] Pilot:6,State:0,ChargeDelay:0,Error:0,Temp:34,Lock:0,Mode:0,Access:1
             if (ret != NULL) {
                 int hit = sscanf(SerialBuf, "Pilot:%u,State:%u,ChargeDelay:%u,Error:%u,Temp:%i,Lock:%u,Mode:%u, Access:%u", &pilot, &State, &ChargeDelay, &ErrorFlags, &TempEVSE, &Lock, &Mode, &Access_bit);
-                if (hit != 8)
+                if (hit != 8) {
                     _LOG_A("ERROR parsing line from WCH, hit=%i, line=%s.\n", hit, SerialBuf);
-                else {
+                } else {
                     _LOG_A("DINGO: pilot=%u, State=%u, ChargeDelay=%u, ErrorFlags = %u, TempEVSE=%i, Lock=%u, Mode=%u, Access_bit=%i.\n", pilot, State,ChargeDelay, ErrorFlags, TempEVSE, Lock, Mode, Access_bit);
                 }
             }
@@ -5474,9 +5474,15 @@ void setup() {
     }
     readValue = readValue & 0x7f;
 
-    if (readValue == SUPERCAP) _LOG_D("RTC: Charging capacitor.\n");
-    else if (readValue == BATTERY) _LOG_D("RTC: Battery configured.\n");
-    else _LOG_A("RTC: capacitor not Charging!\n");
+    if (readValue == SUPERCAP) {
+        _LOG_D("RTC: Charging capacitor.\n");
+    } else {
+        if (readValue == BATTERY) {
+            _LOG_D("RTC: Battery configured.\n");
+        } else {
+            _LOG_A("RTC: capacitor not Charging!\n");
+        }
+    }
 
     rtc.andOrRegister(CONTROL1_REGISTER_ADDRESS, 0xf7, 0x00); // re-activate 24H EEprom refresh
 
