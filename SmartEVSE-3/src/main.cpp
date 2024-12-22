@@ -334,6 +334,150 @@ unsigned long OcppLastTxNotification;
 #endif //ENABLE_OCPP
 
 
+//constructor
+Button::Button(void) {
+    // in case of a press button, we do nothing
+    // in case of a toggle switch, we have to check the switch position since it might have been changed
+    // since last powerup
+    //     0            1          2           3           4            5              6          7
+    // "Disabled", "Access B", "Access S", "Sma-Sol B", "Sma-Sol S", "Grid Relay", "Custom B", "Custom S"
+    if (Switch == 2 || Switch == 4 || Switch == 7) {
+        CheckSwitch();
+    }
+}
+
+
+#ifndef SMARTEVSE_VERSION //CH32 version
+void Button::HandleSwitch(void) {
+    printf("ExtSwitch:%1u.\n", Pressed);
+}
+#else //v3 and v4
+void Button::HandleSwitch(void) {
+    if (Pressed) {
+        // Switch input pulled low
+        switch (Switch) {
+            case 1: // Access Button
+                setAccess(!Access_bit);                             // Toggle Access bit on/off
+                _LOG_I("Access: %d\n", Access_bit);
+                break;
+            case 2: // Access Switch
+                setAccess(true);
+                break;
+            case 3: // Smart-Solar Button or hold button for 1,5 second to STOP charging
+                if (millis() > TimeOfToggle + 1500) {
+                    if (State == STATE_C) {
+                        setState(STATE_C1);
+                        if (!TestState) ChargeDelay = 15;           // Keep in State B for 15 seconds, so the Charge cable can be removed.
+                    }
+                }
+                break;
+            case 4: // Smart-Solar Switch
+                if (Mode == MODE_SOLAR) {
+                    setMode(MODE_SMART);
+                }
+                break;
+            case 5: // Grid relay
+                GridRelayOpen = false;
+                break;
+            case 6: // Custom button B
+                CustomButton = !CustomButton;
+                break;
+            case 7: // Custom button S
+                CustomButton = true;
+                break;
+            default:
+                if (State == STATE_C) {                             // Menu option Access is set to Disabled
+                    setState(STATE_C1);
+                    if (!TestState) ChargeDelay = 15;               // Keep in State B for 15 seconds, so the Charge cable can be removed.
+                }
+                break;
+        }
+
+        // Reset RCM error when button is pressed
+        // RCM was tripped, but RCM level is back to normal
+        if (RCmon == 1 && (ErrorFlags & RCM_TRIPPED) && digitalRead(PIN_RCM_FAULT) == LOW) {
+            // Clear RCM error
+            ErrorFlags &= ~RCM_TRIPPED;
+        }
+        // Also light up the LCD backlight
+        // BacklightTimer = BACKLIGHT;                                 // Backlight ON
+
+    } else {
+        // Switch input released
+        switch (Switch) {
+            case 2: // Access Switch
+                setAccess(false);
+                break;
+            case 3: // Smart-Solar Button
+                if (millis() < TimeOfToggle + 1500) {
+                    if (Mode == MODE_SMART) {
+                        setMode(MODE_SOLAR);
+                    } else if (Mode == MODE_SOLAR) {
+                        setMode(MODE_SMART);
+                    }
+                    ErrorFlags &= ~(NO_SUN | LESS_6A);                   // Clear All errors
+                    ChargeDelay = 0;                                // Clear any Chargedelay
+                    setSolarStopTimer(0);                           // Also make sure the SolarTimer is disabled.
+                    MaxSumMainsTimer = 0;
+                    LCDTimer = 0;
+                }
+                break;
+            case 4: // Smart-Solar Switch
+                if (Mode == MODE_SMART) setMode(MODE_SOLAR);
+                break;
+            case 5: // Grid relay
+                GridRelayOpen = true;
+                break;
+            case 6: // Custom button B
+                break;
+            case 7: // Custom button S
+                CustomButton = false;
+                break;
+            default:
+                break;
+        }
+    }
+}
+#endif
+
+void Button::CheckSwitch(void) {
+#if SMARTEVSE_VERSION == 3
+    uint8_t Read = digitalRead(PIN_SW_IN);
+#endif
+#ifndef SMARTEVSE_VERSION //CH32
+    uint8_t Read = funDigitalRead(SW_IN) && funDigitalRead(BUT_SW_IN);          // BUT_SW_IN = LED pushbutton, SW_IN = 12pin plug at bottom
+#endif
+
+#if SMARTEVSE_VERSION != 4   //this code executed in CH32V, not in ESP32
+    static uint8_t RB2count = 0, RB2last = 1;
+    // External switch changed state?
+    if (Read != RB2last) {
+        // make sure that noise on the input does not switch
+        if (RB2count++ > 10) {
+            RB2last = Read;
+            Pressed = !RB2last;
+            TimeOfToggle = millis();
+            HandleSwitch();
+            RB2count = 0;
+        }
+    } else RB2count = 0;
+#endif
+#ifdef SMARTEVSE_VERSION //both v3 and v4
+    // Residual current monitor active, and DC current > 6mA ?
+    if (RCmon == 1 && digitalRead(PIN_RCM_FAULT) == HIGH) {
+        delay(1);
+        // check again, to prevent voltage spikes from tripping the RCM detection
+        if (digitalRead(PIN_RCM_FAULT) == HIGH) {
+            if (State) setState(STATE_B1);
+            ErrorFlags = RCM_TRIPPED;
+            LCDTimer = 0;                                                   // display the correct error message on the LCD
+        }
+    }
+#endif
+}
+
+Button ExtSwitch;
+
 #if SMARTEVSE_VERSION == 3
 // Some low level stuff here to setup the ADC, and perform the conversion.
 //
@@ -2103,133 +2247,6 @@ void CalcIsum(void) {
 }
 
 
-// CheckSwitch (SW input)
-//
-void CheckSwitch(bool force = false)
-{
-    static uint8_t RB2count = 0, RB2last = 2, RB2low = 0;
-    static unsigned long RB2Timer = 0;                                                 // 1500ms
-
-    if (force)                                                                  // force to read switch position
-        RB2last = 2;
-
-    if ((RB2last == 2) && (Switch == 1 || Switch == 3))                         // upon initialization we want the toggle switch to be read
-        RB2last = 1;                                                            // but not the push buttons, because this would toggle the state
-                                                                                // upon reboot
-    // External switch changed state?
-    if ( (digitalRead(PIN_SW_IN) != RB2last) || RB2low) {
-        // make sure that noise on the input does not switch
-        if (RB2count++ > 20 || RB2low) {
-            RB2last = digitalRead(PIN_SW_IN);
-            if (RB2last == 0) {
-                // Switch input pulled low
-                switch (Switch) {
-                    case 1: // Access Button
-                        setAccess(!Access_bit);                             // Toggle Access bit on/off
-                        _LOG_I("Access: %d\n", Access_bit);
-                        break;
-                    case 2: // Access Switch
-                        setAccess(true);
-                        break;
-                    case 3: // Smart-Solar Button or hold button for 1,5 second to STOP charging
-                        if (RB2low == 0) {
-                            RB2low = 1;
-                            RB2Timer = millis();
-                        }
-                        if (RB2low && millis() > RB2Timer + 1500) {
-                            if (State == STATE_C) {
-                                setState(STATE_C1);
-                                if (!TestState) ChargeDelay = 15;           // Keep in State B for 15 seconds, so the Charge cable can be removed.
-                            RB2low = 2;
-                            }
-                        }
-                        break;
-                    case 4: // Smart-Solar Switch
-                        if (Mode == MODE_SOLAR) {
-                            setMode(MODE_SMART);
-                        }
-                        break;
-                    case 5: // Grid relay
-                        GridRelayOpen = false;
-                        break;
-                    case 6: // Custom button B
-                        CustomButton = !CustomButton;
-                        break;
-                    case 7: // Custom button S
-                        CustomButton = true;
-                        break;                                                
-                    default:
-                        if (State == STATE_C) {                             // Menu option Access is set to Disabled
-                            setState(STATE_C1);
-                            if (!TestState) ChargeDelay = 15;               // Keep in State B for 15 seconds, so the Charge cable can be removed.
-                        }
-                        break;
-                }
-
-                // Reset RCM error when button is pressed
-                // RCM was tripped, but RCM level is back to normal
-                if (RCmon == 1 && (ErrorFlags & RCM_TRIPPED) && digitalRead(PIN_RCM_FAULT) == LOW) {
-                    // Clear RCM error
-                    ErrorFlags &= ~RCM_TRIPPED;
-                }
-                // Also light up the LCD backlight
-                // BacklightTimer = BACKLIGHT;                                 // Backlight ON
-
-            } else {
-                // Switch input released
-                switch (Switch) {
-                    case 2: // Access Switch
-                        setAccess(false);
-                        break;
-                    case 3: // Smart-Solar Button
-                        if (RB2low != 2) {
-                            if (Mode == MODE_SMART) {
-                                setMode(MODE_SOLAR);
-                            } else if (Mode == MODE_SOLAR) {
-                                setMode(MODE_SMART);
-                            }
-                            ErrorFlags &= ~(NO_SUN | LESS_6A);                   // Clear All errors
-                            ChargeDelay = 0;                                // Clear any Chargedelay
-                            setSolarStopTimer(0);                           // Also make sure the SolarTimer is disabled.
-                            MaxSumMainsTimer = 0;
-                            LCDTimer = 0;
-                        }
-                        RB2low = 0;
-                        break;
-                    case 4: // Smart-Solar Switch
-                        if (Mode == MODE_SMART) setMode(MODE_SOLAR);
-                        break;
-                    case 5: // Grid relay
-                        GridRelayOpen = true;
-                        break;
-                    case 6: // Custom button B
-                        break;
-                    case 7: // Custom button S
-                        CustomButton = false;
-                        break;                          
-                    default:
-                        break;
-                }
-            }
-
-            RB2count = 0;
-        }
-    } else RB2count = 0;
-
-    // Residual current monitor active, and DC current > 6mA ?
-    if (RCmon == 1 && digitalRead(PIN_RCM_FAULT) == HIGH) {                   
-        delay(1);
-        // check again, to prevent voltage spikes from tripping the RCM detection
-        if (digitalRead(PIN_RCM_FAULT) == HIGH) {                           
-            if (State) setState(STATE_B1);
-            ErrorFlags = RCM_TRIPPED;
-            LCDTimer = 0;                                                   // display the correct error message on the LCD
-        }
-    }
-
-
-}
-
 #if SMARTEVSE_VERSION == 3
 void getButtonState() {
     // Sample the three < o > buttons.
@@ -2297,10 +2314,10 @@ void Timer10ms(void * parameter) {
             GLCD();
         }
 
-#if SMARTEVSE_VERSION == 3
         // Check the external switch and RCM sensor
-        CheckSwitch();
+        ExtSwitch.CheckSwitch();
 
+#if SMARTEVSE_VERSION == 3
         // sample the Pilot line
         pilot = Pilot();
 
@@ -2507,6 +2524,13 @@ void Timer10ms(void * parameter) {
                 else {
                     _LOG_A("DINGO: pilot=%u, State=%u, ChargeDelay=%u, ErrorFlags = %u, TempEVSE=%i, Lock=%u, Mode=%u, Access_bit=%i.\n", pilot, State,ChargeDelay, ErrorFlags, TempEVSE, Lock, Mode, Access_bit);
                 }
+            }
+
+            char token[] = "ExtSwitch:";
+            ret = strstr(SerialBuf, token);
+            if (ret != NULL) {
+                ExtSwitch.Pressed = atoi(ret+strlen(token));
+                ExtSwitch.HandleSwitch();
             }
 
             ret = strstr(SerialBuf, "version:");

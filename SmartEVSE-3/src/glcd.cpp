@@ -87,6 +87,7 @@ uint8_t MenuItems[MENU_EXIT];
 extern void CheckSwitch(bool force = false);
 extern void handleWIFImode(void *s  = &Serial);
 extern char SmartConfigKey[16];
+extern Button ExtSwitch;
 
 #if SMARTEVSE_VERSION == 3
 
@@ -1259,10 +1260,10 @@ void GLCDMenu(uint8_t Buttons) {
                             value = MenuNavInt(Buttons, value, MenuStr[LCDNav].Min, MenuStr[LCDNav].Max);
                         } while (LoadBl >=2 && value == 5);                     // do not allow GridRelay on Slave
                         setItemValue(LCDNav, value);
-                        if (value == 5)
-                            CheckSwitch(true);
-                        else
+                        if (value != 5)
                             GridRelayOpen = false;                              // so we don't have limiting current when not on GridRelay
+                        //on Toggle switches we want to read the existing switch position, so we re-call the constructor:
+                        ExtSwitch = Button();                                   //this recreates ExtSwitch object, thus calling the constructor
                         break;
                     default:
                         value = MenuNavInt(Buttons, value, MenuStr[LCDNav].Min, MenuStr[LCDNav].Max);

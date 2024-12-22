@@ -721,4 +721,15 @@ struct rtcTime {
 } ;
 
 #endif //SMARTEVSE_VERSION
+
+class Button {
+  public:
+    bool Pressed;                                                               // when io = low key is pressed
+    uint32_t TimeOfToggle;                                                      // the time when the button or switch was pressed or released or toggled
+    void CheckSwitch(void);
+    void HandleSwitch(void);
+    // constructor
+    Button(void);
+};
+
 #endif
