@@ -1052,7 +1052,11 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
             }
         } else if (mg_http_match_uri(hm, "/reboot")) {
             shouldReboot = true;
-            mg_http_reply(c, 200, "", "Rebooting....");
+#ifndef SMARTEVSE_VERSION //sensorbox
+            mg_http_reply(c, 200, "", "Rebooting after 5s....");
+#else
+            mg_http_reply(c, 200, "", "Rebooting 5s after EV disconnect....");
+#endif
         } else if (mg_http_match_uri(hm, "/settings") && !memcmp("POST", hm->method.buf, hm->method.len)) {
             DynamicJsonDocument doc(64);
 #if MQTT
