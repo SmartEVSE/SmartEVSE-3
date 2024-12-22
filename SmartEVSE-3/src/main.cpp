@@ -341,9 +341,7 @@ Button::Button(void) {
     // since last powerup
     //     0            1          2           3           4            5              6          7
     // "Disabled", "Access B", "Access S", "Sma-Sol B", "Sma-Sol S", "Grid Relay", "Custom B", "Custom S"
-    if (Switch == 2 || Switch == 4 || Switch == 7) {
-        CheckSwitch();
-    }
+    CheckSwitch(true);
 }
 
 
@@ -363,13 +361,7 @@ void Button::HandleSwitch(void) {
             case 2: // Access Switch
                 setAccess(true);
                 break;
-            case 3: // Smart-Solar Button or hold button for 1,5 second to STOP charging
-                if (millis() > TimeOfToggle + 1500) {
-                    if (State == STATE_C) {
-                        setState(STATE_C1);
-                        if (!TestState) ChargeDelay = 15;           // Keep in State B for 15 seconds, so the Charge cable can be removed.
-                    }
-                }
+            case 3: // Smart-Solar Button
                 break;
             case 4: // Smart-Solar Switch
                 if (Mode == MODE_SOLAR) {
@@ -409,12 +401,15 @@ void Button::HandleSwitch(void) {
                 setAccess(false);
                 break;
             case 3: // Smart-Solar Button
-                if (millis() < TimeOfToggle + 1500) {
+                if (handling_longpress) {
+                    handling_longpress = false;
+                } else {
                     if (Mode == MODE_SMART) {
                         setMode(MODE_SOLAR);
                     } else if (Mode == MODE_SOLAR) {
                         setMode(MODE_SMART);
                     }
+                    //TODO isnt all this stuff done in setMode?
                     ErrorFlags &= ~(NO_SUN | LESS_6A);                   // Clear All errors
                     ChargeDelay = 0;                                // Clear any Chargedelay
                     setSolarStopTimer(0);                           // Also make sure the SolarTimer is disabled.
@@ -440,7 +435,7 @@ void Button::HandleSwitch(void) {
 }
 #endif
 
-void Button::CheckSwitch(void) {
+void Button::CheckSwitch(bool force = false) {
 #if SMARTEVSE_VERSION == 3
     uint8_t Read = digitalRead(PIN_SW_IN);
 #endif
@@ -449,7 +444,15 @@ void Button::CheckSwitch(void) {
 #endif
 
 #if SMARTEVSE_VERSION != 4   //this code executed in CH32V, not in ESP32
-    static uint8_t RB2count = 0, RB2last = 1;
+    static uint8_t RB2count = 0, RB2last = 2;
+
+    if (force)                                                                  // force to read switch position
+        RB2last = 2;
+
+    if ((RB2last == 2) && (Switch == 1 || Switch == 3 || Switch == 6))          // upon initialization we want the toggle switch to be read
+        RB2last = 1;                                                            // but not the push buttons, because this would toggle the state
+                                                                                // upon reboot
+
     // External switch changed state?
     if (Read != RB2last) {
         // make sure that noise on the input does not switch
@@ -460,9 +463,20 @@ void Button::CheckSwitch(void) {
             HandleSwitch();
             RB2count = 0;
         }
-    } else RB2count = 0;
+    } else { // no change in key....
+        RB2count = 0;
+        //TODO howto do this in v4 / CH32?
+        if (Pressed && Switch == 3 && millis() > TimeOfToggle + 150) {
+            if (State == STATE_C) {
+                setState(STATE_C1);
+                if (!TestState) ChargeDelay = 15;                               // Keep in State B for 15 seconds, so the Charge cable can be removed.
+                handling_longpress = true;                                      // to prevent switching SMA/SOL on button release
+            }
+        }
+    }
 #endif
 #ifdef SMARTEVSE_VERSION //both v3 and v4
+    // TODO This piece of code doesnt really belong in CheckSwitch but should be called every 10ms
     // Residual current monitor active, and DC current > 6mA ?
     if (RCmon == 1 && digitalRead(PIN_RCM_FAULT) == HIGH) {
         delay(1);
@@ -2530,6 +2544,7 @@ void Timer10ms(void * parameter) {
             ret = strstr(SerialBuf, token);
             if (ret != NULL) {
                 ExtSwitch.Pressed = atoi(ret+strlen(token));
+                ExtSwitch.TimeOfToggle = millis();
                 ExtSwitch.HandleSwitch();
             }
 
