@@ -820,7 +820,7 @@ void GLCD(void) {
                                                                                 // If current flow is < 0.3A don't show the blob
 
         if (EVMeter.Type) {                                                     // If we have a EV kWh meter configured, Show total charged energy in kWh on LCD.
-            sprintfl(Str, "%2u.%1ukWh", EVMeter.EnergyCharged, 3, 1);           // Will reset to 0.0kWh when charging cable reconnected, and state change from STATE B->C
+            sprintfl(Str, "%2d.%1dkWh", EVMeter.EnergyCharged, 3, 1);           // Will reset to 0.0kWh when charging cable reconnected, and state change from STATE B->C
             GLCD_write_buf_str(89, 1, Str,GLCD_ALIGN_LEFT);                     // print to buffer
         }
 
@@ -843,9 +843,9 @@ void GLCD(void) {
 
             if (LCDToggle && EVMeter.Type) {
                 if (EVMeter.PowerMeasured < 9950) {
-                    sprintfl(Str, "%1u.%1ukW", EVMeter.PowerMeasured, 3, 1);
+                    sprintfl(Str, "%1d.%1dkW", EVMeter.PowerMeasured, 3, 1);
                 } else {
-                    sprintfl(Str, "%ukW", EVMeter.PowerMeasured, 3, 0);
+                    sprintfl(Str, "%dkW", EVMeter.PowerMeasured, 3, 0);
                 }
             } else {
                 sprintfl(Str, "%uA", Balanced[0], 1, 0);
@@ -922,14 +922,14 @@ void GLCD(void) {
                     break;
                 case 3:
                     if (EVMeter.Type) {
-                        sprintfl(Str, "%u.%01u kW", EVMeter.PowerMeasured, 3, 1);
+                        sprintfl(Str, "%d.%01d kW", EVMeter.PowerMeasured, 3, 1);
                         GLCD_print_buf2(5, Str);
                         break;
                     } else LCDText++;
                     // fall through
                 case 4:
                     if (EVMeter.Type) {
-                        sprintfl(Str, "%u.%02u kWh", EVMeter.EnergyCharged, 3, 2);
+                        sprintfl(Str, "%d.%02d kWh", EVMeter.EnergyCharged, 3, 2);
                         GLCD_print_buf2(5, Str);
                         break;
                     } else LCDText++;
