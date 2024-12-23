@@ -916,26 +916,6 @@ void setState(uint8_t NewState) {
     // BacklightTimer = BACKLIGHT;                                                 // Backlight ON
 }
 
-void setAccess(bool Access) {
-    Access_bit = Access;
-    if (Access == 0) {
-        //TODO:setStatePowerUnavailable() ?
-        if (State == STATE_C) setState(STATE_C1);                               // Determine where to switch to.
-        else if (State != STATE_C1 && (State == STATE_B || State == STATE_MODEM_REQUEST || State == STATE_MODEM_WAIT || State == STATE_MODEM_DONE || State == STATE_MODEM_DENIED)) setState(STATE_B1);
-    }
-
-    //make mode and start/stoptimes persistent on reboot
-    if (preferences.begin("settings", false) ) {                        //false = write mode
-        preferences.putUChar("Access", Access_bit);
-        preferences.putUShort("CardOffs16", CardOffset);
-        preferences.end();
-    }
-
-#if MQTT
-    // Update MQTT faster
-    lastMqttUpdate = 10;
-#endif
-}
 
 /**
  * Returns the known battery charge rate if the data is not too old.
@@ -2382,12 +2362,19 @@ void Timer10ms(void * parameter) {
                 }
             }
 
-            char token[] = "ExtSwitch:";
+            char token[64];
+            strncpy(token, "ExtSwitch:", sizeof(token));
             ret = strstr(SerialBuf, token);
             if (ret != NULL) {
                 ExtSwitch.Pressed = atoi(ret+strlen(token));
                 ExtSwitch.TimeOfPress = millis();
                 ExtSwitch.HandleSwitch();
+            }
+
+            strncpy(token, "Access:", sizeof(token));
+            ret = strstr(SerialBuf, token);
+            if (ret != NULL) {
+                setAccess(atoi(ret+strlen(token)));
             }
 
             ret = strstr(SerialBuf, "version:");

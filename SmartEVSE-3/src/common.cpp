@@ -37,6 +37,7 @@
 #include <esp_adc_cal.h>
 
 #include <soc/rtc_io_struct.h>
+extern Preferences preferences;
 #else //CH32
 #define EXT extern "C"
 extern "C" {
@@ -222,3 +223,44 @@ void Button::CheckSwitch(bool force) {
 }
 
 Button ExtSwitch;
+
+// the Access_bit is owned by the ESP32
+// because it is highly subject to human interaction
+// and also its status is supposed to get saved in NVS
+// so if the CH32 wants to change that variable,
+// it sends a message to the ESP32
+// and if the change is honored, the ESP32 sends an update
+// to the CH32 through the ConfigItem routine
+// So the receiving code of the CH32 is the only routine that
+// is allowed to change the value of Acces_bit on CH32
+// All other code has to use setAccess
+
+#ifndef SMARTEVSE_VERSION //CH32 version
+void setAccess(bool Access) {
+    printf("Access:%1u.\n", Access);
+}
+#else //v3 and v4
+void setAccess(bool Access) {
+    Access_bit = Access;
+#if SMARTEVSE_VERSION == 4
+    Serial1.printf("Access:%u\n", Access_bit);
+#endif
+    if (Access == 0) {
+        //TODO:setStatePowerUnavailable() ?
+        if (State == STATE_C) setState(STATE_C1);                               // Determine where to switch to.
+        else if (State != STATE_C1 && (State == STATE_B || State == STATE_MODEM_REQUEST || State == STATE_MODEM_WAIT || State == STATE_MODEM_DONE || State == STATE_MODEM_DENIED)) setState(STATE_B1);
+    }
+
+    //make mode and start/stoptimes persistent on reboot
+    if (preferences.begin("settings", false) ) {                        //false = write mode
+        preferences.putUChar("Access", Access_bit);
+        preferences.putUShort("CardOffs16", CardOffset);
+        preferences.end();
+    }
+
+#if MQTT
+    // Update MQTT faster
+    lastMqttUpdate = 10;
+#endif //MQTT
+}
+#endif //SMARTEVSE_VERSION
