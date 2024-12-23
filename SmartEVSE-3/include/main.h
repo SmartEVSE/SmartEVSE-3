@@ -707,8 +707,6 @@ bool ocppLockingTxDefined();
 
 extern struct tm timeinfo;
 
-#include <stdint.h>
-#include "debug.h"
 
 struct rtcTime {
     uint8_t Status;
