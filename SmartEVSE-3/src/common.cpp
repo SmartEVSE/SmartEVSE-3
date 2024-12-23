@@ -134,9 +134,7 @@ void Button::HandleSwitch(void) {
                 setAccess(false);
                 break;
             case 3: // Smart-Solar Button
-                if (handling_longpress) {
-                    handling_longpress = false;
-                } else {
+                if (millis() < TimeOfPress + 1500) {                            // short press
                     if (Mode == MODE_SMART) {
                         setMode(MODE_SOLAR);
                     } else if (Mode == MODE_SOLAR) {
@@ -192,18 +190,18 @@ void Button::CheckSwitch(bool force) {
         if (RB2count++ > 10) {
             RB2last = Read;
             Pressed = !RB2last;
-            TimeOfToggle = millis();
+            if (Pressed)
+                TimeOfPress = millis();
             HandleSwitch();
             RB2count = 0;
         }
     } else { // no change in key....
         RB2count = 0;
         //TODO howto do this in v4 / CH32?
-        if (Pressed && Switch == 3 && millis() > TimeOfToggle + 150) {
+        if (Pressed && Switch == 3 && millis() > TimeOfPress + 1500) {
             if (State == STATE_C) {
                 setState(STATE_C1);
                 if (!TestState) ChargeDelay = 15;                               // Keep in State B for 15 seconds, so the Charge cable can be removed.
-                handling_longpress = true;                                      // to prevent switching SMA/SOL on button release
             }
         }
     }

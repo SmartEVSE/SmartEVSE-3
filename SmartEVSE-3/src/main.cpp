@@ -2386,7 +2386,7 @@ void Timer10ms(void * parameter) {
             ret = strstr(SerialBuf, token);
             if (ret != NULL) {
                 ExtSwitch.Pressed = atoi(ret+strlen(token));
-                ExtSwitch.TimeOfToggle = millis();
+                ExtSwitch.TimeOfPress = millis();
                 ExtSwitch.HandleSwitch();
             }
 

@@ -11,14 +11,13 @@
 
 class Button {
   public:
-    bool Pressed;                                                               // when io = low key is pressed
-    uint32_t TimeOfToggle;                                                      // the time when the button or switch was pressed or released or toggled
     void CheckSwitch(bool force = false);
+    bool Pressed;                                                               // when io = low key is pressed
+    uint32_t TimeOfPress;                                                       // we need the time when the button or switch was pressed to detect longpress
     void HandleSwitch(void);
+
     // constructor
     Button(void);
-  private:
-    bool handling_longpress = false;
 };
 
 extern Button ExtSwitch;
