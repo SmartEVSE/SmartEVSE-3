@@ -10,6 +10,7 @@
 #include "stdio.h"
 
 #ifdef SMARTEVSE_VERSION //ESP32
+#define EXT extern
 #include <ArduinoJson.h>
 #include <SPI.h>
 #include <Preferences.h>
@@ -37,18 +38,13 @@
 
 #include <soc/rtc_io_struct.h>
 #else //CH32
+#define EXT extern "C"
 extern "C" {
     #include "ch32v003fun.h"
     #include "utils.h"
 }
 #endif
 
-
-#ifdef __cplusplus
-#define EXT extern
-#else
-#define EXT extern "C"
-#endif
 
 // gateway to the outside world
 EXT uint32_t elapsedmax, elapsedtime;
