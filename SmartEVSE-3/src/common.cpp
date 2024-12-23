@@ -5,7 +5,6 @@
  * #ifndef SMARTEVSE_VERSION   //CH32 code
  */
 
-//TODO check if this is necessary in v3/v4:
 #ifdef SMARTEVSE_VERSION
 #include <ArduinoJson.h>
 #include <SPI.h>
@@ -54,8 +53,7 @@ extern "C" {
 EXT uint32_t elapsedmax, elapsedtime;
 EXT int8_t TempEVSE;
 EXT uint16_t SolarStopTimer, MaxCapacity, MainsCycleTime, MaxSumMainsTimer;
-EXT uint8_t RFID[8], Access_bit, Mode, Lock, ErrorFlags, ChargeDelay, State, LoadBl, PilotDisconnectTime, AccessTimer, ActivationMode, ActivationTimer, RFIDReader, C1Timer, UnlockCable, LockCable, RxRdy1, MainsMeterTimeout, PilotDisconnected, ModbusRxLen, PowerPanicFlag, Switch, RCmon;
-EXT uint8_t TestState;
+EXT uint8_t RFID[8], Access_bit, Mode, Lock, ErrorFlags, ChargeDelay, State, LoadBl, PilotDisconnectTime, AccessTimer, ActivationMode, ActivationTimer, RFIDReader, C1Timer, UnlockCable, LockCable, RxRdy1, MainsMeterTimeout, PilotDisconnected, ModbusRxLen, PowerPanicFlag, Switch, RCmon, TestState;
 EXT bool CustomButton, GridRelayOpen;
 
 #include <string.h>
@@ -63,23 +61,18 @@ extern "C" {
     #include "utils.h"
 }
 
-// TODO can this be placed more strategically?
-#ifndef SMARTEVSE_VERSION //CH32
-extern "C"{
-    void setup();
-    uint8_t Pilot();
-    void setAccess(uint8_t Access);
-    void setState(uint8_t NewState);
-    int8_t TemperatureSensor();
-    void CheckSerialComm(void);
-    uint8_t OneWireReadCardId();
-    void CheckRS485Comm(void);
-    void BlinkLed(void);
-    uint8_t ProximityPin();
-    void PowerPanic(void);
-    //void delay(uint32_t ms);
-}
-#endif
+EXT void setup();
+EXT uint8_t Pilot();
+EXT void setAccess(uint8_t Access);
+EXT void setState(uint8_t NewState);
+EXT int8_t TemperatureSensor();
+EXT void CheckSerialComm(void);
+EXT uint8_t OneWireReadCardId();
+EXT void CheckRS485Comm(void);
+EXT void BlinkLed(void);
+EXT uint8_t ProximityPin();
+EXT void PowerPanic(void);
+EXT //void delay(uint32_t ms);
 
 //constructor
 Button::Button(void) {
