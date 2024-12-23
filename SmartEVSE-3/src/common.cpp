@@ -235,11 +235,7 @@ Button ExtSwitch;
 // is allowed to change the value of Acces_bit on CH32
 // All other code has to use setAccess
 
-#ifndef SMARTEVSE_VERSION //CH32 version
-void setAccess(bool Access) {
-    printf("Access:%1u.\n", Access);
-}
-#else //v3 and v4
+#ifdef SMARTEVSE_VERSION //v3 and v4
 void setAccess(bool Access) {
     Access_bit = Access;
 #if SMARTEVSE_VERSION == 4
