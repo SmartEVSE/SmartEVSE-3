@@ -2351,59 +2351,64 @@ void Timer10ms(void * parameter) {
         if (idx > 5) {
             if (memcmp(SerialBuf, "!Panic", 6) == 0) PowerPanicESP();
 
-            ret = strstr(SerialBuf, "Pilot:");
-            //  [<-] Pilot:6,State:0,ChargeDelay:0,Error:0,Temp:34,Lock:0,Mode:0,Access:1
-            if (ret != NULL) {
-                int hit = sscanf(SerialBuf, "Pilot:%u,State:%u,ChargeDelay:%u,Error:%u,Temp:%i,Lock:%u,Mode:%u, Access:%u", &pilot, &State, &ChargeDelay, &ErrorFlags, &TempEVSE, &Lock, &Mode, &Access_bit);
-                if (hit != 8) {
-                    _LOG_A("ERROR parsing line from WCH, hit=%i, line=%s.\n", hit, SerialBuf);
-                } else {
-                    _LOG_A("DINGO: pilot=%u, State=%u, ChargeDelay=%u, ErrorFlags = %u, TempEVSE=%i, Lock=%u, Mode=%u, Access_bit=%i.\n", pilot, State,ChargeDelay, ErrorFlags, TempEVSE, Lock, Mode, Access_bit);
-                }
-            }
-
             char token[64];
-            strncpy(token, "ExtSwitch:", sizeof(token));
+
+            strncpy(token, "MSG:", sizeof(token));                              // if a command starts with MSG: the rest of the line is no longer parsed
             ret = strstr(SerialBuf, token);
             if (ret != NULL) {
-                ExtSwitch.Pressed = atoi(ret+strlen(token));
-                ExtSwitch.TimeOfPress = millis();
-                ExtSwitch.HandleSwitch();
-            }
+                _LOG_A("WCH %s.\n,", SerialBuf);
+            } else {                                                            // parse the line
+/*                ret = strstr(SerialBuf, "Pilot:");
+                //  [<-] Pilot:6,State:0,ChargeDelay:0,Error:0,Temp:34,Lock:0,Mode:0,Access:1
+                if (ret != NULL) {
+                    int hit = sscanf(SerialBuf, "Pilot:%u,State:%u,ChargeDelay:%u,Error:%u,Temp:%i,Lock:%u,Mode:%u, Access:%u", &pilot, &State, &ChargeDelay, &ErrorFlags, &TempEVSE, &Lock, &Mode, &Access_bit);
+                    if (hit != 8) {
+                        _LOG_A("ERROR parsing line from WCH, hit=%i, line=%s.\n", hit, SerialBuf);
+                    } else {
+                        _LOG_A("DINGO: pilot=%u, State=%u, ChargeDelay=%u, ErrorFlags = %u, TempEVSE=%i, Lock=%u, Mode=%u, Access_bit=%i.\n", pilot, State,ChargeDelay, ErrorFlags, TempEVSE, Lock, Mode, Access_bit);
+                    }
+                }*/
 
-            strncpy(token, "Access:", sizeof(token));
-            ret = strstr(SerialBuf, token);
-            if (ret != NULL) {
-                setAccess(atoi(ret+strlen(token)));
-            }
-
-            ret = strstr(SerialBuf, "version:");
-            if (ret != NULL) {
-                MainVersion = atoi(ret+8);
-                Serial.printf("version %u received\n", MainVersion);
-                CommState = COMM_CONFIG_SET;
-            }
-
-            ret = strstr(SerialBuf, "Config:OK");
-            if (ret != NULL) {
-                Serial.printf("Config set\n");
-                CommState = COMM_STATUS_REQ;
-            }
-
-            ret = strstr(SerialBuf, "State:"); // current State (request) received from Wch
-            if (ret != NULL ) {
-                State = atoi(ret+6);
-
-                if (State == STATE_COMM_B) NewState = STATE_COMM_B_OK;
-                else if (State == STATE_COMM_C) NewState = STATE_COMM_C_OK;
-
-                if (NewState) {    // only send confirmation when state needs to change.
-                    Serial1.printf("WchState:%u\n",NewState );        // send confirmation back to WCH
-                    Serial.printf("[->] WchState:%u\n",NewState );    // send confirmation back to WCH
-                    NewState = 0;
+                strncpy(token, "ExtSwitch:", sizeof(token));
+                ret = strstr(SerialBuf, token);
+                if (ret != NULL) {
+                    ExtSwitch.Pressed = atoi(ret+strlen(token));
+                    ExtSwitch.TimeOfPress = millis();
+                    ExtSwitch.HandleSwitch();
                 }
-            } else {                                                            // unformatted message must be debug message, print it!
-                _LOG_V("WCH message:%s.\n,", SerialBuf);
+
+                strncpy(token, "Access:", sizeof(token));
+                ret = strstr(SerialBuf, token);
+                if (ret != NULL) {
+                    setAccess(atoi(ret+strlen(token)));
+                }
+
+                ret = strstr(SerialBuf, "version:");
+                if (ret != NULL) {
+                    MainVersion = atoi(ret+8);
+                    Serial.printf("version %u received\n", MainVersion);
+                    CommState = COMM_CONFIG_SET;
+                }
+
+                ret = strstr(SerialBuf, "Config:OK");
+                if (ret != NULL) {
+                    Serial.printf("Config set\n");
+                    CommState = COMM_STATUS_REQ;
+                }
+
+                ret = strstr(SerialBuf, "State:"); // current State (request) received from Wch
+                if (ret != NULL ) {
+                    State = atoi(ret+6);
+
+                    if (State == STATE_COMM_B) NewState = STATE_COMM_B_OK;
+                    else if (State == STATE_COMM_C) NewState = STATE_COMM_C_OK;
+
+                    if (NewState) {    // only send confirmation when state needs to change.
+                        Serial1.printf("WchState:%u\n",NewState );        // send confirmation back to WCH
+                        Serial.printf("[->] WchState:%u\n",NewState );    // send confirmation back to WCH
+                        NewState = 0;
+                    }
+                }
             }
             memset(SerialBuf,0,idx);        // Clear buffer
             idx = 0;
