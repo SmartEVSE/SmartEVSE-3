@@ -5,7 +5,11 @@
  * #ifndef SMARTEVSE_VERSION   //CH32 code
  */
 
-#ifdef SMARTEVSE_VERSION
+#include "main.h"
+#include "common.h"
+#include "stdio.h"
+
+#ifdef SMARTEVSE_VERSION //ESP32
 #include <ArduinoJson.h>
 #include <SPI.h>
 #include <Preferences.h>
@@ -32,16 +36,13 @@
 #include <esp_adc_cal.h>
 
 #include <soc/rtc_io_struct.h>
-#endif
-
-#include "main.h"
-#include "common.h"
-#ifndef SMARTEVSE_VERSION //CH32
+#else //CH32
 extern "C" {
     #include "ch32v003fun.h"
+    #include "utils.h"
 }
 #endif
-#include "stdio.h"
+
 
 #ifdef __cplusplus
 #define EXT extern
@@ -56,10 +57,6 @@ EXT uint16_t SolarStopTimer, MaxCapacity, MainsCycleTime, MaxSumMainsTimer;
 EXT uint8_t RFID[8], Access_bit, Mode, Lock, ErrorFlags, ChargeDelay, State, LoadBl, PilotDisconnectTime, AccessTimer, ActivationMode, ActivationTimer, RFIDReader, C1Timer, UnlockCable, LockCable, RxRdy1, MainsMeterTimeout, PilotDisconnected, ModbusRxLen, PowerPanicFlag, Switch, RCmon, TestState;
 EXT bool CustomButton, GridRelayOpen;
 
-#include <string.h>
-extern "C" {
-    #include "utils.h"
-}
 
 EXT void setup();
 EXT uint8_t Pilot();
