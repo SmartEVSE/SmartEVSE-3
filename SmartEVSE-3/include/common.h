@@ -1,9 +1,11 @@
 #ifndef __COMMON
 #define __COMMON
 
-
+#ifdef SMARTEVSE_VERSION //v3 and v4
 #include <Arduino.h>
 #include "debug.h"
+#endif
+
 #include "stdint.h"
 
 
@@ -19,6 +21,6 @@ class Button {
     bool handling_longpress = false;
 };
 
-#endif
-
 extern Button ExtSwitch;
+
+#endif
