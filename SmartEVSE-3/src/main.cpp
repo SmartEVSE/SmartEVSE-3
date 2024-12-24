@@ -203,7 +203,6 @@ uint16_t maxTemp = MAX_TEMPERATURE;
 Meter MainsMeter(MAINS_METER, MAINS_METER_ADDRESS, COMM_TIMEOUT);
 Meter EVMeter(EV_METER, EV_METER_ADDRESS, COMM_EVTIMEOUT);
 uint8_t Nr_Of_Phases_Charging = 0;                                          // 0 = Undetected, 1,2,3 = nr of phases that was detected at the start of this charging session
-Single_Phase_t Switching_To_Single_Phase = FALSE;
 
 uint8_t State = STATE_A;
 uint8_t ErrorFlags = NO_ERROR;

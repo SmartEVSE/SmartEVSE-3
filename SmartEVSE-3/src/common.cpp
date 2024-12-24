@@ -75,6 +75,8 @@ EXT const char * getStateName(uint8_t StateCode);
 EXT void SetCurrent(uint16_t current);
 EXT uint8_t Force_Single_Phase_Charging();
 
+Single_Phase_t Switching_To_Single_Phase = FALSE;
+
 //constructor
 Button::Button(void) {
     // in case of a press button, we do nothing
@@ -291,7 +293,6 @@ void setState(uint8_t NewState) {
 #endif
     }
 
-#ifdef SMARTEVSE_VERSION //v3 and v4
     switch (NewState) {
         case STATE_B1:
             if (!ChargeDelay) ChargeDelay = 3;                                  // When entering State B1, wait at least 3 seconds before switching to another state.
@@ -306,10 +307,13 @@ void setState(uint8_t NewState) {
         case STATE_A:                                                           // State A1
             CONTACTOR1_OFF;
             CONTACTOR2_OFF;
-            SetCPDuty(1024);                                                    // PWM off,  channel 0, duty cycle 100%
 #ifdef SMARTEVSE_VERSION //v3 and v4
+            SetCPDuty(1024);                                                    // PWM off,  channel 0, duty cycle 100%
             timerAlarmWrite(timerA, PWM_100, true);                             // Alarm every 1ms, auto reload
+#else //CH32
+            TIM1->CH1CVR = 1000;                                               // Set CP output to +12V
 #endif
+
             if (NewState == STATE_A) {
                 ErrorFlags &= ~NO_SUN;
                 ErrorFlags &= ~LESS_6A;
@@ -344,6 +348,7 @@ void setState(uint8_t NewState) {
             LeaveModemDoneStateTimer = 5;                                       // Disconnect CP for 5 seconds, restart charging cycle but this time without the modem steps.
 #endif
             break;
+#ifdef SMARTEVSE_VERSION //v3 and v4
         case STATE_B:
 #if MODEM
             CP_ON;
@@ -397,37 +402,6 @@ void setState(uint8_t NewState) {
     // BacklightTimer = BACKLIGHT;                                                 // Backlight ON
 }
 #else //CH32
-//void setState(uint8_t NewState) {
- //   if (State != NewState) {
-        //printf("MSG: [%8lu] STATE %s -> %s\n",millis(), getStateName(State), getStateName(NewState) );
- //   }
-
-    switch (NewState) {
-        case STATE_B1:
-            if (!ChargeDelay) ChargeDelay = 3;                                  // When entering State B1, wait at least 3 seconds before switching to another state.
-
-            if (State != STATE_B1 && State != STATE_B && !PilotDisconnected) {
-                PILOT_DISCONNECTED;
-                PilotDisconnected = 1;
-                PilotDisconnectTime = 5;                                       // Set PilotDisconnectTime to 5 seconds
-
-                printf("Pilot Disconnected\n");
-            }
-            // fall through
-        case STATE_A:                                                           // State A1
-            CONTACTOR1_OFF;
-            CONTACTOR2_OFF;
-            TIM1->CH1CVR = 1000;                                               // Set CP output to +12V
-            if (NewState == STATE_A) {
-                ErrorFlags &= ~NO_SUN;
-                ErrorFlags &= ~LESS_6A;
-                ChargeDelay = 0;
-                // Reset Node
- //               Node[0].IntTimer = 0;
- //               Node[0].Phases = 0;
- //               Node[0].MinCurrent = 0;                                         // Clear ChargeDelay when disconnected.
-            }
-            break;
         case STATE_B:
             CONTACTOR1_OFF;
             CONTACTOR2_OFF;
