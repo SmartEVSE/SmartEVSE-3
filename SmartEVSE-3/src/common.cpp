@@ -50,11 +50,16 @@ extern "C" {
 // gateway to the outside world
 EXT uint32_t elapsedmax, elapsedtime;
 EXT int8_t TempEVSE;
-EXT uint16_t SolarStopTimer, MaxCapacity, MainsCycleTime, MaxSumMainsTimer;
+EXT uint16_t SolarStopTimer, MaxCapacity, MainsCycleTime, MaxSumMainsTimer, ChargeCurrent;
 EXT uint8_t RFID[8], Access_bit, Mode, Lock, ErrorFlags, ChargeDelay, State, LoadBl, PilotDisconnectTime, AccessTimer, ActivationMode, ActivationTimer, RFIDReader, C1Timer, UnlockCable, LockCable, RxRdy1, MainsMeterTimeout, PilotDisconnected, ModbusRxLen, PowerPanicFlag, Switch, RCmon, TestState;
 EXT bool CustomButton, GridRelayOpen;
+#ifdef SMARTEVSE_VERSION //v3 and v4
+EXT hw_timer_t * timerA;
+#endif
+EXT struct Node_t Node[NR_EVSES];
+EXT uint8_t BalancedState[NR_EVSES];
 
-
+//functions
 EXT void setup();
 EXT uint8_t Pilot();
 EXT void setAccess(uint8_t Access);
@@ -66,7 +71,9 @@ EXT void CheckRS485Comm(void);
 EXT void BlinkLed(void);
 EXT uint8_t ProximityPin();
 EXT void PowerPanic(void);
-EXT //void delay(uint32_t ms);
+EXT const char * getStateName(uint8_t StateCode);
+EXT void SetCurrent(uint16_t current);
+EXT uint8_t Force_Single_Phase_Charging();
 
 //constructor
 Button::Button(void) {
@@ -260,3 +267,192 @@ void setAccess(bool Access) {
 #endif //MQTT
 }
 #endif //SMARTEVSE_VERSION
+
+// the State is owned by the CH32
+// because it is highly subject to machine interaction
+// and also charging is supposed to function if ESP32 is hung/rebooted
+// If the CH32 wants to change that variable, it calls setState
+// which sends a message to the ESP32. No other function may change State!
+// If the ESP32 wants to change the State it sends a message to CH32
+// and if the change is honored, the CH32 sends an update
+// to the CH32 through the setState routine
+// So the setState code of the CH32 is the only routine that
+// is allowed to change the value of State on CH32
+// All other code has to use setState
+
+void setState(uint8_t NewState) {
+    if (State != NewState) {
+#ifdef SMARTEVSE_VERSION //v3 and v4
+        char Str[50];
+        snprintf(Str, sizeof(Str), "%02d:%02d:%02d STATE %s -> %s\n",timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec, getStateName(State), getStateName(NewState) );
+        _LOG_A("%s",Str);
+#else //CH32
+        printf("State:%1u.\n", NewState);
+#endif
+    }
+
+#ifdef SMARTEVSE_VERSION //v3 and v4
+    switch (NewState) {
+        case STATE_B1:
+            if (!ChargeDelay) ChargeDelay = 3;                                  // When entering State B1, wait at least 3 seconds before switching to another state.
+            if (State != STATE_B1 && State != STATE_B && !PilotDisconnected) {
+                PILOT_DISCONNECTED;
+                PilotDisconnected = true;
+                PilotDisconnectTime = 5;                                       // Set PilotDisconnectTime to 5 seconds
+
+                _LOG_A("Pilot Disconnected\n");
+            }
+            // fall through
+        case STATE_A:                                                           // State A1
+            CONTACTOR1_OFF;
+            CONTACTOR2_OFF;
+            SetCPDuty(1024);                                                    // PWM off,  channel 0, duty cycle 100%
+#ifdef SMARTEVSE_VERSION //v3 and v4
+            timerAlarmWrite(timerA, PWM_100, true);                             // Alarm every 1ms, auto reload
+#endif
+            if (NewState == STATE_A) {
+                ErrorFlags &= ~NO_SUN;
+                ErrorFlags &= ~LESS_6A;
+                ChargeDelay = 0;
+                Switching_To_Single_Phase = FALSE;
+                // Reset Node
+                Node[0].Timer = 0;
+                Node[0].IntTimer = 0;
+                Node[0].Phases = 0;
+                Node[0].MinCurrent = 0;                                         // Clear ChargeDelay when disconnected.
+            }
+
+#if MODEM
+            if (DisconnectTimeCounter == -1){
+                DisconnectTimeCounter = 0;                                      // Start counting disconnect time. If longer than 60 seconds, throw DisconnectEvent
+            }
+            break;
+        case STATE_MODEM_REQUEST: // After overriding PWM, and resetting the safe state is 10% PWM. To make sure communication recovers after going to normal, we do this. Ugly and temporary
+            ToModemWaitStateTimer = 5;
+            DisconnectTimeCounter = -1;                                         // Disable Disconnect timer. Car is connected
+            SetCPDuty(1024);
+            CONTACTOR1_OFF;
+            CONTACTOR2_OFF;
+            break;
+        case STATE_MODEM_WAIT:
+            SetCPDuty(50);
+            ToModemDoneStateTimer = 60;
+            break;
+        case STATE_MODEM_DONE:  // This state is reached via STATE_MODEM_WAIT after 60s (timeout condition, nothing received) or after REST request (success, shortcut to immediate charging).
+            CP_OFF;
+            DisconnectTimeCounter = -1;                                         // Disable Disconnect timer. Car is connected
+            LeaveModemDoneStateTimer = 5;                                       // Disconnect CP for 5 seconds, restart charging cycle but this time without the modem steps.
+#endif
+            break;
+        case STATE_B:
+#if MODEM
+            CP_ON;
+            DisconnectTimeCounter = -1;                                         // Disable Disconnect timer. Car is connected
+#endif
+            CONTACTOR1_OFF;
+            CONTACTOR2_OFF;
+#ifdef SMARTEVSE_VERSION //v3 and v4
+            timerAlarmWrite(timerA, PWM_95, false);                             // Enable Timer alarm, set to diode test (95%)
+#endif
+            SetCurrent(ChargeCurrent);                                          // Enable PWM
+            break;
+        case STATE_C:                                                           // State C2
+            ActivationMode = 255;                                               // Disable ActivationMode
+
+            if (Switching_To_Single_Phase == GOING_TO_SWITCH) {
+                    CONTACTOR2_OFF;
+                    setSolarStopTimer(0); //TODO still needed? now we switched contactor2 off, review if we need to stop solar charging
+                    MaxSumMainsTimer = 0;
+                    //Nr_Of_Phases_Charging = 1; this will be detected automatically
+                    Switching_To_Single_Phase = AFTER_SWITCH;                   // we finished the switching process,
+                                                                                // BUT we don't know which is the single phase
+            }
+
+            CONTACTOR1_ON;
+            if (!Force_Single_Phase_Charging() && Switching_To_Single_Phase != AFTER_SWITCH) {                               // in AUTO mode we start with 3phases
+                CONTACTOR2_ON;                                                  // Contactor2 ON
+            }
+            LCDTimer = 0;
+            break;
+        case STATE_C1:
+            SetCPDuty(1024);                                                    // PWM off,  channel 0, duty cycle 100%
+#ifdef SMARTEVSE_VERSION //v3 and v4
+            timerAlarmWrite(timerA, PWM_100, true);                             // Alarm every 1ms, auto reload
+#endif                                                                          // EV should detect and stop charging within 3 seconds
+            C1Timer = 6;                                                        // Wait maximum 6 seconds, before forcing the contactor off.
+            ChargeDelay = 15;
+            break;
+        default:
+            break;
+    }
+
+    BalancedState[0] = NewState;
+    State = NewState;
+
+#if MQTT
+    // Update MQTT faster
+    lastMqttUpdate = 10;
+#endif
+
+    // BacklightTimer = BACKLIGHT;                                                 // Backlight ON
+}
+#else //CH32
+//void setState(uint8_t NewState) {
+ //   if (State != NewState) {
+        //printf("MSG: [%8lu] STATE %s -> %s\n",millis(), getStateName(State), getStateName(NewState) );
+ //   }
+
+    switch (NewState) {
+        case STATE_B1:
+            if (!ChargeDelay) ChargeDelay = 3;                                  // When entering State B1, wait at least 3 seconds before switching to another state.
+
+            if (State != STATE_B1 && State != STATE_B && !PilotDisconnected) {
+                PILOT_DISCONNECTED;
+                PilotDisconnected = 1;
+                PilotDisconnectTime = 5;                                       // Set PilotDisconnectTime to 5 seconds
+
+                printf("Pilot Disconnected\n");
+            }
+            // fall through
+        case STATE_A:                                                           // State A1
+            CONTACTOR1_OFF;
+            CONTACTOR2_OFF;
+            TIM1->CH1CVR = 1000;                                               // Set CP output to +12V
+            if (NewState == STATE_A) {
+                ErrorFlags &= ~NO_SUN;
+                ErrorFlags &= ~LESS_6A;
+                ChargeDelay = 0;
+                // Reset Node
+ //               Node[0].IntTimer = 0;
+ //               Node[0].Phases = 0;
+ //               Node[0].MinCurrent = 0;                                         // Clear ChargeDelay when disconnected.
+            }
+            break;
+        case STATE_B:
+            CONTACTOR1_OFF;
+            CONTACTOR2_OFF;
+            SetCurrent(ChargeCurrent);                                          // Enable CP PWM
+            TIM1->CH4CVR = PWM_96;                                              // start ADC sampling at 96% (Diode Check)
+            break;
+        case STATE_C:                                                           // State C2
+            ActivationMode = 255;                                               // Disable ActivationMode
+                CONTACTOR1_ON;                                                  // Contactor1 ON
+                CONTACTOR2_ON;                                                  // Contactor2 ON
+            break;
+        case STATE_C1:
+            TIM1->CH1CVR = 1000;                                                // Set CP output to +12V
+            C1Timer = 6;                                                        // Wait maximum 6 seconds, before forcing the contactor off.
+            ChargeDelay = 15;
+            break;
+        default:
+            break;
+    }
+
+//    BalancedState[0] = NewState;
+    State = NewState;
+//    printf("state set to:%s\n", getStateName(State));
+
+}
+
+#endif //SMARTEVSE_VERSION
+

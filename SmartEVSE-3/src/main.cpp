@@ -223,18 +223,7 @@ uint16_t BalancedMax[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};                  // M
 uint8_t BalancedState[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};                 // State of all EVSE's 0=not active (state A), 1=charge request (State B), 2= Charging (State C)
 uint16_t BalancedError[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};                // Error state of EVSE
 
-struct {
-    uint8_t Online;
-    uint8_t ConfigChanged;
-    uint8_t EVMeter;
-    uint8_t EVAddress;
-    uint8_t MinCurrent;     // 0.1A
-    uint8_t Phases;
-    uint32_t Timer;         // 1s
-    uint32_t IntTimer;      // 1s
-    uint16_t SolarTimer;    // 1s
-    uint8_t Mode;
-} Node[NR_EVSES] = {                                                        // 0: Master / 1: Node 1 ...
+Node_t Node[NR_EVSES] = {                                                        // 0: Master / 1: Node 1 ...
    /*         Config   EV     EV       Min      Used    Charge Interval Solar *          // Interval Time   : last Charge time, reset when not charging
     * Online, Changed, Meter, Address, Current, Phases,  Timer,  Timer, Timer, Mode */   // Min Current     : minimal measured current per phase the EV consumes when starting to charge @ 6A (can be lower then 6A)
     {      1,       0,     0,       0,       0,      0,      0,      0,     0,    0 },   // Used Phases     : detected nr of phases when starting to charge (works with configured EVmeter meter, and might work with sensorbox)
@@ -806,114 +795,6 @@ void setStatePowerUnavailable(void) {
     //State changes between x1 and x2 indicate availability (x2) of unavailability (x1) of power supply to the EV
     if (State == STATE_C) setState(STATE_C1);                       // If we are charging, tell EV to stop charging
     else if (State != STATE_C1) setState(STATE_B1);                 // If we are not in State C1, switch to State B1
-}
-
-void setState(uint8_t NewState) {
-    if (State != NewState) {
-        char Str[50];
-        snprintf(Str, sizeof(Str), "%02d:%02d:%02d STATE %s -> %s\n",timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec, getStateName(State), getStateName(NewState) );
-
-        _LOG_A("%s",Str);
-    }
-
-    switch (NewState) {
-        case STATE_B1:
-            if (!ChargeDelay) ChargeDelay = 3;                                  // When entering State B1, wait at least 3 seconds before switching to another state.
-            if (State != STATE_B1 && State != STATE_B && !PilotDisconnected) {
-                PILOT_DISCONNECTED;
-                PilotDisconnected = true;
-                PilotDisconnectTime = 5;                                       // Set PilotDisconnectTime to 5 seconds
-
-                _LOG_A("Pilot Disconnected\n");
-            }
-            // fall through
-        case STATE_A:                                                           // State A1
-            CONTACTOR1_OFF;  
-            CONTACTOR2_OFF;  
-            SetCPDuty(1024);                                                    // PWM off,  channel 0, duty cycle 100%
-            timerAlarmWrite(timerA, PWM_100, true);                             // Alarm every 1ms, auto reload 
-            if (NewState == STATE_A) {
-                ErrorFlags &= ~NO_SUN;
-                ErrorFlags &= ~LESS_6A;
-                ChargeDelay = 0;
-                Switching_To_Single_Phase = FALSE;
-                // Reset Node
-                Node[0].Timer = 0;
-                Node[0].IntTimer = 0;
-                Node[0].Phases = 0;
-                Node[0].MinCurrent = 0;                                         // Clear ChargeDelay when disconnected.
-            }
-
-#if MODEM
-            if (DisconnectTimeCounter == -1){
-                DisconnectTimeCounter = 0;                                      // Start counting disconnect time. If longer than 60 seconds, throw DisconnectEvent
-            }
-            break;
-        case STATE_MODEM_REQUEST: // After overriding PWM, and resetting the safe state is 10% PWM. To make sure communication recovers after going to normal, we do this. Ugly and temporary
-            ToModemWaitStateTimer = 5;
-            DisconnectTimeCounter = -1;                                         // Disable Disconnect timer. Car is connected
-            SetCPDuty(1024);
-            CONTACTOR1_OFF;
-            CONTACTOR2_OFF;
-            break;
-        case STATE_MODEM_WAIT: 
-            SetCPDuty(50);
-            ToModemDoneStateTimer = 60;
-            break;
-        case STATE_MODEM_DONE:  // This state is reached via STATE_MODEM_WAIT after 60s (timeout condition, nothing received) or after REST request (success, shortcut to immediate charging).
-            CP_OFF;
-            DisconnectTimeCounter = -1;                                         // Disable Disconnect timer. Car is connected
-            LeaveModemDoneStateTimer = 5;                                       // Disconnect CP for 5 seconds, restart charging cycle but this time without the modem steps.
-#endif
-            break;
-        case STATE_B:
-#if MODEM
-            CP_ON;
-            DisconnectTimeCounter = -1;                                         // Disable Disconnect timer. Car is connected
-#endif
-            CONTACTOR1_OFF;
-            CONTACTOR2_OFF;
-            timerAlarmWrite(timerA, PWM_95, false);                             // Enable Timer alarm, set to diode test (95%)
-            SetCurrent(ChargeCurrent);                                          // Enable PWM
-            break;      
-        case STATE_C:                                                           // State C2
-            ActivationMode = 255;                                               // Disable ActivationMode
-
-            if (Switching_To_Single_Phase == GOING_TO_SWITCH) {
-                    CONTACTOR2_OFF;
-                    setSolarStopTimer(0); //TODO still needed? now we switched contactor2 off, review if we need to stop solar charging
-                    MaxSumMainsTimer = 0;
-                    //Nr_Of_Phases_Charging = 1; this will be detected automatically
-                    Switching_To_Single_Phase = AFTER_SWITCH;                   // we finished the switching process,
-                                                                                // BUT we don't know which is the single phase
-            }
-
-            CONTACTOR1_ON;
-            if (!Force_Single_Phase_Charging() && Switching_To_Single_Phase != AFTER_SWITCH) {                               // in AUTO mode we start with 3phases
-                CONTACTOR2_ON;                                                  // Contactor2 ON
-            }
-            LCDTimer = 0;
-            break;
-        case STATE_C1:
-            SetCPDuty(1024);                                                    // PWM off,  channel 0, duty cycle 100%
-            timerAlarmWrite(timerA, PWM_100, true);                             // Alarm every 1ms, auto reload 
-                                                                                // EV should detect and stop charging within 3 seconds
-            C1Timer = 6;                                                        // Wait maximum 6 seconds, before forcing the contactor off.
-            ChargeDelay = 15;
-            break;
-        default:
-            break;
-    }
-    
-    BalancedState[0] = NewState;
-    State = NewState;
-
-#if MQTT
-    // Update MQTT faster
-    lastMqttUpdate = 10;
-#endif
-
-    // BacklightTimer = BACKLIGHT;                                                 // Backlight ON
 }
 
 
@@ -2399,7 +2280,7 @@ void Timer10ms(void * parameter) {
                 ret = strstr(SerialBuf, "State:"); // current State (request) received from Wch
                 if (ret != NULL ) {
                     State = atoi(ret+6);
-
+/*
                     if (State == STATE_COMM_B) NewState = STATE_COMM_B_OK;
                     else if (State == STATE_COMM_C) NewState = STATE_COMM_C_OK;
 
@@ -2407,7 +2288,7 @@ void Timer10ms(void * parameter) {
                         Serial1.printf("WchState:%u\n",NewState );        // send confirmation back to WCH
                         Serial.printf("[->] WchState:%u\n",NewState );    // send confirmation back to WCH
                         NewState = 0;
-                    }
+                    }*/
                 }
             }
             memset(SerialBuf,0,idx);        // Clear buffer
