@@ -148,7 +148,7 @@ uint16_t MaxSumMains = MAX_SUMMAINS;                                        // M
                                                                             // see https://github.com/serkri/SmartEVSE-3/issues/215
                                                                             // 0 means disabled, allowed value 10 - 600 A
 uint8_t MaxSumMainsTime = MAX_SUMMAINSTIME;                                 // Number of Minutes we wait when MaxSumMains is exceeded, before we stop charging
-uint16_t MaxSumMainsTimer = 0;
+extern uint16_t MaxSumMainsTimer;
 uint16_t GridRelayMaxSumMains = GRID_RELAY_MAX_SUMMAINS;                    // Max Mains Amps summed over all 3 phases, switched by relay provided by energy provider
                                                                             // Meant to obey par 14a of Energy Industry Act, where the provider can switch a device
                                                                             // down to 4.2kW by a relay connected to the "switch" connectors.
@@ -238,7 +238,7 @@ Node_t Node[NR_EVSES] = {                                                       
 uint8_t lock1 = 0, lock2 = 1;
 uint16_t BacklightTimer = 0;                                                // Backlight timer (sec)
 uint8_t BacklightSet = 0;
-uint8_t LCDTimer = 0;
+extern uint8_t LCDTimer;
 uint8_t AccessTimer = 0;
 int8_t TempEVSE = 0;                                                        // Temperature EVSE in deg C (-50 to +125)
 uint8_t ButtonState = 0x0f;                                                 // Holds latest push Buttons state (LSB 3:0)
@@ -2012,7 +2012,6 @@ void Timer10ms(void * parameter) {
     uint8_t CommState = COMM_VER_REQ;
     uint8_t CommTimeout = 0;
     char *ret;
-    uint8_t State = 0, NewState = 0;
 #endif
     // infinite loop
     while(1) { 
@@ -2989,21 +2988,6 @@ void mqttPublishData() {
         MQTTclient.publish(MQTTprefix + "/LEDColorCustom", String(ColorCustom[0])+","+String(ColorCustom[1])+","+String(ColorCustom[2]), true, 0);
 }
 #endif
-
-
-/**
- * Set the solar stop timer
- *
- * @param unsigned int Timer (seconds)
- */
-void setSolarStopTimer(uint16_t Timer) {
-    if (SolarStopTimer == Timer)
-        return;                                                             // prevent unnecessary publishing of SolarStopTimer
-    SolarStopTimer = Timer;
-#if MQTT
-    MQTTclient.publish(MQTTprefix + "/SolarStopTimer", SolarStopTimer, false, 0);
-#endif
-}
 
 
 // task 1000msTimer

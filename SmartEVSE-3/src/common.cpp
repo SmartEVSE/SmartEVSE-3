@@ -50,7 +50,7 @@ extern "C" {
 // gateway to the outside world
 EXT uint32_t elapsedmax, elapsedtime;
 EXT int8_t TempEVSE;
-EXT uint16_t SolarStopTimer, MaxCapacity, MainsCycleTime, MaxSumMainsTimer, ChargeCurrent;
+EXT uint16_t SolarStopTimer, MaxCapacity, MainsCycleTime, ChargeCurrent;
 EXT uint8_t RFID[8], Access_bit, Mode, Lock, ErrorFlags, ChargeDelay, State, LoadBl, PilotDisconnectTime, AccessTimer, ActivationMode, ActivationTimer, RFIDReader, C1Timer, UnlockCable, LockCable, RxRdy1, MainsMeterTimeout, PilotDisconnected, ModbusRxLen, PowerPanicFlag, Switch, RCmon, TestState;
 EXT bool CustomButton, GridRelayOpen;
 #ifdef SMARTEVSE_VERSION //v3 and v4
@@ -76,6 +76,8 @@ EXT void SetCurrent(uint16_t current);
 EXT uint8_t Force_Single_Phase_Charging();
 
 Single_Phase_t Switching_To_Single_Phase = FALSE;
+uint16_t MaxSumMainsTimer = 0;
+uint8_t LCDTimer = 0;
 
 //constructor
 Button::Button(void) {
@@ -276,6 +278,22 @@ void setAccess(bool Access) { //c
 }
 #endif //SMARTEVSE_VERSION
 
+
+/**
+ * Set the solar stop timer
+ *
+ * @param unsigned int Timer (seconds)
+ */
+void setSolarStopTimer(uint16_t Timer) {
+    if (SolarStopTimer == Timer)
+        return;                                                             // prevent unnecessary publishing of SolarStopTimer
+    SolarStopTimer = Timer;
+#if MQTT
+    MQTTclient.publish(MQTTprefix + "/SolarStopTimer", SolarStopTimer, false, 0);
+#endif
+}
+
+
 // State is owned by the CH32
 // because it is highly subject to machine interaction
 // and also charging is supposed to function if ESP32 is hung/rebooted
@@ -365,7 +383,6 @@ void setState(uint8_t NewState) { //c
             LeaveModemDoneStateTimer = 5;                                       // Disconnect CP for 5 seconds, restart charging cycle but this time without the modem steps.
 #endif
             break;
-#ifdef SMARTEVSE_VERSION //v3 and v4
         case STATE_B:
 #if MODEM
             CP_ON;
@@ -377,6 +394,9 @@ void setState(uint8_t NewState) { //c
             timerAlarmWrite(timerA, PWM_95, false);                             // Enable Timer alarm, set to diode test (95%)
 #endif
             SetCurrent(ChargeCurrent);                                          // Enable PWM
+#ifndef SMARTEVSE_VERSION //CH32
+            TIM1->CH4CVR = PWM_96;                                              // start ADC sampling at 96% (Diode Check)
+#endif
             break;
         case STATE_C:                                                           // State C2
             ActivationMode = 255;                                               // Disable ActivationMode
@@ -397,10 +417,12 @@ void setState(uint8_t NewState) { //c
             LCDTimer = 0;
             break;
         case STATE_C1:
-            SetCPDuty(1024);                                                    // PWM off,  channel 0, duty cycle 100%
 #ifdef SMARTEVSE_VERSION //v3
+            SetCPDuty(1024);                                                    // PWM off,  channel 0, duty cycle 100%
             timerAlarmWrite(timerA, PWM_100, true);                             // Alarm every 1ms, auto reload
-#endif                                                                          // EV should detect and stop charging within 3 seconds
+#else //CH32                                                                          // EV should detect and stop charging within 3 seconds
+            TIM1->CH1CVR = 1000;                                                // Set CP output to +12V
+#endif
             C1Timer = 6;                                                        // Wait maximum 6 seconds, before forcing the contactor off.
             ChargeDelay = 15;
             break;
@@ -417,33 +439,6 @@ void setState(uint8_t NewState) { //c
 #endif
 
     // BacklightTimer = BACKLIGHT;                                                 // Backlight ON
-}
-#else //CH32
-        case STATE_B:
-            CONTACTOR1_OFF;
-            CONTACTOR2_OFF;
-            SetCurrent(ChargeCurrent);                                          // Enable CP PWM
-            TIM1->CH4CVR = PWM_96;                                              // start ADC sampling at 96% (Diode Check)
-            break;
-        case STATE_C:                                                           // State C2
-            ActivationMode = 255;                                               // Disable ActivationMode
-                CONTACTOR1_ON;                                                  // Contactor1 ON
-                CONTACTOR2_ON;                                                  // Contactor2 ON
-            break;
-        case STATE_C1:
-            TIM1->CH1CVR = 1000;                                                // Set CP output to +12V
-            C1Timer = 6;                                                        // Wait maximum 6 seconds, before forcing the contactor off.
-            ChargeDelay = 15;
-            break;
-        default:
-            break;
-    }
-
-//    BalancedState[0] = NewState;
-    State = NewState;
-//    printf("state set to:%s\n", getStateName(State));
 
 #endif //SMARTEVSE_VERSION
 }
-#endif //SMARTEVSE_VERSION
-
