@@ -243,12 +243,18 @@ Button ExtSwitch;
 // So the receiving code of the CH32 is the only routine that
 // is allowed to change the value of Acces_bit on CH32
 // All other code has to use setAccess
+// so for v4 we need:
+// a. CH32 setAccess sends message to ESP32           in CH32 src/evse.c
+// b. ESP32 receiver that calls local setState        in ESP32 src/main.cpp
+// c. ESP32 setAccess full functionality              in ESP32 src/common.cpp (this file)
+// d. ESP32 sends message to CH32                     in ESP32 src/common.cpp (this file)
+// e. CH32 receiver that sets local variable          in CH32 src/evse.c
 
 #ifdef SMARTEVSE_VERSION //v3 and v4
-void setAccess(bool Access) {
+void setAccess(bool Access) { //c
     Access_bit = Access;
 #if SMARTEVSE_VERSION == 4
-    Serial1.printf("Access:%u\n", Access_bit);
+    Serial1.printf("Access:%u\n", Access_bit); //d
 #endif
     if (Access == 0) {
         //TODO:setStatePowerUnavailable() ?
@@ -270,7 +276,7 @@ void setAccess(bool Access) {
 }
 #endif //SMARTEVSE_VERSION
 
-// the State is owned by the CH32
+// State is owned by the CH32
 // because it is highly subject to machine interaction
 // and also charging is supposed to function if ESP32 is hung/rebooted
 // If the CH32 wants to change that variable, it calls setState
@@ -281,18 +287,29 @@ void setAccess(bool Access) {
 // So the setState code of the CH32 is the only routine that
 // is allowed to change the value of State on CH32
 // All other code has to use setState
+// so for v4 we need:
+// a. ESP32 setState sends message to CH32              in ESP32 src/common.cpp (this file)
+// b. CH32 receiver that calls local setState           in CH32 src/evse.c
+// c. CH32 setState full functionality                  in ESP32 src/common.cpp (this file) to be copied to CH32
+// d. CH32 sends message to ESP32                       in ESP32 src/common.cpp (this file) to be copied to CH32
+// e. ESP32 receiver that sets local variable           in ESP32 src/main.cpp
 
-void setState(uint8_t NewState) {
+
+void setState(uint8_t NewState) { //c
     if (State != NewState) {
 #ifdef SMARTEVSE_VERSION //v3 and v4
         char Str[50];
         snprintf(Str, sizeof(Str), "%02d:%02d:%02d STATE %s -> %s\n",timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec, getStateName(State), getStateName(NewState) );
         _LOG_A("%s",Str);
+#if SMARTEVSE_VERSION == 4
+        Serial1.printf("State:%u\n", NewState); //a
+#endif
 #else //CH32
-        printf("State:%1u.\n", NewState);
+        printf("State:%1u.\n", NewState); //d
 #endif
     }
 
+#if SMARTEVSE_VERSION != 4 //a
     switch (NewState) {
         case STATE_B1:
             if (!ChargeDelay) ChargeDelay = 3;                                  // When entering State B1, wait at least 3 seconds before switching to another state.
@@ -307,7 +324,7 @@ void setState(uint8_t NewState) {
         case STATE_A:                                                           // State A1
             CONTACTOR1_OFF;
             CONTACTOR2_OFF;
-#ifdef SMARTEVSE_VERSION //v3 and v4
+#ifdef SMARTEVSE_VERSION //v3
             SetCPDuty(1024);                                                    // PWM off,  channel 0, duty cycle 100%
             timerAlarmWrite(timerA, PWM_100, true);                             // Alarm every 1ms, auto reload
 #else //CH32
@@ -356,7 +373,7 @@ void setState(uint8_t NewState) {
 #endif
             CONTACTOR1_OFF;
             CONTACTOR2_OFF;
-#ifdef SMARTEVSE_VERSION //v3 and v4
+#ifdef SMARTEVSE_VERSION //v3
             timerAlarmWrite(timerA, PWM_95, false);                             // Enable Timer alarm, set to diode test (95%)
 #endif
             SetCurrent(ChargeCurrent);                                          // Enable PWM
@@ -381,7 +398,7 @@ void setState(uint8_t NewState) {
             break;
         case STATE_C1:
             SetCPDuty(1024);                                                    // PWM off,  channel 0, duty cycle 100%
-#ifdef SMARTEVSE_VERSION //v3 and v4
+#ifdef SMARTEVSE_VERSION //v3
             timerAlarmWrite(timerA, PWM_100, true);                             // Alarm every 1ms, auto reload
 #endif                                                                          // EV should detect and stop charging within 3 seconds
             C1Timer = 6;                                                        // Wait maximum 6 seconds, before forcing the contactor off.
@@ -426,7 +443,7 @@ void setState(uint8_t NewState) {
     State = NewState;
 //    printf("state set to:%s\n", getStateName(State));
 
+#endif //SMARTEVSE_VERSION
 }
-
 #endif //SMARTEVSE_VERSION
 

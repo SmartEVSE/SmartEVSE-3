@@ -2257,7 +2257,7 @@ void Timer10ms(void * parameter) {
                     ExtSwitch.HandleSwitch();
                 }
 
-                strncpy(token, "Access:", sizeof(token));
+                strncpy(token, "Access:", sizeof(token)); //b
                 ret = strstr(SerialBuf, token);
                 if (ret != NULL) {
                     setAccess(atoi(ret+strlen(token)));
@@ -2278,7 +2278,7 @@ void Timer10ms(void * parameter) {
 
                 ret = strstr(SerialBuf, "State:"); // current State (request) received from Wch
                 if (ret != NULL ) {
-                    State = atoi(ret+6);
+                    State = atoi(ret+6); //e
 /*
                     if (State == STATE_COMM_B) NewState = STATE_COMM_B_OK;
                     else if (State == STATE_COMM_C) NewState = STATE_COMM_C_OK;
