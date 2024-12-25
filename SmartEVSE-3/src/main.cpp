@@ -197,7 +197,6 @@ uint8_t RFIDReader = RFID_READER;                                           // R
 uint8_t Show_RFID = 0;
 #endif
 
-EnableC2_t EnableC2 = ENABLE_C2;                                            // Contactor C2
 uint16_t maxTemp = MAX_TEMPERATURE;
 
 Meter MainsMeter(MAINS_METER, MAINS_METER_ADDRESS, COMM_TIMEOUT);
@@ -763,28 +762,6 @@ void setMode(uint8_t NewMode) {
     }
 }
 
-/**
- * Checks all parameters to determine whether
- * we are going to force single phase charging
- * Returns true if we are going to do single phase charging
- * Returns false if we are going to do (traditional) 3 phase charing
- * This is only relevant on a 3f mains and 3f car installation!
- * 1f car will always charge 1f undetermined by CONTACTOR2
- */
-uint8_t Force_Single_Phase_Charging() {                                         // abbreviated to FSPC
-    switch (EnableC2) {
-        case NOT_PRESENT:                                                       //no use trying to switch a contactor on that is not present
-        case ALWAYS_OFF:
-            return 1;
-        case SOLAR_OFF:
-            return (Mode == MODE_SOLAR);
-        case AUTO:
-        case ALWAYS_ON:
-            return 0;   //3f charging
-    }
-    //in case we don't know, stick to 3f charging
-    return 0;
-}
 
 void setStatePowerUnavailable(void) {
     if (State == STATE_A)
@@ -1594,6 +1571,7 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
             break;
         case MENU_C2:
             EnableC2 = (EnableC2_t) val;
+            Serial1.printf("EnableC2:%u\n", EnableC2);
             break;
         case MENU_CONFIG:
             Config = val;
@@ -3649,6 +3627,7 @@ void read_settings() {
 
 
         EnableC2 = (EnableC2_t) preferences.getUShort("EnableC2", ENABLE_C2);
+        //TODO Serial1.printf("EnableC2:%u\n", EnableC2); //probably covered by ConfigItems?
         strncpy(RequiredEVCCID, preferences.getString("RequiredEVCCID", "").c_str(), sizeof(RequiredEVCCID));
         maxTemp = preferences.getUShort("maxTemp", MAX_TEMPERATURE);
 
@@ -3710,6 +3689,7 @@ void write_settings(void) {
     preferences.putUChar("EMFunction", EMConfig[EM_CUSTOM].Function);
     preferences.putUChar("WIFImode", WIFImode);
     preferences.putUShort("EnableC2", EnableC2);
+    Serial1.printf("EnableC2:%u\n", EnableC2); //TODO or do a full ConfigItems write?
     preferences.putString("RequiredEVCCID", String(RequiredEVCCID));
     preferences.putUShort("maxTemp", maxTemp);
     preferences.putUChar("AutoUpdate", AutoUpdate);
