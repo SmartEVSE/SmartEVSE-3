@@ -51,25 +51,26 @@ EnableC2_t EnableC2 = NOT_PRESENT;
 #include "meter.h"
 #endif
 
+
 // gateway to the outside world
 // here declarations are placed for variables that are both used on CH32 as ESP32
 // (either temporarily while developing or definite)
 // and they are mainly used in the main.cpp/common.cpp code
 EXT uint32_t elapsedmax, elapsedtime;
 EXT int8_t TempEVSE;
-EXT uint16_t SolarStopTimer, MaxCapacity, MainsCycleTime, ChargeCurrent, MinCurrent, MaxCurrent, BalancedMax[NR_EVSES];
+EXT uint16_t SolarStopTimer, MaxCapacity, MainsCycleTime, ChargeCurrent, MinCurrent, MaxCurrent, BalancedMax[NR_EVSES], ADC_CP[NUM_ADC_SAMPLES], ADCsamples[25];
 EXT uint8_t RFID[8], Access_bit, Mode, Lock, ErrorFlags, ChargeDelay, State, LoadBl, PilotDisconnectTime, AccessTimer, ActivationMode, ActivationTimer, RFIDReader, C1Timer, UnlockCable, LockCable, RxRdy1, MainsMeterTimeout, PilotDisconnected, ModbusRxLen, PowerPanicFlag, Switch, RCmon, TestState, Config, PwrPanic, ModemPwr, Initialized, pilot;
 EXT bool CustomButton, GridRelayOpen;
 #ifdef SMARTEVSE_VERSION //v3 and v4
 EXT hw_timer_t * timerA;
+esp_adc_cal_characteristics_t * adc_chars_CP;
 #endif
 EXT struct Node_t Node[NR_EVSES];
 EXT uint8_t BalancedState[NR_EVSES];
-//EXT Meter EVMeter;
+
 
 //functions
 EXT void setup();
-EXT uint8_t Pilot();
 //EXT void setAccess(uint8_t Access);
 EXT void setState(uint8_t NewState);
 EXT int8_t TemperatureSensor();
@@ -475,6 +476,61 @@ void setState(uint8_t NewState) { //c
 
 #endif //SMARTEVSE_VERSION
 }
+
+#ifndef SMARTEVSE_VERSION //CH32
+// Determine the state of the Pilot signal
+//
+uint8_t Pilot() {
+
+    uint16_t sample, Min = 4095, Max = 0;
+    uint8_t n;
+
+    // calculate Min/Max of last 32 CP measurements (32 ms)
+    for (n=0 ; n<NUM_ADC_SAMPLES ;n++) {
+
+        sample = ADC_CP[n];
+        if (sample < Min) Min = sample;                                   // store lowest value
+        if (sample > Max) Max = sample;                                   // store highest value
+    }
+
+    //printf("min:%u max:%u\n",Min ,Max);
+
+    // test Min/Max against fixed levels    (needs testing)
+    if (Min >= 4000 ) return PILOT_12V;                                     // Pilot at 12V
+    if ((Min >= 3300) && (Max < 4000)) return PILOT_9V;                     // Pilot at 9V
+    if ((Min >= 2400) && (Max < 3300)) return PILOT_6V;                     // Pilot at 6V
+    if ((Min >= 2000) && (Max < 2400)) return PILOT_3V;                     // Pilot at 3V
+    if ((Min > 100) && (Max < 350)) return PILOT_DIODE;                     // Diode Check OK
+    return PILOT_NOK;                                                       // Pilot NOT ok
+}
+#else //v3 or v4
+// Determine the state of the Pilot signal
+//
+uint8_t Pilot() {
+
+    uint32_t sample, Min = 3300, Max = 0;
+    uint32_t voltage;
+    uint8_t n;
+
+    // calculate Min/Max of last 25 CP measurements
+    for (n=0 ; n<25 ;n++) {
+        sample = ADCsamples[n];
+        voltage = esp_adc_cal_raw_to_voltage( sample, adc_chars_CP);        // convert adc reading to voltage
+        if (voltage < Min) Min = voltage;                                   // store lowest value
+        if (voltage > Max) Max = voltage;                                   // store highest value
+    }
+    //_LOG_A("min:%u max:%u\n",Min ,Max);
+
+    // test Min/Max against fixed levels
+    if (Min >= 3055 ) return PILOT_12V;                                     // Pilot at 12V (min 11.0V)
+    if ((Min >= 2735) && (Max < 3055)) return PILOT_9V;                     // Pilot at 9V
+    if ((Min >= 2400) && (Max < 2735)) return PILOT_6V;                     // Pilot at 6V
+    if ((Min >= 2000) && (Max < 2400)) return PILOT_3V;                     // Pilot at 3V
+    if ((Min > 100) && (Max < 300)) return PILOT_DIODE;                     // Diode Check OK
+    return PILOT_NOK;                                                       // Pilot NOT ok
+}
+#endif
+
 
 #ifndef SMARTEVSE_VERSION //CH32
 //NOTE that CH32 has a 10ms routine that has to be called every 10ms

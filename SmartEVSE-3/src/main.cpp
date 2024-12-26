@@ -124,7 +124,8 @@ ModbusClientRTU MBclient(PIN_RS485_DIR);
 hw_timer_t * timerA = NULL;
 Preferences preferences;
 
-static esp_adc_cal_characteristics_t * adc_chars_CP;
+extern esp_adc_cal_characteristics_t * adc_chars_CP;
+//extern static esp_adc_cal_characteristics_t * adc_chars_CP;
 static esp_adc_cal_characteristics_t * adc_chars_PP;
 static esp_adc_cal_characteristics_t * adc_chars_Temperature;
 
@@ -636,35 +637,7 @@ void ProximityPin() {
 
     if (Config) MaxCapacity = MaxCurrent;                                   // Override with MaxCurrent when Fixed Cable is used.
 }
-
-
-// Determine the state of the Pilot signal
-//
-uint8_t Pilot() {
-
-    uint32_t sample, Min = 3300, Max = 0;
-    uint32_t voltage;
-    uint8_t n;
-
-    // calculate Min/Max of last 25 CP measurements
-    for (n=0 ; n<25 ;n++) {
-        sample = ADCsamples[n];
-        voltage = esp_adc_cal_raw_to_voltage( sample, adc_chars_CP);        // convert adc reading to voltage
-        if (voltage < Min) Min = voltage;                                   // store lowest value
-        if (voltage > Max) Max = voltage;                                   // store highest value
-    }    
-    //_LOG_A("min:%u max:%u\n",Min ,Max);
-
-    // test Min/Max against fixed levels
-    if (Min >= 3055 ) return PILOT_12V;                                     // Pilot at 12V (min 11.0V)
-    if ((Min >= 2735) && (Max < 3055)) return PILOT_9V;                     // Pilot at 9V
-    if ((Min >= 2400) && (Max < 2735)) return PILOT_6V;                     // Pilot at 6V
-    if ((Min >= 2000) && (Max < 2400)) return PILOT_3V;                     // Pilot at 3V
-    if ((Min > 100) && (Max < 300)) return PILOT_DIODE;                     // Diode Check OK
-    return PILOT_NOK;                                                       // Pilot NOT ok
-}
 #endif
-
 
 /**
  * Get name of a state
