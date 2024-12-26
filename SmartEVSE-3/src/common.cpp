@@ -483,7 +483,7 @@ void setState(uint8_t NewState) { //c
 uint8_t Pilot() {
 
     uint16_t sample, Min = 4095, Max = 0;
-    uint8_t n;
+    uint8_t n, ret;
 
     // calculate Min/Max of last 32 CP measurements (32 ms)
     for (n=0 ; n<NUM_ADC_SAMPLES ;n++) {
@@ -496,12 +496,14 @@ uint8_t Pilot() {
     //printf("min:%u max:%u\n",Min ,Max);
 
     // test Min/Max against fixed levels    (needs testing)
-    if (Min >= 4000 ) return PILOT_12V;                                     // Pilot at 12V
-    if ((Min >= 3300) && (Max < 4000)) return PILOT_9V;                     // Pilot at 9V
-    if ((Min >= 2400) && (Max < 3300)) return PILOT_6V;                     // Pilot at 6V
-    if ((Min >= 2000) && (Max < 2400)) return PILOT_3V;                     // Pilot at 3V
-    if ((Min > 100) && (Max < 350)) return PILOT_DIODE;                     // Diode Check OK
-    return PILOT_NOK;                                                       // Pilot NOT ok
+    if (Min >= 4000 ) ret = PILOT_12V;                                      // Pilot at 12V
+    if ((Min >= 3300) && (Max < 4000)) ret = PILOT_9V;                      // Pilot at 9V
+    if ((Min >= 2400) && (Max < 3300)) ret = PILOT_6V;                      // Pilot at 6V
+    if ((Min >= 2000) && (Max < 2400)) ret = PILOT_3V;                      // Pilot at 3V
+    if ((Min > 100) && (Max < 350)) ret = PILOT_DIODE;                      // Diode Check OK
+    ret = PILOT_NOK;                                                        // Pilot NOT ok
+    printf("Pilot=%u\n", ret); //d
+    return ret;
 }
 #else //v3 or v4
 // Determine the state of the Pilot signal
@@ -954,6 +956,12 @@ void Timer10ms(void * parameter) {
                 if (ret != NULL) {
                     Serial.printf("Config set\n");
                     CommState = COMM_STATUS_REQ;
+                }
+
+                strncpy(token, "Pilot:", sizeof(token));
+                ret = strstr(SerialBuf, token);
+                if (ret != NULL) {
+                    pilot = atoi(ret+6); //e
                 }
 
                 ret = strstr(SerialBuf, "State:"); // current State (request) received from Wch

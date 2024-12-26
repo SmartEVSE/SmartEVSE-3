@@ -125,7 +125,6 @@ hw_timer_t * timerA = NULL;
 Preferences preferences;
 
 extern esp_adc_cal_characteristics_t * adc_chars_CP;
-//extern static esp_adc_cal_characteristics_t * adc_chars_CP;
 static esp_adc_cal_characteristics_t * adc_chars_PP;
 static esp_adc_cal_characteristics_t * adc_chars_Temperature;
 
