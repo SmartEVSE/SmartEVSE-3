@@ -484,6 +484,7 @@ uint8_t Pilot() {
 
     uint16_t sample, Min = 4095, Max = 0;
     uint8_t n, ret;
+    static uint8_t old_pilot;
 
     // calculate Min/Max of last 32 CP measurements (32 ms)
     for (n=0 ; n<NUM_ADC_SAMPLES ;n++) {
@@ -496,13 +497,16 @@ uint8_t Pilot() {
     //printf("min:%u max:%u\n",Min ,Max);
 
     // test Min/Max against fixed levels    (needs testing)
+    ret = PILOT_NOK;                                                        // Pilot NOT ok
     if (Min >= 4000 ) ret = PILOT_12V;                                      // Pilot at 12V
     if ((Min >= 3300) && (Max < 4000)) ret = PILOT_9V;                      // Pilot at 9V
     if ((Min >= 2400) && (Max < 3300)) ret = PILOT_6V;                      // Pilot at 6V
     if ((Min >= 2000) && (Max < 2400)) ret = PILOT_3V;                      // Pilot at 3V
     if ((Min > 100) && (Max < 350)) ret = PILOT_DIODE;                      // Diode Check OK
-    ret = PILOT_NOK;                                                        // Pilot NOT ok
-    printf("Pilot=%u\n", ret); //d
+    if (ret != old_pilot) {
+        printf("Pilot=%u\n", ret); //d
+        old_pilot = ret;
+    }
     return ret;
 }
 #else //v3 or v4
