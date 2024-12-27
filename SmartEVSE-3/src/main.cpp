@@ -1284,6 +1284,8 @@ void CalcBalancedCurrent(char mod) {
             }
 
             // check for HARD shortage of power
+            // with HARD shortage we stop charging
+            // with SOFT shortage we have a timer running
             // IsetBalanced is already set to the minimum needed power to charge all Nodes
             bool hardShortage = false;
             // guard MaxMains
@@ -1294,6 +1296,8 @@ void CalcBalancedCurrent(char mod) {
             if (((LoadBl == 0 && EVMeter.Type && Mode != MODE_NORMAL) || LoadBl == 1) // Conditions in which MaxCircuit has to be considered
                 && (IsetBalanced > (MaxCircuit * 10) - Baseload_EV))
                     hardShortage = true;
+            if (!MaxSumMainsTime && LimitedByMaxSumMains)                       // if we don't use the Capacity timer, we want a hard stop
+                hardShortage = true;
             if (hardShortage && Switching_To_Single_Phase != GOING_TO_SWITCH) { // because switching to single phase might solve the shortage
                 // ############ HARD shortage of power
                 NoCurrent++;                                                    // Flag NoCurrent left
