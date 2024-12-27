@@ -105,3 +105,9 @@ For more information, visit [this link](https://github.com/serkri/SmartEVSE-3/is
 * This setting applies in Smart or Solar mode only.
 * In addition to other limits (Mains, MaxCircuit), the charging current will be restricted to ensure that the total current across all phases does not exceed the SumMains setting.
 * If you are unsure how to configure this, it is recommended to leave the setting at its default value.
+
+# Locking the keys below the LCD screen
+
+The keys below the LCD screen can be locked/unlocked:
+* By pressing middle and right key at boot, or
+* By checking/unchecking the LCDLock box in the webserver screen.
