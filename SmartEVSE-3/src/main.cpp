@@ -147,7 +147,7 @@ uint16_t MaxMains = MAX_MAINS;                                              // M
 uint16_t MaxSumMains = MAX_SUMMAINS;                                        // Max Mains Amps summed over all 3 phases, limit used by EU capacity rate
                                                                             // see https://github.com/serkri/SmartEVSE-3/issues/215
                                                                             // 0 means disabled, allowed value 10 - 600 A
-uint8_t MaxSumMainsTime = MAX_SUMMAINSTIME;                                 // Number of Minutes we wait when MaxSumMains is exceeded, before we stop charging
+extern uint8_t MaxSumMainsTime;
 extern uint16_t MaxSumMainsTimer;
 uint16_t GridRelayMaxSumMains = GRID_RELAY_MAX_SUMMAINS;                    // Max Mains Amps summed over all 3 phases, switched by relay provided by energy provider
                                                                             // Meant to obey par 14a of Energy Industry Act, where the provider can switch a device
@@ -156,7 +156,6 @@ uint16_t GridRelayMaxSumMains = GRID_RELAY_MAX_SUMMAINS;                    // M
                                                                             // and connect the relay to the switch terminals
                                                                             // When the relay opens its contacts, power will be reduced to 4.2kW
                                                                             // The relay is only allowed on the Master
-bool GridRelayOpen = false;                                                 // The read status of the relay
 bool CustomButton = false;                                                  // The status of the custom button
 uint16_t MaxCurrent = MAX_CURRENT;                                          // Max Charge current (A)
 uint16_t MinCurrent = MIN_CURRENT;                                          // Minimal current the EV is happy with (A)
@@ -267,7 +266,7 @@ volatile uint8_t sampleidx = 0;
 char str[20];
 
 int phasesLastUpdate = 0;
-bool phasesLastUpdateFlag = false;
+extern bool phasesLastUpdateFlag;
 int16_t IrmsOriginal[3]={0, 0, 0};
 int homeBatteryCurrent = 0;
 int homeBatteryLastUpdate = 0; // Time in milliseconds
@@ -838,67 +837,6 @@ char IsCurrentAvailable(void) {
     _LOG_D("Current available checkpoint D. ActiveEVSE increased by one=%i, TotalCurrent=%.1fA, StartCurrent=%iA, Isum=%.1fA, ImportCurrent=%iA.\n", ActiveEVSE, (float) TotalCurrent/10, StartCurrent, (float)Isum/10, ImportCurrent);
     return 1;
 }
-
-// Set global var Nr_Of_Phases_Charging
-// 0 = undetected, 1 - 3 nr of phases we are charging
-// returns nr of phases we are charging, and 3 if undetected
-int Set_Nr_of_Phases_Charging(void) {
-    uint32_t Max_Charging_Prob = 0;
-    uint32_t Charging_Prob=0;                                        // Per phase, the probability that Charging is done at this phase
-    Nr_Of_Phases_Charging = 0;
-#define THRESHOLD 40
-#define BOTTOM_THRESHOLD 25
-    _LOG_D("Detected Charging Phases: ChargeCurrent=%u, Balanced[0]=%u, IsetBalanced=%u.\n", ChargeCurrent, Balanced[0],IsetBalanced);
-    for (int i=0; i<3; i++) {
-        if (EVMeter.Type) {
-            Charging_Prob = 10 * (abs(EVMeter.Irms[i] - IsetBalanced)) / IsetBalanced;  //100% means this phase is charging, 0% mwans not charging
-                                                                                        //TODO does this work for the slaves too?
-            _LOG_D("Trying to detect Charging Phases END EVMeter.Irms[%i]=%.1f A.\n", i, (float)EVMeter.Irms[i]/10);
-        }
-        Max_Charging_Prob = max(Charging_Prob, Max_Charging_Prob);
-
-        //normalize percentages so they are in the range [0-100]
-        if (Charging_Prob >= 200)
-            Charging_Prob = 0;
-        if (Charging_Prob > 100)
-            Charging_Prob = 200 - Charging_Prob;
-        _LOG_I("Detected Charging Phases: Charging_Prob[%i]=%i.\n", i, Charging_Prob);
-
-        if (Charging_Prob == Max_Charging_Prob) {
-            _LOG_D("Suspect I am charging at phase: L%i.\n", i+1);
-            Nr_Of_Phases_Charging++;
-        }
-        else {
-            if ( Charging_Prob <= BOTTOM_THRESHOLD ) {
-                _LOG_D("Suspect I am NOT charging at phase: L%i.\n", i+1);
-            }
-            else {
-                if ( Max_Charging_Prob - Charging_Prob <= THRESHOLD ) {
-                    _LOG_D("Serious candidate for charging at phase: L%i.\n", i+1);
-                    Nr_Of_Phases_Charging++;
-                }
-            }
-        }
-    }
-
-    // sanity checks
-    if (EnableC2 != AUTO && EnableC2 != NOT_PRESENT) {                         // no further sanity checks possible when AUTO or NOT_PRESENT
-        if (Nr_Of_Phases_Charging != 1 && (EnableC2 == ALWAYS_OFF || (EnableC2 == SOLAR_OFF && Mode == MODE_SOLAR))) {
-            _LOG_A("Error in detecting phases: EnableC2=%s and Nr_Of_Phases_Charging=%i.\n", StrEnableC2[EnableC2], Nr_Of_Phases_Charging);
-            Nr_Of_Phases_Charging = 1;
-            _LOG_A("Setting Nr_Of_Phases_Charging to 1.\n");
-        }
-        if (!Force_Single_Phase_Charging() && Nr_Of_Phases_Charging != 3) {//TODO 2phase charging very rare?
-            _LOG_A("Possible error in detecting phases: EnableC2=%s and Nr_Of_Phases_Charging=%i.\n", StrEnableC2[EnableC2], Nr_Of_Phases_Charging);
-        }
-    }
-
-    _LOG_A("Charging at %i phases.\n", Nr_Of_Phases_Charging);
-    if (Nr_Of_Phases_Charging == 0)
-        return 3;
-    return Nr_Of_Phases_Charging;
-}
-
 
 /**
  * Load Balancing 	Modbus Address  LoadBl

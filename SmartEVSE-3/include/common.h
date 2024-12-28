@@ -15,6 +15,7 @@
 #endif
 
 #define SOLARSTARTTIME 40                                                       // Seconds to keep chargecurrent at 6A
+#define MAX_SUMMAINSTIME 0
 
 //here should only be declarations for code that will not run on the CH32
 class Button {

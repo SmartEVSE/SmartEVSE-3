@@ -8,6 +8,7 @@
 #include "main.h"
 #include "common.h"
 #include "stdio.h"
+#include "stdlib.h"
 
 #ifdef SMARTEVSE_VERSION //ESP32
 #define EXT extern
@@ -98,6 +99,9 @@ int16_t Isum = 0;                                                           // S
 uint8_t Nr_Of_Phases_Charging = 0;                                          // 0 = Undetected, 1,2,3 = nr of phases that was detected at the start of this charging session
 Meter MainsMeter(MAINS_METER, MAINS_METER_ADDRESS, COMM_TIMEOUT);
 Meter EVMeter(EV_METER, EV_METER_ADDRESS, COMM_EVTIMEOUT);
+bool phasesLastUpdateFlag = false;
+bool GridRelayOpen = false;                                                 // The read status of the relay
+uint8_t MaxSumMainsTime = MAX_SUMMAINSTIME;                                 // Number of Minutes we wait when MaxSumMains is exceeded, before we stop charging
 
 //constructor
 Button::Button(void) {
@@ -486,6 +490,68 @@ void setState(uint8_t NewState) { //c
 
 #endif //SMARTEVSE_VERSION
 }
+
+
+// Set global var Nr_Of_Phases_Charging
+// 0 = undetected, 1 - 3 nr of phases we are charging
+// returns nr of phases we are charging, and 3 if undetected
+int Set_Nr_of_Phases_Charging(void) {
+    uint32_t Max_Charging_Prob = 0;
+    uint32_t Charging_Prob=0;                                        // Per phase, the probability that Charging is done at this phase
+    Nr_Of_Phases_Charging = 0;
+#define THRESHOLD 40
+#define BOTTOM_THRESHOLD 25
+    _LOG_D("Detected Charging Phases: ChargeCurrent=%u, Balanced[0]=%u, IsetBalanced=%u.\n", ChargeCurrent, Balanced[0],IsetBalanced);
+    for (int i=0; i<3; i++) {
+        if (EVMeter.Type) {
+            Charging_Prob = 10 * (abs(EVMeter.Irms[i] - IsetBalanced)) / IsetBalanced;  //100% means this phase is charging, 0% mwans not charging
+                                                                                        //TODO does this work for the slaves too?
+            _LOG_D("Trying to detect Charging Phases END EVMeter.Irms[%i]=%.1f A.\n", i, (float)EVMeter.Irms[i]/10);
+        }
+        Max_Charging_Prob = max(Charging_Prob, Max_Charging_Prob);
+
+        //normalize percentages so they are in the range [0-100]
+        if (Charging_Prob >= 200)
+            Charging_Prob = 0;
+        if (Charging_Prob > 100)
+            Charging_Prob = 200 - Charging_Prob;
+        _LOG_I("Detected Charging Phases: Charging_Prob[%i]=%i.\n", i, Charging_Prob);
+
+        if (Charging_Prob == Max_Charging_Prob) {
+            _LOG_D("Suspect I am charging at phase: L%i.\n", i+1);
+            Nr_Of_Phases_Charging++;
+        }
+        else {
+            if ( Charging_Prob <= BOTTOM_THRESHOLD ) {
+                _LOG_D("Suspect I am NOT charging at phase: L%i.\n", i+1);
+            }
+            else {
+                if ( Max_Charging_Prob - Charging_Prob <= THRESHOLD ) {
+                    _LOG_D("Serious candidate for charging at phase: L%i.\n", i+1);
+                    Nr_Of_Phases_Charging++;
+                }
+            }
+        }
+    }
+
+    // sanity checks
+    if (EnableC2 != AUTO && EnableC2 != NOT_PRESENT) {                         // no further sanity checks possible when AUTO or NOT_PRESENT
+        if (Nr_Of_Phases_Charging != 1 && (EnableC2 == ALWAYS_OFF || (EnableC2 == SOLAR_OFF && Mode == MODE_SOLAR))) {
+            _LOG_A("Error in detecting phases: EnableC2=%s and Nr_Of_Phases_Charging=%i.\n", StrEnableC2[EnableC2], Nr_Of_Phases_Charging);
+            Nr_Of_Phases_Charging = 1;
+            _LOG_A("Setting Nr_Of_Phases_Charging to 1.\n");
+        }
+        if (!Force_Single_Phase_Charging() && Nr_Of_Phases_Charging != 3) {//TODO 2phase charging very rare?
+            _LOG_A("Possible error in detecting phases: EnableC2=%s and Nr_Of_Phases_Charging=%i.\n", StrEnableC2[EnableC2], Nr_Of_Phases_Charging);
+        }
+    }
+
+    _LOG_A("Charging at %i phases.\n", Nr_Of_Phases_Charging);
+    if (Nr_Of_Phases_Charging == 0)
+        return 3;
+    return Nr_Of_Phases_Charging;
+}
+
 
 #ifndef SMARTEVSE_VERSION //CH32
 // Determine the state of the Pilot signal
@@ -912,9 +978,7 @@ void Timer10ms_singlerun(void) {
 
             if (State != STATE_A) setState(STATE_A);                        // reset state, incase we were stuck in STATE_COMM_B
             ChargeDelay = 0;                                                // Clear ChargeDelay when disconnected.
-#ifdef SMARTEVSE_VERSION //NOT CH32  TODO THIS HAS TO BE FIXED
             if (!EVMeter.ResetKwh) EVMeter.ResetKwh = 1;                    // when set, reset EV kWh meter on state B->C change.
-#endif
         } else if ( pilot == PILOT_9V && ErrorFlags == NO_ERROR
             && ChargeDelay == 0 && Access_bit && State != STATE_COMM_B
 #if MODEM
@@ -970,13 +1034,11 @@ void Timer10ms_singlerun(void) {
         } else if (pilot == PILOT_6V && ++StateTimer > 50) {                // When switching from State B to C, make sure pilot is at 6V for at least 500ms
                                                                             // Fixes https://github.com/dingo35/SmartEVSE-3.5/issues/40
             if ((DiodeCheck == 1) && (ErrorFlags == NO_ERROR) && (ChargeDelay == 0)) {
-#ifdef SMARTEVSE_VERSION //NOT CH32  TODO THIS HAS TO BE FIXED
                 if (EVMeter.Type && EVMeter.ResetKwh) {
                     EVMeter.EnergyMeterStart = EVMeter.Energy;              // store kwh measurement at start of charging.
                     EVMeter.EnergyCharged = EVMeter.Energy - EVMeter.EnergyMeterStart; // Calculate Energy
                     EVMeter.ResetKwh = 0;                                   // clear flag, will be set when disconnected from EVSE (State A)
                 }
-#endif
                 // Load Balancing : Node
                 if (LoadBl > 1) {
                     if (State != STATE_COMM_C) setState(STATE_COMM_C);      // Send command to Master, followed by Charge Current
@@ -987,9 +1049,7 @@ void Timer10ms_singlerun(void) {
                     if (IsCurrentAvailable()) {
 
                         Balanced[0] = 0;                                    // For correct baseload calculation set current to zero
-#ifdef SMARTEVSE_VERSION //NOT CH32  TODO THIS HAS TO BE FIXED
                         CalcBalancedCurrent(1);                             // Calculate charge current for all connected EVSE's
-#endif
                         DiodeCheck = 0;                                     // (local variable)
                         setState(STATE_C);                                  // switch to STATE_C
 #ifdef SMARTEVSE_VERSION //not on CH32
