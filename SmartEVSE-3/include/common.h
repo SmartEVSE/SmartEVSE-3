@@ -1,6 +1,8 @@
 #ifndef __COMMON
 #define __COMMON
 
+//here should only be declarations for code that will not run on the CH32
+
 #ifdef SMARTEVSE_VERSION //v3 and v4
 #include <Arduino.h>
 #include "glcd.h"
@@ -16,8 +18,8 @@
 
 #define SOLARSTARTTIME 40                                                       // Seconds to keep chargecurrent at 6A
 #define MAX_SUMMAINSTIME 0
+#define AUTOUPDATE 0                                                            // default for Automatic Firmware Update: 0 = disabled, 1 = enabled
 
-//here should only be declarations for code that will not run on the CH32
 class Button {
   public:
     void CheckSwitch(bool force = false);
@@ -43,6 +45,7 @@ extern uint8_t LCDlock, MainVersion;
 enum Single_Phase_t { FALSE, GOING_TO_SWITCH, AFTER_SWITCH };
 extern void CalcBalancedCurrent(char mod);
 extern void write_settings(void);
+extern void setStatePowerUnavailable(void);
 
 struct Sensorbox {
     uint8_t SoftwareVer;        // Sensorbox 2 software version

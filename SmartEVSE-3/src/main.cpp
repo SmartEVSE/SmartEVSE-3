@@ -180,7 +180,7 @@ uint8_t Switch = SWITCH;                                                    // E
                                                                             // 6:Custom B / 7:Custom S)
                                                                             // B=momentary push <B>utton, S=toggle <S>witch
 uint8_t RCmon = RC_MON;                                                     // Residual Current Monitor (0:Disable / 1:Enable)
-uint8_t AutoUpdate = AUTOUPDATE;                                            // Automatic Firmware Update (0:Disable / 1:Enable)
+extern uint8_t AutoUpdate;
 uint16_t StartCurrent = START_CURRENT;
 uint16_t StopTime = STOP_TIME;
 uint16_t ImportCurrent = IMPORT_CURRENT;
@@ -195,7 +195,7 @@ uint8_t RFIDReader = RFID_READER;                                           // R
 uint8_t Show_RFID = 0;
 #endif
 
-uint16_t maxTemp = MAX_TEMPERATURE;
+extern uint16_t maxTemp;
 
 uint8_t State = STATE_A;
 uint8_t ErrorFlags = NO_ERROR;
@@ -251,7 +251,7 @@ uint8_t NodeNewMode = 0;
 uint8_t Access_bit = 0;                                                     // 0:No Access 1:Access to SmartEVSE
 uint16_t CardOffset = CARD_OFFSET;                                          // RFID card used in Enable One mode
 
-uint8_t ConfigChanged = 0;
+extern uint8_t ConfigChanged;
 uint8_t GridActive = 0;                                                     // When the CT's are used on Sensorbox2, it enables the GRID menu option.
 
 uint16_t SolarStopTimer = 0;
@@ -726,17 +726,6 @@ void setMode(uint8_t NewMode) {
 }
 
 
-void setStatePowerUnavailable(void) {
-    if (State == STATE_A)
-       return;
-    //State changes between A,B,C,D are caused by EV or by the user
-    //State changes between x1 and x2 are created by the EVSE
-    //State changes between x1 and x2 indicate availability (x2) of unavailability (x1) of power supply to the EV
-    if (State == STATE_C) setState(STATE_C1);                       // If we are charging, tell EV to stop charging
-    else if (State != STATE_C1) setState(STATE_B1);                 // If we are not in State C1, switch to State B1
-}
-
-
 /**
  * Returns the known battery charge rate if the data is not too old.
  * Returns 0 if data is too old.
@@ -1157,178 +1146,6 @@ uint8_t processAllNodeStates(uint8_t NodeNr) {
     return write;
 }
 
-
-/**
- * Check minimum and maximum of a value and set the variable
- *
- * @param uint8_t MENU_xxx
- * @param uint16_t value
- * @return uint8_t success
- */
-uint8_t setItemValue(uint8_t nav, uint16_t val) {
-    if (nav < MENU_EXIT) {
-        if (val < MenuStr[nav].Min || val > MenuStr[nav].Max) return 0;
-    }
-
-    switch (nav) {
-        case MENU_MAX_TEMP:
-            maxTemp = val;
-            break;
-        case MENU_C2:
-            EnableC2 = (EnableC2_t) val;
-            Serial1.printf("EnableC2:%u\n", EnableC2);
-            break;
-        case MENU_CONFIG:
-            Config = val;
-            break;
-        case STATUS_MODE:
-            if (Mode != val)                                                    // this prevents slave from waking up from OFF mode when Masters'
-                                                                                // solarstoptimer starts to count
-                setMode(val);
-            break;
-        case MENU_MODE:
-            Mode = val;
-            break;
-        case MENU_START:
-            StartCurrent = val;
-            break;
-        case MENU_STOP:
-            StopTime = val;
-            break;
-        case MENU_IMPORT:
-            ImportCurrent = val;
-            break;
-        case MENU_LOADBL:
-#if SMARTEVSE_VERSION == 3
-            ConfigureModbusMode(val);
-#endif
-            LoadBl = val;
-            break;
-        case MENU_MAINS:
-            MaxMains = val;
-            break;
-        case MENU_SUMMAINS:
-            MaxSumMains = val;
-            break;
-        case MENU_SUMMAINSTIME:
-            MaxSumMainsTime = val;
-            break;
-        case MENU_MIN:
-            MinCurrent = val;
-            break;
-        case MENU_MAX:
-            MaxCurrent = val;
-            break;
-        case MENU_CIRCUIT:
-            MaxCircuit = val;
-            break;
-        case MENU_LOCK:
-            Lock = val;
-            break;
-        case MENU_SWITCH:
-            Switch = val;
-            break;
-        case MENU_RCMON:
-            RCmon = val;
-            break;
-        case MENU_GRID:
-            Grid = val;
-            break;
-        case MENU_SB2_WIFI:
-            SB2_WIFImode = val;
-            break;    
-        case MENU_MAINSMETER:
-            MainsMeter.Type = val;
-            break;
-        case MENU_MAINSMETERADDRESS:
-            MainsMeter.Address = val;
-            break;
-        case MENU_EVMETER:
-            EVMeter.Type = val;
-            break;
-        case MENU_EVMETERADDRESS:
-            EVMeter.Address = val;
-            break;
-        case MENU_EMCUSTOM_ENDIANESS:
-            EMConfig[EM_CUSTOM].Endianness = val;
-            break;
-        case MENU_EMCUSTOM_DATATYPE:
-            EMConfig[EM_CUSTOM].DataType = (mb_datatype)val;
-            break;
-        case MENU_EMCUSTOM_FUNCTION:
-            EMConfig[EM_CUSTOM].Function = val;
-            break;
-        case MENU_EMCUSTOM_UREGISTER:
-            EMConfig[EM_CUSTOM].URegister = val;
-            break;
-        case MENU_EMCUSTOM_UDIVISOR:
-            EMConfig[EM_CUSTOM].UDivisor = val;
-            break;
-        case MENU_EMCUSTOM_IREGISTER:
-            EMConfig[EM_CUSTOM].IRegister = val;
-            break;
-        case MENU_EMCUSTOM_IDIVISOR:
-            EMConfig[EM_CUSTOM].IDivisor = val;
-            break;
-        case MENU_EMCUSTOM_PREGISTER:
-            EMConfig[EM_CUSTOM].PRegister = val;
-            break;
-        case MENU_EMCUSTOM_PDIVISOR:
-            EMConfig[EM_CUSTOM].PDivisor = val;
-            break;
-        case MENU_EMCUSTOM_EREGISTER:
-            EMConfig[EM_CUSTOM].ERegister = val;
-            break;
-        case MENU_EMCUSTOM_EDIVISOR:
-            EMConfig[EM_CUSTOM].EDivisor = val;
-            break;
-        case MENU_RFIDREADER:
-            RFIDReader = val;
-            break;
-        case MENU_WIFI:
-            WIFImode = val;
-            break;    
-        case MENU_AUTOUPDATE:
-            AutoUpdate = val;
-            break;
-
-        // Status writeable
-        case STATUS_STATE:
-            if (val != State) setState(val);
-            break;
-        case STATUS_ERROR:
-            ErrorFlags = val;
-            if (ErrorFlags) {                                                   // Is there an actual Error? Maybe the error got cleared?
-                if (ErrorFlags & CT_NOCOMM) MainsMeter.Timeout = 0;             // clear MainsMeter.Timeout on a CT_NOCOMM error, so the error will be immediate.
-                setStatePowerUnavailable();
-                ChargeDelay = CHARGEDELAY;
-                _LOG_V("Error message received!\n");
-            } else {
-                _LOG_V("Errors Cleared received!\n");
-            }
-            break;
-        case STATUS_CURRENT:
-            OverrideCurrent = val;
-            if (LoadBl < 2) MainsMeter.Timeout = COMM_TIMEOUT;                  // reset timeout when register is written
-            break;
-        case STATUS_SOLAR_TIMER:
-            SolarStopTimer = val;
-            break;
-        case STATUS_ACCESS:
-            if (val == 0 || val == 1) {
-                setAccess(val);
-            }
-            break;
-        case STATUS_CONFIG_CHANGED:
-            ConfigChanged = val;
-            break;
-
-        default:
-            return 0;
-    }
-
-    return 1;
-}
 
 /**
  * Get the variable

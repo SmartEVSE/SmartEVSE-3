@@ -78,7 +78,6 @@ EXT float OcppCurrentLimit;
 
 //functions
 EXT void setup();
-//EXT void setAccess(uint8_t Access);
 EXT void setState(uint8_t NewState);
 EXT int8_t TemperatureSensor();
 EXT void CheckSerialComm(void);
@@ -102,6 +101,9 @@ Meter EVMeter(EV_METER, EV_METER_ADDRESS, COMM_EVTIMEOUT);
 bool phasesLastUpdateFlag = false;
 bool GridRelayOpen = false;                                                 // The read status of the relay
 uint8_t MaxSumMainsTime = MAX_SUMMAINSTIME;                                 // Number of Minutes we wait when MaxSumMains is exceeded, before we stop charging
+uint16_t maxTemp = MAX_TEMPERATURE;
+uint8_t AutoUpdate = AUTOUPDATE;                                            // Automatic Firmware Update (0:Disable / 1:Enable)
+uint8_t ConfigChanged = 0;
 
 //constructor
 Button::Button(void) {
@@ -270,14 +272,14 @@ Button ExtSwitch;
 // is allowed to change the value of Acces_bit on CH32
 // All other code has to use setAccess
 // so for v4 we need:
-// a. CH32 setAccess sends message to ESP32           in CH32 src/evse.c
-// b. ESP32 receiver that calls local setState        in ESP32 src/main.cpp
+// a. CH32 setAccess sends message to ESP32           in CH32 src/evse.c and/or in src/common.cpp (this file)
+// b. ESP32 receiver that calls local setAccess       in ESP32 src/main.cpp
 // c. ESP32 setAccess full functionality              in ESP32 src/common.cpp (this file)
 // d. ESP32 sends message to CH32                     in ESP32 src/common.cpp (this file)
 // e. CH32 receiver that sets local variable          in CH32 src/evse.c
 
-#ifdef SMARTEVSE_VERSION //v3 and v4
 void setAccess(bool Access) { //c
+#ifdef SMARTEVSE_VERSION //v3 and v4
     Access_bit = Access;
 #if SMARTEVSE_VERSION == 4
     Serial1.printf("Access:%u\n", Access_bit); //d
@@ -299,8 +301,10 @@ void setAccess(bool Access) { //c
     // Update MQTT faster
     lastMqttUpdate = 10;
 #endif //MQTT
-}
+#else //CH32
+    printf("Access:%1u.\n", Access); //a
 #endif //SMARTEVSE_VERSION
+}
 
 
 /**
@@ -1201,9 +1205,10 @@ void Timer10ms_singlerun(void) {
                 setAccess(atoi(ret+strlen(token)));
             }
 
-            ret = strstr(SerialBuf, "version:");
+            strncpy(token, "version:", sizeof(token));
+            ret = strstr(SerialBuf, token);
             if (ret != NULL) {
-                MainVersion = atoi(ret+8);
+                MainVersion = atoi(ret+strlen(token));
                 Serial.printf("version %u received\n", MainVersion);
                 CommState = COMM_CONFIG_SET;
             }
@@ -1217,12 +1222,19 @@ void Timer10ms_singlerun(void) {
             strncpy(token, "Pilot:", sizeof(token));
             ret = strstr(SerialBuf, token);
             if (ret != NULL) {
-                pilot = atoi(ret+6); //e
+                pilot = atoi(ret+strlen(token)); //e
             }
 
-            ret = strstr(SerialBuf, "State:"); // current State (request) received from Wch
+            strncpy(token, "EnableC2:", sizeof(token));
+            ret = strstr(SerialBuf, token);
+            if (ret != NULL) {
+                EnableC2 = (EnableC2_t) atoi(ret+strlen(token)); //e
+            }
+
+            strncpy(token, "State:", sizeof(token));
+            ret = strstr(SerialBuf, token);
             if (ret != NULL ) {
-                State = atoi(ret+6); //e
+                State = atoi(ret+strlen(token)); //e
 /*
                 if (State == STATE_COMM_B) NewState = STATE_COMM_B_OK;
                 else if (State == STATE_COMM_C) NewState = STATE_COMM_C_OK;
@@ -1285,3 +1297,196 @@ void Timer10ms(void * parameter) {
     } // while(1) loop
 }
 #endif //SMARTEVSE_VERSION
+
+
+void setStatePowerUnavailable(void) {
+    if (State == STATE_A)
+       return;
+    //State changes between A,B,C,D are caused by EV or by the user
+    //State changes between x1 and x2 are created by the EVSE
+    //State changes between x1 and x2 indicate availability (x2) of unavailability (x1) of power supply to the EV
+    if (State == STATE_C) setState(STATE_C1);                       // If we are charging, tell EV to stop charging
+    else if (State != STATE_C1) setState(STATE_B1);                 // If we are not in State C1, switch to State B1
+}
+
+
+/**
+ * Check minimum and maximum of a value and set the variable
+ *
+ * @param uint8_t MENU_xxx
+ * @param uint16_t value
+ * @return uint8_t success
+ */
+uint8_t setItemValue(uint8_t nav, uint16_t val) {
+#ifdef SMARTEVSE_VERSION //TODO THIS SHOULD BE FIXED
+    if (nav < MENU_EXIT) {
+        if (val < MenuStr[nav].Min || val > MenuStr[nav].Max) return 0;
+    }
+#endif
+    switch (nav) {
+        case MENU_MAX_TEMP:
+            maxTemp = val;
+            break;
+        case MENU_C2:
+            EnableC2 = (EnableC2_t) val;
+#ifdef SMARTEVSE_VERSION
+            Serial1.printf("EnableC2:%u\n", EnableC2);
+#else
+            printf("EnableC2:%u\n", EnableC2);
+#endif
+            break;
+        case MENU_CONFIG:
+            Config = val;
+            break;
+        case STATUS_MODE:
+            if (Mode != val)                                                    // this prevents slave from waking up from OFF mode when Masters'
+                                                                                // solarstoptimer starts to count
+                setMode(val);
+            break;
+        case MENU_MODE:
+            Mode = val;
+            break;
+        case MENU_START:
+            StartCurrent = val;
+            break;
+        case MENU_STOP:
+            StopTime = val;
+            break;
+        case MENU_IMPORT:
+            ImportCurrent = val;
+            break;
+        case MENU_LOADBL:
+#if SMARTEVSE_VERSION == 3
+            ConfigureModbusMode(val);
+#endif
+            LoadBl = val;
+            break;
+        case MENU_MAINS:
+            MaxMains = val;
+            break;
+        case MENU_SUMMAINS:
+            MaxSumMains = val;
+            break;
+        case MENU_SUMMAINSTIME:
+            MaxSumMainsTime = val;
+            break;
+        case MENU_MIN:
+            MinCurrent = val;
+            break;
+        case MENU_MAX:
+            MaxCurrent = val;
+            break;
+        case MENU_CIRCUIT:
+            MaxCircuit = val;
+            break;
+        case MENU_LOCK:
+            Lock = val;
+            break;
+        case MENU_SWITCH:
+            Switch = val;
+            break;
+        case MENU_RCMON:
+            RCmon = val;
+            break;
+        case MENU_GRID:
+            Grid = val;
+            break;
+        case MENU_SB2_WIFI:
+            SB2_WIFImode = val;
+            break;
+        case MENU_MAINSMETER:
+            MainsMeter.Type = val;
+            break;
+        case MENU_MAINSMETERADDRESS:
+            MainsMeter.Address = val;
+            break;
+        case MENU_EVMETER:
+            EVMeter.Type = val;
+            break;
+        case MENU_EVMETERADDRESS:
+            EVMeter.Address = val;
+            break;
+        case MENU_EMCUSTOM_ENDIANESS:
+            EMConfig[EM_CUSTOM].Endianness = val;
+            break;
+        case MENU_EMCUSTOM_DATATYPE:
+            EMConfig[EM_CUSTOM].DataType = (mb_datatype)val;
+            break;
+        case MENU_EMCUSTOM_FUNCTION:
+            EMConfig[EM_CUSTOM].Function = val;
+            break;
+        case MENU_EMCUSTOM_UREGISTER:
+            EMConfig[EM_CUSTOM].URegister = val;
+            break;
+        case MENU_EMCUSTOM_UDIVISOR:
+            EMConfig[EM_CUSTOM].UDivisor = val;
+            break;
+        case MENU_EMCUSTOM_IREGISTER:
+            EMConfig[EM_CUSTOM].IRegister = val;
+            break;
+        case MENU_EMCUSTOM_IDIVISOR:
+            EMConfig[EM_CUSTOM].IDivisor = val;
+            break;
+        case MENU_EMCUSTOM_PREGISTER:
+            EMConfig[EM_CUSTOM].PRegister = val;
+            break;
+        case MENU_EMCUSTOM_PDIVISOR:
+            EMConfig[EM_CUSTOM].PDivisor = val;
+            break;
+        case MENU_EMCUSTOM_EREGISTER:
+            EMConfig[EM_CUSTOM].ERegister = val;
+            break;
+        case MENU_EMCUSTOM_EDIVISOR:
+            EMConfig[EM_CUSTOM].EDivisor = val;
+            break;
+        case MENU_RFIDREADER:
+            RFIDReader = val;
+            break;
+#ifdef SMARTEVSE_VERSION //TODO THIS SHOULD BE FIXED
+        case MENU_WIFI:
+            WIFImode = val;
+            break;
+#endif
+        case MENU_AUTOUPDATE:
+            AutoUpdate = val;
+            break;
+
+        // Status writeable
+        case STATUS_STATE:
+            if (val != State) setState(val);
+            break;
+        case STATUS_ERROR:
+            ErrorFlags = val;
+            if (ErrorFlags) {                                                   // Is there an actual Error? Maybe the error got cleared?
+                if (ErrorFlags & CT_NOCOMM) MainsMeter.Timeout = 0;             // clear MainsMeter.Timeout on a CT_NOCOMM error, so the error will be immediate.
+                setStatePowerUnavailable();
+                ChargeDelay = CHARGEDELAY;
+                _LOG_V("Error message received!\n");
+            } else {
+                _LOG_V("Errors Cleared received!\n");
+            }
+            break;
+        case STATUS_CURRENT:
+            OverrideCurrent = val;
+            if (LoadBl < 2) MainsMeter.Timeout = COMM_TIMEOUT;                  // reset timeout when register is written
+            break;
+        case STATUS_SOLAR_TIMER:
+            SolarStopTimer = val;
+            break;
+        case STATUS_ACCESS:
+            if (val == 0 || val == 1) {
+                setAccess(val);
+            }
+            break;
+        case STATUS_CONFIG_CHANGED:
+            ConfigChanged = val;
+            break;
+
+        default:
+            return 0;
+    }
+
+    return 1;
+}
+
+
