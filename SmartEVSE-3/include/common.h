@@ -14,6 +14,8 @@
 //#include "meter.h"
 #endif
 
+#define SOLARSTARTTIME 40                                                       // Seconds to keep chargecurrent at 6A
+
 //here should only be declarations for code that will not run on the CH32
 class Button {
   public:
@@ -33,5 +35,7 @@ extern void PowerPanicESP();
 
 extern uint8_t LCDlock, MainVersion;
 enum Single_Phase_t { FALSE, GOING_TO_SWITCH, AFTER_SWITCH };
+extern void CalcBalancedCurrent(char mod);
+
 
 #endif

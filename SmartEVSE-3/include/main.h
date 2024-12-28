@@ -176,7 +176,6 @@
 #define MAX_TEMPERATURE 65
 #define DELAYEDSTARTTIME 0                                                             // The default StartTime for delayed charged, 0 = not delaying
 #define DELAYEDSTOPTIME 0                                                       // The default StopTime for delayed charged, 0 = not stopping
-#define SOLARSTARTTIME 40                                                       // Seconds to keep chargecurrent at 6A
 #define OCPP_MODE 0
 #define AUTOUPDATE 0                                                            // default for Automatic Firmware Update: 0 = disabled, 1 = enabled
 #define SB2_WIFI_MODE 0
@@ -368,13 +367,6 @@
 #define EM_UNUSED_SLOT4 16
 #define EM_CUSTOM 17
 
-typedef enum mb_datatype {
-    MB_DATATYPE_INT32 = 0,
-    MB_DATATYPE_FLOAT32 = 1,
-    MB_DATATYPE_INT16 = 2,
-    MB_DATATYPE_MAX,
-} MBDataType;
-
 extern portMUX_TYPE rtc_spinlock;   //TODO: Will be placed in the appropriate position after the rtc module is finished.
 
 #define RTC_ENTER_CRITICAL()    portENTER_CRITICAL(&rtc_spinlock)
@@ -483,23 +475,6 @@ const struct {
     {"EXIT", "EXIT", 0, 0, 0}
 };
 
-
-struct EMstruct {
-    uint8_t Desc[10];
-    uint8_t Endianness;     // 0: low byte first, low word first, 1: low byte first, high word first, 2: high byte first, low word first, 3: high byte first, high word first
-    uint8_t Function;       // 3: holding registers, 4: input registers
-    MBDataType DataType;    // How data is represented on this Modbus meter
-    uint16_t URegister;     // Single phase voltage (V)
-    int8_t UDivisor;        // 10^x
-    uint16_t IRegister;     // Single phase current (A)
-    int8_t IDivisor;        // 10^x
-    uint16_t PRegister;     // Total power (W) -- only used for EV/PV meter momentary power
-    int8_t PDivisor;        // 10^x
-    uint16_t ERegister;     // Total imported energy (kWh); equals total energy if meter doesnt support exported energy
-    int8_t EDivisor;        // 10^x
-    uint16_t ERegister_Exp; // Total exported energy (kWh)
-    int8_t EDivisor_Exp;    // 10^x
-};
 
 struct DelayedTimeStruct {
     uint32_t epoch2;        // in case of Delayed Charging the StartTime in epoch2; if zero we are NOT Delayed Charging
