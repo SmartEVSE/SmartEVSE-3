@@ -1,3 +1,5 @@
+#include "common.h"
+
 #include <meter.h>
 #include <modbus.h>
 

@@ -349,24 +349,6 @@
 #define _A0_0 digitalWrite(PIN_LCD_A0_B2, LOW);
 #define _A0_1 digitalWrite(PIN_LCD_A0_B2, HIGH);
 
-#define EM_SENSORBOX 1                                                          // Mains meter types
-#define EM_PHOENIX_CONTACT 2
-#define EM_FINDER_7E 3
-#define EM_EASTRON3P 4
-#define EM_EASTRON3P_INV 5
-#define EM_ABB 6
-#define EM_SOLAREDGE 7
-#define EM_WAGO 8
-#define EM_API 9
-#define EM_EASTRON1P 10
-#define EM_FINDER_7M 11
-#define EM_SINOTIMER 12
-#define EM_UNUSED_SLOT1 13
-#define EM_UNUSED_SLOT2 14
-#define EM_UNUSED_SLOT3 15
-#define EM_UNUSED_SLOT4 16
-#define EM_CUSTOM 17
-
 extern portMUX_TYPE rtc_spinlock;   //TODO: Will be placed in the appropriate position after the rtc module is finished.
 
 #define RTC_ENTER_CRITICAL()    portENTER_CRITICAL(&rtc_spinlock)
@@ -482,15 +464,6 @@ struct DelayedTimeStruct {
                             // we avoid using epoch so we don't need expensive 64bits arithmetics with difftime
                             // and we can store dates until 7/2/2159
     int32_t diff;           // StartTime minus current time in seconds
-};
-
-struct Sensorbox {
-    uint8_t SoftwareVer;        // Sensorbox 2 software version
-    uint8_t WiFiConnected;      // 0:not connected / 1:connected to WiFi
-    uint8_t WiFiAPSTA;          // 0:no portal /  1: portal active
-    uint8_t WIFImode;           // 0:Wifi Off / 1:WiFi On / 2: Portal Start
-    uint8_t IP[4];
-    uint8_t APpassword[9];      // 8 characters + null termination
 };
 
 #define EPOCH2_OFFSET 1672531200

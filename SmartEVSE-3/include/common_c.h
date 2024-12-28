@@ -71,9 +71,12 @@ struct EMstruct {
 #define EM_CUSTOM 17
 
 EXTC uint8_t Force_Single_Phase_Charging(void);
+EXTC uint16_t getItemValue(uint8_t nav);
 EXTC EnableC2_t EnableC2;
 EXTC void Timer10ms(void * parameter);
 EXTC uint8_t Pilot();
 EXTC uint8_t pilot;
 EXTC int16_t Isum;
+EXTC uint8_t LoadBl;
+
 #endif

@@ -29,6 +29,11 @@ class Button {
 };
 
 extern Button ExtSwitch;
+extern uint8_t SB2_WIFImode;
+extern uint8_t SubMenu;
+extern uint8_t LCDNav;
+extern uint8_t GridActive;
+extern uint8_t Grid;
 
 extern void getButtonState();
 extern void PowerPanicESP();
@@ -36,6 +41,16 @@ extern void PowerPanicESP();
 extern uint8_t LCDlock, MainVersion;
 enum Single_Phase_t { FALSE, GOING_TO_SWITCH, AFTER_SWITCH };
 extern void CalcBalancedCurrent(char mod);
+extern void write_settings(void);
+
+struct Sensorbox {
+    uint8_t SoftwareVer;        // Sensorbox 2 software version
+    uint8_t WiFiConnected;      // 0:not connected / 1:connected to WiFi
+    uint8_t WiFiAPSTA;          // 0:no portal /  1: portal active
+    uint8_t WIFImode;           // 0:Wifi Off / 1:WiFi On / 2: Portal Start
+    uint8_t IP[4];
+    uint8_t APpassword[9];      // 8 characters + null termination
+};
 
 
 #endif

@@ -47,6 +47,7 @@ extern "C" {
 #endif
 EnableC2_t EnableC2 = NOT_PRESENT;
 uint8_t pilot;
+uint8_t LoadBl = LOADBL;
 
 //#ifdef SMARTEVSE_VERSION //v3 or v4
 #include "meter.h"
