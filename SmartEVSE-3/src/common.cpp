@@ -495,7 +495,7 @@ uint8_t Pilot() {
         if (sample > Max) Max = sample;                                   // store highest value
     }
 
-    printf("MSG: min:%u max:%u\n",Min ,Max);
+    //printf("MSG: min:%u max:%u\n",Min ,Max);
 
     // test Min/Max against fixed levels    (needs testing)
     ret = PILOT_NOK;                                                        // Pilot NOT ok
@@ -508,7 +508,6 @@ uint8_t Pilot() {
         //printf("Pilot:%u\n", ret); //d
         old_pilot = ret;
     }
-printf("MSG: DINGO pilot routine: Pilot=%u.\n", ret);
     return ret;
 }
 #else //v3 or v4
@@ -715,7 +714,7 @@ void Timer10ms_singlerun(void) {
 #ifdef SMARTEVSE_VERSION //v3 and v4
             timerAlarmWrite(timerA, PWM_5, false);                          // Enable Timer alarm, set to start of CP signal (5%)
 #else //CH32
-            TIM1->CH1CVR = PWM_5;
+            TIM1->CH4CVR = PWM_5;
 #endif
         }
 
