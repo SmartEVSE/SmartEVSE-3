@@ -43,6 +43,7 @@ struct EMstruct {
     uint16_t ERegister_Exp; // Total exported energy (kWh)
     int8_t EDivisor_Exp;    // 10^x
 };
+#define SB2_WIFI_MODE 0 
 
 #ifdef __cplusplus
 #define EXTC extern "C"
@@ -126,5 +127,5 @@ EXTC uint8_t Pilot();
 EXTC uint8_t pilot;
 EXTC int16_t Isum;
 EXTC uint8_t LoadBl;
-
+EXTC uint8_t setItemValue(uint8_t nav, uint16_t val); //this somehow prevents undefined reference in CH32 compile
 #endif

@@ -9,6 +9,7 @@
 #include "common.h"
 #include "stdio.h"
 #include "stdlib.h"
+#include "meter.h"
 
 #ifdef SMARTEVSE_VERSION //ESP32
 #define EXT extern
@@ -39,6 +40,8 @@
 
 #include <soc/rtc_io_struct.h>
 extern Preferences preferences;
+struct DelayedTimeStruct DelayedStartTime;
+struct DelayedTimeStruct DelayedStopTime;
 #else //CH32
 #define EXT extern "C"
 extern "C" {
@@ -51,12 +54,7 @@ uint8_t pilot;
 uint8_t LoadBl = LOADBL;
 uint8_t NodeNewMode = 0;
 uint8_t DelayedRepeat;                                                      // 0 = no repeat, 1 = daily repeat
-struct DelayedTimeStruct DelayedStartTime;
-struct DelayedTimeStruct DelayedStopTime;
 
-//#ifdef SMARTEVSE_VERSION //v3 or v4
-#include "meter.h"
-//#endif
 
 
 // gateway to the outside world
@@ -108,6 +106,7 @@ uint8_t MaxSumMainsTime = MAX_SUMMAINSTIME;                                 // N
 uint16_t maxTemp = MAX_TEMPERATURE;
 uint8_t AutoUpdate = AUTOUPDATE;                                            // Automatic Firmware Update (0:Disable / 1:Enable)
 uint8_t ConfigChanged = 0;
+uint8_t SB2_WIFImode = SB2_WIFI_MODE;                                       // Sensorbox-2 WiFi Mode (0:Disabled / 1:Enabled / 2:Start Portal)
 
 //constructor
 Button::Button(void) {
@@ -282,6 +281,8 @@ Button ExtSwitch;
 // d. ESP32 sends message to CH32                     in ESP32 src/common.cpp (this file)
 // e. CH32 receiver that sets local variable          in CH32 src/evse.c
 
+// same for Mode/setMode
+
 void setAccess(bool Access) { //c
 #ifdef SMARTEVSE_VERSION //v3 and v4
     Access_bit = Access;
@@ -317,6 +318,10 @@ void setAccess(bool Access) { //c
  * @param uint8_t Mode
  */
 void setMode(uint8_t NewMode) {
+#ifdef SMARTEVSE_VERSION //v3 and v4
+#if SMARTEVSE_VERSION == 4
+    Serial1.printf("Mode:%u\n", Mode); //d
+#endif
     // If mainsmeter disabled we can only run in Normal Mode
     if (!MainsMeter.Type && NewMode != MODE_NORMAL)
         return;
@@ -368,6 +373,9 @@ void setMode(uint8_t NewMode) {
         preferences.putUShort("DelayedRepeat", DelayedRepeat);
         preferences.end();
     }
+#else //CH32
+    printf("Mode:%1u.\n", Mode); //a
+#endif //SMARTEVSE_VERSION
 }
 
 
@@ -1264,6 +1272,12 @@ void Timer10ms_singlerun(void) {
             }
 
             strncpy(token, "Access:", sizeof(token)); //b
+            ret = strstr(SerialBuf, token);
+            if (ret != NULL) {
+                setAccess(atoi(ret+strlen(token)));
+            }
+
+            strncpy(token, "Mode:", sizeof(token)); //b
             ret = strstr(SerialBuf, token);
             if (ret != NULL) {
                 setAccess(atoi(ret+strlen(token)));
