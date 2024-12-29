@@ -184,9 +184,9 @@ extern uint8_t AutoUpdate;
 uint16_t StartCurrent = START_CURRENT;
 uint16_t StopTime = STOP_TIME;
 uint16_t ImportCurrent = IMPORT_CURRENT;
-struct DelayedTimeStruct DelayedStartTime;
-struct DelayedTimeStruct DelayedStopTime;
-uint8_t DelayedRepeat;                                                      // 0 = no repeat, 1 = daily repeat
+extern struct DelayedTimeStruct DelayedStartTime;
+extern struct DelayedTimeStruct DelayedStopTime;
+extern uint8_t DelayedRepeat;
 uint8_t LCDlock = LCD_LOCK;                                                 // 0 = LCD buttons operational, 1 = LCD buttons disabled
 uint8_t Grid = GRID;                                                        // Type of Grid connected to Sensorbox (0:4Wire / 1:3Wire )
 uint8_t SB2_WIFImode = SB2_WIFI_MODE;                                       // Sensorbox-2 WiFi Mode (0:Disabled / 1:Enabled / 2:Start Portal)
@@ -247,7 +247,7 @@ uint8_t LeaveModemDeniedStateTimer = 0;                                     // T
 uint8_t NoCurrent = 0;                                                      // counts overcurrent situations.
 uint8_t TestState = 0;
 uint8_t ModbusRequest = 0;                                                  // Flag to request Modbus information
-uint8_t NodeNewMode = 0;
+extern uint8_t NodeNewMode;
 uint8_t Access_bit = 0;                                                     // 0:No Access 1:Access to SmartEVSE
 uint16_t CardOffset = CARD_OFFSET;                                          // RFID card used in Enable One mode
 
@@ -664,65 +664,6 @@ const char * getErrorNameWeb(uint8_t ErrorCode) {
     count = getErrorId(ErrorCode);
     if(count < 9) return StrErrorNameWeb[count];
     else return "Multiple Errors";
-}
-
-/**
- * Set EVSE mode
- * 
- * @param uint8_t Mode
- */
-void setMode(uint8_t NewMode) {
-    // If mainsmeter disabled we can only run in Normal Mode
-    if (!MainsMeter.Type && NewMode != MODE_NORMAL)
-        return;
-
-    // Take care of extra conditionals/checks for custom features
-    setAccess(!DelayedStartTime.epoch2); //if DelayedStartTime not zero then we are Delayed Charging
-    if (NewMode == MODE_SOLAR) {
-        // Reset OverrideCurrent if mode is SOLAR
-        OverrideCurrent = 0;
-    }
-
-    // when switching modes, we just keep charging at the phases we were charging at;
-    // it's only the regulation algorithm that is changing...
-    // EXCEPT when EnableC2 == Solar Off, because we would expect C2 to be off when in Solar Mode and EnableC2 == Solar Off
-    // and also the other way around, multiple phases might be wanted when changing from Solar to Normal or Smart
-    bool switchOnLater = false;
-    if (EnableC2 == SOLAR_OFF) {
-        if ((Mode != MODE_SOLAR && NewMode == MODE_SOLAR) || (Mode == MODE_SOLAR && NewMode != MODE_SOLAR)) {
-            //we are switching from non-solar to solar
-            //since we EnableC2 == SOLAR_OFF C2 is turned On now, and should be turned off
-            setAccess(0);                                                       //switch to OFF
-            switchOnLater = true;
-        }
-    }
-
-#if MQTT
-    // Update MQTT faster
-    lastMqttUpdate = 10;
-#endif
-
-    if (NewMode == MODE_SMART) {
-        ErrorFlags &= ~(NO_SUN | LESS_6A);                                      // Clear All errors
-        setSolarStopTimer(0);                                                   // Also make sure the SolarTimer is disabled.
-        MaxSumMainsTimer = 0;
-    }
-    ChargeDelay = 0;                                                            // Clear any Chargedelay
-    BacklightTimer = BACKLIGHT;                                                 // Backlight ON
-    if (Mode != NewMode) NodeNewMode = NewMode + 1;
-    Mode = NewMode;    
-
-    if (switchOnLater)
-        setAccess(1);
-
-    //make mode and start/stoptimes persistent on reboot
-    if (preferences.begin("settings", false) ) {                        //false = write mode
-        preferences.putUChar("Mode", Mode);
-        preferences.putULong("DelayedStartTim", DelayedStartTime.epoch2); //epoch2 only needs 4 bytes
-        preferences.putULong("DelayedStopTime", DelayedStopTime.epoch2);   //epoch2 only needs 4 bytes
-        preferences.putUShort("DelayedRepeat", DelayedRepeat);
-        preferences.end();
-    }
 }
 
 

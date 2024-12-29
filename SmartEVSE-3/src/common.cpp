@@ -49,6 +49,10 @@ extern "C" {
 EnableC2_t EnableC2 = NOT_PRESENT;
 uint8_t pilot;
 uint8_t LoadBl = LOADBL;
+uint8_t NodeNewMode = 0;
+uint8_t DelayedRepeat;                                                      // 0 = no repeat, 1 = daily repeat
+struct DelayedTimeStruct DelayedStartTime;
+struct DelayedTimeStruct DelayedStopTime;
 
 //#ifdef SMARTEVSE_VERSION //v3 or v4
 #include "meter.h"
@@ -304,6 +308,66 @@ void setAccess(bool Access) { //c
 #else //CH32
     printf("Access:%1u.\n", Access); //a
 #endif //SMARTEVSE_VERSION
+}
+
+
+/**
+ * Set EVSE mode
+ * 
+ * @param uint8_t Mode
+ */
+void setMode(uint8_t NewMode) {
+    // If mainsmeter disabled we can only run in Normal Mode
+    if (!MainsMeter.Type && NewMode != MODE_NORMAL)
+        return;
+
+    // Take care of extra conditionals/checks for custom features
+    setAccess(!DelayedStartTime.epoch2); //if DelayedStartTime not zero then we are Delayed Charging
+    if (NewMode == MODE_SOLAR) {
+        // Reset OverrideCurrent if mode is SOLAR
+        OverrideCurrent = 0;
+    }
+
+    // when switching modes, we just keep charging at the phases we were charging at;
+    // it's only the regulation algorithm that is changing...
+    // EXCEPT when EnableC2 == Solar Off, because we would expect C2 to be off when in Solar Mode and EnableC2 == Solar Off
+    // and also the other way around, multiple phases might be wanted when changing from Solar to Normal or Smart
+    bool switchOnLater = false;
+    if (EnableC2 == SOLAR_OFF) {
+        if ((Mode != MODE_SOLAR && NewMode == MODE_SOLAR) || (Mode == MODE_SOLAR && NewMode != MODE_SOLAR)) {
+            //we are switching from non-solar to solar
+            //since we EnableC2 == SOLAR_OFF C2 is turned On now, and should be turned off
+            setAccess(0);                                                       //switch to OFF
+            switchOnLater = true;
+        }
+    }
+
+#if MQTT
+    // Update MQTT faster
+    lastMqttUpdate = 10;
+#endif
+
+    if (NewMode == MODE_SMART) {
+        ErrorFlags &= ~(NO_SUN | LESS_6A);                                      // Clear All errors
+        setSolarStopTimer(0);                                                   // Also make sure the SolarTimer is disabled.
+        MaxSumMainsTimer = 0;
+    }
+    ChargeDelay = 0;                                                            // Clear any Chargedelay
+    BacklightTimer = BACKLIGHT;                                                 // Backlight ON
+    if (Mode != NewMode) NodeNewMode = NewMode + 1;
+    Mode = NewMode;    
+
+    if (switchOnLater)
+        setAccess(1);
+
+    //make mode and start/stoptimes persistent on reboot
+    if (preferences.begin("settings", false) ) {                        //false = write mode
+        preferences.putUChar("Mode", Mode);
+        preferences.putULong("DelayedStartTim", DelayedStartTime.epoch2); //epoch2 only needs 4 bytes
+        preferences.putULong("DelayedStopTime", DelayedStopTime.epoch2);   //epoch2 only needs 4 bytes
+        preferences.putUShort("DelayedRepeat", DelayedRepeat);
+        preferences.end();
+    }
 }
 
 
