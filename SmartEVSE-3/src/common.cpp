@@ -1568,3 +1568,118 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
 }
 
 
+/**
+ * Get the variable
+ *
+ * @param uint8_t MENU_xxx
+ * @return uint16_t value
+ */
+uint16_t getItemValue(uint8_t nav) {
+    switch (nav) {
+        case MENU_MAX_TEMP:
+            return maxTemp;
+        case MENU_C2:
+            return EnableC2;
+        case MENU_CONFIG:
+            return Config;
+        case MENU_MODE:
+        case STATUS_MODE:
+            return Mode;
+        case MENU_START:
+            return StartCurrent;
+        case MENU_STOP:
+            return StopTime;
+        case MENU_IMPORT:
+            return ImportCurrent;
+        case MENU_LOADBL:
+            return LoadBl;
+        case MENU_MAINS:
+            return MaxMains;
+        case MENU_SUMMAINS:
+            return MaxSumMains;
+        case MENU_SUMMAINSTIME:
+            return MaxSumMainsTime;
+        case MENU_MIN:
+            return MinCurrent;
+        case MENU_MAX:
+            return MaxCurrent;
+        case MENU_CIRCUIT:
+            return MaxCircuit;
+        case MENU_LOCK:
+            return Lock;
+        case MENU_SWITCH:
+            return Switch;
+        case MENU_RCMON:
+            return RCmon;
+        case MENU_GRID:
+            return Grid;
+        case MENU_SB2_WIFI:
+            return SB2_WIFImode;
+        case MENU_MAINSMETER:
+            return MainsMeter.Type;
+        case MENU_MAINSMETERADDRESS:
+            return MainsMeter.Address;
+        case MENU_EVMETER:
+            return EVMeter.Type;
+        case MENU_EVMETERADDRESS:
+            return EVMeter.Address;
+        case MENU_EMCUSTOM_ENDIANESS:
+            return EMConfig[EM_CUSTOM].Endianness;
+        case MENU_EMCUSTOM_DATATYPE:
+            return EMConfig[EM_CUSTOM].DataType;
+        case MENU_EMCUSTOM_FUNCTION:
+            return EMConfig[EM_CUSTOM].Function;
+        case MENU_EMCUSTOM_UREGISTER:
+            return EMConfig[EM_CUSTOM].URegister;
+        case MENU_EMCUSTOM_UDIVISOR:
+            return EMConfig[EM_CUSTOM].UDivisor;
+        case MENU_EMCUSTOM_IREGISTER:
+            return EMConfig[EM_CUSTOM].IRegister;
+        case MENU_EMCUSTOM_IDIVISOR:
+            return EMConfig[EM_CUSTOM].IDivisor;
+        case MENU_EMCUSTOM_PREGISTER:
+            return EMConfig[EM_CUSTOM].PRegister;
+        case MENU_EMCUSTOM_PDIVISOR:
+            return EMConfig[EM_CUSTOM].PDivisor;
+        case MENU_EMCUSTOM_EREGISTER:
+            return EMConfig[EM_CUSTOM].ERegister;
+        case MENU_EMCUSTOM_EDIVISOR:
+            return EMConfig[EM_CUSTOM].EDivisor;
+        case MENU_RFIDREADER:
+            return RFIDReader;
+#ifdef SMARTEVSE_VERSION //not on CH32
+        case MENU_WIFI:
+            return WIFImode;    
+#endif
+        case MENU_AUTOUPDATE:
+            return AutoUpdate;
+
+        // Status writeable
+        case STATUS_STATE:
+            return State;
+        case STATUS_ERROR:
+            return ErrorFlags;
+        case STATUS_CURRENT:
+            return Balanced[0];
+        case STATUS_SOLAR_TIMER:
+            return SolarStopTimer;
+        case STATUS_ACCESS:
+            return Access_bit;
+        case STATUS_CONFIG_CHANGED:
+            return ConfigChanged;
+
+        // Status readonly
+        case STATUS_MAX:
+            return min(MaxCapacity,MaxCurrent);
+        case STATUS_TEMP:
+            return (signed int)TempEVSE;
+#ifdef SMARTEVSE_VERSION //not on CH32
+        case STATUS_SERIAL:
+            return serialnr;
+#endif
+        default:
+            return 0;
+    }
+}
+
+
