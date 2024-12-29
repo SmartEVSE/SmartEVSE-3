@@ -10,6 +10,7 @@
 #include "stdio.h"
 #include "stdlib.h"
 #include "meter.h"
+#include "modbus.h"
 
 #ifdef SMARTEVSE_VERSION //ESP32
 #define EXT extern
@@ -76,6 +77,7 @@ EXT struct Node_t Node[NR_EVSES];
 EXT uint8_t BalancedState[NR_EVSES];
 #if ENABLE_OCPP
 EXT float OcppCurrentLimit;
+extern bool OcppForcesLock;
 #endif
 
 //functions
@@ -92,6 +94,16 @@ EXT const char * getStateName(uint8_t StateCode);
 EXT void SetCurrent(uint16_t current);
 EXT char IsCurrentAvailable(void);
 EXT int Set_Nr_of_Phases_Charging(void);
+extern void printStatus(void);
+extern void requestEnergyMeasurement(uint8_t Meter, uint8_t Address, bool Export);
+extern void requestNodeConfig(uint8_t NodeNr);
+extern void requestPowerMeasurement(uint8_t Meter, uint8_t Address, uint16_t PRegister);
+extern void requestNodeStatus(uint8_t NodeNr);
+extern uint8_t processAllNodeStates(uint8_t NodeNr);
+extern void BroadcastCurrent(void);
+
+extern bool CPDutyOverride;
+extern uint8_t ModbusRequest;
 
 Single_Phase_t Switching_To_Single_Phase = FALSE;
 uint16_t MaxSumMainsTimer = 0;
@@ -107,6 +119,8 @@ uint16_t maxTemp = MAX_TEMPERATURE;
 uint8_t AutoUpdate = AUTOUPDATE;                                            // Automatic Firmware Update (0:Disable / 1:Enable)
 uint8_t ConfigChanged = 0;
 uint8_t SB2_WIFImode = SB2_WIFI_MODE;                                       // Sensorbox-2 WiFi Mode (0:Disabled / 1:Enabled / 2:Start Portal)
+uint8_t lock1 = 0, lock2 = 1;
+
 
 //constructor
 Button::Button(void) {
@@ -988,6 +1002,244 @@ void CalcBalancedCurrent(char mod) {
     }
 } //CalcBalancedCurrent
 
+// Task that handles the Cable Lock and modbus
+// 
+// called every 100ms
+//
+void Timer100ms_singlerun(void) {
+#ifdef SMARTEVSE_VERSION //ESP32
+static unsigned int locktimer = 0, unlocktimer = 0, energytimer = 0;
+static uint8_t PollEVNode = NR_EVSES, updated = 0;
+
+    // Check if the cable lock is used
+    if (Lock) {                                                 // Cable lock enabled?
+        // UnlockCable takes precedence over LockCable
+        if ((RFIDReader == 2 && Access_bit == 0) ||             // One RFID card can Lock/Unlock the charging socket (like a public charging station)
+#if ENABLE_OCPP
+        (OcppMode &&!OcppForcesLock) ||
+#endif
+            State == STATE_A) {                                 // The charging socket is unlocked when unplugged from the EV
+            if (unlocktimer == 0) {                             // 600ms pulse
+                ACTUATOR_UNLOCK;
+            } else if (unlocktimer == 6) {
+                ACTUATOR_OFF;
+            }
+            if (unlocktimer++ > 7) {
+                if (digitalRead(PIN_LOCK_IN) == lock1 )         // still locked...
+                {
+                    if (unlocktimer > 50) unlocktimer = 0;      // try to unlock again in 5 seconds
+                } else unlocktimer = 7;
+            }
+            locktimer = 0;
+        // Lock Cable    
+        } else if (State != STATE_A                            // Lock cable when connected to the EV
+#if ENABLE_OCPP
+        || (OcppMode && OcppForcesLock)
+#endif
+        ) {
+            if (locktimer == 0) {                               // 600ms pulse
+                ACTUATOR_LOCK;
+            } else if (locktimer == 6) {
+                ACTUATOR_OFF;
+            }
+            if (locktimer++ > 7) {
+                if (digitalRead(PIN_LOCK_IN) == lock2 )         // still unlocked...
+                {
+                    if (locktimer > 50) locktimer = 0;          // try to lock again in 5 seconds
+                } else locktimer = 7;
+            }
+            unlocktimer = 0;
+        }
+    }
+
+   
+
+    // Every 2 seconds, request measurements from modbus meters
+    if (ModbusRequest) {                                                    // Slaves all have ModbusRequest at 0 so they never enter here
+        switch (ModbusRequest) {                                            // State
+            case 1:                                                         // PV kwh meter
+                ModbusRequest++;
+                // fall through
+            case 2:                                                         // Sensorbox or kWh meter that measures -all- currents
+                if (MainsMeter.Type && MainsMeter.Type != EM_API) {         // we don't want modbus meter currents to conflict with EM_API currents
+                    _LOG_D("ModbusRequest %u: Request MainsMeter Measurement\n", ModbusRequest);
+                    requestCurrentMeasurement(MainsMeter.Type, MainsMeter.Address);
+                    break;
+                }
+                ModbusRequest++;
+                // fall through
+            case 3:
+                // Find next online SmartEVSE
+                do {
+                    PollEVNode++;
+                    if (PollEVNode >= NR_EVSES) PollEVNode = 0;
+                } while(!Node[PollEVNode].Online);
+
+                // Request Configuration if changed
+                if (Node[PollEVNode].ConfigChanged) {
+                    _LOG_D("ModbusRequest %u: Request Configuration Node %u\n", ModbusRequest, PollEVNode);
+                    // This will do the following:
+                    // - Send a modbus request to the Node for it's EVmeter
+                    // - Node responds with the Type and Address of the EVmeter
+                    // - Master writes configuration flag reset value to Node
+                    // - Node acks with the exact same message
+                    // This takes around 50ms in total
+                    requestNodeConfig(PollEVNode);
+                    break;
+                }
+                ModbusRequest++;
+                // fall through
+            case 4:                                                         // EV kWh meter, Energy measurement (total charged kWh)
+                // Request Energy if EV meter is configured
+                if (Node[PollEVNode].EVMeter && Node[PollEVNode].EVMeter != EM_API) {
+                    _LOG_D("ModbusRequest %u: Request Energy Node %u\n", ModbusRequest, PollEVNode);
+                    requestEnergyMeasurement(Node[PollEVNode].EVMeter, Node[PollEVNode].EVAddress, 0);
+                    break;
+                }
+                ModbusRequest++;
+                // fall through
+            case 5:                                                         // EV kWh meter, Power measurement (momentary power in Watt)
+                // Request Power if EV meter is configured
+                if (Node[PollEVNode].EVMeter && Node[PollEVNode].EVMeter != EM_API) {
+                    switch(EVMeter.Type) {
+                        //these meters all have their power measured via receiveCurrentMeasurement already
+                        case EM_EASTRON1P:
+                        case EM_EASTRON3P:
+                        case EM_EASTRON3P_INV:
+                        case EM_ABB:
+                        case EM_FINDER_7M:
+                            break;
+                        default:
+                            requestPowerMeasurement(Node[PollEVNode].EVMeter, Node[PollEVNode].EVAddress,EMConfig[Node[PollEVNode].EVMeter].PRegister);
+                            break;
+                    }
+                    break;
+                }
+                ModbusRequest++;
+                // fall through
+            case 6:                                                         // Node 1
+            case 7:
+            case 8:
+            case 9:
+            case 10:
+            case 11:
+            case 12:
+                if (LoadBl == 1) {
+                    requestNodeStatus(ModbusRequest - 5u);                   // Master, Request Node 1-8 status
+                    break;
+                }
+                ModbusRequest = 13;
+                // fall through
+            case 13:
+            case 14:
+            case 15:
+            case 16:
+            case 17:
+            case 18:
+            case 19:
+                // Here we write State, Error, Mode and SolarTimer to Online Nodes
+                updated = 0;
+                if (LoadBl == 1) {
+                    do {       
+                        if (Node[ModbusRequest - 12u].Online) {             // Skip if not online
+                            if (processAllNodeStates(ModbusRequest - 12u) ) {
+                                updated = 1;                                // Node updated 
+                                break;
+                            }
+                        }
+                    } while (++ModbusRequest < 20);
+
+                } else ModbusRequest = 20;
+                if (updated) break;  // break when Node updated
+                // fall through
+            case 20:                                                         // EV kWh meter, Current measurement
+                // Request Current if EV meter is configured
+                if (Node[PollEVNode].EVMeter && Node[PollEVNode].EVMeter != EM_API) {
+                    _LOG_D("ModbusRequest %u: Request EVMeter Current Measurement Node %u\n", ModbusRequest, PollEVNode);
+                    requestCurrentMeasurement(Node[PollEVNode].EVMeter, Node[PollEVNode].EVAddress);
+                    break;
+                }
+                ModbusRequest++;
+                // fall through
+            case 21:
+                // Request active energy if Mainsmeter is configured
+                if (MainsMeter.Type && (MainsMeter.Type != EM_API) && (MainsMeter.Type != EM_SENSORBOX) ) { // EM_API and Sensorbox do not support energy postings
+                    energytimer++; //this ticks approx every second?!?
+                    if (energytimer == 30) {
+                        _LOG_D("ModbusRequest %u: Request MainsMeter Import Active Energy Measurement\n", ModbusRequest);
+                        requestEnergyMeasurement(MainsMeter.Type, MainsMeter.Address, 0);
+                        break;
+                    }
+                    if (energytimer >= 60) {
+                        _LOG_D("ModbusRequest %u: Request MainsMeter Export Active Energy Measurement\n", ModbusRequest);
+                        requestEnergyMeasurement(MainsMeter.Type, MainsMeter.Address, 1);
+                        energytimer = 0;
+                        break;
+                    }
+                }
+                ModbusRequest++;
+                // fall through
+                break;  // TODO: remove break; read modbus registers more evenly. 
+                //  For now this gives the next modbus broadcast some room.
+            default:
+                // slave never gets here
+                // what about normal mode with no meters attached?
+                CalcBalancedCurrent(0);
+                // No current left, or Overload (2x Maxmains)?
+                if (Mode && (NoCurrent > 2 || MainsMeter.Imeasured > (MaxMains * 20))) { // I guess we don't want to set this flag in Normal mode, we just want to charge ChargeCurrent
+                    // STOP charging for all EVSE's
+                    // Display error message
+                    ErrorFlags |= LESS_6A; //NOCURRENT;
+                    // Broadcast Error code over RS485
+                    ModbusWriteSingleRequest(BROADCAST_ADR, 0x0001, ErrorFlags);
+                    NoCurrent = 0;
+                }
+                if (LoadBl == 1 && !(ErrorFlags & CT_NOCOMM) ) BroadcastCurrent();               // When there is no Comm Error, Master sends current to all connected EVSE's
+
+                if ((State == STATE_B || State == STATE_C) && !CPDutyOverride) SetCurrent(Balanced[0]); // set PWM output for Master //mind you, the !CPDutyOverride was not checked in Smart/Solar mode, but I think this was a bug!
+                printStatus();  //for debug purposes
+                ModbusRequest = 0;
+                //_LOG_A("Timer100ms task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
+                break;
+        } //switch
+        if (ModbusRequest) ModbusRequest++;
+    }
+#else //CH32
+    static uint8_t locktimer = 0, unlocktimer = 0;
+
+    //Check Serial communication with ESP32
+    if (RxRdy1) CheckSerialComm();
+
+    // Check if the cable lock is used
+    if (Lock) {                                                 // Cable lock enabled?
+        // UnlockCable takes precedence over LockCable
+        if (UnlockCable) {
+            if (unlocktimer < 6) {                              // 600ms pulse
+                ACTUATOR_UNLOCK;
+            } else ACTUATOR_OFF;
+            if (unlocktimer++ > 7) {
+                if (funDigitalRead(LOCK_IN) == lock1 )         // still locked...
+                {
+                    if (unlocktimer > 50) unlocktimer = 0;      // try to unlock again in 5 seconds
+                } else unlocktimer = 7;
+            }
+            locktimer = 0;
+        // Lock Cable
+        } else if (LockCable) {
+            if (locktimer < 6) {                                // 600ms pulse
+                ACTUATOR_LOCK;
+            } else ACTUATOR_OFF;
+            if (locktimer++ > 7) {
+                if (funDigitalRead(LOCK_IN) == lock2 )         // still unlocked...
+                {
+                    if (locktimer > 50) locktimer = 0;          // try to lock again in 5 seconds
+                } else locktimer = 7;
+            }
+            unlocktimer = 0;
+        }
+    }
+#endif
+}
 
 void Timer10ms_singlerun(void) {
 #ifndef SMARTEVSE_VERSION //CH32
@@ -1372,6 +1624,15 @@ void Timer10ms(void * parameter) {
         Timer10ms_singlerun();
         // Pause the task for 10ms
         vTaskDelay(10 / portTICK_PERIOD_MS);
+    } // while(1) loop
+}
+
+void Timer100ms(void * parameter) {
+    // infinite loop
+    while(1) {
+        Timer100ms_singlerun();
+        // Pause the task for 10ms
+        vTaskDelay(100 / portTICK_PERIOD_MS);
     } // while(1) loop
 }
 #endif //SMARTEVSE_VERSION
