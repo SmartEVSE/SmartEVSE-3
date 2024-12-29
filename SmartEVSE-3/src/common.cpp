@@ -1007,9 +1007,9 @@ void CalcBalancedCurrent(char mod) {
 
 
 void Timer1S_singlerun(void) {
+static uint8_t Broadcast = 1;
 #ifdef SMARTEVSE_VERSION //ESP32
 
-static uint8_t Broadcast = 1;
 static uint8_t x;
 
     if (BacklightTimer) BacklightTimer--;                               // Decrease backlight counter every second.
@@ -1163,7 +1163,6 @@ uint8_t ow = 0, x;
         ErrorFlags &= ~TEMP_HIGH; // clear Error
     }
 
-#ifdef SMARTEVSE_VERSION //ESP32
     if ( (ErrorFlags & (LESS_6A|NO_SUN) ) && (LoadBl < 2) && (IsCurrentAvailable())) {
         ErrorFlags &= ~LESS_6A;                                         // Clear Errors if there is enough current available, and Load Balancing is disabled or we are Master
         ErrorFlags &= ~NO_SUN;
@@ -1234,10 +1233,11 @@ uint8_t ow = 0, x;
         Broadcast = 1;                                                  // repeat every two seconds
     }
 
+#ifdef SMARTEVSE_VERSION //ESP32
     // for Slave modbusrequest loop is never called, so we have to show debug info here...
     if (LoadBl > 1)
         printStatus();  //for debug purposes
-
+#endif
     //_LOG_A("Timer1S task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
 
 
@@ -1249,7 +1249,7 @@ uint8_t ow = 0, x;
     }
 #endif
 
-#else //CH32
+#ifndef SMARTEVSE_VERSION //CH32
 /*
     // Send data to ESP
     // Wait till configuration is received 
