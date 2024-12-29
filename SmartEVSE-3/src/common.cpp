@@ -266,6 +266,7 @@ void Button::CheckSwitch(bool force) {
 #ifdef SMARTEVSE_VERSION //both v3 and v4
     // TODO This piece of code doesnt really belong in CheckSwitch but should be called every 10ms
     // Residual current monitor active, and DC current > 6mA ?
+    // FIXME should be running on CH32 or v3 ESP32
     if (RCmon == 1 && digitalRead(PIN_RCM_FAULT) == HIGH) {
         delay(1);
         // check again, to prevent voltage spikes from tripping the RCM detection
@@ -1488,31 +1489,25 @@ static uint8_t PollEVNode = NR_EVSES, updated = 0;
 }
 
 void Timer10ms_singlerun(void) {
-#ifndef SMARTEVSE_VERSION //CH32
-//NOTE that CH32 has a 10ms routine that has to be called every 10ms
-//and ESP32 has a 10ms routine that is called once and has a while loop with 10ms delay in it
+#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION == 3   //CH32 and v3 ESP32
     static uint8_t DiodeCheck = 0;
     static uint16_t StateTimer = 0;                                                 // When switching from State B to C, make sure pilot is at 6v for 100ms
-
     BlinkLed();
-
-    //Check RS485 communication
-    if (ModbusRxLen) CheckRS485Comm();
-
-#else //v3 and v4
-// Task that handles EVSE State Changes
-// Reads buttons, and updates the LCD.
-    static uint16_t old_sec = 0;
-#if SMARTEVSE_VERSION == 3
-    static uint8_t DiodeCheck = 0;
-    static uint16_t StateTimer = 0;                                                 // When switching from State B to C, make sure pilot is at 6v for 100ms
-#else
+#else //v4
     static uint8_t RXbyte, idx = 0;
     static char SerialBuf[256];
     static uint8_t CommState = COMM_VER_REQ;
     static uint8_t CommTimeout = 0;
     static char *ret;
 #endif
+
+#ifndef SMARTEVSE_VERSION //CH32
+    //Check RS485 communication
+    if (ModbusRxLen) CheckRS485Comm();
+#else //v3 and v4
+// Task that handles EVSE State Changes
+// Reads buttons, and updates the LCD.
+    static uint16_t old_sec = 0;
     getButtonState();
 
     // When one or more button(s) are pressed, we call GLCDMenu
@@ -1527,11 +1522,9 @@ void Timer10ms_singlerun(void) {
     }
 #endif
 
-//common code here
+#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION == 3 //CH32 and v3
     // Check the external switch and RCM sensor
     ExtSwitch.CheckSwitch();
-
-#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION == 3 //CH32 and v3
     // sample the Pilot line
     pilot = Pilot();
 
@@ -1725,7 +1718,7 @@ void Timer10ms_singlerun(void) {
         } else StateTimer = 0;
 
     } // end of State C code
-#endif //v3
+#endif //v3 and CH32
 #if SMARTEVSE_VERSION == 4 //v4
 
     if (Serial1.available()) {
