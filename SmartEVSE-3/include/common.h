@@ -37,7 +37,9 @@ extern uint8_t SubMenu;
 extern uint8_t LCDNav;
 extern uint8_t GridActive;
 extern uint8_t Grid;
-
+extern void Timer10ms(void * parameter);
+extern void Timer100ms(void * parameter);
+extern void Timer1S(void * parameter);
 extern void getButtonState();
 extern void PowerPanicESP();
 

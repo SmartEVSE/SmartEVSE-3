@@ -101,6 +101,8 @@ extern void requestPowerMeasurement(uint8_t Meter, uint8_t Address, uint16_t PRe
 extern void requestNodeStatus(uint8_t NodeNr);
 extern uint8_t processAllNodeStates(uint8_t NodeNr);
 extern void BroadcastCurrent(void);
+extern void CheckRFID(void);
+extern void mqttPublishData();
 
 extern bool CPDutyOverride;
 extern uint8_t ModbusRequest;
@@ -1011,7 +1013,9 @@ static uint8_t Broadcast = 1;
 static uint8_t x;
 
     if (BacklightTimer) BacklightTimer--;                               // Decrease backlight counter every second.
-
+#else //CH32
+uint8_t ow = 0, x;
+#endif
     // wait for Activation mode to start
     if (ActivationMode && ActivationMode != 255) {
         ActivationMode--;                                               // Decrease ActivationMode every second.
@@ -1084,7 +1088,9 @@ static uint8_t x;
         else {
             _LOG_A("State C1 timeout!\n");
             setState(STATE_B1);                                         // switch back to STATE_B1
+#ifdef SMARTEVSE_VERSION //not CH32
             GLCD_init();                                                // Re-init LCD (200ms delay); necessary because switching contactors can cause LCD to mess up
+#endif
         }
     }
 
@@ -1105,17 +1111,18 @@ static uint8_t x;
         }
     }
 #endif
-
-#if SMARTEVSE_VERSION == 3
+#if SMARTEVSE_VERSION == 3 //TODO FIXME for CH32 !!
     // once a second, measure temperature
     // range -40 .. +125C
     TempEVSE = TemperatureSensor();                                                             
-
 #endif
 
+#ifdef SMARTEVSE_VERSION //ESP32
     // Check if there is a RFID card in front of the reader
     CheckRFID();
-
+#else //CH32
+    if (RFIDReader) ow = OneWireReadCardId();
+#endif
              
     // When Solar Charging, once the current drops to MINcurrent a timer is started.
     // Charging is stopped when the timer reaches the time set in 'StopTime' (in minutes)
@@ -1156,6 +1163,7 @@ static uint8_t x;
         ErrorFlags &= ~TEMP_HIGH; // clear Error
     }
 
+#ifdef SMARTEVSE_VERSION //ESP32
     if ( (ErrorFlags & (LESS_6A|NO_SUN) ) && (LoadBl < 2) && (IsCurrentAvailable())) {
         ErrorFlags &= ~LESS_6A;                                         // Clear Errors if there is enough current available, and Load Balancing is disabled or we are Master
         ErrorFlags &= ~NO_SUN;
@@ -1226,10 +1234,8 @@ static uint8_t x;
         Broadcast = 1;                                                  // repeat every two seconds
     }
 
-#if SMARTEVSE_VERSION == 3
     // for Slave modbusrequest loop is never called, so we have to show debug info here...
     if (LoadBl > 1)
-#endif
         printStatus();  //for debug purposes
 
     //_LOG_A("Timer1S task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
@@ -1244,66 +1250,6 @@ static uint8_t x;
 #endif
 
 #else //CH32
-printf("MSG: DINGO Timer1S pilot=%u, state=%u, mode=%u.\n", pilot, State, Mode);
-    //static uint16_t second=0;
-    uint8_t ow = 0, x;
-
-
-
-    // wait for Activation mode to start
-    if (ActivationMode && ActivationMode != 255) {
-        ActivationMode--;                                               // Decrease ActivationMode every second.
-    }
-
-    // activation Mode is active
-    if (ActivationTimer) ActivationTimer--;                             // Decrease ActivationTimer every second.
-
-    if (State == STATE_C1) {
-        if (C1Timer) C1Timer--;                                         // if the EV does not stop charging in 6 seconds, we will open the contactor.
-        else {
-            printf("State C1 timeout!\n");
-            setState(STATE_B1);                                         // switch back to STATE_B1
-            if (!ChargeDelay) ChargeDelay = 15;
-        }
-    }
-
-    // once a second, update temperature
-    // range -40 .. +125C
-    TempEVSE = TemperatureSensor();
-
-    // When RFIDReader is enabled, check if there is a RFID card in front of the reader
-    // And read UID
-    if (RFIDReader) ow = OneWireReadCardId();
-
-
-    // When Solar Charging, once the current drops to MINcurrent a timer is started.
-    // Charging is stopped when the timer reaches the time set in 'StopTime' (in minutes)
-    // Except when Stoptime =0, then charging will continue.
-
-    if (SolarStopTimer) {
-        SolarStopTimer--;
-        if (SolarStopTimer == 0) {
-
-            if (State == STATE_C) setState(STATE_C1);                   // tell EV to stop charging
-            ErrorFlags |= NO_SUN;                                       // Set error: NO_SUN
-        }
-    }
-
-
-    if (ChargeDelay) ChargeDelay--;                                     // Decrease Charge Delay counter
-
-    if (PilotDisconnectTime) PilotDisconnectTime--;                     // Decrease PilotDisconnectTimer
-
-    if (AccessTimer && State == STATE_A) {
-        if (--AccessTimer == 0) {
-            setAccess(false);                                           // re-lock EVSE
-        }
-    } else AccessTimer = 0;                                             // Not in state A, then disable timer
-
-
-    if ((TempEVSE < 55) && (ErrorFlags & TEMP_HIGH)) {            // Temperature below limit?
-        ErrorFlags &= ~TEMP_HIGH; // clear Error
-    }
 /*
     // Send data to ESP
     // Wait till configuration is received 
