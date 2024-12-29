@@ -1111,7 +1111,8 @@ uint8_t ow = 0, x;
         }
     }
 #endif
-#if SMARTEVSE_VERSION == 3 //TODO FIXME for CH32 !!
+
+#if SMARTEVSE_VERSION != 4 //runs on v3 ESP32 or v4 CH32
     // once a second, measure temperature
     // range -40 .. +125C
     TempEVSE = TemperatureSensor();                                                             
@@ -1804,6 +1805,12 @@ void Timer10ms_singlerun(void) {
             ret = strstr(SerialBuf, token);
             if (ret != NULL) {
                 EnableC2 = (EnableC2_t) atoi(ret+strlen(token)); //e
+            }
+
+            strncpy(token, "Temp:", sizeof(token));
+            ret = strstr(SerialBuf, token);
+            if (ret != NULL) {
+                TempEVSE = atoi(ret+strlen(token)); //e
             }
 
             strncpy(token, "State:", sizeof(token));

@@ -119,14 +119,14 @@ void PowerPanicESP() {
 // Create a ModbusRTU server, client and bridge instance on Serial1
 ModbusServerRTU MBserver(2000, PIN_RS485_DIR);     // TCP timeout set to 2000 ms
 ModbusClientRTU MBclient(PIN_RS485_DIR);
+static esp_adc_cal_characteristics_t * adc_chars_PP;
+static esp_adc_cal_characteristics_t * adc_chars_Temperature;
 #endif //SMARTEVSE_VERSION
 
 hw_timer_t * timerA = NULL;
 Preferences preferences;
 
 extern esp_adc_cal_characteristics_t * adc_chars_CP;
-static esp_adc_cal_characteristics_t * adc_chars_PP;
-static esp_adc_cal_characteristics_t * adc_chars_Temperature;
 
 struct ModBus MB;          // Used by SmartEVSE fuctions
 
@@ -581,7 +581,7 @@ uint16_t GetCurrent() {
 #if SMARTEVSE_VERSION == 3
 // Sample the Temperature sensor.
 //
-signed char TemperatureSensor() {
+int8_t TemperatureSensor() {
     uint32_t sample, voltage;
     signed char Temperature;
 
@@ -628,6 +628,9 @@ void ProximityPin() {
 
     if (Config) MaxCapacity = MaxCurrent;                                   // Override with MaxCurrent when Fixed Cable is used.
 }
+#endif
+#ifndef SMARTEVSE_VERSION //CH32
+extern int8_t TemperatureSensor();
 #endif
 
 /**
