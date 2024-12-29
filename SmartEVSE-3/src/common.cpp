@@ -1007,9 +1007,17 @@ void CalcBalancedCurrent(char mod) {
 // called every 100ms
 //
 void Timer100ms_singlerun(void) {
+static unsigned int locktimer = 0, unlocktimer = 0;
 #ifdef SMARTEVSE_VERSION //ESP32
-static unsigned int locktimer = 0, unlocktimer = 0, energytimer = 0;
+static unsigned int energytimer = 0;
 static uint8_t PollEVNode = NR_EVSES, updated = 0;
+#else //CH32
+    //Check Serial communication with ESP32
+    if (RxRdy1) CheckSerialComm();
+//make stuff compatible with CH32 terminology
+#define digitalRead funDigitalRead
+#define PIN_LOCK_IN LOCK_IN
+#endif
 
     // Check if the cable lock is used
     if (Lock) {                                                 // Cable lock enabled?
@@ -1052,8 +1060,7 @@ static uint8_t PollEVNode = NR_EVSES, updated = 0;
         }
     }
 
-   
-
+#ifdef SMARTEVSE_VERSION //ESP32
     // Every 2 seconds, request measurements from modbus meters
     if (ModbusRequest) {                                                    // Slaves all have ModbusRequest at 0 so they never enter here
         switch (ModbusRequest) {                                            // State
@@ -1205,39 +1212,9 @@ static uint8_t PollEVNode = NR_EVSES, updated = 0;
         if (ModbusRequest) ModbusRequest++;
     }
 #else //CH32
-    static uint8_t locktimer = 0, unlocktimer = 0;
-
-    //Check Serial communication with ESP32
-    if (RxRdy1) CheckSerialComm();
-
-    // Check if the cable lock is used
-    if (Lock) {                                                 // Cable lock enabled?
-        // UnlockCable takes precedence over LockCable
-        if (UnlockCable) {
-            if (unlocktimer < 6) {                              // 600ms pulse
-                ACTUATOR_UNLOCK;
-            } else ACTUATOR_OFF;
-            if (unlocktimer++ > 7) {
-                if (funDigitalRead(LOCK_IN) == lock1 )         // still locked...
-                {
-                    if (unlocktimer > 50) unlocktimer = 0;      // try to unlock again in 5 seconds
-                } else unlocktimer = 7;
-            }
-            locktimer = 0;
-        // Lock Cable
-        } else if (LockCable) {
-            if (locktimer < 6) {                                // 600ms pulse
-                ACTUATOR_LOCK;
-            } else ACTUATOR_OFF;
-            if (locktimer++ > 7) {
-                if (funDigitalRead(LOCK_IN) == lock2 )         // still unlocked...
-                {
-                    if (locktimer > 50) locktimer = 0;          // try to lock again in 5 seconds
-                } else locktimer = 7;
-            }
-            unlocktimer = 0;
-        }
-    }
+//not sure this is necessary
+#undef digitalRead
+#undef PIN_LOCK_IN
 #endif
 }
 
