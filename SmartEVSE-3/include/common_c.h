@@ -127,4 +127,5 @@ EXTC uint8_t pilot;
 EXTC int16_t Isum;
 EXTC uint8_t LoadBl;
 EXTC uint8_t setItemValue(uint8_t nav, uint16_t val); //this somehow prevents undefined reference in CH32 compile
+EXTC char IsCurrentAvailable(void);
 #endif
