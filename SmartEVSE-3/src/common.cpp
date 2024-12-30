@@ -95,7 +95,6 @@ EXT void CheckRS485Comm(void);
 EXT uint8_t ProximityPin();
 EXT void PowerPanic(void);
 EXT const char * getStateName(uint8_t StateCode);
-EXT void SetCurrent(uint16_t current);
 EXT int Set_Nr_of_Phases_Charging(void);
 extern void printStatus(void);
 extern void requestEnergyMeasurement(uint8_t Meter, uint8_t Address, bool Export);
@@ -135,7 +134,7 @@ uint8_t ColorCustom[3] = {0, 0, 255};
 uint8_t BacklightSet = 0;
 uint16_t BalancedError[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};                // Error state of EVSE
 bool CPDutyOverride = false;
-
+uint32_t CurrentPWM = 0;                                                    // Current PWM duty cycle value (0 - 1024)
 extern const char StrStateName[15][13] = {"A", "B", "C", "D", "COMM_B", "COMM_B_OK", "COMM_C", "COMM_C_OK", "Activate", "B1", "C1", "MODEM1", "MODEM2", "MODEM_OK", "MODEM_DENIED"}; //note that the extern is necessary here because the const will point the compiler to internal linkage; https://cplusplus.com/forum/general/81640/
 
 //constructor
@@ -448,6 +447,44 @@ uint8_t Force_Single_Phase_Charging() {                                         
     return 0;
 }
 //#endif
+
+#ifdef SMARTEVSE_VERSION //ESP32 FIXME should only run on CH32?
+// Set Charge Current 
+// Current in Amps * 10 (160 = 16A)
+void SetCurrent(uint16_t current) {
+    uint32_t DutyCycle;
+
+    if ((current >= (MIN_CURRENT * 10)) && (current <= 510)) DutyCycle = current / 0.6;
+                                                                            // calculate DutyCycle from current
+    else if ((current > 510) && (current <= 800)) DutyCycle = (current / 2.5) + 640;
+    else DutyCycle = 100;                                                   // invalid, use 6A
+    DutyCycle = DutyCycle * 1024 / 1000;                                    // conversion to 1024 = 100%
+    SetCPDuty(DutyCycle);
+}
+
+// Write duty cycle to pin
+// Value in range 0 (0% duty) to 1024 (100% duty)
+void SetCPDuty(uint32_t DutyCycle){
+    ledcWrite(CP_CHANNEL, DutyCycle);                                       // update PWM signal
+    CurrentPWM = DutyCycle;
+}
+#else //CH32
+// Set Charge Current
+// Current in Amps * 10 (160 = 16A)
+void SetCurrent(uint16_t current) {
+
+    uint16_t DutyCycle;
+
+    // calculate PWM DutyCycle from current
+    if ((current >= 60) && (current <= 510)) DutyCycle = current * 10 / 6;      // use integer calculations
+    else if ((current > 510) && (current <= 800)) DutyCycle = (current * 10 / 25) + 640;
+    // invalid, use 6A
+    else DutyCycle = 100;
+
+    // update PWM signal
+    TIM1->CH1CVR = DutyCycle;
+}
+#endif
 
 // State is owned by the CH32
 // because it is highly subject to machine interaction

@@ -160,7 +160,8 @@ bool CustomButton = false;                                                  // T
 uint16_t MaxCurrent = MAX_CURRENT;                                          // Max Charge current (A)
 uint16_t MinCurrent = MIN_CURRENT;                                          // Minimal current the EV is happy with (A)
 uint8_t Mode = MODE;                                                        // EVSE mode (0:Normal / 1:Smart / 2:Solar)
-uint32_t CurrentPWM = 0;                                                    // Current PWM duty cycle value (0 - 1024)
+extern uint32_t CurrentPWM;
+extern void SetCurrent(uint16_t current);
 int8_t InitialSoC = -1;                                                     // State of charge of car
 int8_t FullSoC = -1;                                                        // SoC car considers itself fully charged
 int8_t ComputedSoC = -1;                                                    // Estimated SoC, based on charged kWh
@@ -384,27 +385,6 @@ void IRAM_ATTR onTimerA() {
 #endif //SMARTEVSE_VERSION
 
 // --------------------------- END of ISR's -----------------------------------------------------
-
-// Set Charge Current 
-// Current in Amps * 10 (160 = 16A)
-void SetCurrent(uint16_t current) {
-    uint32_t DutyCycle;
-
-    if ((current >= (MIN_CURRENT * 10)) && (current <= 510)) DutyCycle = current / 0.6;
-                                                                            // calculate DutyCycle from current
-    else if ((current > 510) && (current <= 800)) DutyCycle = (current / 2.5) + 640;
-    else DutyCycle = 100;                                                   // invalid, use 6A
-    DutyCycle = DutyCycle * 1024 / 1000;                                    // conversion to 1024 = 100%
-    SetCPDuty(DutyCycle);
-}
-
-// Write duty cycle to pin
-// Value in range 0 (0% duty) to 1024 (100% duty)
-void SetCPDuty(uint32_t DutyCycle){
-    ledcWrite(CP_CHANNEL, DutyCycle);                                       // update PWM signal
-    CurrentPWM = DutyCycle;
-}
-
 
 #if ENABLE_OCPP
 // Inverse function of SetCurrent (for monitoring and debugging purposes)

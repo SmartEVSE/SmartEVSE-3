@@ -136,7 +136,7 @@ EXTC void requestCurrentMeasurement(uint8_t Meter, uint8_t Address);
 EXTC void ModbusWriteSingleRequest(uint8_t address, uint16_t reg, uint16_t value);
 EXTC void ModbusReadInputRequest(uint8_t address, uint8_t function, uint16_t reg, uint16_t quantity);
 EXTC void ModbusWriteMultipleRequest(uint8_t address, uint16_t reg, uint16_t *values, uint8_t count);
-
+EXTC void SetCurrent(uint16_t current);
 
 
 #endif
