@@ -49,6 +49,7 @@ struct EMstruct {
 #define EXTC extern "C"
 #else
 #define EXTC extern
+#define bool _Bool
 #endif
 
 #define NUM_ADC_SAMPLES 32
@@ -130,6 +131,11 @@ EXTC uint8_t setItemValue(uint8_t nav, uint16_t val); //this somehow prevents un
 EXTC char IsCurrentAvailable(void);
 EXTC void receiveNodeStatus(uint8_t *buf, uint8_t NodeNr);
 EXTC void receiveNodeConfig(uint8_t *buf, uint8_t NodeNr);
+EXTC void requestMeasurement(uint8_t Meter, uint8_t Address, uint16_t Register, uint8_t Count);
+EXTC void requestCurrentMeasurement(uint8_t Meter, uint8_t Address);
+EXTC void ModbusWriteSingleRequest(uint8_t address, uint16_t reg, uint16_t value);
+EXTC void ModbusReadInputRequest(uint8_t address, uint8_t function, uint16_t reg, uint16_t quantity);
+EXTC void ModbusWriteMultipleRequest(uint8_t address, uint16_t reg, uint16_t *values, uint8_t count);
 
 
 

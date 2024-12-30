@@ -1577,6 +1577,187 @@ void receiveNodeStatus(uint8_t *buf, uint8_t NodeNr) {
 }
 
 
+/**
+ * Send Energy measurement request over modbus
+ *
+ * @param uint8_t Meter
+ * @param uint8_t Address
+ * @param bool    Export (if exported energy is requested)
+ */
+void requestEnergyMeasurement(uint8_t Meter, uint8_t Address, bool Export) {
+    uint8_t Count = 1;                                                          // by default it only takes 1 register to get the energy measurement
+    uint16_t Register = EMConfig[Meter].ERegister;
+    if (Export)
+        Register = EMConfig[Meter].ERegister_Exp;
+
+    switch (Meter) {
+        case EM_FINDER_7E:
+        case EM_EASTRON3P:
+        case EM_EASTRON1P:
+        case EM_WAGO:
+            break;
+        case EM_SOLAREDGE:
+            // Note:
+            // - SolarEdge uses 16-bit values, except for this measurement it uses 32bit int format
+            // - EM_SOLAREDGE should not be used for EV Energy Measurements
+            // fallthrough
+        case EM_SINOTIMER:
+            // Note:
+            // - Sinotimer uses 16-bit values, except for this measurement it uses 32bit int format
+            // fallthrough
+        case EM_ABB:
+            // Note:
+            // - ABB uses 64bit values for this register (size 2)
+            Count = 2;
+            break;
+        case EM_EASTRON3P_INV:
+            if (Export)
+                Register = EMConfig[Meter].ERegister;
+            else
+                Register = EMConfig[Meter].ERegister_Exp;
+            break;
+        default:
+            if (Export)
+                Count = 0; //refuse to do a request on exported energy if the meter doesnt support it
+            break;
+    }
+    if (Count)
+        requestMeasurement(Meter, Address, Register, Count);
+}
+
+/**
+ * Send Power measurement request over modbus
+ *
+ * @param uint8_t Meter
+ * @param uint8_t Address
+ */
+void requestPowerMeasurement(uint8_t Meter, uint8_t Address, uint16_t PRegister) {
+    uint8_t Count = 1;                                                          // by default it only takes 1 register to get power measurement
+    switch (Meter) {
+        case EM_SINOTIMER:
+            // Note:
+            // - Sinotimer does not output total power but only individual power of the 3 phases
+            Count = 3;
+            break;
+    }
+    requestMeasurement(Meter, Address, PRegister, Count);
+}
+
+
+/**
+ * Master checks node status requests, and responds with new state
+ * Master -> Node
+ *
+ * @param uint8_t NodeAdr (1-7)
+ * @return uint8_t success
+ */
+uint8_t processAllNodeStates(uint8_t NodeNr) {
+    uint16_t values[5];
+    uint8_t current, write = 0, regs = 2;                                       // registers are written when Node needs updating.
+
+    values[0] = BalancedState[NodeNr];
+
+    current = IsCurrentAvailable();
+    if (current) {                                                              // Yes enough current
+        if (BalancedError[NodeNr] & (LESS_6A|NO_SUN)) {
+            BalancedError[NodeNr] &= ~(LESS_6A | NO_SUN);                       // Clear Error flags
+            write = 1;
+        }
+    }
+
+    if ((ErrorFlags & CT_NOCOMM) && !(BalancedError[NodeNr] & CT_NOCOMM)) {
+        BalancedError[NodeNr] |= CT_NOCOMM;                                     // Send Comm Error on Master to Node
+        write = 1;
+    }
+
+    // Check EVSE for request to charge states
+    switch (BalancedState[NodeNr]) {
+        case STATE_A:
+            // Reset Node
+            Node[NodeNr].IntTimer = 0;
+            Node[NodeNr].Timer = 0;
+            Node[NodeNr].Phases = 0;
+            Node[NodeNr].MinCurrent = 0;
+            break;
+
+        case STATE_COMM_B:                                                      // Request to charge A->B
+            _LOG_I("Node %u State A->B request ", NodeNr);
+            if (current) {                                                      // check if we have enough current
+                                                                                // Yes enough current..
+                BalancedState[NodeNr] = STATE_B;                                // Mark Node EVSE as active (State B)
+                Balanced[NodeNr] = MinCurrent * 10;                             // Initially set current to lowest setting
+                values[0] = STATE_COMM_B_OK;
+                write = 1;
+                _LOG_I("- OK!\n");
+            } else {                                                            // We do not have enough current to start charging
+                Balanced[NodeNr] = 0;                                           // Make sure the Node does not start charging by setting current to 0
+                if ((BalancedError[NodeNr] & (LESS_6A|NO_SUN)) == 0) {          // Error flags cleared?
+                    if (Mode == MODE_SOLAR) BalancedError[NodeNr] |= NO_SUN;    // Solar mode: No Solar Power available
+                    else BalancedError[NodeNr] |= LESS_6A;                      // Normal or Smart Mode: Not enough current available
+                    write = 1;
+                }
+                _LOG_I("- Not enough current!\n");
+            }
+            break;
+
+        case STATE_COMM_C:                                                      // request to charge B->C
+            _LOG_I("Node %u State B->C request\n", NodeNr);
+            Balanced[NodeNr] = 0;                                               // For correct baseload calculation set current to zero
+            if (current) {                                                      // check if we have enough current
+                                                                                // Yes
+                BalancedState[NodeNr] = STATE_C;                                // Mark Node EVSE as Charging (State C)
+                CalcBalancedCurrent(1);                                         // Calculate charge current for all connected EVSE's
+                values[0] = STATE_COMM_C_OK;
+                write = 1;
+                _LOG_I("- OK!\n");
+            } else {                                                            // We do not have enough current to start charging
+                if ((BalancedError[NodeNr] & (LESS_6A|NO_SUN)) == 0) {          // Error flags cleared?
+                    if (Mode == MODE_SOLAR) BalancedError[NodeNr] |= NO_SUN;    // Solar mode: No Solar Power available
+                    else BalancedError[NodeNr] |= LESS_6A;                      // Normal or Smart Mode: Not enough current available
+                    write = 1;
+                }
+                _LOG_I("- Not enough current!\n");
+            }
+            break;
+
+        default:
+            break;
+
+    }
+
+    // Here we set the Masters Mode to the one we received from a Slave/Node
+    if (NodeNewMode) {
+        setMode(NodeNewMode -1);
+        NodeNewMode = 0;
+    }    
+
+    // Error Flags
+    values[1] = BalancedError[NodeNr];
+    // Charge Current
+    values[2] = 0;                                                              // This does nothing for Nodes. Currently the Chargecurrent can only be written to the Master
+    // Mode
+    if (Node[NodeNr].Mode != Mode) {
+        regs = 4;
+        write = 1;
+    }    
+    values[3] = Mode;
+    
+    // SolarStopTimer
+    if (abs((int16_t)SolarStopTimer - (int16_t)Node[NodeNr].SolarTimer) > 3) {  // Write SolarStoptimer to Node if time is off by 3 seconds or more.
+        regs = 5;
+        write = 1;
+        values[4] = SolarStopTimer;
+    }    
+
+    if (write) {
+        _LOG_D("processAllNode[%u]States State:%u (%s), BalancedError:%u, Mode:%u, SolarStopTimer:%u\n",NodeNr, BalancedState[NodeNr], StrStateName[BalancedState[NodeNr]], BalancedError[NodeNr], Mode, SolarStopTimer);
+        ModbusWriteMultipleRequest(NodeNr+1 , 0x0000, values, regs);            // Write State, Error, Charge Current, Mode and Solar Timer to Node
+    }
+
+    return write;
+}
+
+
 // Task that handles the Cable Lock and modbus
 // 
 // called every 100ms
@@ -1778,7 +1959,9 @@ static uint8_t PollEVNode = NR_EVSES, updated = 0;
                 if (LoadBl == 1 && !(ErrorFlags & CT_NOCOMM) ) BroadcastCurrent();               // When there is no Comm Error, Master sends current to all connected EVSE's
 
                 if ((State == STATE_B || State == STATE_C) && !CPDutyOverride) SetCurrent(Balanced[0]); // set PWM output for Master //mind you, the !CPDutyOverride was not checked in Smart/Solar mode, but I think this was a bug!
+#ifdef SMARTEVSE_VERSION //ESP32
                 printStatus();  //for debug purposes
+#endif
                 ModbusRequest = 0;
                 //_LOG_A("Timer100ms task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
                 break;
