@@ -138,5 +138,10 @@ EXTC void ModbusReadInputRequest(uint8_t address, uint8_t function, uint16_t reg
 EXTC void ModbusWriteMultipleRequest(uint8_t address, uint16_t reg, uint16_t *values, uint8_t count);
 EXTC void SetCurrent(uint16_t current);
 
+EXTC uint8_t ModbusRx[256];
+EXTC void ReadItemValueResponse(void);
+EXTC void WriteItemValueResponse(void);
+EXTC void WriteMultipleItemValueResponse(void);
+EXTC void ModbusDecode(uint8_t * buf, uint8_t len);
 
 #endif

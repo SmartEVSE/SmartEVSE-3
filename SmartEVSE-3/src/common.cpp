@@ -65,11 +65,10 @@ uint8_t DelayedRepeat;                                                      // 0
 // and they are mainly used in the main.cpp/common.cpp code
 EXT uint32_t elapsedmax, elapsedtime;
 EXT int8_t TempEVSE;
-EXT int homeBatteryCurrent, phasesLastUpdate;
 EXT uint16_t SolarStopTimer, MaxCapacity, MainsCycleTime, ChargeCurrent, MinCurrent, MaxCurrent, BalancedMax[NR_EVSES], ADC_CP[NUM_ADC_SAMPLES], ADCsamples[25], Balanced[NR_EVSES], MaxMains, MaxCircuit, OverrideCurrent, StartCurrent, StopTime, MaxSumMains, ImportCurrent, GridRelayMaxSumMains;
 EXT uint8_t RFID[8], Access_bit, Mode, Lock, ErrorFlags, ChargeDelay, State, LoadBl, PilotDisconnectTime, AccessTimer, ActivationMode, ActivationTimer, RFIDReader, C1Timer, UnlockCable, LockCable, RxRdy1, MainsMeterTimeout, PilotDisconnected, ModbusRxLen, PowerPanicFlag, Switch, RCmon, TestState, Config, PwrPanic, ModemPwr, Initialized, pilot, NoCurrent, MaxSumMainsTime;
 EXT int16_t IsetBalanced;
-EXT bool CustomButton, GridRelayOpen, phasesLastUpdateFlag;
+EXT bool CustomButton, GridRelayOpen;
 #ifdef SMARTEVSE_VERSION //v3 and v4
 EXT hw_timer_t * timerA;
 esp_adc_cal_characteristics_t * adc_chars_CP;
@@ -91,7 +90,6 @@ EXT void setState(uint8_t NewState);
 EXT int8_t TemperatureSensor();
 EXT void CheckSerialComm(void);
 EXT uint8_t OneWireReadCardId();
-EXT void CheckRS485Comm(void);
 EXT uint8_t ProximityPin();
 EXT void PowerPanic(void);
 EXT const char * getStateName(uint8_t StateCode);
@@ -118,6 +116,8 @@ int16_t Isum = 0;                                                           // S
 uint8_t Nr_Of_Phases_Charging = 0;                                          // 0 = Undetected, 1,2,3 = nr of phases that was detected at the start of this charging session
 Meter MainsMeter(MAINS_METER, MAINS_METER_ADDRESS, COMM_TIMEOUT);
 Meter EVMeter(EV_METER, EV_METER_ADDRESS, COMM_EVTIMEOUT);
+int homeBatteryCurrent = 0;
+int phasesLastUpdate = 0;
 bool phasesLastUpdateFlag = false;
 bool GridRelayOpen = false;                                                 // The read status of the relay
 uint8_t MaxSumMainsTime = MAX_SUMMAINSTIME;                                 // Number of Minutes we wait when MaxSumMains is exceeded, before we stop charging
@@ -136,6 +136,9 @@ uint16_t BalancedError[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};                // E
 bool CPDutyOverride = false;
 uint32_t CurrentPWM = 0;                                                    // Current PWM duty cycle value (0 - 1024)
 extern const char StrStateName[15][13] = {"A", "B", "C", "D", "COMM_B", "COMM_B_OK", "COMM_C", "COMM_C_OK", "Activate", "B1", "C1", "MODEM1", "MODEM2", "MODEM_OK", "MODEM_DENIED"}; //note that the extern is necessary here because the const will point the compiler to internal linkage; https://cplusplus.com/forum/general/81640/
+uint8_t ModbusRx[256];                          // Modbus Receive buffer
+int homeBatteryLastUpdate = 0; // Time in milliseconds
+int16_t IrmsOriginal[3]={0, 0, 0};
 
 //constructor
 Button::Button(void) {
@@ -2231,6 +2234,105 @@ static unsigned int LedPwm = 0;                                                /
 }
 #endif
 
+
+// printf can be slow.
+// By measuring the time the 10ms loop actually takes to execute we found that:
+// it takes ~625uS to execute when using printf (and tx interrrupts)
+// ~151uS without printf (with tx interrupt)
+// and only ~26uS when using DMA
+// printf with Circular DMA buffer takes ~536uS
+// current version with snprintf takes ~296uS
+//
+// Called by 10ms loop when new modbus data is available
+// ModbusRxLen contains length of data contained in array ModbusRx
+void CheckRS485Comm(void) //looks like MBHandleData
+{
+    ModbusDecode(ModbusRx, ModbusRxLen);
+
+    // Data received is a response to an earlier request from the master.
+    if (MB.Type == MODBUS_RESPONSE) {
+        //printf("MSG: Modbus Response Address %u / Function %02x / Register %02x\n",MB.Address,MB.Function,MB.Register);
+        switch (MB.Function) {
+            case 0x03: // (Read holding register)
+            case 0x04: // (Read input register)
+                if (MainsMeter.Type && MB.Address == MainsMeter.Address) {
+                    MainsMeter.ResponseToMeasurement();
+                } else if (EVMeter.Type && MB.Address == EVMeter.Address) {
+                    EVMeter.ResponseToMeasurement();
+                } else if (LoadBl == 1 && MB.Address > 1 && MB.Address <= NR_EVSES) {
+                    // Packet from a Node EVSE, only for Master!
+                    if (MB.Register == 0x0000) {
+                        // Node status
+                        receiveNodeStatus(MB.Data, MB.Address - 1u);
+                    }  else if (MB.Register == 0x0108) {
+                        // Node configuration
+                        receiveNodeConfig(MB.Data, MB.Address - 1u);
+                    }
+                }
+                break;
+            default:
+                break;
+        }
+    // Data received is a request from the master to a device on the bus.
+    } else if (MB.Type == MODBUS_REQUEST) { //looks like MBBroadcast
+        //printf("Modbus Request Address %i / Function %02x / Register %02x\n",MB.Address,MB.Function,MB.Register);
+
+        // Broadcast or addressed to this device
+        if (MB.Address == BROADCAST_ADR || (LoadBl > 0 && MB.Address == LoadBl)) {
+            switch (MB.Function) {
+                case 0x03: // (Read holding register)
+                case 0x04: // (Read input register)
+                    // Addressed to this device
+                    printf("read register(s) ");
+                    if (MB.Address != BROADCAST_ADR) {
+                        ReadItemValueResponse();
+                    }
+                    break;
+                case 0x06: // (Write single register)
+                    printf("write register ");
+                    WriteItemValueResponse();
+                    break;
+                case 0x10: // (Write multiple register))
+                    // 0x0020: Balance currents
+                    if (MB.Register == 0x0020 && LoadBl > 1) {      // Message for Node(s)
+                        Balanced[0] = (MB.Data[(LoadBl - 1) * 2] <<8) | MB.Data[(LoadBl - 1) * 2 + 1];
+                        if (Balanced[0] == 0 && State == STATE_C) setState(STATE_C1);               // tell EV to stop charging if charge current is zero
+                        else if ((State == STATE_B) || (State == STATE_C)) SetCurrent(Balanced[0]); // Set charge current, and PWM output
+#ifdef LOG_DEBUG_MODBUS
+                        printf("Broadcast received, Node %u.%1u A\n", Balanced[0]/10, Balanced[0]%10);
+#endif
+                        MainsMeterTimeout = 10;                                   // reset 10 second timeout
+                    } else {
+                        printf("write multiple registers ");
+                        WriteMultipleItemValueResponse();
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+    } else if (MB.Type == MODBUS_EXCEPTION) {
+#ifdef LOG_DEBUG_MODBUS
+        printf("Modbus Address %02x exception %u received\n", MB.Address, MB.Exception);
+#endif
+#ifdef LOG_WARN_MODBUS
+    } else {
+        printf("\nCRC invalid\n");
+#endif
+    }
+
+
+
+
+//    char buf[256];
+//    for (uint8_t x=0; x<ModbusRxLen; x++) snprintf(buf+(x*3), 4, "%02X ", ModbusRx[x]);
+//    printf("MB:%s\n", buf);
+ 
+    ModbusRxLen = 0;
+
+}
+
+
 void Timer10ms_singlerun(void) {
 #if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION == 3   //CH32 and v3 ESP32
     static uint8_t DiodeCheck = 0;
@@ -2951,4 +3053,55 @@ uint16_t getItemValue(uint8_t nav) {
     }
 }
 
+//#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION == 3 //not on ESP32 v4
+/**
+ * Returns the known battery charge rate if the data is not too old.
+ * Returns 0 if data is too old.
+ * A positive number means charging, a negative number means discharging --> this means the inverse must be used for calculations
+ * 
+ * Example:
+ * homeBatteryCharge == 1000 --> Battery is charging using Solar
+ * P1 = -500 --> Solar injection to the net but nut sufficient for charging
+ * 
+ * If the P1 value is added with the inverse battery charge it will inform the EVSE logic there is enough Solar --> -500 + -1000 = -1500
+ * 
+ * Note: The user who is posting battery charge data should take this into account, meaning: if he wants a minimum home battery (dis)charge rate he should substract this from the value he is sending.
+ */
+// 
+int getBatteryCurrent(void) {
+    int currentTime = time(NULL) - 60; // The data should not be older than 1 minute
+    
+    if (Mode == MODE_SOLAR && homeBatteryLastUpdate > (currentTime)) {
+        return homeBatteryCurrent;
+    } else {
+        homeBatteryCurrent = 0;
+        homeBatteryLastUpdate = 0;
+        return 0;
+    }
+}
+
+
+void CalcIsum(void) {
+    phasesLastUpdate = time(NULL);
+    phasesLastUpdateFlag = true;                        // Set flag if a new Irms measurement is received.
+    int batteryPerPhase = getBatteryCurrent() / 3;
+    Isum = 0;
+#if FAKE_SUNNY_DAY
+    int32_t temp[3]={0, 0, 0};
+    temp[0] = INJECT_CURRENT_L1 * 10;                   //Irms is in units of 100mA
+    temp[1] = INJECT_CURRENT_L2 * 10;
+    temp[2] = INJECT_CURRENT_L3 * 10;
+#endif
+
+    for (int x = 0; x < 3; x++) {
+#if FAKE_SUNNY_DAY
+        MainsMeter.Irms[x] = MainsMeter.Irms[x] - temp[x];
+#endif
+        IrmsOriginal[x] = MainsMeter.Irms[x];
+        MainsMeter.Irms[x] -= batteryPerPhase;
+        Isum = Isum + MainsMeter.Irms[x];
+    }
+    MainsMeter.CalcImeasured();
+}
+//#endif
 

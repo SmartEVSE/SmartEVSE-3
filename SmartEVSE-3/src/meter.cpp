@@ -203,7 +203,9 @@ uint8_t Meter::receiveCurrentMeasurement(uint8_t *buf) {
 
                 if (SB2_WIFImode == 2 && SB2.WiFiConnected && !SubMenu) {
                     SB2_WIFImode = 1;                                       // Portal active and connected? Switch back to Enabled.
+#ifdef SMARTEVSE_VERSION //ESP32 FIXME
                     write_settings();
+#endif
                     LCDNav = 0;
                 }
 

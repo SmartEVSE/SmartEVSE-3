@@ -266,11 +266,11 @@ volatile uint16_t ADCsamples[25];                                           // d
 volatile uint8_t sampleidx = 0;
 char str[20];
 
-int phasesLastUpdate = 0;
+extern int phasesLastUpdate;
 extern bool phasesLastUpdateFlag;
-int16_t IrmsOriginal[3]={0, 0, 0};
-int homeBatteryCurrent = 0;
-int homeBatteryLastUpdate = 0; // Time in milliseconds
+extern int16_t IrmsOriginal[3];
+extern int homeBatteryCurrent;
+extern int homeBatteryLastUpdate;
 // set by EXTERNAL logic through MQTT/REST to indicate cheap tariffs ahead until unix time indicated
 extern uint8_t ColorOff[3] ;
 extern uint8_t ColorNormal[3] ;
@@ -496,33 +496,6 @@ const char * getErrorNameWeb(uint8_t ErrorCode) {
 }
 
 
-/**
- * Returns the known battery charge rate if the data is not too old.
- * Returns 0 if data is too old.
- * A positive number means charging, a negative number means discharging --> this means the inverse must be used for calculations
- * 
- * Example:
- * homeBatteryCharge == 1000 --> Battery is charging using Solar
- * P1 = -500 --> Solar injection to the net but nut sufficient for charging
- * 
- * If the P1 value is added with the inverse battery charge it will inform the EVSE logic there is enough Solar --> -500 + -1000 = -1500
- * 
- * Note: The user who is posting battery charge data should take this into account, meaning: if he wants a minimum home battery (dis)charge rate he should substract this from the value he is sending.
- */
-// 
-int getBatteryCurrent(void) {
-    int currentTime = time(NULL) - 60; // The data should not be older than 1 minute
-    
-    if (Mode == MODE_SOLAR && homeBatteryLastUpdate > (currentTime)) {
-        return homeBatteryCurrent;
-    } else {
-        homeBatteryCurrent = 0;
-        homeBatteryLastUpdate = 0;
-        return 0;
-    }
-}
-
-
 void printStatus(void)
 {
     _LOG_I ("STATE: %s Error: %u StartCurrent: -%i ChargeDelay: %u SolarStopTimer: %u NoCurrent: %u Imeasured: %.1f A IsetBalanced: %.1f A, MainsMeter.Timeout=%u, EVMeter.Timeout=%u.\n", getStateName(State), ErrorFlags, StartCurrent, ChargeDelay, SolarStopTimer,  NoCurrent, (float)MainsMeter.Imeasured/10, (float)IsetBalanced/10, MainsMeter.Timeout, EVMeter.Timeout);
@@ -602,30 +575,6 @@ void DisconnectEvent(void){
     TimeUntilFull = -1;
     strncpy(EVCCID, "", sizeof(EVCCID));
 }
-
-void CalcIsum(void) {
-    phasesLastUpdate = time(NULL);
-    phasesLastUpdateFlag = true;                        // Set flag if a new Irms measurement is received.
-    int batteryPerPhase = getBatteryCurrent() / 3;
-    Isum = 0;
-#if FAKE_SUNNY_DAY
-    int32_t temp[3]={0, 0, 0};
-    temp[0] = INJECT_CURRENT_L1 * 10;                   //Irms is in units of 100mA
-    temp[1] = INJECT_CURRENT_L2 * 10;
-    temp[2] = INJECT_CURRENT_L3 * 10;
-#endif
-
-    for (int x = 0; x < 3; x++) {
-#if FAKE_SUNNY_DAY
-        MainsMeter.Irms[x] = MainsMeter.Irms[x] - temp[x];
-#endif
-        IrmsOriginal[x] = MainsMeter.Irms[x];
-        MainsMeter.Irms[x] -= batteryPerPhase;
-        Isum = Isum + MainsMeter.Irms[x];
-    }
-    MainsMeter.CalcImeasured();
-}
-
 
 #if SMARTEVSE_VERSION == 3
 void getButtonState() {

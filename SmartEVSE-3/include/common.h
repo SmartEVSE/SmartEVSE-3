@@ -10,6 +10,7 @@
 
 #include "debug.h"
 #include "stdint.h"
+#include "time.h"
 #include "common_c.h"
 
 #if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION == 3 //CH32 and v3
@@ -49,6 +50,7 @@ enum Single_Phase_t { FALSE, GOING_TO_SWITCH, AFTER_SWITCH };
 extern void CalcBalancedCurrent(char mod);
 extern void write_settings(void);
 extern void setStatePowerUnavailable(void);
+extern void CalcIsum(void);
 
 struct Sensorbox {
     uint8_t SoftwareVer;        // Sensorbox 2 software version
