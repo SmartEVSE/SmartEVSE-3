@@ -76,8 +76,12 @@ esp_adc_cal_characteristics_t * adc_chars_CP;
 EXT struct Node_t Node[NR_EVSES];
 EXT uint8_t BalancedState[NR_EVSES];
 #if ENABLE_OCPP
+#include <MicroOcpp.h>
 EXT float OcppCurrentLimit;
 extern bool OcppForcesLock;
+unsigned long OcppLastRfidUpdate;
+unsigned long OcppLastTxNotification;
+MicroOcpp::TxNotification OcppTrackTxNotification;
 #endif
 
 //functions
@@ -87,7 +91,6 @@ EXT int8_t TemperatureSensor();
 EXT void CheckSerialComm(void);
 EXT uint8_t OneWireReadCardId();
 EXT void CheckRS485Comm(void);
-EXT void BlinkLed(void);
 EXT uint8_t ProximityPin();
 EXT void PowerPanic(void);
 EXT const char * getStateName(uint8_t StateCode);
@@ -105,6 +108,8 @@ extern void mqttPublishData();
 
 extern bool CPDutyOverride;
 extern uint8_t ModbusRequest;
+extern unsigned char ease8InOutQuad(unsigned char i);
+extern unsigned char triwave8(unsigned char in);
 
 Single_Phase_t Switching_To_Single_Phase = FALSE;
 uint16_t MaxSumMainsTimer = 0;
@@ -121,7 +126,12 @@ uint8_t AutoUpdate = AUTOUPDATE;                                            // A
 uint8_t ConfigChanged = 0;
 uint8_t SB2_WIFImode = SB2_WIFI_MODE;                                       // Sensorbox-2 WiFi Mode (0:Disabled / 1:Enabled / 2:Start Portal)
 uint8_t lock1 = 0, lock2 = 1;
-
+uint8_t ColorOff[3] = {0, 0, 0};          // off
+uint8_t ColorNormal[3] = {0, 255, 0};   // Green
+uint8_t ColorSmart[3] = {0, 255, 0};    // Green
+uint8_t ColorSolar[3] = {255, 170, 0};    // Orange
+uint8_t ColorCustom[3] = {0, 0, 255};
+uint8_t BacklightSet = 0;
 
 //constructor
 Button::Button(void) {
@@ -1349,7 +1359,7 @@ uint8_t ow = 0, x;
  //   printf("10ms loop:%lu uS systick:%lu millis:%lu\n", elapsedmax/12, (uint32_t)SysTick->CNT, millis());
     // this section sends outcomes of functions and variables to ESP32 to fill Shadow variables
     // FIXME this section preferably should be empty
-    printf("IsCurrentAv:", IsCurrentAvailable());
+    printf("IsCurrentAv:%u", IsCurrentAvailable());
     elapsedmax = 0;
 #endif
 }
@@ -1571,11 +1581,228 @@ static uint8_t PollEVNode = NR_EVSES, updated = 0;
 #endif
 }
 
+#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION == 3   //CH32 and v3 ESP32
+// Blink the RGB LED and LCD Backlight.
+//
+// NOTE: need to add multiple colour schemes 
+//
+// Task is called every 10ms
+void BlinkLed_singlerun(void) {
+#if SMARTEVSE_VERSION == 3
+static uint8_t LcdPwm = 0;
+static uint8_t RedPwm = 0, GreenPwm = 0, BluePwm = 0;
+static uint8_t LedCount = 0;                                                   // Raw Counter before being converted to PWM value
+static unsigned int LedPwm = 0;                                                // PWM value 0-255
+
+    // Backlight LCD
+    if (BacklightTimer > 1 && BacklightSet != 1) {                      // Enable LCD backlight at max brightness
+                                                                        // start only when fully off(0) or when we are dimming the backlight(2)
+        LcdPwm = LCD_BRIGHTNESS;
+        ledcWrite(LCD_CHANNEL, LcdPwm);
+        BacklightSet = 1;                                               // 1: we have set the backlight to max brightness
+    } 
+    
+    if (BacklightTimer == 1 && LcdPwm >= 3) {                           // Last second of Backlight
+        LcdPwm -= 3;
+        ledcWrite(LCD_CHANNEL, ease8InOutQuad(LcdPwm));                 // fade out
+        BacklightSet = 2;                                               // 2: we are dimming the backlight
+    }
+                                                                        // Note: could be simplified by removing following code if LCD_BRIGHTNESS is multiple of 3                                                               
+    if (BacklightTimer == 0 && BacklightSet) {                          // End of LCD backlight
+        ledcWrite(LCD_CHANNEL, 0);                                      // switch off LED PWM
+        BacklightSet = 0;                                               // 0: backlight fully off
+    }
+
+    // RGB LED
+    if (ErrorFlags || ChargeDelay) {
+
+        if (ErrorFlags & (RCM_TRIPPED | CT_NOCOMM | EV_NOCOMM) ) {
+            LedCount += 20;                                                 // Very rapid flashing, RCD tripped or no Serial Communication.
+            if (LedCount > 128) LedPwm = ERROR_LED_BRIGHTNESS;              // Red LED 50% of time on, full brightness
+            else LedPwm = 0;
+            RedPwm = LedPwm;
+            GreenPwm = 0;
+            BluePwm = 0;
+        } else {                                                            // Waiting for Solar power or not enough current to start charging
+            LedCount += 2;                                                  // Slow blinking.
+            if (LedCount > 230) LedPwm = WAITING_LED_BRIGHTNESS;            // LED 10% of time on, full brightness
+            else LedPwm = 0;
+
+            if (CustomButton) {                                             // Blue for Custom, unless configured otherwise
+                RedPwm = LedPwm * ColorCustom[0] / 255;
+                GreenPwm = LedPwm * ColorCustom[1] / 255;
+                BluePwm = LedPwm * ColorCustom[2] / 255;
+            } else if (Mode == MODE_SOLAR) {                                // Orange for Solar, unless configured otherwise
+                RedPwm = LedPwm * ColorSolar[0] / 255;
+                GreenPwm = LedPwm * ColorSolar[1] / 255;
+                BluePwm = LedPwm * ColorSolar[2] / 255;
+            } else if (Mode == MODE_SMART) {                                // Green for Smart, unless configured otherwise
+                RedPwm = LedPwm * ColorSmart[0] / 255;
+                GreenPwm = LedPwm * ColorSmart[1] / 255;
+                BluePwm = LedPwm * ColorSmart[2] / 255;
+            } else {                                                        // Green for Normal, unless configured otherwise
+                RedPwm = LedPwm * ColorNormal[0] / 255;
+                GreenPwm = LedPwm * ColorNormal[1] / 255;
+                BluePwm = LedPwm * ColorNormal[2] / 255;
+            }    
+        }
+
+#if ENABLE_OCPP
+    } else if (OcppMode && (RFIDReader == 6 || RFIDReader == 0) &&
+                millis() - OcppLastRfidUpdate < 200) {
+        RedPwm = 128;
+        GreenPwm = 128;
+        BluePwm = 128;
+    } else if (OcppMode && (RFIDReader == 6 || RFIDReader == 0) &&
+                millis() - OcppLastTxNotification < 1000 && OcppTrackTxNotification == MicroOcpp::TxNotification::Authorized) {
+        RedPwm = 0;
+        GreenPwm = 255;
+        BluePwm = 0;
+    } else if (OcppMode && (RFIDReader == 6 || RFIDReader == 0) &&
+                millis() - OcppLastTxNotification < 2000 && (OcppTrackTxNotification == MicroOcpp::TxNotification::AuthorizationRejected ||
+                                                             OcppTrackTxNotification == MicroOcpp::TxNotification::DeAuthorized ||
+                                                             OcppTrackTxNotification == MicroOcpp::TxNotification::ReservationConflict)) {
+        RedPwm = 255;
+        GreenPwm = 0;
+        BluePwm = 0;
+    } else if (OcppMode && (RFIDReader == 6 || RFIDReader == 0) &&
+                millis() - OcppLastTxNotification < 300 && (OcppTrackTxNotification == MicroOcpp::TxNotification::AuthorizationTimeout ||
+                                                            OcppTrackTxNotification == MicroOcpp::TxNotification::ConnectionTimeout)) {
+        RedPwm = 255;
+        GreenPwm = 0;
+        BluePwm = 0;
+    } else if (OcppMode && (RFIDReader == 6 || RFIDReader == 0) &&
+                getChargePointStatus() == ChargePointStatus_Reserved) {
+        RedPwm = 196;
+        GreenPwm = 64;
+        BluePwm = 0;
+    } else if (OcppMode && (RFIDReader == 6 || RFIDReader == 0) &&
+                (getChargePointStatus() == ChargePointStatus_Unavailable ||
+                 getChargePointStatus() == ChargePointStatus_Faulted)) {
+        RedPwm = 255;
+        GreenPwm = 0;
+        BluePwm = 0;
+#endif //ENABLE_OCPP
+    } else if (Access_bit == 0 && CustomButton) {
+        RedPwm = ColorCustom[0];
+        GreenPwm = ColorCustom[1];
+        BluePwm = ColorCustom[2];
+    } else if (Access_bit == 0 || State == STATE_MODEM_DENIED) {
+        RedPwm = ColorOff[0];
+        GreenPwm = ColorOff[1];
+        BluePwm = ColorOff[2];
+    } else {                                                                // State A, B or C
+
+        if (State == STATE_A) {
+            LedPwm = STATE_A_LED_BRIGHTNESS;                                // STATE A, LED on (dimmed)
+        
+        } else if (State == STATE_B || State == STATE_B1 || State == STATE_MODEM_REQUEST || State == STATE_MODEM_WAIT) {
+            LedPwm = STATE_B_LED_BRIGHTNESS;                                // STATE B, LED on (full brightness)
+            LedCount = 128;                                                 // When switching to STATE C, start at full brightness
+
+        } else if (State == STATE_C) {                                      
+            if (Mode == MODE_SOLAR) LedCount ++;                            // Slower fading (Solar mode)
+            else LedCount += 2;                                             // Faster fading (Smart mode)
+            LedPwm = ease8InOutQuad(triwave8(LedCount));                    // pre calculate new LedPwm value
+        }
+
+        if (CustomButton) {                                             // Blue for Custom, unless configured otherwise
+            RedPwm = LedPwm * ColorCustom[0] / 255;
+            GreenPwm = LedPwm * ColorCustom[1] / 255;
+            BluePwm = LedPwm * ColorCustom[2] / 255;
+        } else if (Mode == MODE_SOLAR) {                                // Orange for Solar, unless configured otherwise
+            RedPwm = LedPwm * ColorSolar[0] / 255;
+            GreenPwm = LedPwm * ColorSolar[1] / 255;
+            BluePwm = LedPwm * ColorSolar[2] / 255;
+        } else if (Mode == MODE_SMART) {                                // Green for Smart, unless configured otherwise
+            RedPwm = LedPwm * ColorSmart[0] / 255;
+            GreenPwm = LedPwm * ColorSmart[1] / 255;
+            BluePwm = LedPwm * ColorSmart[2] / 255;
+        } else {                                                        // Green for Normal, unless configured otherwise
+            RedPwm = LedPwm * ColorNormal[0] / 255;
+            GreenPwm = LedPwm * ColorNormal[1] / 255;
+            BluePwm = LedPwm * ColorNormal[2] / 255;
+        }    
+
+    }
+    ledcWrite(RED_CHANNEL, RedPwm);
+    ledcWrite(GREEN_CHANNEL, GreenPwm);
+    ledcWrite(BLUE_CHANNEL, BluePwm);
+
+#else // CH32
+    static uint8_t RedPwm = 0, GreenPwm = 0, BluePwm = 0;
+    static uint8_t LedCount = 0;                                            // Raw Counter before being converted to PWM value
+    static uint16_t LedPwm = 0;                                             // PWM value 0-255
+
+
+    // RGB LED
+    if (ErrorFlags || ChargeDelay) {
+
+        if (ErrorFlags & (RCM_TRIPPED | CT_NOCOMM | EV_NOCOMM) ) {
+            LedCount += 20;                                                 // Very rapid flashing, RCD tripped or no Serial Communication.
+            if (LedCount > 128) LedPwm = ERROR_LED_BRIGHTNESS;              // Red LED 50% of time on, full brightness
+            else LedPwm = 0;
+            RedPwm = LedPwm;
+            GreenPwm = 0;
+            BluePwm = 0;
+        } else {                                                            // Waiting for Solar power or not enough current to start charging
+            LedCount += 2;                                                  // Slow blinking.
+            if (LedCount > 230) LedPwm = WAITING_LED_BRIGHTNESS;            // LED 10% of time on, full brightness
+            else LedPwm = 0;
+
+            if (Mode == MODE_SOLAR) {                                       // Orange
+                RedPwm = LedPwm;
+                GreenPwm = LedPwm * 2 / 3;
+            } else {                                                        // Green
+                RedPwm = 0;
+                GreenPwm = LedPwm;
+            }
+            BluePwm = 0;
+        }
+
+    } else if (Access_bit == 0 || State == STATE_MODEM_DENIED) {            // No Access, LEDs off
+        RedPwm = 0;
+        GreenPwm = 0;
+        BluePwm = 0;
+        LedPwm = 0;
+    } else {                                                                // State A, B or C
+
+        if (State == STATE_A) {
+            LedPwm = STATE_A_LED_BRIGHTNESS;                                // STATE A, LED on (dimmed)
+
+        } else if (State == STATE_B || State == STATE_B1 || State == STATE_MODEM_REQUEST || State == STATE_MODEM_WAIT) {
+            LedPwm = STATE_B_LED_BRIGHTNESS;                                // STATE B, LED on (full brightness)
+            LedCount = 128;                                                 // When switching to STATE C, start at full brightness
+
+        } else if (State == STATE_C) {
+            if (Mode == MODE_SOLAR) LedCount ++;                            // Slower fading (Solar mode)
+            else LedCount += 2;                                             // Faster fading (Smart mode)
+            LedPwm = ease8InOutQuad(triwave8(LedCount));                    // pre calculate new LedPwm value
+        }
+
+        if (Mode == MODE_SOLAR) {                                           // Orange/Yellow for Solar mode
+            RedPwm = LedPwm;
+            GreenPwm = LedPwm * 2 / 3;
+        } else {
+            RedPwm = 0;                                                     // Green for Normal/Smart mode
+            GreenPwm = LedPwm;
+        }
+        BluePwm = 0;
+
+    }
+
+    TIM3->CH1CVR = RedPwm;
+    TIM3->CH2CVR = GreenPwm;
+    TIM3->CH3CVR = BluePwm;
+#endif
+}
+#endif
+
 void Timer10ms_singlerun(void) {
 #if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION == 3   //CH32 and v3 ESP32
     static uint8_t DiodeCheck = 0;
     static uint16_t StateTimer = 0;                                                 // When switching from State B to C, make sure pilot is at 6v for 100ms
-    BlinkLed();
+    BlinkLed_singlerun();
 #else //v4
     static uint8_t RXbyte, idx = 0;
     static char SerialBuf[256];
@@ -1959,7 +2186,7 @@ void Timer100ms(void * parameter) {
     // infinite loop
     while(1) {
         Timer100ms_singlerun();
-        // Pause the task for 10ms
+        // Pause the task for 100ms
         vTaskDelay(100 / portTICK_PERIOD_MS);
     } // while(1) loop
 }
@@ -1968,10 +2195,21 @@ void Timer1S(void * parameter) {
     // infinite loop
     while(1) {
         Timer1S_singlerun();
-        // Pause the task for 10ms
+        // Pause the task for 1000ms
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     } // while(1) loop
 }
+
+#if SMARTEVSE_VERSION == 3 //does not run on v4
+void BlinkLed(void * parameter) {
+    // infinite loop
+    while(1) {
+        BlinkLed_singlerun();
+        // Pause the task for 10ms
+        vTaskDelay(10 / portTICK_PERIOD_MS);
+    } // while(1) loop
+}
+#endif
 #endif //SMARTEVSE_VERSION
 
 

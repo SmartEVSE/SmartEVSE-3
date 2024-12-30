@@ -227,7 +227,7 @@ Node_t Node[NR_EVSES] = {                                                       
 
 extern uint8_t lock1, lock2;
 uint16_t BacklightTimer = 0;                                                // Backlight timer (sec)
-uint8_t BacklightSet = 0;
+extern uint8_t BacklightSet;
 extern uint8_t LCDTimer;
 uint8_t AccessTimer = 0;
 int8_t TempEVSE = 0;                                                        // Temperature EVSE in deg C (-50 to +125)
@@ -271,11 +271,11 @@ int16_t IrmsOriginal[3]={0, 0, 0};
 int homeBatteryCurrent = 0;
 int homeBatteryLastUpdate = 0; // Time in milliseconds
 // set by EXTERNAL logic through MQTT/REST to indicate cheap tariffs ahead until unix time indicated
-uint8_t ColorOff[3] = {0, 0, 0};          // off
-uint8_t ColorNormal[3] = {0, 255, 0};   // Green
-uint8_t ColorSmart[3] = {0, 255, 0};    // Green
-uint8_t ColorSolar[3] = {255, 170, 0};    // Orange
-uint8_t ColorCustom[3] = {0, 0, 255};    // Blue
+extern uint8_t ColorOff[3] ;
+extern uint8_t ColorNormal[3] ;
+extern uint8_t ColorSmart[3] ;
+extern uint8_t ColorSolar[3] ;
+extern uint8_t ColorCustom[3];
 
 //#define FW_UPDATE_DELAY 30        //DINGO TODO                                            // time between detection of new version and actual update in seconds
 #define FW_UPDATE_DELAY 3600                                                    // time between detection of new version and actual update in seconds
@@ -290,7 +290,7 @@ uint8_t OcppMode = OCPP_MODE; //OCPP Client mode. 0:Disable / 1:Enable
 
 unsigned char OcppRfidUuid [7];
 size_t OcppRfidUuidLen;
-unsigned long OcppLastRfidUpdate;
+extern unsigned long OcppLastRfidUpdate;
 unsigned long OcppTrackLastRfidUpdate;
 
 bool OcppForcesLock = false;
@@ -307,8 +307,8 @@ float OcppCurrentLimit = -1.f; // Negative value: no OCPP limit defined
 unsigned long OcppStopReadingSyncTime; // Stop value synchronization: delay StopTransaction by a few seconds so it reports an accurate energy reading
 
 bool OcppDefinedTxNotification;
-MicroOcpp::TxNotification OcppTrackTxNotification;
-unsigned long OcppLastTxNotification;
+extern MicroOcpp::TxNotification OcppTrackTxNotification;
+extern unsigned long OcppLastTxNotification;
 #endif //ENABLE_OCPP
 
 
@@ -384,160 +384,6 @@ void IRAM_ATTR onTimerA() {
 #endif //SMARTEVSE_VERSION
 
 // --------------------------- END of ISR's -----------------------------------------------------
-
-// Blink the RGB LED and LCD Backlight.
-//
-// NOTE: need to add multiple colour schemes 
-//
-// Task is called every 10ms
-void BlinkLed(void * parameter) {
-    uint8_t LcdPwm = 0;
-    uint8_t RedPwm = 0, GreenPwm = 0, BluePwm = 0;
-    uint8_t LedCount = 0;                                                   // Raw Counter before being converted to PWM value
-    unsigned int LedPwm = 0;                                                // PWM value 0-255
-
-    while(1) 
-    {
-        // Backlight LCD
-        if (BacklightTimer > 1 && BacklightSet != 1) {                      // Enable LCD backlight at max brightness
-                                                                            // start only when fully off(0) or when we are dimming the backlight(2)
-            LcdPwm = LCD_BRIGHTNESS;
-            ledcWrite(LCD_CHANNEL, LcdPwm);
-            BacklightSet = 1;                                               // 1: we have set the backlight to max brightness
-        } 
-        
-        if (BacklightTimer == 1 && LcdPwm >= 3) {                           // Last second of Backlight
-            LcdPwm -= 3;
-            ledcWrite(LCD_CHANNEL, ease8InOutQuad(LcdPwm));                 // fade out
-            BacklightSet = 2;                                               // 2: we are dimming the backlight
-        }
-                                                                            // Note: could be simplified by removing following code if LCD_BRIGHTNESS is multiple of 3                                                               
-        if (BacklightTimer == 0 && BacklightSet) {                          // End of LCD backlight
-            ledcWrite(LCD_CHANNEL, 0);                                      // switch off LED PWM
-            BacklightSet = 0;                                               // 0: backlight fully off
-        }
-
-        // RGB LED
-        if (ErrorFlags || ChargeDelay) {
-
-            if (ErrorFlags & (RCM_TRIPPED | CT_NOCOMM | EV_NOCOMM) ) {
-                LedCount += 20;                                                 // Very rapid flashing, RCD tripped or no Serial Communication.
-                if (LedCount > 128) LedPwm = ERROR_LED_BRIGHTNESS;              // Red LED 50% of time on, full brightness
-                else LedPwm = 0;
-                RedPwm = LedPwm;
-                GreenPwm = 0;
-                BluePwm = 0;
-            } else {                                                            // Waiting for Solar power or not enough current to start charging
-                LedCount += 2;                                                  // Slow blinking.
-                if (LedCount > 230) LedPwm = WAITING_LED_BRIGHTNESS;            // LED 10% of time on, full brightness
-                else LedPwm = 0;
-
-                if (CustomButton) {                                             // Blue for Custom, unless configured otherwise
-                    RedPwm = LedPwm * ColorCustom[0] / 255;
-                    GreenPwm = LedPwm * ColorCustom[1] / 255;
-                    BluePwm = LedPwm * ColorCustom[2] / 255;
-                } else if (Mode == MODE_SOLAR) {                                // Orange for Solar, unless configured otherwise
-                    RedPwm = LedPwm * ColorSolar[0] / 255;
-                    GreenPwm = LedPwm * ColorSolar[1] / 255;
-                    BluePwm = LedPwm * ColorSolar[2] / 255;
-                } else if (Mode == MODE_SMART) {                                // Green for Smart, unless configured otherwise
-                    RedPwm = LedPwm * ColorSmart[0] / 255;
-                    GreenPwm = LedPwm * ColorSmart[1] / 255;
-                    BluePwm = LedPwm * ColorSmart[2] / 255;
-                } else {                                                        // Green for Normal, unless configured otherwise
-                    RedPwm = LedPwm * ColorNormal[0] / 255;
-                    GreenPwm = LedPwm * ColorNormal[1] / 255;
-                    BluePwm = LedPwm * ColorNormal[2] / 255;
-                }    
-            }
-
-#if ENABLE_OCPP
-        } else if (OcppMode && (RFIDReader == 6 || RFIDReader == 0) &&
-                    millis() - OcppLastRfidUpdate < 200) {
-            RedPwm = 128;
-            GreenPwm = 128;
-            BluePwm = 128;
-        } else if (OcppMode && (RFIDReader == 6 || RFIDReader == 0) &&
-                    millis() - OcppLastTxNotification < 1000 && OcppTrackTxNotification == MicroOcpp::TxNotification::Authorized) {
-            RedPwm = 0;
-            GreenPwm = 255;
-            BluePwm = 0;
-        } else if (OcppMode && (RFIDReader == 6 || RFIDReader == 0) &&
-                    millis() - OcppLastTxNotification < 2000 && (OcppTrackTxNotification == MicroOcpp::TxNotification::AuthorizationRejected ||
-                                                                 OcppTrackTxNotification == MicroOcpp::TxNotification::DeAuthorized ||
-                                                                 OcppTrackTxNotification == MicroOcpp::TxNotification::ReservationConflict)) {
-            RedPwm = 255;
-            GreenPwm = 0;
-            BluePwm = 0;
-        } else if (OcppMode && (RFIDReader == 6 || RFIDReader == 0) &&
-                    millis() - OcppLastTxNotification < 300 && (OcppTrackTxNotification == MicroOcpp::TxNotification::AuthorizationTimeout ||
-                                                                OcppTrackTxNotification == MicroOcpp::TxNotification::ConnectionTimeout)) {
-            RedPwm = 255;
-            GreenPwm = 0;
-            BluePwm = 0;
-        } else if (OcppMode && (RFIDReader == 6 || RFIDReader == 0) &&
-                    getChargePointStatus() == ChargePointStatus_Reserved) {
-            RedPwm = 196;
-            GreenPwm = 64;
-            BluePwm = 0;
-        } else if (OcppMode && (RFIDReader == 6 || RFIDReader == 0) &&
-                    (getChargePointStatus() == ChargePointStatus_Unavailable ||
-                     getChargePointStatus() == ChargePointStatus_Faulted)) {
-            RedPwm = 255;
-            GreenPwm = 0;
-            BluePwm = 0;
-#endif //ENABLE_OCPP
-        } else if (Access_bit == 0 && CustomButton) {
-            RedPwm = ColorCustom[0];
-            GreenPwm = ColorCustom[1];
-            BluePwm = ColorCustom[2];
-        } else if (Access_bit == 0 || State == STATE_MODEM_DENIED) {
-            RedPwm = ColorOff[0];
-            GreenPwm = ColorOff[1];
-            BluePwm = ColorOff[2];
-        } else {                                                                // State A, B or C
-    
-            if (State == STATE_A) {
-                LedPwm = STATE_A_LED_BRIGHTNESS;                                // STATE A, LED on (dimmed)
-            
-            } else if (State == STATE_B || State == STATE_B1 || State == STATE_MODEM_REQUEST || State == STATE_MODEM_WAIT) {
-                LedPwm = STATE_B_LED_BRIGHTNESS;                                // STATE B, LED on (full brightness)
-                LedCount = 128;                                                 // When switching to STATE C, start at full brightness
-
-            } else if (State == STATE_C) {                                      
-                if (Mode == MODE_SOLAR) LedCount ++;                            // Slower fading (Solar mode)
-                else LedCount += 2;                                             // Faster fading (Smart mode)
-                LedPwm = ease8InOutQuad(triwave8(LedCount));                    // pre calculate new LedPwm value
-            }
-
-            if (CustomButton) {                                             // Blue for Custom, unless configured otherwise
-                RedPwm = LedPwm * ColorCustom[0] / 255;
-                GreenPwm = LedPwm * ColorCustom[1] / 255;
-                BluePwm = LedPwm * ColorCustom[2] / 255;
-            } else if (Mode == MODE_SOLAR) {                                // Orange for Solar, unless configured otherwise
-                RedPwm = LedPwm * ColorSolar[0] / 255;
-                GreenPwm = LedPwm * ColorSolar[1] / 255;
-                BluePwm = LedPwm * ColorSolar[2] / 255;
-            } else if (Mode == MODE_SMART) {                                // Green for Smart, unless configured otherwise
-                RedPwm = LedPwm * ColorSmart[0] / 255;
-                GreenPwm = LedPwm * ColorSmart[1] / 255;
-                BluePwm = LedPwm * ColorSmart[2] / 255;
-            } else {                                                        // Green for Normal, unless configured otherwise
-                RedPwm = LedPwm * ColorNormal[0] / 255;
-                GreenPwm = LedPwm * ColorNormal[1] / 255;
-                BluePwm = LedPwm * ColorNormal[2] / 255;
-            }    
-
-        }
-        ledcWrite(RED_CHANNEL, RedPwm);
-        ledcWrite(GREEN_CHANNEL, GreenPwm);
-        ledcWrite(BLUE_CHANNEL, BluePwm);
-
-        // Pause the task for 10ms
-        vTaskDelay(10 / portTICK_PERIOD_MS);
-    }  // while(1) loop 
-}
-
 
 // Set Charge Current 
 // Current in Amps * 10 (160 = 16A)
