@@ -128,4 +128,9 @@ EXTC int16_t Isum;
 EXTC uint8_t LoadBl;
 EXTC uint8_t setItemValue(uint8_t nav, uint16_t val); //this somehow prevents undefined reference in CH32 compile
 EXTC char IsCurrentAvailable(void);
+EXTC void receiveNodeStatus(uint8_t *buf, uint8_t NodeNr);
+EXTC void receiveNodeConfig(uint8_t *buf, uint8_t NodeNr);
+
+
+
 #endif

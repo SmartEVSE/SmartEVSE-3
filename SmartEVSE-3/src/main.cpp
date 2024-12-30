@@ -132,7 +132,7 @@ struct ModBus MB;          // Used by SmartEVSE fuctions
 
 extern unsigned char RFID[8];
 
-const char StrStateName[15][13] = {"A", "B", "C", "D", "COMM_B", "COMM_B_OK", "COMM_C", "COMM_C_OK", "Activate", "B1", "C1", "MODEM1", "MODEM2", "MODEM_OK", "MODEM_DENIED"};
+extern const char StrStateName[15][13];
 const char StrStateNameWeb[15][17] = {"Ready to Charge", "Connected to EV", "Charging", "D", "Request State B", "State B OK", "Request State C", "State C OK", "Activate", "Charging Stopped", "Stop Charging", "Modem Setup", "Modem Request", "Modem Done", "Modem Denied"};
 const char StrErrorNameWeb[9][20] = {"None", "No Power Available", "Communication Error", "Temperature High", "EV Meter Comm Error", "RCM Tripped", "Waiting for Solar", "Test IO", "Flash Error"};
 const char StrMode[3][8] = {"Normal", "Smart", "Solar"};
@@ -171,7 +171,7 @@ int32_t EnergyRequest = -1;                                                 // R
 char EVCCID[32];                                                            // Car's EVCCID (EV Communication Controller Identifer)
 char RequiredEVCCID[32];                                                    // Required EVCCID before allowing charging
 
-bool CPDutyOverride = false;
+extern bool CPDutyOverride;
 uint8_t Lock = LOCK;                                                        // Cable lock (0:Disable / 1:Solenoid / 2:Motor)
 uint16_t MaxCircuit = MAX_CIRCUIT;                                          // Max current of the EVSE circuit (A)
 uint8_t Config = CONFIG;                                                    // Configuration (0:Socket / 1:Fixed Cable)
@@ -210,7 +210,7 @@ int16_t IsetBalanced = 0;                                                   // M
 uint16_t Balanced[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};                     // Amps value per EVSE
 uint16_t BalancedMax[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};                  // Max Amps value per EVSE
 uint8_t BalancedState[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};                 // State of all EVSE's 0=not active (state A), 1=charge request (State B), 2= Charging (State C)
-uint16_t BalancedError[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};                // Error state of EVSE
+extern uint16_t BalancedError[NR_EVSES];
 
 Node_t Node[NR_EVSES] = {                                                        // 0: Master / 1: Node 1 ...
    /*         Config   EV     EV       Min      Used    Charge Interval Solar *          // Interval Time   : last Charge time, reset when not charging
@@ -542,212 +542,6 @@ int getBatteryCurrent(void) {
     }
 }
 
-
-/**
- * Load Balancing 	Modbus Address  LoadBl
-    Disabled     	0x01            0x00
-    Master       	0x01            0x01
-    Node 1 	        0x02            0x02
-    Node 2 	        0x03            0x03
-    Node 3 	        0x04            0x04
-    Node 4 	        0x05            0x05
-    Node 5 	        0x06            0x06
-    Node 6 	        0x07            0x07
-    Node 7 	        0x08            0x08
-    Broadcast to all SmartEVSE with address 0x09.
-**/
-
-/**
- * In order to keep each node happy, and not timeout with a comm-error you will have to send the chargecurrent for each node in a broadcast message to all nodes
- * (address 09):
-
-    09 10 00 20 00 08 10 00 A0 00 00 00 3C 00 00 00 00 00 00 00 00 00 00 99 24
-    Node 0 00 A0 = 160 = 16.0A
-    Node 1 00 00 = 0 = 0.0A
-    Node 2 00 3C = 60 = 6.0A
-    etc.
-
- *  Each time this message is received on each node, the timeout timer is reset to 10 seconds.
- *  The master will usually send this message every two seconds.
-**/
-
-/**
- * Broadcast momentary currents to all Node EVSE's
- */
-void BroadcastCurrent(void) {
-    //prepare registers 0x0020 thru 0x002A (including) to be sent
-    uint8_t buf[sizeof(Balanced)+ 6], i;
-    uint8_t *p=buf;
-    memcpy(p, Balanced, sizeof(Balanced));
-    p = p + sizeof(Balanced);
-    // Irms values, we only send the 16 least significant bits (range -327.6A to +327.6A) per phase
-    for ( i=0; i<3; i++) {
-        p[i * 2] = MainsMeter.Irms[i] & 0xff;
-        p[(i * 2) + 1] = MainsMeter.Irms[i] >> 8;
-    }
-    ModbusWriteMultipleRequest(BROADCAST_ADR, 0x0020, (uint16_t *) buf, 8 + 3);
-}
-
-/**
- * EVSE Register 0x02*: System configuration (same on all SmartEVSE in a LoadBalancing setup)
- * TODO not sure if this is used anywhere in the code?
-Regis 	Access 	Description 	                                        Unit 	Values
-0x0200 	R/W 	EVSE mode 		                                        0:Normal / 1:Smart / 2:Solar
-0x0201 	R/W 	EVSE Circuit max Current 	                        A 	10 - 160
-0x0202 	R/W 	Grid type to which the Sensorbox is connected 		        0:4Wire / 1:3Wire
-0x0203 	R/W 	Sensorbox 2 WiFi Mode                                   0:Disabled / 1:Enabled / 2:Portal
-0x0204 	R/W 	Max Mains Current 	                                A 	10 - 200
-0x0205 	R/W 	Surplus energy start Current 	                        A 	1 - 16
-0x0206 	R/W 	Stop solar charging at 6A after this time 	        min 	0:Disable / 1 - 60
-0x0207 	R/W 	Allow grid power when solar charging 	                A 	0 - 6
-0x0208 	R/W 	Type of Mains electric meter 		                *
-0x0209 	R/W 	Address of Mains electric meter 		                10 - 247
-//0x020A 	R/W 	What does Mains electric meter measure 		                0:Mains (Home+EVSE+PV) / 1:Home+EVSE
-0x020B 	R/W 	Type of PV electric meter 		                *
-0x020C 	R/W 	Address of PV electric meter 		                        10 - 247
-0x020D 	R/W 	Byte order of custom electric meter 		                0:LBF & LWF / 1:LBF & HWF / 2:HBF & LWF / 3:HBF & HWF
-0x020E 	R/W 	Data type of custom electric meter 		                0:Integer / 1:Double
-0x020F 	R/W 	Modbus Function (3/4) of custom electric meter
-0x0210 	R/W 	Register for Voltage (V) of custom electric meter 		0 - 65530
-0x0211 	R/W 	Divisor for Voltage (V) of custom electric meter 	10x 	0 - 7
-0x0212 	R/W 	Register for Current (A) of custom electric meter 		0 - 65530
-0x0213 	R/W 	Divisor for Current (A) of custom electric meter 	10x 	0 - 7
-0x0214 	R/W 	Register for Power (W) of custom electric meter 		0 - 65534
-0x0215 	R/W 	Divisor for Power (W) of custom electric meter 	        10x 	0 - 7 /
-0x0216 	R/W 	Register for Energy (kWh) of custom electric meter 		0 - 65534
-0x0217 	R/W 	Divisor for Energy (kWh) of custom electric meter 	10x 	0 - 7
-0x0218 	R/W 	Maximum register read (Not implemented)
-0x0219 	R/W 	WiFi mode
-0x021A 	R/W 	Limit max current draw on MAINS (sum of phases) 	A 	9:Disable / 10 - 200
-**/
-
-/**
- * Master requests Node configuration over modbus
- * Master -> Node
- * 
- * @param uint8_t NodeNr (1-7)
- */
-void requestNodeConfig(uint8_t NodeNr) {
-    ModbusReadInputRequest(NodeNr + 1u, 4, 0x0108, 2);
-}
-
-/**
- * EVSE Node Config layout
- *
-Reg 	Access 	Description 	                        Unit 	Values
-0x0100 	R/W 	Configuration 		                        0:Socket / 1:Fixed Cable
-0x0101 	R/W 	Cable lock 		                        0:Disable / 1:Solenoid / 2:Motor
-0x0102 	R/W 	MIN Charge Current the EV will accept 	A 	6 - 16
-0x0103 	R/W 	MAX Charge Current for this EVSE 	A 	6 - 80
-0x0104 	R/W 	Load Balance 		                        0:Disabled / 1:Master / 2-8:Node
-0x0105 	R/W 	External Switch on pin SW 		        0:Disabled / 1:Access Push-Button / 2:Access Switch / 3:Smart-Solar Push-Button / 4:Smart-Solar Switch
-0x0106 	R/W 	Residual Current Monitor on pin RCM 		0:Disabled / 1:Enabled
-0x0107 	R/W 	Use RFID reader 		                0:Disabled / 1:Enabled
-0x0108 	R/W 	Type of EV electric meter 		        *
-0x0109 	R/W 	Address of EV electric meter 		        10 - 247
-**/
-
-/**
- * Master receives Node configuration over modbus
- * Node -> Master
- * 
- * @param uint8_t NodeNr (1-7)
- */
-void receiveNodeConfig(uint8_t *buf, uint8_t NodeNr) {
-    Node[NodeNr].EVMeter = buf[1];
-    Node[NodeNr].EVAddress = buf[3];
-
-    Node[NodeNr].ConfigChanged = 0;                                             // Reset flag on master
-    ModbusWriteSingleRequest(NodeNr + 1u, 0x0006, 0);                           // Reset flag on node
-}
-
-/**
- * Master requests Node status over modbus
- * Master -> Node
- *
- * @param uint8_t NodeNr (1-7)
- */
-void requestNodeStatus(uint8_t NodeNr) {
-    if(Node[NodeNr].Online) {
-        if(Node[NodeNr].Online-- == 1) {
-            // Reset Node state when node is offline
-            BalancedState[NodeNr] = STATE_A;
-            Balanced[NodeNr] = 0;
-        }
-    }
-
-    ModbusReadInputRequest(NodeNr + 1u, 4, 0x0000, 8);
-}
-
-/** To have full control over the nodes, you will have to read each node's status registers, and see if it requests to charge.
- * for example for node 2:
-
-    Received packet (21 bytes) 03 04 10 00 01 00 00 00 3c 00 01 00 00 00 01 00 01 00 20 4d 8c
-    00 01 = state B
-    00 00 = no errors
-    00 3c = charge current 6.0 A
-    00 01 = Smart mode
-    etc.
-
-    Here the state changes to STATE_COMM_C (00 06)
-    Received packet (21 bytes) 03 04 10 00 06 00 00 00 3c 00 01 00 00 00 01 00 01 00 20 0a 8e
-    So the ESVE request to charge.
-
-    You can respond to this request by changing the state of the node to State_C
-    03 10 00 00 00 02 04 00 07 00 00 49 D6
-    Here it will write 00 07 (STATE_COMM_C_OK) to register 0x0000, and reset the error register 0x0001
-
-    The node will respond to this by switching to STATE_C (Charging).
-**/
-
-/**
- * EVSE Node status layout
- *
-Regist 	Access  Description 	        Unit 	Values
-0x0000 	R/W 	State 		                0:A / 1:B / 2:C / 3:D / 4:Node request B / 5:Master confirm B / 6:Node request C /
-                                                7:Master confirm C / 8:Activation mode / 9:B1 / 10:C1
-0x0001 	R/W 	Error 	                Bit 	1:LESS_6A / 2:NO_COMM / 4:TEMP_HIGH / 8:EV_NOCOMM / 16:RCD / 32:NO_SUN
-0x0002 	R/W 	Charging current        0.1 A 	0:no current available / 6-80
-0x0003 	R/W 	EVSE mode (without saving)      0:Normal / 1:Smart / 2:Solar
-0x0004 	R/W 	Solar Timer 	        s
-0x0005 	R/W 	Access bit 		        0:No Access / 1:Access
-0x0006 	R/W 	Configuration changed (Not implemented)
-0x0007 	R 	Maximum charging current A
-0x0008 	R/W 	Number of used phases (Not implemented) 0:Undetected / 1 - 3
-0x0009 	R 	Real charging current (Not implemented) 0.1 A
-0x000A 	R 	Temperature 	        K
-0x000B 	R 	Serial number
-0x0020 - 0x0027
-        W 	Broadcast charge current. SmartEVSE uses only one value depending on the "Load Balancing" configuration
-                                        0.1 A 	0:no current available
-0x0028 - 0x0030
-        W 	Broadcast MainsMeter currents L1 - L3.
-                                        0.1 A
-**/
-
-/**
- * Master receives Node status over modbus
- * Node -> Master
- *
- * @param uint8_t NodeAdr (1-7)
- */
-void receiveNodeStatus(uint8_t *buf, uint8_t NodeNr) {
-    Node[NodeNr].Online = 5;
-
-    BalancedState[NodeNr] = buf[1];                                             // Node State
-    BalancedError[NodeNr] = buf[3];                                             // Node Error status
-    // Update Mode when changed on Node and not Smart/Solar Switch on the Master
-    // Also make sure we are not in the menu.
-    Node[NodeNr].Mode = buf[7];
-
-    if ((Node[NodeNr].Mode != Mode) && Switch != 4 && !LCDNav && !NodeNewMode) {
-        NodeNewMode = Node[NodeNr].Mode + 1;        // Store the new Mode in NodeNewMode, we'll update Mode in 'ProcessAllNodeStates'
-    }
-    Node[NodeNr].SolarTimer = (buf[8] * 256) + buf[9];
-    Node[NodeNr].ConfigChanged = buf[13] | Node[NodeNr].ConfigChanged;
-    BalancedMax[NodeNr] = buf[15] * 10;                                         // Node Max ChargeCurrent (0.1A)
-    _LOG_D("ReceivedNode[%u]Status State:%u (%s) Error:%u, BalancedMax:%u, Mode:%u, ConfigChanged:%u.\n", NodeNr, BalancedState[NodeNr], StrStateName[BalancedState[NodeNr]], BalancedError[NodeNr], BalancedMax[NodeNr], Node[NodeNr].Mode, Node[NodeNr].ConfigChanged);
-}
 
 /**
  * Master checks node status requests, and responds with new state
