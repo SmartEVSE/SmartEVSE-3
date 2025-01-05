@@ -343,7 +343,7 @@ extern uint8_t OcppMode;
 extern bool LocalTimeSet;
 extern uint32_t serialnr;
 
-const static char StrEnableC2[][12] = { "Not present", "Always Off", "Solar Off", "Always On", "Auto" };
+extern const char StrEnableC2[5][12];
 extern Single_Phase_t Switching_To_Single_Phase;
 extern uint8_t Nr_Of_Phases_Charging;
 

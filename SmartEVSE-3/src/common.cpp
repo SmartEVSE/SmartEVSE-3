@@ -92,7 +92,6 @@ EXT void CheckSerialComm(void);
 EXT uint8_t OneWireReadCardId();
 EXT uint8_t ProximityPin();
 EXT void PowerPanic(void);
-EXT const char * getStateName(uint8_t StateCode);
 EXT int Set_Nr_of_Phases_Charging(void);
 extern void printStatus(void);
 extern void requestEnergyMeasurement(uint8_t Meter, uint8_t Address, bool Export);
@@ -136,6 +135,8 @@ uint16_t BalancedError[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};                // E
 bool CPDutyOverride = false;
 uint32_t CurrentPWM = 0;                                                    // Current PWM duty cycle value (0 - 1024)
 extern const char StrStateName[15][13] = {"A", "B", "C", "D", "COMM_B", "COMM_B_OK", "COMM_C", "COMM_C_OK", "Activate", "B1", "C1", "MODEM1", "MODEM2", "MODEM_OK", "MODEM_DENIED"}; //note that the extern is necessary here because the const will point the compiler to internal linkage; https://cplusplus.com/forum/general/81640/
+extern const char StrEnableC2[5][12] = { "Not present", "Always Off", "Solar Off", "Always On", "Auto" };
+
 uint8_t ModbusRx[256];                          // Modbus Receive buffer
 int homeBatteryLastUpdate = 0; // Time in milliseconds
 int16_t IrmsOriginal[3]={0, 0, 0};
@@ -510,7 +511,7 @@ void setState(uint8_t NewState) { //c
     if (State != NewState) {
 #ifdef SMARTEVSE_VERSION //v3 and v4
         char Str[50];
-        snprintf(Str, sizeof(Str), "%02d:%02d:%02d STATE %s -> %s\n",timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec, getStateName(State), getStateName(NewState) );
+        snprintf(Str, sizeof(Str), "%02d:%02d:%02d STATE %s -> %s\n",timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec, StrStateName[State], StrStateName[NewState] );
         _LOG_A("%s",Str);
 #if SMARTEVSE_VERSION == 4
         Serial1.printf("State:%u\n", NewState); //a
@@ -1132,7 +1133,7 @@ void CalcBalancedCurrent(char mod) {
     if (LoadBl == 1) {
         _LOG_D("Balance: ");
         for (n = 0; n < NR_EVSES; n++) {
-            _LOG_D_NO_FUNC("EVSE%u:%s(%.1fA) ", n, getStateName(BalancedState[n]), (float)Balanced[n]/10);
+            _LOG_D_NO_FUNC("EVSE%u:%s(%.1fA) ", n, StrStateName[BalancedState[n]], (float)Balanced[n]/10);
         }
         _LOG_D_NO_FUNC("\n");
     }
