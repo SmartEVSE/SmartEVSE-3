@@ -451,7 +451,20 @@ uint8_t Force_Single_Phase_Charging() {                                         
 }
 //#endif
 
+
+// Write duty cycle to pin
+// Value in range 0 (0% duty) to 1024 (100% duty) for ESP32, 1000 (100% duty) for CH32
+void SetCPDuty(uint32_t DutyCycle){
 #ifdef SMARTEVSE_VERSION //ESP32 FIXME should only run on CH32?
+    ledcWrite(CP_CHANNEL, DutyCycle);                                       // update PWM signal
+#else //CH32
+    // update PWM signal
+    TIM1->CH1CVR = DutyCycle;
+#endif
+    CurrentPWM = DutyCycle;
+}
+
+
 // Set Charge Current 
 // Current in Amps * 10 (160 = 16A)
 void SetCurrent(uint16_t current) {
@@ -461,33 +474,12 @@ void SetCurrent(uint16_t current) {
                                                                             // calculate DutyCycle from current
     else if ((current > 510) && (current <= 800)) DutyCycle = (current / 2.5) + 640;
     else DutyCycle = 100;                                                   // invalid, use 6A
+#ifdef SMARTEVSE_VERSION //ESP32 FIXME should only run on CH32?
     DutyCycle = DutyCycle * 1024 / 1000;                                    // conversion to 1024 = 100%
+#endif
     SetCPDuty(DutyCycle);
 }
 
-// Write duty cycle to pin
-// Value in range 0 (0% duty) to 1024 (100% duty)
-void SetCPDuty(uint32_t DutyCycle){
-    ledcWrite(CP_CHANNEL, DutyCycle);                                       // update PWM signal
-    CurrentPWM = DutyCycle;
-}
-#else //CH32
-// Set Charge Current
-// Current in Amps * 10 (160 = 16A)
-void SetCurrent(uint16_t current) {
-
-    uint16_t DutyCycle;
-
-    // calculate PWM DutyCycle from current
-    if ((current >= 60) && (current <= 510)) DutyCycle = current * 10 / 6;      // use integer calculations
-    else if ((current > 510) && (current <= 800)) DutyCycle = (current * 10 / 25) + 640;
-    // invalid, use 6A
-    else DutyCycle = 100;
-
-    // update PWM signal
-    TIM1->CH1CVR = DutyCycle;
-}
-#endif
 
 // State is owned by the CH32
 // because it is highly subject to machine interaction
@@ -1150,6 +1142,8 @@ static uint8_t x;
 
     if (BacklightTimer) BacklightTimer--;                               // Decrease backlight counter every second.
 #else //CH32
+//somehow this print statement is needed to get into State_C ; FIXME timing problems ??
+printf("MSG: DINGO pilot=%u, state=%u, pilot()=%u.\n", pilot, State, Pilot());
 uint8_t ow = 0, x;
 #endif
     // wait for Activation mode to start
