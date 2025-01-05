@@ -652,7 +652,7 @@ int Set_Nr_of_Phases_Charging(void) {
         if (EVMeter.Type) {
             Charging_Prob = 10 * (abs(EVMeter.Irms[i] - IsetBalanced)) / IsetBalanced;  //100% means this phase is charging, 0% mwans not charging
                                                                                         //TODO does this work for the slaves too?
-            _LOG_D("Trying to detect Charging Phases END EVMeter.Irms[%i]=%.1f A.\n", i, (float)EVMeter.Irms[i]/10);
+            _LOG_D("Trying to detect Charging Phases END EVMeter.Irms[%u]=%.1f A.\n", i, (float)EVMeter.Irms[i]/10);
         }
         Max_Charging_Prob = max(Charging_Prob, Max_Charging_Prob);
 
@@ -661,19 +661,19 @@ int Set_Nr_of_Phases_Charging(void) {
             Charging_Prob = 0;
         if (Charging_Prob > 100)
             Charging_Prob = 200 - Charging_Prob;
-        _LOG_I("Detected Charging Phases: Charging_Prob[%i]=%i.\n", i, Charging_Prob);
+        _LOG_I("Detected Charging Phases: Charging_Prob[%u]=%u.\n", i, Charging_Prob);
 
         if (Charging_Prob == Max_Charging_Prob) {
-            _LOG_D("Suspect I am charging at phase: L%i.\n", i+1);
+            _LOG_D("Suspect I am charging at phase: L%u.\n", i+1);
             Nr_Of_Phases_Charging++;
         }
         else {
             if ( Charging_Prob <= BOTTOM_THRESHOLD ) {
-                _LOG_D("Suspect I am NOT charging at phase: L%i.\n", i+1);
+                _LOG_D("Suspect I am NOT charging at phase: L%u.\n", i+1);
             }
             else {
                 if ( Max_Charging_Prob - Charging_Prob <= THRESHOLD ) {
-                    _LOG_D("Serious candidate for charging at phase: L%i.\n", i+1);
+                    _LOG_D("Serious candidate for charging at phase: L%u.\n", i+1);
                     Nr_Of_Phases_Charging++;
                 }
             }
@@ -683,16 +683,16 @@ int Set_Nr_of_Phases_Charging(void) {
     // sanity checks
     if (EnableC2 != AUTO && EnableC2 != NOT_PRESENT) {                         // no further sanity checks possible when AUTO or NOT_PRESENT
         if (Nr_Of_Phases_Charging != 1 && (EnableC2 == ALWAYS_OFF || (EnableC2 == SOLAR_OFF && Mode == MODE_SOLAR))) {
-            _LOG_A("Error in detecting phases: EnableC2=%s and Nr_Of_Phases_Charging=%i.\n", StrEnableC2[EnableC2], Nr_Of_Phases_Charging);
+            _LOG_A("Error in detecting phases: EnableC2=%s and Nr_Of_Phases_Charging=%u.\n", StrEnableC2[EnableC2], Nr_Of_Phases_Charging);
             Nr_Of_Phases_Charging = 1;
             _LOG_A("Setting Nr_Of_Phases_Charging to 1.\n");
         }
         if (!Force_Single_Phase_Charging() && Nr_Of_Phases_Charging != 3) {//TODO 2phase charging very rare?
-            _LOG_A("Possible error in detecting phases: EnableC2=%s and Nr_Of_Phases_Charging=%i.\n", StrEnableC2[EnableC2], Nr_Of_Phases_Charging);
+            _LOG_A("Possible error in detecting phases: EnableC2=%s and Nr_Of_Phases_Charging=%u.\n", StrEnableC2[EnableC2], Nr_Of_Phases_Charging);
         }
     }
 
-    _LOG_A("Charging at %i phases.\n", Nr_Of_Phases_Charging);
+    _LOG_A("Charging at %u phases.\n", Nr_Of_Phases_Charging);
     if (Nr_Of_Phases_Charging == 0)
         return 3;
     return Nr_Of_Phases_Charging;
@@ -781,15 +781,15 @@ char IsCurrentAvailable(void) {
      // Only when StartCurrent configured or Node MinCurrent detected or Node inactive
     if (Mode == MODE_SOLAR) {                                                   // no active EVSE yet?
         if (ActiveEVSE == 0 && Isum >= ((signed int)StartCurrent *-10)) {
-            _LOG_D("No current available StartCurrent line %d. ActiveEVSE=%i, TotalCurrent=%.1fA, StartCurrent=%iA, Isum=%.1fA, ImportCurrent=%iA.\n", __LINE__, ActiveEVSE, (float) TotalCurrent/10, StartCurrent, (float)Isum/10, ImportCurrent);
+            _LOG_D("No current available StartCurrent line %d. ActiveEVSE=%u, TotalCurrent=%.1fA, StartCurrent=%uA, Isum=%.1fA, ImportCurrent=%uA.\n", __LINE__, ActiveEVSE, (float) TotalCurrent/10, StartCurrent, (float)Isum/10, ImportCurrent);
             return 0;
         }
         else if ((ActiveEVSE * MinCurrent * 10) > TotalCurrent) {               // check if we can split the available current between all active EVSE's
-            _LOG_D("No current available TotalCurrent line %d. ActiveEVSE=%i, TotalCurrent=%.1fA, StartCurrent=%iA, Isum=%.1fA, ImportCurrent=%iA.\n", __LINE__, ActiveEVSE, (float) TotalCurrent/10, StartCurrent, (float)Isum/10, ImportCurrent);
+            _LOG_D("No current available TotalCurrent line %d. ActiveEVSE=%u, TotalCurrent=%.1fA, StartCurrent=%uA, Isum=%.1fA, ImportCurrent=%uA.\n", __LINE__, ActiveEVSE, (float) TotalCurrent/10, StartCurrent, (float)Isum/10, ImportCurrent);
             return 0;
         }
         else if (ActiveEVSE > 0 && Isum > ((signed int)ImportCurrent * 10) + TotalCurrent - (ActiveEVSE * MinCurrent * 10)) {
-            _LOG_D("No current available Isum line %d. ActiveEVSE=%i, TotalCurrent=%.1fA, StartCurrent=%iA, Isum=%.1fA, ImportCurrent=%iA.\n", __LINE__, ActiveEVSE, (float) TotalCurrent/10, StartCurrent, (float)Isum/10, ImportCurrent);
+            _LOG_D("No current available Isum line %d. ActiveEVSE=%u, TotalCurrent=%.1fA, StartCurrent=%uA, Isum=%.1fA, ImportCurrent=%uA.\n", __LINE__, ActiveEVSE, (float) TotalCurrent/10, StartCurrent, (float)Isum/10, ImportCurrent);
             return 0;
         }
     }
@@ -802,12 +802,12 @@ char IsCurrentAvailable(void) {
 
     // Check if the lowest charge current(6A) x ActiveEV's + baseload would be higher then the MaxMains.
     if ((ActiveEVSE * (MinCurrent * 10) + Baseload) > (MaxMains * 10)) {
-        _LOG_D("No current available MaxMains line %d. ActiveEVSE=%i, Baseload=%.1fA, MinCurrent=%iA, MaxMains=%iA.\n", __LINE__, ActiveEVSE, (float) Baseload/10, MinCurrent, MaxMains);
+        _LOG_D("No current available MaxMains line %d. ActiveEVSE=%u, Baseload=%.1fA, MinCurrent=%uA, MaxMains=%uA.\n", __LINE__, ActiveEVSE, (float) Baseload/10, MinCurrent, MaxMains);
         return 0;                                                           // Not enough current available!, return with error
     }
     if (((LoadBl == 0 && EVMeter.Type && Mode != MODE_NORMAL) || LoadBl == 1) // Conditions in which MaxCircuit has to be considered
         && ((ActiveEVSE * (MinCurrent * 10) + Baseload_EV) > (MaxCircuit * 10))) { // MaxCircuit is exceeded
-        _LOG_D("No current available MaxCircuit line %d. ActiveEVSE=%i, Baseload_EV=%.1fA, MinCurrent=%iA, MaxCircuit=%iA.\n", __LINE__, ActiveEVSE, (float) Baseload_EV/10, MinCurrent, MaxCircuit);
+        _LOG_D("No current available MaxCircuit line %d. ActiveEVSE=%u, Baseload_EV=%.1fA, MinCurrent=%uA, MaxCircuit=%uA.\n", __LINE__, ActiveEVSE, (float) Baseload_EV/10, MinCurrent, MaxCircuit);
         return 0;                                                           // Not enough current available!, return with error
     }
     //assume the current should be available on all 3 phases
@@ -815,7 +815,7 @@ char IsCurrentAvailable(void) {
             (Mode == MODE_SOLAR && EnableC2 == AUTO && Switching_To_Single_Phase == AFTER_SWITCH));
     int Phases = must_be_single_phase_charging ? 1 : 3;
     if (MaxSumMains && ((Phases * ActiveEVSE * MinCurrent * 10) + Isum > MaxSumMains * 10)) {
-        _LOG_D("No current available MaxSumMains line %d. ActiveEVSE=%i, MinCurrent=%iA, Isum=%.1fA, MaxSumMains=%iA.\n", __LINE__, ActiveEVSE, MinCurrent,  (float)Isum/10, MaxSumMains);
+        _LOG_D("No current available MaxSumMains line %d. ActiveEVSE=%u, MinCurrent=%uA, Isum=%.1fA, MaxSumMains=%uA.\n", __LINE__, ActiveEVSE, MinCurrent,  (float)Isum/10, MaxSumMains);
         return 0;                                                           // Not enough current available!, return with error
     }
 
@@ -830,7 +830,7 @@ char IsCurrentAvailable(void) {
     }
 #endif //ENABLE_OCPP
 
-    _LOG_D("Current available checkpoint D. ActiveEVSE increased by one=%i, TotalCurrent=%.1fA, StartCurrent=%iA, Isum=%.1fA, ImportCurrent=%iA.\n", ActiveEVSE, (float) TotalCurrent/10, StartCurrent, (float)Isum/10, ImportCurrent);
+    _LOG_D("Current available checkpoint D. ActiveEVSE increased by one=%u, TotalCurrent=%.1fA, StartCurrent=%uA, Isum=%.1fA, ImportCurrent=%uA.\n", ActiveEVSE, (float) TotalCurrent/10, StartCurrent, (float)Isum/10, ImportCurrent);
     return 1;
 }
 #else //v4 ESP32
@@ -853,7 +853,6 @@ void CalcBalancedCurrent(char mod) {
     char CurrentSet[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};
     uint8_t n;
     bool LimitedByMaxSumMains = false;
-
     // ############### first calculate some basic variables #################
     if (BalancedState[0] == STATE_C && MaxCurrent > MaxCapacity && !Config)
         ChargeCurrent = MaxCapacity * 10;
@@ -886,7 +885,7 @@ void CalcBalancedCurrent(char mod) {
             TotalCurrent += Balanced[n];                                        // Calculate total of all set charge currents
     }
 
-    _LOG_V("Checkpoint 1 Isetbalanced=%.1f A Imeasured=%.1f A MaxCircuit=%i Imeasured_EV=%.1f A, Battery Current = %.1f A, mode=%i.\n", (float)IsetBalanced/10, (float)MainsMeter.Imeasured/10, MaxCircuit, (float)EVMeter.Imeasured/10, (float)homeBatteryCurrent/10, Mode);
+    _LOG_V("Checkpoint 1 Isetbalanced=%.1f A Imeasured=%.1f A MaxCircuit=%u Imeasured_EV=%.1f A, Battery Current = %.1f A, mode=%u.\n", (float)IsetBalanced/10, (float)MainsMeter.Imeasured/10, MaxCircuit, (float)EVMeter.Imeasured/10, (float)homeBatteryCurrent/10, Mode);
 
     Baseload_EV = EVMeter.Imeasured - TotalCurrent;                             // Calculate Baseload (load without any active EVSE)
     if (Baseload_EV < 0)
@@ -916,13 +915,13 @@ void CalcBalancedCurrent(char mod) {
         if (MaxSumMains && (Idifference > ((MaxSumMains * 10) - Isum)/Temp_Phases)) {
             Idifference = ((MaxSumMains * 10) - Isum)/Temp_Phases;
             LimitedByMaxSumMains = true;
-            _LOG_V("Current is limited by MaxSumMains: MaxSumMains=%iA, Isum=%.1fA, Temp_Phases=%i.\n", MaxSumMains, (float)Isum/10, Temp_Phases);
+            _LOG_V("Current is limited by MaxSumMains: MaxSumMains=%uA, Isum=%.1fA, Temp_Phases=%u.\n", MaxSumMains, (float)Isum/10, Temp_Phases);
         }
 
         if (!mod) {                                                             // no new EVSE's charging
                                                                                 // For Smart mode, no new EVSE asking for current
             if (phasesLastUpdateFlag) {                                         // only increase or decrease current if measurements are updated
-                _LOG_V("phaseLastUpdate=%i.\n", phasesLastUpdate);
+                _LOG_V("phaseLastUpdate=%u.\n", phasesLastUpdate);
                 if (Idifference > 0) {
                     if (Mode == MODE_SMART) IsetBalanced += (Idifference / 4);  // increase with 1/4th of difference (slowly increase current)
                 }                                                               // in Solar mode we compute increase of current later on!
@@ -933,7 +932,7 @@ void CalcBalancedCurrent(char mod) {
             if (IsetBalanced < 0) IsetBalanced = 0;
             if (IsetBalanced > 800) IsetBalanced = 800;                         // hard limit 80A (added 11-11-2017)
         }
-        _LOG_V("Checkpoint 2 Isetbalanced=%.1f A, Idifference=%.1f, mod=%i.\n", (float)IsetBalanced/10, (float)Idifference/10, mod);
+        _LOG_V("Checkpoint 2 Isetbalanced=%.1f A, Idifference=%.1f, mod=%u.\n", (float)IsetBalanced/10, (float)Idifference/10, mod);
 
         if (Mode == MODE_SOLAR)                                                 // Solar version
         {
@@ -958,7 +957,7 @@ void CalcBalancedCurrent(char mod) {
                     }
                 }
             }                                                                   // we already corrected Isetbalance in case of NOT enough power MaxCircuit/MaxMains
-            _LOG_V("Checkpoint 3 Isetbalanced=%.1f A, IsumImport=%.1f, Isum=%.1f, ImportCurrent=%i.\n", (float)IsetBalanced/10, (float)IsumImport/10, (float)Isum/10, ImportCurrent);
+            _LOG_V("Checkpoint 3 Isetbalanced=%.1f A, IsumImport=%.1f, Isum=%.1f, ImportCurrent=%u.\n", (float)IsetBalanced/10, (float)IsumImport/10, (float)Isum/10, ImportCurrent);
         } //end MODE_SOLAR
         else { // MODE_SMART
         // New EVSE charging, and only if we have active EVSE's
@@ -1021,7 +1020,7 @@ void CalcBalancedCurrent(char mod) {
                         if (SolarStopTimer == 0) setSolarStopTimer(StopTime * 60); // Convert minutes into seconds
                     }
                 } else {
-                    _LOG_D("Checkpoint a: Resetting SolarStopTimer, IsetBalanced=%.1fA, ActiveEVSE=%i.\n", (float)IsetBalanced/10, ActiveEVSE);
+                    _LOG_D("Checkpoint a: Resetting SolarStopTimer, IsetBalanced=%.1fA, ActiveEVSE=%u.\n", (float)IsetBalanced/10, ActiveEVSE);
                     setSolarStopTimer(0);
                 }
             }
@@ -1056,7 +1055,7 @@ void CalcBalancedCurrent(char mod) {
         } else {                                                                // we have enough current
             // ############### no shortage of power  #################
 
-            _LOG_D("Checkpoint b: Resetting SolarStopTimer, MaxSumMainsTimer, IsetBalanced=%.1fA, ActiveEVSE=%i.\n", (float)IsetBalanced/10, ActiveEVSE);
+            _LOG_D("Checkpoint b: Resetting SolarStopTimer, MaxSumMainsTimer, IsetBalanced=%.1fA, ActiveEVSE=%u.\n", (float)IsetBalanced/10, ActiveEVSE);
             setSolarStopTimer(0);
             MaxSumMainsTimer = 0;
             NoCurrent = 0;
@@ -1118,7 +1117,7 @@ void CalcBalancedCurrent(char mod) {
     } //ActiveEVSE && phasesLastUpdateFlag
 
     if (!saveActiveEVSE) { // no ActiveEVSEs so reset all timers
-        _LOG_D("Checkpoint c: Resetting SolarStopTimer, MaxSumMainsTimer, IsetBalanced=%.1fA, saveActiveEVSE=%i.\n", (float)IsetBalanced/10, saveActiveEVSE);
+        _LOG_D("Checkpoint c: Resetting SolarStopTimer, MaxSumMainsTimer, IsetBalanced=%.1fA, saveActiveEVSE=%u.\n", (float)IsetBalanced/10, saveActiveEVSE);
         setSolarStopTimer(0);
         MaxSumMainsTimer = 0;
         NoCurrent = 0;
@@ -1351,7 +1350,7 @@ uint8_t ow = 0, x;
     {
         ErrorFlags |= TEMP_HIGH;
         setStatePowerUnavailable();
-        _LOG_W("Error, temperature %i C !\n", TempEVSE);
+        _LOG_W("Error, temperature %u C !\n", TempEVSE);
     }
 
     if (ErrorFlags & (NO_SUN | LESS_6A)) {
@@ -2276,7 +2275,7 @@ void CheckRS485Comm(void) //looks like MBHandleData
         }
     // Data received is a request from the master to a device on the bus.
     } else if (MB.Type == MODBUS_REQUEST) { //looks like MBBroadcast
-        //printf("Modbus Request Address %i / Function %02x / Register %02x\n",MB.Address,MB.Function,MB.Register);
+        //printf("Modbus Request Address %u / Function %02x / Register %02x\n",MB.Address,MB.Function,MB.Register);
 
         // Broadcast or addressed to this device
         if (MB.Address == BROADCAST_ADR || (LoadBl > 0 && MB.Address == LoadBl)) {
@@ -2592,11 +2591,11 @@ void Timer10ms_singlerun(void) {
 /*                ret = strstr(SerialBuf, "Pilot:");
             //  [<-] Pilot:6,State:0,ChargeDelay:0,Error:0,Temp:34,Lock:0,Mode:0,Access:1
             if (ret != NULL) {
-                int hit = sscanf(SerialBuf, "Pilot:%u,State:%u,ChargeDelay:%u,Error:%u,Temp:%i,Lock:%u,Mode:%u, Access:%u", &pilot, &State, &ChargeDelay, &ErrorFlags, &TempEVSE, &Lock, &Mode, &Access_bit);
+                int hit = sscanf(SerialBuf, "Pilot:%u,State:%u,ChargeDelay:%u,Error:%u,Temp:%u,Lock:%u,Mode:%u, Access:%u", &pilot, &State, &ChargeDelay, &ErrorFlags, &TempEVSE, &Lock, &Mode, &Access_bit);
                 if (hit != 8) {
-                    _LOG_A("ERROR parsing line from WCH, hit=%i, line=%s.\n", hit, SerialBuf);
+                    _LOG_A("ERROR parsing line from WCH, hit=%u, line=%s.\n", hit, SerialBuf);
                 } else {
-                    _LOG_A("DINGO: pilot=%u, State=%u, ChargeDelay=%u, ErrorFlags = %u, TempEVSE=%i, Lock=%u, Mode=%u, Access_bit=%i.\n", pilot, State,ChargeDelay, ErrorFlags, TempEVSE, Lock, Mode, Access_bit);
+                    _LOG_A("DINGO: pilot=%u, State=%u, ChargeDelay=%u, ErrorFlags = %u, TempEVSE=%u, Lock=%u, Mode=%u, Access_bit=%u.\n", pilot, State,ChargeDelay, ErrorFlags, TempEVSE, Lock, Mode, Access_bit);
                 }
             }*/
 
@@ -2683,15 +2682,7 @@ void Timer10ms_singlerun(void) {
             case COMM_CONFIG_SET:                       // Set mainboard configuration
                 CommTimeout = 10;
                 // send configuration to WCH IC
-                Serial1.printf("Config:%u,Lock:%u,Mode:%u,CardOffset:%u,LoadBl:%u,MaxMains:%u,MaxSumMains:%u, MaxCurrent:%u, MinCurrent:%u, MaxCircuit:%u, Switch:%u, RCmon:%u, StartCurrent:%u\n", Config, Lock, Mode, CardOffset, LoadBl, MaxMains, MaxSumMains, MaxCurrent, MinCurrent, MaxCircuit, Switch, RCmon, StartCurrent);
-                delay(1000);
-                Serial1.printf("StopTime:%u, ImportCurrent:%u, Grid:%u, RFIDReader:%u, MainsMeterType:%u, MainsMAddress:%u, EVMeterType:%u, EVMeterAddress:%u, Initialized:%u, EnableC2:%u, maxTemp:%u, PwrPanic:%u, ModemPwr:%u\n", StopTime, ImportCurrent, Grid, RFIDReader, MainsMeter.Type, MainsMeter.Address, EVMeter.Type, EVMeter.Address, Initialized, EnableC2, maxTemp, PwrPanic, ModemPwr);
-                //Serial1.printf("Config:%u,Lock:%u,Mode:%u,CardOffset:%u,LoadBl:%u,MaxMains:%u,MaxSumMains:%u, MaxCurrent:%u, MinCurrent:%u, MaxCircuit:%u, Switch:%u, RCmon:%u, StartCurrent:%u, StopTime:%u, ImportCurrent:%u, Grid:%u, RFIDReader:%u, MainsMeterType:%u, MainsMAddress:%u, EVMeterType:%u, EVMeterAddress:%u, Initialized:%u, EnableC2:%u, maxTemp:%u, PwrPanic:%u, ModemPwr:%u\n", Config, Lock, Mode, CardOffset, LoadBl, MaxMains, MaxSumMains, MaxCurrent, MinCurrent, MaxCircuit, Switch, RCmon, StartCurrent, StopTime, ImportCurrent, Grid, RFIDReader, MainsMeter.Type, MainsMeter.Address, EVMeter.Type, EVMeter.Address, Initialized, EnableC2, maxTemp, PwrPanic, ModemPwr);
-
-//TODO ChargeCurrent?
-//FIXME  EMEndianness:%u, EMIRegister:%u, EMIDivisor:%u, EMURegister:%u, EMUDivisor:%u, EMPRegister:%u, EMPDivisor:%u, EMERegister:%u, EMEDivisor:%u, EMDataType:%u, EMFunction:%u,
-//  EMEndianness, EMIRegister, EMIDivisor, EMURegister, EMUDivisor, EMPRegister, EMPDivisor, EMERegister, EMEDivisor, EMDataType, EMFunction,
-
+                Serial1.printf("Config:%u,Lock:%u,Mode:%u,LoadBl:%u,Current:%u,Switch:%u,RCmon:%u,PwrPanic:%u,RFIDReader:%u,ModemPwr:%u,Initialized:%u\n", Config, Lock, Mode, LoadBl, ChargeCurrent, Switch, RCmon, PwrPanic, RFIDReader, ModemPwr, Initialized);
                 break;
 
             case COMM_STATUS_REQ:                       // Ready to receive status from mainboard
