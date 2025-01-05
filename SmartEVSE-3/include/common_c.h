@@ -143,5 +143,5 @@ EXTC void ReadItemValueResponse(void);
 EXTC void WriteItemValueResponse(void);
 EXTC void WriteMultipleItemValueResponse(void);
 EXTC void ModbusDecode(uint8_t * buf, uint8_t len);
-
+EXTC void SetCPDuty(uint32_t DutyCycle);
 #endif

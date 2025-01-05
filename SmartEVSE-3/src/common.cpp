@@ -451,23 +451,29 @@ uint8_t Force_Single_Phase_Charging() {                                         
 }
 //#endif
 
-
 // Write duty cycle to pin
 // Value in range 0 (0% duty) to 1024 (100% duty) for ESP32, 1000 (100% duty) for CH32
 void SetCPDuty(uint32_t DutyCycle){
-#ifdef SMARTEVSE_VERSION //ESP32 FIXME should only run on CH32?
+#if SMARTEVSE_VERSION == 4 //ESP32
+    Serial1.printf("SetCPDuty:%u\n", DutyCycle);
+#else
+#if SMARTEVSE_VERSION == 3 //ESP32
     ledcWrite(CP_CHANNEL, DutyCycle);                                       // update PWM signal
-#else //CH32
+#endif
+#ifndef SMARTEVSE_VERSION  //CH32
     // update PWM signal
     TIM1->CH1CVR = DutyCycle;
 #endif
     CurrentPWM = DutyCycle;
+#endif //v4
 }
-
 
 // Set Charge Current 
 // Current in Amps * 10 (160 = 16A)
 void SetCurrent(uint16_t current) {
+#if SMARTEVSE_VERSION == 4 //ESP32
+    Serial1.printf("SetCurrent:%u\n", current);
+#else
     uint32_t DutyCycle;
 
     if ((current >= (MIN_CURRENT * 10)) && (current <= 510)) DutyCycle = current / 0.6;
@@ -478,8 +484,8 @@ void SetCurrent(uint16_t current) {
     DutyCycle = DutyCycle * 1024 / 1000;                                    // conversion to 1024 = 100%
 #endif
     SetCPDuty(DutyCycle);
+#endif
 }
-
 
 // State is owned by the CH32
 // because it is highly subject to machine interaction

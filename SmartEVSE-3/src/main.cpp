@@ -1085,6 +1085,7 @@ ModbusMessage MBNodeRequest(ModbusMessage request) {
   return response;
 }
 
+#if SMARTEVSE_VERSION != 4
 // The Node/Server receives a broadcast message from the Master
 // Does not send any data back.
 ModbusMessage MBbroadcast(ModbusMessage request) {
@@ -1151,6 +1152,7 @@ ModbusMessage MBbroadcast(ModbusMessage request) {
     // As it is a broadcast message, do not send response.
     return NIL_RESPONSE;              
 }
+#endif
 
 // Data handler for Master
 // Responses from Slaves/Nodes are handled here
