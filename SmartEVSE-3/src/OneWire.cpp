@@ -27,7 +27,7 @@
 #include <string.h>
 #include <Preferences.h>
 
-#include "main.h"
+#include "esp32.h"
 #include "utils.h"
 #include "OneWire.h"
 #include "OneWireESP32.h"

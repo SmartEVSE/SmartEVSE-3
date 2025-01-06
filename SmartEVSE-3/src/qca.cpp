@@ -1,7 +1,7 @@
 #if SMARTEVSE_VERSION == 4
 #include <Arduino.h>
 #include <SPI.h>
-#include "main.h"
+#include "esp32.h"
 #include "qca.h"
 
 

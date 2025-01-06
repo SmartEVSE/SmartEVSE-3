@@ -26,7 +26,7 @@
 #include <string.h>
 #include <SPI.h>
 #include <WiFi.h>
-#include "main.h"
+#include "esp32.h"
 #include "glcd.h"
 #include "utils.h"
 #include "meter.h"

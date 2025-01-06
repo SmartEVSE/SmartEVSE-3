@@ -21,9 +21,9 @@
 ; THE SOFTWARE.
  */
 
-#ifndef __EVSE_MAIN
+#ifndef __EVSE_ESP32
 
-#define __EVSE_MAIN
+#define __EVSE_ESP32
 
 #ifndef SMARTEVSE_VERSION
 #define SMARTEVSE_VERSION 3
@@ -67,7 +67,7 @@
 #include <Arduino.h>
 #include "debug.h"
 #include "stdint.h"
-#include "common.h"
+#include "main.h"
 
 #if ENABLE_OCPP
 #include <MicroOcpp/Model/ConnectorBase/Notification.h>

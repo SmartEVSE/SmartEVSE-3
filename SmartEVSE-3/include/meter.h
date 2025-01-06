@@ -26,8 +26,11 @@
 
 #define __EVSE_METER
 
-#include "main.h"
-
+#ifdef SMARTEVSE_VERSION //v3 and v4
+#include "esp32.h"
+#else //CH32
+#include "ch32.h"
+#endif
 
 extern struct EMstruct EMConfig[EM_CUSTOM + 1];
 extern struct ModBus MB;

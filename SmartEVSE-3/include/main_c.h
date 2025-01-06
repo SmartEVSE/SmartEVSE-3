@@ -1,5 +1,5 @@
-#ifndef __COMMON_C
-#define __COMMON_C
+#ifndef __MAIN_C
+#define __MAIN_C
 
 
 //here should be declarations for code that will run on both the CH32 and the ESP32

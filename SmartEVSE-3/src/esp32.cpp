@@ -25,7 +25,7 @@
 
 #include <soc/rtc_io_struct.h>
 
-#include "main.h"
+#include "esp32.h"
 #include "glcd.h"
 #include "utils.h"
 #include "OneWire.h"

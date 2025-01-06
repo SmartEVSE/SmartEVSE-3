@@ -9,7 +9,7 @@
 #include <Update.h>
 #include <Preferences.h>
 
-#include "main.h"
+#include "esp32.h"
 #if SMARTEVSE_VERSION == 3
 #include "OneWire.h"
 #endif
