@@ -50,8 +50,6 @@
 
 #define CIRCUIT_METER 0                                                         // Electric meter used for EVSE Circuit
 #define CIRCUIT_METER_ADDRESS 13
-#define INITIALIZED 0
-uint8_t Initialized = INITIALIZED;                                              // When first powered on, the settings need to be initialized.
 uint8_t CircuitMeter = CIRCUIT_METER;
 uint8_t CircuitMeterAddress = CIRCUIT_METER_ADDRESS;
 
@@ -143,79 +141,80 @@ const char StrRFIDStatusWeb[8][20] = {"Ready to read card","Present", "Card Stor
 
 
 // The following data will be updated by eeprom/storage data at powerup:
-uint16_t MaxMains = MAX_MAINS;                                              // Max Mains Amps (hard limit, limited by the MAINS connection) (A)
-uint16_t MaxSumMains = MAX_SUMMAINS;                                        // Max Mains Amps summed over all 3 phases, limit used by EU capacity rate
+extern uint16_t MaxMains;
+extern uint16_t MaxSumMains;
                                                                             // see https://github.com/serkri/SmartEVSE-3/issues/215
                                                                             // 0 means disabled, allowed value 10 - 600 A
 extern uint8_t MaxSumMainsTime;
 extern uint16_t MaxSumMainsTimer;
-uint16_t GridRelayMaxSumMains = GRID_RELAY_MAX_SUMMAINS;                    // Max Mains Amps summed over all 3 phases, switched by relay provided by energy provider
+extern uint16_t GridRelayMaxSumMains;
                                                                             // Meant to obey par 14a of Energy Industry Act, where the provider can switch a device
                                                                             // down to 4.2kW by a relay connected to the "switch" connectors.
                                                                             // you will have to set the "Switch" setting to "GridRelay",
                                                                             // and connect the relay to the switch terminals
                                                                             // When the relay opens its contacts, power will be reduced to 4.2kW
                                                                             // The relay is only allowed on the Master
-bool CustomButton = false;                                                  // The status of the custom button
-uint16_t MaxCurrent = MAX_CURRENT;                                          // Max Charge current (A)
-uint16_t MinCurrent = MIN_CURRENT;                                          // Minimal current the EV is happy with (A)
-uint8_t Mode = MODE;                                                        // EVSE mode (0:Normal / 1:Smart / 2:Solar)
+extern bool CustomButton;
+extern uint16_t MaxCurrent;
+extern uint16_t MinCurrent;
+extern uint8_t Mode;
 extern uint32_t CurrentPWM;
 extern void SetCurrent(uint16_t current);
-int8_t InitialSoC = -1;                                                     // State of charge of car
-int8_t FullSoC = -1;                                                        // SoC car considers itself fully charged
-int8_t ComputedSoC = -1;                                                    // Estimated SoC, based on charged kWh
-int8_t RemainingSoC = -1;                                                   // Remaining SoC, based on ComputedSoC
-int32_t TimeUntilFull = -1;                                                 // Remaining time until car reaches FullSoC, in seconds
-int32_t EnergyCapacity = -1;                                                // Car's total battery capacity
-int32_t EnergyRequest = -1;                                                 // Requested amount of energy by car
-char EVCCID[32];                                                            // Car's EVCCID (EV Communication Controller Identifer)
-char RequiredEVCCID[32];                                                    // Required EVCCID before allowing charging
+extern int8_t InitialSoC;
+extern int8_t FullSoC;
+extern int8_t ComputedSoC;
+extern int8_t RemainingSoC;
+extern int32_t TimeUntilFull;
+extern int32_t EnergyCapacity;
+extern int32_t EnergyRequest;
+extern char EVCCID[32];                                                            // Car's EVCCID (EV Communication Controller Identifer)
+extern char RequiredEVCCID[32];                                                    // Required EVCCID before allowing charging
 
 extern bool CPDutyOverride;
-uint8_t Lock = LOCK;                                                        // Cable lock (0:Disable / 1:Solenoid / 2:Motor)
-uint16_t MaxCircuit = MAX_CIRCUIT;                                          // Max current of the EVSE circuit (A)
-uint8_t Config = CONFIG;                                                    // Configuration (0:Socket / 1:Fixed Cable)
-uint8_t Switch = SWITCH;                                                    // External Switch (0:Disable / 1:Access B / 2:Access S / 
+extern uint8_t Lock;
+extern uint16_t MaxCircuit;
+extern uint8_t Config;
+extern uint8_t Switch;
                                                                             // 3:Smart-Solar B / 4:Smart-Solar S / 5: Grid Relay
                                                                             // 6:Custom B / 7:Custom S)
                                                                             // B=momentary push <B>utton, S=toggle <S>witch
-uint8_t RCmon = RC_MON;                                                     // Residual Current Monitor (0:Disable / 1:Enable)
+extern uint8_t RCmon;
 extern uint8_t AutoUpdate;
-uint16_t StartCurrent = START_CURRENT;
-uint16_t StopTime = STOP_TIME;
-uint16_t ImportCurrent = IMPORT_CURRENT;
+extern uint16_t StartCurrent;
+extern uint16_t StopTime;
+extern uint16_t ImportCurrent;
 extern struct DelayedTimeStruct DelayedStartTime;
 extern struct DelayedTimeStruct DelayedStopTime;
 extern uint8_t DelayedRepeat;
-uint8_t LCDlock = LCD_LOCK;                                                 // 0 = LCD buttons operational, 1 = LCD buttons disabled
-uint8_t Grid = GRID;                                                        // Type of Grid connected to Sensorbox (0:4Wire / 1:3Wire )
+extern uint8_t LCDlock;
+extern uint8_t Grid;
 extern uint8_t SB2_WIFImode;
-uint8_t RFIDReader = RFID_READER;                                           // RFID Reader (0:Disabled / 1:Enabled / 2:Enable One / 3:Learn / 4:Delete / 5:Delete All / 6: Remote via OCPP)
+extern uint8_t RFIDReader;
 #if FAKE_RFID
-uint8_t Show_RFID = 0;
+extern uint8_t Show_RFID;
 #endif
 
 extern uint16_t maxTemp;
 
-uint8_t State = STATE_A;
-uint8_t ErrorFlags = NO_ERROR;
-uint8_t NextState;
+extern uint8_t State;
+extern uint8_t ErrorFlags;
+extern uint8_t NextState;
 
-uint16_t MaxCapacity;                                                       // Cable limit (A) (limited by the wire in the charge cable, set automatically, or manually if Config=Fixed Cable)
-uint16_t ChargeCurrent;                                                     // Calculated Charge Current (Amps *10)
-uint16_t OverrideCurrent = 0;                                               // Temporary assigned current (Amps *10) (modbus)
+extern uint16_t MaxCapacity;                                                       // Cable limit (A) (limited by the wire in the charge cable, set automatically, or manually if Config=Fixed Cable)
+extern uint16_t ChargeCurrent;                                                     // Calculated Charge Current (Amps *10)
+extern uint16_t OverrideCurrent;
 
 // Load Balance variables
-int16_t IsetBalanced = 0;                                                   // Max calculated current (Amps *10) available for all EVSE's
-uint16_t Balanced[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};                     // Amps value per EVSE
-uint16_t BalancedMax[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};                  // Max Amps value per EVSE
-uint8_t BalancedState[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};                 // State of all EVSE's 0=not active (state A), 1=charge request (State B), 2= Charging (State C)
+extern int16_t IsetBalanced;
+extern uint16_t Balanced[NR_EVSES];
+extern uint16_t BalancedMax[NR_EVSES];
+extern uint8_t BalancedState[NR_EVSES];
 extern uint16_t BalancedError[NR_EVSES];
 
-Node_t Node[NR_EVSES] = {                                                        // 0: Master / 1: Node 1 ...
-   /*         Config   EV     EV       Min      Used    Charge Interval Solar *          // Interval Time   : last Charge time, reset when not charging
-    * Online, Changed, Meter, Address, Current, Phases,  Timer,  Timer, Timer, Mode */   // Min Current     : minimal measured current per phase the EV consumes when starting to charge @ 6A (can be lower then 6A)
+Node_t Node[NR_EVSES];
+/*= {                                                        // 0: Master / 1: Node 1 ...
+   //         Config   EV     EV       Min      Used    Charge Interval Solar *          // Interval Time   : last Charge time, reset when not charging
+    * Online, Changed, Meter, Address, Current, Phases,  Timer,  Timer, Timer, Mode    // Min Current     : minimal measured current per phase the EV consumes when starting to charge @ 6A (can be lower then 6A)
     {      1,       0,     0,       0,       0,      0,      0,      0,     0,    0 },   // Used Phases     : detected nr of phases when starting to charge (works with configured EVmeter meter, and might work with sensorbox)
     {      0,       1,     0,       0,       0,      0,      0,      0,     0,    0 },
     {      0,       1,     0,       0,       0,      0,      0,      0,     0,    0 },
@@ -225,46 +224,46 @@ Node_t Node[NR_EVSES] = {                                                       
     {      0,       1,     0,       0,       0,      0,      0,      0,     0,    0 },
     {      0,       1,     0,       0,       0,      0,      0,      0,     0,    0 }            
 };
-
+*/
 extern uint8_t lock1, lock2;
-uint16_t BacklightTimer = 0;                                                // Backlight timer (sec)
+extern uint16_t BacklightTimer;
 extern uint8_t BacklightSet;
 extern uint8_t LCDTimer;
-uint8_t AccessTimer = 0;
-int8_t TempEVSE = 0;                                                        // Temperature EVSE in deg C (-50 to +125)
-uint8_t ButtonState = 0x0f;                                                 // Holds latest push Buttons state (LSB 3:0)
-uint8_t OldButtonState = 0x0f;                                              // Holds previous push Buttons state (LSB 3:0)
-uint8_t LCDNav = 0;
-uint8_t SubMenu = 0;
-uint32_t ScrollTimer = 0;
-uint8_t ChargeDelay = 0;                                                    // Delays charging at least 60 seconds in case of not enough current available.
-uint8_t C1Timer = 0;
-uint8_t ModemStage = 0;                                                     // 0: Modem states will be executed when Modem is enabled 1: Modem stages will be skipped, as SoC is already extracted
-int8_t DisconnectTimeCounter = -1;                                          // Count for how long we're disconnected, so we can more reliably throw disconnect event. -1 means counter is disabled
-uint8_t ToModemWaitStateTimer = 0;                                          // Timer used from STATE_MODEM_REQUEST to STATE_MODEM_WAIT
-uint8_t ToModemDoneStateTimer = 0;                                          // Timer used from STATE_MODEM_WAIT to STATE_MODEM_DONE
-uint8_t LeaveModemDoneStateTimer = 0;                                       // Timer used from STATE_MODEM_DONE to other, usually STATE_B
-uint8_t LeaveModemDeniedStateTimer = 0;                                     // Timer used from STATE_MODEM_DENIED to STATE_B to re-try authentication
-uint8_t NoCurrent = 0;                                                      // counts overcurrent situations.
-uint8_t TestState = 0;
-uint8_t ModbusRequest = 0;                                                  // Flag to request Modbus information
+extern uint8_t AccessTimer;
+extern int8_t TempEVSE;
+extern uint8_t ButtonState;
+extern uint8_t OldButtonState;
+extern uint8_t LCDNav;
+extern uint8_t SubMenu;
+extern uint32_t ScrollTimer;
+extern uint8_t ChargeDelay;
+extern uint8_t C1Timer;
+extern uint8_t ModemStage;
+extern int8_t DisconnectTimeCounter;
+extern uint8_t ToModemWaitStateTimer;
+extern uint8_t ToModemDoneStateTimer;
+extern uint8_t LeaveModemDoneStateTimer;
+extern uint8_t LeaveModemDeniedStateTimer;
+extern uint8_t NoCurrent;
+extern uint8_t TestState;
+extern uint8_t ModbusRequest;
 extern uint8_t NodeNewMode;
-uint8_t Access_bit = 0;                                                     // 0:No Access 1:Access to SmartEVSE
-uint16_t CardOffset = CARD_OFFSET;                                          // RFID card used in Enable One mode
+extern uint8_t Access_bit;
+extern uint16_t CardOffset;
 
 extern uint8_t ConfigChanged;
-uint8_t GridActive = 0;                                                     // When the CT's are used on Sensorbox2, it enables the GRID menu option.
+extern uint8_t GridActive;
 
-uint16_t SolarStopTimer = 0;
-uint8_t RFIDstatus = 0;
-bool PilotDisconnected = false;
-uint8_t PilotDisconnectTime = 0;                                            // Time the Control Pilot line should be disconnected (Sec)
+extern uint16_t SolarStopTimer;
+extern uint8_t RFIDstatus;
+extern bool PilotDisconnected;
+extern uint8_t PilotDisconnectTime;
 
-uint8_t ActivationMode = 0, ActivationTimer = 0;
-volatile uint16_t adcsample = 0;
-volatile uint16_t ADCsamples[25];                                           // declared volatile, as they are used in a ISR
-volatile uint8_t sampleidx = 0;
-char str[20];
+extern uint8_t ActivationMode, ActivationTimer;
+extern volatile uint16_t adcsample;
+extern volatile uint16_t ADCsamples[25];                                           // declared volatile, as they are used in a ISR
+extern volatile uint8_t sampleidx;
+extern char str[20];
 
 extern int phasesLastUpdate;
 extern bool phasesLastUpdateFlag;
@@ -280,34 +279,34 @@ extern uint8_t ColorCustom[3];
 
 //#define FW_UPDATE_DELAY 30        //DINGO TODO                                            // time between detection of new version and actual update in seconds
 #define FW_UPDATE_DELAY 3600                                                    // time between detection of new version and actual update in seconds
-uint16_t firmwareUpdateTimer = 0;                                               // timer for firmware updates in seconds, max 0xffff = approx 18 hours
+extern uint16_t firmwareUpdateTimer;
                                                                                 // 0 means timer inactive
                                                                                 // 0 < timer < FW_UPDATE_DELAY means we are in countdown for an actual update
                                                                                 // FW_UPDATE_DELAY <= timer <= 0xffff means we are in countdown for checking
                                                                                 //                                              whether an update is necessary
 
 #if ENABLE_OCPP
-uint8_t OcppMode = OCPP_MODE; //OCPP Client mode. 0:Disable / 1:Enable
+extern uint8_t OcppMode;
 
-unsigned char OcppRfidUuid [7];
-size_t OcppRfidUuidLen;
+extern unsigned char OcppRfidUuid [7];
+extern size_t OcppRfidUuidLen;
 extern unsigned long OcppLastRfidUpdate;
-unsigned long OcppTrackLastRfidUpdate;
+extern unsigned long OcppTrackLastRfidUpdate;
 
-bool OcppForcesLock = false;
-std::shared_ptr<MicroOcpp::Configuration> OcppUnlockConnectorOnEVSideDisconnect; // OCPP Config for RFID-based transactions: if false, demand same RFID card again to unlock connector
-std::shared_ptr<MicroOcpp::Transaction> OcppLockingTx; // Transaction which locks connector until same RFID card is presented again
+extern bool OcppForcesLock;
+extern std::shared_ptr<MicroOcpp::Configuration> OcppUnlockConnectorOnEVSideDisconnect; // OCPP Config for RFID-based transactions: if false, demand same RFID card again to unlock connector
+extern std::shared_ptr<MicroOcpp::Transaction> OcppLockingTx; // Transaction which locks connector until same RFID card is presented again
 
-bool OcppTrackPermitsCharge = false;
-bool OcppTrackAccessBit = false;
-uint8_t OcppTrackCPvoltage = PILOT_NOK; //track positive part of CP signal for OCPP transaction logic
-MicroOcpp::MOcppMongooseClient *OcppWsClient;
+extern bool OcppTrackPermitsCharge;
+extern bool OcppTrackAccessBit;
+extern uint8_t OcppTrackCPvoltage;
+extern MicroOcpp::MOcppMongooseClient *OcppWsClient;
 
-float OcppCurrentLimit = -1.f; // Negative value: no OCPP limit defined
+extern float OcppCurrentLimit;
 
-unsigned long OcppStopReadingSyncTime; // Stop value synchronization: delay StopTransaction by a few seconds so it reports an accurate energy reading
+extern unsigned long OcppStopReadingSyncTime; // Stop value synchronization: delay StopTransaction by a few seconds so it reports an accurate energy reading
 
-bool OcppDefinedTxNotification;
+extern bool OcppDefinedTxNotification;
 extern MicroOcpp::TxNotification OcppTrackTxNotification;
 extern unsigned long OcppLastTxNotification;
 #endif //ENABLE_OCPP

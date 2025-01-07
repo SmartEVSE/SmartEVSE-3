@@ -141,7 +141,7 @@ struct EMstruct {
 //#define STATE_F 12                  // -12V Fault condition
 
 #define NR_EVSES 8
-
+#define BROADCAST_ADR 0x09
 
 EXTC uint8_t Force_Single_Phase_Charging(void);
 EXTC uint16_t getItemValue(uint8_t nav);
@@ -167,4 +167,11 @@ EXTC void WriteItemValueResponse(void);
 EXTC void WriteMultipleItemValueResponse(void);
 EXTC void ModbusDecode(uint8_t * buf, uint8_t len);
 EXTC void SetCPDuty(uint32_t DutyCycle);
+
+EXTC uint8_t Initialized;
+EXTC uint8_t PwrPanic;
+EXTC uint8_t ModemPwr;
+EXTC volatile uint8_t RxRdy1;
+EXTC volatile uint8_t ModbusRxLen;
+
 #endif
