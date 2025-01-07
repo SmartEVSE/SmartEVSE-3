@@ -2174,6 +2174,7 @@ static uint8_t PollEVNode = NR_EVSES, updated = 0;
     }
 
 //#ifdef SMARTEVSE_VERSION //ESP32 //TODO I think this loop should run on CH32?
+#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION == 3   //CH32 and v3 ESP32
     // Every 2 seconds, request measurements from modbus meters
     if (ModbusRequest) {                                                    // Slaves all have ModbusRequest at 0 so they never enter here
         switch (ModbusRequest) {                                            // State
@@ -2326,7 +2327,7 @@ static uint8_t PollEVNode = NR_EVSES, updated = 0;
         } //switch
         if (ModbusRequest) ModbusRequest++;
     }
-//#endif
+#endif
 
 #ifndef SMARTEVSE_VERSION //CH32
 //not sure this is necessary
