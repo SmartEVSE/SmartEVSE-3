@@ -89,7 +89,7 @@ MicroOcpp::TxNotification OcppTrackTxNotification;
 EXT void setup();
 EXT void setState(uint8_t NewState);
 EXT int8_t TemperatureSensor();
-EXT void CheckSerialComm(void);
+//EXT void CheckSerialComm(void);
 EXT uint8_t OneWireReadCardId();
 EXT uint8_t ProximityPin();
 EXT void PowerPanic(void);
@@ -141,6 +141,152 @@ extern const char StrEnableC2[5][12] = { "Not present", "Always Off", "Solar Off
 uint8_t ModbusRx[256];                          // Modbus Receive buffer
 int homeBatteryLastUpdate = 0; // Time in milliseconds
 int16_t IrmsOriginal[3]={0, 0, 0};
+
+#ifndef SMARTEVSE_VERSION //CH32 version
+
+// Used for reading configuration data from ESP
+typedef enum {
+    UINT8,
+    INT8,
+    UINT16
+} ValueType;
+
+// Used for reading configuration data from ESP
+typedef union {
+    uint8_t* u8;
+    int8_t* i8;
+    uint16_t* u16;
+} ValuePtr;
+
+// Used for reading configuration data from ESP
+typedef struct {                        
+    const char* keyword;
+    ValuePtr valuePtr;
+    ValueType type;
+} ConfigItem;
+
+
+// Configuration items array
+ConfigItem configItems[] = {
+    {"Config:",{.u8 = &Config}, UINT8},
+    {"Lock:", {.u8 = &Lock}, UINT8},
+    {"Mode:", {.u8 = &Mode}, UINT8}, //e
+    {"Access:", {.u8 = &Access_bit}, UINT8}, //e
+    {"CardOffset:", {.u8 = &CardOffset}, UINT8},
+    {"LoadBl:", {.u8 = &LoadBl}, UINT8},
+    {"MaxMains:", {.u16 = &MaxMains}, UINT16},
+    {"MaxSumMains:", {.u16 = &MaxSumMains},  UINT16},
+    {"MaxCurrent:", {.u16 = &MaxCurrent}, UINT16},
+    {"MinCurrent:", {.u16 = &MinCurrent}, UINT16},
+    {"MaxCircuit:", {.u16 = &MaxCircuit}, UINT16},
+    {"Switch:", {.u8 = &Switch}, UINT8},
+    {"RCmon:", {.u8 = &RCmon}, UINT8},
+    {"StartCurrent:", {.u16 = &StartCurrent}, UINT16},
+    {"StopTime:", {.u16 = &StopTime}, UINT16},
+    {"ImportCurrent:", {.u16 = &ImportCurrent}, UINT16},
+    {"Grid:", {.u8 = &Grid}, UINT8},
+    {"RFIDReader:", {.u8 = &RFIDReader}, UINT8},
+    {"MainsMeterType:", {.u8 = &MainsMeterType}, UINT8},
+    {"MainsMAddress:", {.u8 = &MainsMeterAddress}, UINT8},
+    {"EVMeterType:", {.u8 = &EVMeterType}, UINT8},
+    {"EVMeterAddress:", {.u8 = &EVMeterAddress}, UINT8},
+    {"EMEndianness:", {.u8 = &EMConfig[EM_CUSTOM].Endianness}, UINT8},
+    {"EMIRegister:", {.u16 = &EMConfig[EM_CUSTOM].IRegister}, UINT16},
+    {"EMIDivisor:", {.i8 = &EMConfig[EM_CUSTOM].IDivisor}, INT8},
+    {"EMURegister:", {.u16 = &EMConfig[EM_CUSTOM].URegister}, UINT16},
+    {"EMUDivisor:", {.i8 = &EMConfig[EM_CUSTOM].UDivisor}, INT8},
+    {"EMPRegister:", {.u16 = &EMConfig[EM_CUSTOM].PRegister}, UINT16},
+    {"EMPDivisor:", {.i8 = &EMConfig[EM_CUSTOM].PDivisor}, INT8},
+    {"EMERegister:", {.u16 = &EMConfig[EM_CUSTOM].ERegister}, UINT16},
+    {"EMEDivisor:", {.i8 = &EMConfig[EM_CUSTOM].EDivisor}, INT8},
+    {"EMDataType:", {.u8 = (uint8_t*)&EMConfig[EM_CUSTOM].DataType}, UINT8},
+    {"EMFunction:", {.u8 = &EMConfig[EM_CUSTOM].Function}, UINT8},
+    {"Initialized:", {.u8 = &Initialized}, UINT8},
+    {"EnableC2:", {.u8 = (uint8_t*)&EnableC2}, UINT8},
+    {"maxTemp:", {.u16 = &maxTemp}, UINT16},
+
+    // the following variables are not configuration registers
+
+//    {"State:", {.u8 = &State}, UINT8},
+    {"ChargeCurrent:", {.u16 = &ChargeCurrent}, UINT16},
+    {"PwrPanic:", {.u8 = &PwrPanic}, UINT8},
+    {"ModemPwr:", {.u8 = &ModemPwr}, UINT8},
+
+    {NULL, {NULL}, 0} // End of array
+};
+
+void CheckSerialComm(void) {
+    char buf[256];
+    uint8_t len;
+    char *ret;
+
+    len = ReadESPdata(buf);
+    RxRdy1 = 0;
+
+    // Is it a request?
+    char token[64];
+    strncpy(token, "version?", sizeof(token));
+    ret = strstr(buf, token);
+    if (ret != NULL) printf("version:%04u\n", WchVersion);          // Send WCH software version
+
+    strncpy(token, "State:", sizeof(token)); //b
+    ret = strstr(buf, token);
+    if (ret != NULL) {
+        setState(atoi(ret+strlen(token)));
+    }
+
+    strncpy(token, "SetCPDuty:", sizeof(token)); //b
+    ret = strstr(buf, token);
+    if (ret != NULL) {
+        SetCPDuty(atoi(ret+strlen(token)));
+    }
+
+    strncpy(token, "SetCurrent:", sizeof(token)); //b
+    ret = strstr(buf, token);
+    if (ret != NULL) {
+        SetCurrent(atoi(ret+strlen(token)));
+    }
+
+    // We received configuration settings from the ESP. 
+    // Scan for all variables, and update values
+    for (ConfigItem* item = configItems; item->keyword != NULL; item++) { //e
+        const char* found = strstr(buf, item->keyword);
+        if (found) {
+            const char* valueStr = found + strlen(item->keyword);
+            switch (item->type) {
+                case UINT8:
+                    *(item->valuePtr.u8) = (uint8_t)atoi(valueStr);
+                    break;
+                case INT8:
+                    *(item->valuePtr.i8) = (int8_t)atoi(valueStr);
+                    break;    
+                case UINT16:
+                    *(item->valuePtr.u16) = (uint16_t)atoi(valueStr);
+                    break;
+            }
+        }
+    }
+
+    // Wait till initialized is set by ESP
+    if (Initialized) printf("Config:OK\n");
+
+    // Enable/disable modem power
+    ModemPower(ModemPwr);
+
+    // Enable/disable Power Panic function
+    PowerPanicCtrl(PwrPanic);
+    
+    //if (LoadBl) {
+    //    printf("Config:OK %u,Lock:%u,Mode:%u,Current:%u,Switch:%u,RCmon:%u,PwrPanic:%u,RFID:%u\n", Config, Lock, Mode, ChargeCurrent, Switch, RCmon, PwrPanic, RFIDReader);
+//        ConfigChanged = 1;
+    //}
+    
+    memset(buf, 0, len);    // clear buffer
+
+}
+
+
+#endif
 
 //constructor
 Button::Button(void) {

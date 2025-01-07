@@ -25,58 +25,11 @@
 
 #define __EVSE_ESP32
 
-#ifndef SMARTEVSE_VERSION
-#define SMARTEVSE_VERSION 3
-#endif
-
-#ifndef DBG
-//the wifi-debugger is available by telnetting to your SmartEVSE device
-#define DBG 0  //comment or set to 0 for production release, 0 = no debug 1 = debug over telnet, 2 = debug over usb serial
-#endif
-
-#ifndef FAKE_RFID
-//set FAKE_RFID to 1 to emulate an rfid reader with rfid of card = 123456
-//showing the rfid card is simulated by executing http://smartevse-xxx.lan/debug?showrfid=1
-//don't forget to first store the card before it can activate charging
-#define FAKE_RFID 0
-#endif
-
-#ifndef AUTOMATED_TESTING
-//set AUTOMATED_TESTING to 1 to make hardware-related paramaters like MaxCurrent and MaxCircuit updatable via REST API
-//e.g. by executing curl -X POST http://smartevse-xxx.lan/automated_testing?maxcurrent=100
-#define AUTOMATED_TESTING 0
-#endif
-
-#ifndef FAKE_SUNNY_DAY
-//set this to 1 to emulate a sunny day where your solar charger is injecting current in the grid:
-#define FAKE_SUNNY_DAY 0
-//disclaimer: might not work for CT1 calibration/uncalibration stuff, since I can't test that
-//the number of Amperes you want to have fake injected into Lx
-#endif
-
-#if FAKE_SUNNY_DAY
-#define INJECT_CURRENT_L1 10
-#define INJECT_CURRENT_L2 0
-#define INJECT_CURRENT_L3 0
-#endif
-
-#ifndef ENABLE_OCPP
-#define ENABLE_OCPP 0
-#endif
 
 #include <Arduino.h>
-#include "debug.h"
-#include "stdint.h"
 #include "main.h"
+#include "glcd.h"  //TODO necessary?
 
-#if ENABLE_OCPP
-#include <MicroOcpp/Model/ConnectorBase/Notification.h>
-#endif
-
-#ifndef MODEM
-//the wifi-debugger is available by telnetting to your SmartEVSE device
-#define MODEM 0  //0 = no modem 1 = modem
-#endif
 
 // Pin definitions left side ESP32
 #define PIN_TEMP 36
@@ -115,6 +68,7 @@
 #define SPI_SS -1
 #endif //SMARTEVSE_VERSION
 
+//TODO only v3?
 #define CP_CHANNEL 0
 #define RED_CHANNEL 2                                                           // PWM channel 2 (0 and 1 are used by CP signal)
 #define GREEN_CHANNEL 3
