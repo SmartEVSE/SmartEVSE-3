@@ -604,54 +604,6 @@ void Button::CheckSwitch(bool force) {
 
 Button ExtSwitch;
 
-// the Access_bit is owned by the ESP32
-// because it is highly subject to human interaction
-// and also its status is supposed to get saved in NVS
-// so if the CH32 wants to change that variable,
-// it sends a message to the ESP32
-// and if the change is honored, the ESP32 sends an update
-// to the CH32 through the ConfigItem routine
-// So the receiving code of the CH32 is the only routine that
-// is allowed to change the value of Acces_bit on CH32
-// All other code has to use setAccess
-// so for v4 we need:
-// a. CH32 setAccess sends message to ESP32           in CH32 src/evse.c and/or in src/common.cpp (this file)
-// b. ESP32 receiver that calls local setAccess       in ESP32 src/main.cpp
-// c. ESP32 setAccess full functionality              in ESP32 src/common.cpp (this file)
-// d. ESP32 sends message to CH32                     in ESP32 src/common.cpp (this file)
-// e. CH32 receiver that sets local variable          in CH32 src/evse.c
-
-// same for Mode/setMode
-
-void setAccess(bool Access) { //c
-#ifdef SMARTEVSE_VERSION //v3 and v4
-    Access_bit = Access;
-#if SMARTEVSE_VERSION == 4
-    Serial1.printf("Access:%u\n", Access_bit); //d
-#endif
-    if (Access == 0) {
-        //TODO:setStatePowerUnavailable() ?
-        if (State == STATE_C) setState(STATE_C1);                               // Determine where to switch to.
-        else if (State != STATE_C1 && (State == STATE_B || State == STATE_MODEM_REQUEST || State == STATE_MODEM_WAIT || State == STATE_MODEM_DONE || State == STATE_MODEM_DENIED)) setState(STATE_B1);
-    }
-
-    //make mode and start/stoptimes persistent on reboot
-    if (preferences.begin("settings", false) ) {                        //false = write mode
-        preferences.putUChar("Access", Access_bit);
-        preferences.putUShort("CardOffs16", CardOffset);
-        preferences.end();
-    }
-
-#if MQTT
-    // Update MQTT faster
-    lastMqttUpdate = 10;
-#endif //MQTT
-#else //CH32
-    printf("Access:%1u.\n", Access); //a
-#endif //SMARTEVSE_VERSION
-}
-
-
 /**
  * Set EVSE mode
  * 
@@ -952,6 +904,54 @@ void setState(uint8_t NewState) { //c
 
     // BacklightTimer = BACKLIGHT;                                                 // Backlight ON
 
+#endif //SMARTEVSE_VERSION
+}
+
+
+// the Access_bit is owned by the ESP32
+// because it is highly subject to human interaction
+// and also its status is supposed to get saved in NVS
+// so if the CH32 wants to change that variable,
+// it sends a message to the ESP32
+// and if the change is honored, the ESP32 sends an update
+// to the CH32 through the ConfigItem routine
+// So the receiving code of the CH32 is the only routine that
+// is allowed to change the value of Acces_bit on CH32
+// All other code has to use setAccess
+// so for v4 we need:
+// a. CH32 setAccess sends message to ESP32           in CH32 src/evse.c and/or in src/common.cpp (this file)
+// b. ESP32 receiver that calls local setAccess       in ESP32 src/main.cpp
+// c. ESP32 setAccess full functionality              in ESP32 src/common.cpp (this file)
+// d. ESP32 sends message to CH32                     in ESP32 src/common.cpp (this file)
+// e. CH32 receiver that sets local variable          in CH32 src/evse.c
+
+// same for Mode/setMode
+
+void setAccess(bool Access) { //c
+#ifdef SMARTEVSE_VERSION //v3 and v4
+    Access_bit = Access;
+#if SMARTEVSE_VERSION == 4
+    Serial1.printf("Access:%u\n", Access_bit); //d
+#endif
+    if (Access == 0) {
+        //TODO:setStatePowerUnavailable() ?
+        if (State == STATE_C) setState(STATE_C1);                               // Determine where to switch to.
+        else if (State != STATE_C1 && (State == STATE_B || State == STATE_MODEM_REQUEST || State == STATE_MODEM_WAIT || State == STATE_MODEM_DONE || State == STATE_MODEM_DENIED)) setState(STATE_B1);
+    }
+
+    //make mode and start/stoptimes persistent on reboot
+    if (preferences.begin("settings", false) ) {                        //false = write mode
+        preferences.putUChar("Access", Access_bit);
+        preferences.putUShort("CardOffs16", CardOffset);
+        preferences.end();
+    }
+
+#if MQTT
+    // Update MQTT faster
+    lastMqttUpdate = 10;
+#endif //MQTT
+#else //CH32
+    printf("Access:%1u.\n", Access); //a
 #endif //SMARTEVSE_VERSION
 }
 
