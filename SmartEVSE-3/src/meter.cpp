@@ -267,6 +267,9 @@ uint8_t Meter::receiveCurrentMeasurement(uint8_t *buf) {
             PowerMeasured += Power[x];
             if (Power[x] < 0) var[x] = -var[x];
         }
+#ifndef SMARTEVSE_VERSION //CH32
+        printf("PowerMeasured:%03u,%d\n", Address, PowerMeasured);
+#endif
     }
 
     // Convert Irms from mA to deciAmpère (A * 10)
@@ -369,6 +372,9 @@ void Meter::ResponseToMeasurement() {
             }
         } else if (MB.Register == EMConfig[Type].PRegister) {
             PowerMeasured = receivePowerMeasurement(MB.Data);
+#ifndef SMARTEVSE_VERSION //CH32
+            printf("PowerMeasured:%03u,%d\n", Address, PowerMeasured);
+#endif
         } else if (MB.Register == EMConfig[Type].ERegister) {
             //import active energy
             if (Type == EM_EASTRON3P_INV)

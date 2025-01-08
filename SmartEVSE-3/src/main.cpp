@@ -2995,7 +2995,24 @@ void Timer10ms_singlerun(void) {
                         EVMeter.CalcImeasured();
                     }
                 } else
-                    _LOG_A("Received corrupt Irms:, n=%d, message from WCH:%s.\n", n, SerialBuf);
+                    _LOG_A("Received corrupt %s, n=%d, message from WCH:%s.\n", token, n, SerialBuf);
+            }
+
+            strncpy(token, "PowerMeasured:", sizeof(token));
+            //printf("PowerMeasured:%03u,%d\n", Address, PowerMeasured);
+            ret = strstr(SerialBuf, token);
+            if (ret != NULL) {
+                short unsigned int Address;
+                int16_t PowerMeasured;
+                int n = sscanf(SerialBuf,"PowerMeasured:%03hu,%hi", &Address, &PowerMeasured);
+                if (n == 2) {   //success
+                    if (Address == MainsMeter.Address) {
+                        MainsMeter.PowerMeasured = PowerMeasured;
+                    } else if (Address == EVMeter.Address) {
+                        EVMeter.PowerMeasured = PowerMeasured;
+                    }
+                } else
+                    _LOG_A("Received corrupt %s, n=%d, message from WCH:%s.\n", token, n, SerialBuf);
             }
 
             strncpy(token, "State:", sizeof(token));
