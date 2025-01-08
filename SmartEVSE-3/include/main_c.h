@@ -140,6 +140,8 @@ struct EMstruct {
 //#define STATE_E 11                  // disconnected pilot / powered down
 //#define STATE_F 12                  // -12V Fault condition
 
+#define NOSTATE 255
+
 #define NR_EVSES 8
 #define BROADCAST_ADR 0x09
 

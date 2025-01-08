@@ -129,10 +129,10 @@
 #define DELAYEDSTARTTIME 0                                                             // The default StartTime for delayed charged, 0 = not delaying
 #define DELAYEDSTOPTIME 0                                                       // The default StopTime for delayed charged, 0 = not stopping
 #define SOLARSTARTTIME 40                                                       // Seconds to keep chargecurrent at 6A
+#define OCPP_MODE 0
 #define MAX_SUMMAINSTIME 0
 #define AUTOUPDATE 0                                                            // default for Automatic Firmware Update: 0 = disabled, 1 = enabled
 
-#define OCPP_MODE 0
 #define LCD_LOCK 0                                                              // 0 = LCD buttons operational, 1 = LCD buttons disabled
 #define INITIALIZED 0
 
@@ -147,7 +147,6 @@
 #define COMM_TIMEOUT 11                                                         // Timeout for MainsMeter
 #define COMM_EVTIMEOUT 8*NR_EVSES                                               // Timeout for EV Energy Meters
 
-#define NOSTATE 255
 
 //TODO this can be integrated by choosing same definitions
 #ifdef SMARTEVSE_VERSION //ESP32
@@ -337,9 +336,9 @@ class Button {
 
 extern Button ExtSwitch;
 extern uint8_t SB2_WIFImode;
-extern uint8_t SubMenu;
 extern uint8_t LCDNav;
-extern uint8_t GridActive;
+extern uint8_t SubMenu;
+extern uint8_t GridActive;                                                      // When the CT's are used on Sensorbox2, it enables the GRID menu option.
 extern uint8_t Grid;
 extern void Timer10ms(void * parameter);
 extern void Timer100ms(void * parameter);
