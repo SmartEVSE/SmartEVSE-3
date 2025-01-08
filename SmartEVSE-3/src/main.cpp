@@ -44,7 +44,7 @@
 
 //OCPP includes
 #if ENABLE_OCPP
-#include <MicroOcpp.h>          
+#include <MicroOcpp.h>
 #include <MicroOcppMongooseClient.h>
 #include <MicroOcpp/Core/Configuration.h>
 #include <MicroOcpp/Core/Context.h>
@@ -256,20 +256,12 @@ MicroOcpp::TxNotification OcppTrackTxNotification;
 unsigned long OcppLastTxNotification;
 #endif //ENABLE_OCPP
 
-// gateway to the outside world
-// here declarations are placed for variables that are both used on CH32 as ESP32
-// (either temporarily while developing or definite)
-// and they are mainly used in the main.cpp/common.cpp code
 EXT uint32_t elapsedmax, elapsedtime;
-//EXT uint16_t SolarStopTimer, MaxCapacity, MainsCycleTime, ChargeCurrent, BalancedMax[NR_EVSES], ADC_CP[NUM_ADC_SAMPLES], Balanced[NR_EVSES], MaxCircuit, OverrideCurrent, StartCurrent, StopTime, ImportCurrent, GridRelayMaxSumMains;
-//EXT uint8_t RFID[8], Access_bit, Lock, ErrorFlags, ChargeDelay, State, LoadBl, PilotDisconnectTime, AccessTimer, ActivationMode, ActivationTimer, C1Timer, UnlockCable, LockCable, MainsMeterTimeout, PowerPanicFlag, Switch, RCmon, TestState, Config, PwrPanic, ModemPwr, Initialized, pilot, NoCurrent;
-//EXT int16_t IsetBalanced;
-//EXT bool CustomButton, GridRelayOpen;
 #ifdef SMARTEVSE_VERSION //v3 and v4
 EXT hw_timer_t * timerA;
 esp_adc_cal_characteristics_t * adc_chars_CP;
 #endif
-//EXT uint8_t BalancedState[NR_EVSES];
+
 #if ENABLE_OCPP
 #include <MicroOcpp.h>
 EXT float OcppCurrentLimit;
@@ -280,7 +272,6 @@ extern bool OcppForcesLock;
 EXT void setup();
 EXT void setState(uint8_t NewState);
 EXT int8_t TemperatureSensor();
-//EXT void CheckSerialComm(void);
 EXT uint8_t OneWireReadCardId();
 EXT uint8_t ProximityPin();
 EXT void PowerPanic(void);
