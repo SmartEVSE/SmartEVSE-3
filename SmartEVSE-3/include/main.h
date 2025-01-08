@@ -62,7 +62,6 @@
 
 #include "debug.h"
 #include "stdint.h"
-#include "time.h"
 #include "main_c.h"
 
 #if ENABLE_OCPP //TODO perhaps move to esp32.h
@@ -130,7 +129,6 @@
 #define DELAYEDSTOPTIME 0                                                       // The default StopTime for delayed charged, 0 = not stopping
 #define SOLARSTARTTIME 40                                                       // Seconds to keep chargecurrent at 6A
 #define OCPP_MODE 0
-#define MAX_SUMMAINSTIME 0
 #define AUTOUPDATE 0                                                            // default for Automatic Firmware Update: 0 = disabled, 1 = enabled
 
 #define LCD_LOCK 0                                                              // 0 = LCD buttons operational, 1 = LCD buttons disabled

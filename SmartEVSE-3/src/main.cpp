@@ -11,6 +11,7 @@
 #include "meter.h"
 #include "modbus.h"
 #include "memory.h"  //for memcpy
+#include <time.h>
 
 #ifdef SMARTEVSE_VERSION //ESP32
 #define EXT extern
@@ -33,7 +34,6 @@
 #include <Logging.h>
 #include <ModbusServerRTU.h>        // Slave/node
 #include <ModbusClientRTU.h>        // Master
-#include <time.h>
 
 #include <soc/sens_reg.h>
 #include <soc/sens_struct.h>
