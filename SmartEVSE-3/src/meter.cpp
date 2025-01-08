@@ -273,7 +273,9 @@ uint8_t Meter::receiveCurrentMeasurement(uint8_t *buf) {
     for (x = 0; x < 3; x++) {
         Irms[x] = (var[x] / 100);            // Convert to AMPERE * 10
     }
-
+#ifndef SMARTEVSE_VERSION //CH32
+    printf("Irms:%03u,%d,%d,%d\n", Address, Irms[0], Irms[1], Irms[2]); //Irms:011,312,123,124 means: the meter on address 11(dec) has Irms[0] 312 dA, Irms[1] of 123 dA, Irms[2] of 124 dA.
+#endif
     // all OK
     return 1;
 }
@@ -332,7 +334,7 @@ signed int Meter::receivePowerMeasurement(uint8_t *buf) {
             Power[0] = (int)decodeMeasurement(buf, 0, EMConfig[Type].PDivisor);
             Power[1] = (int)decodeMeasurement(buf, 1, EMConfig[Type].PDivisor);
             Power[2] = (int)decodeMeasurement(buf, 2, EMConfig[Type].PDivisor);
-            _LOG_V("Received power EVmeter L1=(%iW), L2=(%iW), L3=(%iW)\n", Power[0], Power[1], Power[2]);
+            _LOG_V("Received power EVmeter L1=(%dW), L2=(%dW), L3=(%dW)\n", Power[0], Power[1], Power[2]);
             return (Power[0] + Power[1] + Power[2]);
         }
         default:

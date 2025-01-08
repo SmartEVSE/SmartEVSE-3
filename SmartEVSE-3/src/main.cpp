@@ -374,6 +374,8 @@ ConfigItem configItems[] = {
 //    {NULL, {NULL}, UINT8} // End of array
 };
 
+
+// CH32 receives info from ESP32
 void CheckSerialComm(void) {
     char buf[256];
     uint8_t len;
@@ -2887,7 +2889,7 @@ void Timer10ms_singlerun(void) {
     } // end of State C code
 #endif //v3 and CH32
 #if SMARTEVSE_VERSION == 4 //v4
-
+    //ESP32 receives info from CH32
     if (Serial1.available()) {
         //Serial.printf("[<-] ");        // Data available from mainboard?
         while (Serial1.available()) {
@@ -2971,6 +2973,29 @@ void Timer10ms_singlerun(void) {
             ret = strstr(SerialBuf, token);
             if (ret != NULL) {
                 TempEVSE = atoi(ret+strlen(token)); //e
+            }
+
+            strncpy(token, "Irms:", sizeof(token));
+            //Irms:011,312,123,124 means: the meter on address 11(dec) has Irms[0] 312 dA, Irms[1] of 123 dA, Irms[2] of 124 dA.
+            ret = strstr(SerialBuf, token);
+            if (ret != NULL) {
+                short unsigned int Address;
+                int16_t Irms[3];
+                int n = sscanf(SerialBuf,"Irms:%03hu,%hi,%hi,%hi", &Address, &Irms[0], &Irms[1], &Irms[2]);
+                if (n == 4) {   //success
+                    if (Address == MainsMeter.Address) {
+                        for (int x = 0; x < 3; x++)
+                            MainsMeter.Irms[x] = Irms[x];
+                        MainsMeter.Timeout = COMM_TIMEOUT;
+                        CalcIsum();
+                    } else if (Address == EVMeter.Address) {
+                        for (int x = 0; x < 3; x++)
+                            EVMeter.Irms[x] = Irms[x];
+                        EVMeter.Timeout = COMM_EVTIMEOUT;
+                        EVMeter.CalcImeasured();
+                    }
+                } else
+                    _LOG_A("Received corrupt Irms:, n=%d, message from WCH:%s.\n", n, SerialBuf);
             }
 
             strncpy(token, "State:", sizeof(token));
