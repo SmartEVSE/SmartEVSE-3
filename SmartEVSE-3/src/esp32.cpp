@@ -125,6 +125,7 @@ hw_timer_t * timerA = NULL;
 Preferences preferences;
 
 extern esp_adc_cal_characteristics_t * adc_chars_CP;
+extern void setStatePowerUnavailable(void);
 
 struct ModBus MB;          // Used by SmartEVSE fuctions
 

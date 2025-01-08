@@ -349,7 +349,6 @@ extern uint8_t LCDlock, MainVersion;
 enum Single_Phase_t { FALSE, GOING_TO_SWITCH, AFTER_SWITCH };
 extern void CalcBalancedCurrent(char mod);
 extern void write_settings(void);
-extern void setStatePowerUnavailable(void);
 extern void CalcIsum(void);
 
 struct Sensorbox {

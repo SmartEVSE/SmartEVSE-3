@@ -794,6 +794,18 @@ void SetCurrent(uint16_t current) {
 #endif
 }
 
+
+void setStatePowerUnavailable(void) {
+    if (State == STATE_A)
+       return;
+    //State changes between A,B,C,D are caused by EV or by the user
+    //State changes between x1 and x2 are created by the EVSE
+    //State changes between x1 and x2 indicate availability (x2) of unavailability (x1) of power supply to the EV
+    if (State == STATE_C) setState(STATE_C1);                       // If we are charging, tell EV to stop charging
+    else if (State != STATE_C1) setState(STATE_B1);                 // If we are not in State C1, switch to State B1
+}
+
+
 // State is owned by the CH32
 // because it is highly subject to machine interaction
 // and also charging is supposed to function if ESP32 is hung/rebooted
@@ -3063,17 +3075,6 @@ void BlinkLed(void * parameter) {
 }
 #endif
 #endif //SMARTEVSE_VERSION
-
-
-void setStatePowerUnavailable(void) {
-    if (State == STATE_A)
-       return;
-    //State changes between A,B,C,D are caused by EV or by the user
-    //State changes between x1 and x2 are created by the EVSE
-    //State changes between x1 and x2 indicate availability (x2) of unavailability (x1) of power supply to the EV
-    if (State == STATE_C) setState(STATE_C1);                       // If we are charging, tell EV to stop charging
-    else if (State != STATE_C1) setState(STATE_B1);                 // If we are not in State C1, switch to State B1
-}
 
 
 /**
