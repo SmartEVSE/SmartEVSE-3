@@ -408,6 +408,12 @@ void CheckSerialComm(void) {
         SetCurrent(atoi(ret+strlen(token)));
     }
 
+    strncpy(token, "CalcBalancedCurrent:", sizeof(token)); //b
+    ret = strstr(buf, token);
+    if (ret != NULL) {
+        CalcBalancedCurrent(atoi(ret+strlen(token)));
+    }
+
     // We received configuration settings from the ESP. 
     // Scan for all variables, and update values
     for (ConfigItem* item = configItems; item->keyword != NULL; item++) { //e
@@ -1169,6 +1175,7 @@ char IsCurrentAvailable(void) {
 // mod =1 we have a new EVSE requesting to start charging.
 // only runs on the Master or when loadbalancing Disabled
 void CalcBalancedCurrent(char mod) {
+#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION == 3   //CH32 and v3 ESP32
     int Average, MaxBalanced, Idifference, Baseload_EV;
     int ActiveEVSE = 0;
     signed int IsumImport = 0;
@@ -1459,8 +1466,10 @@ void CalcBalancedCurrent(char mod) {
         }
         _LOG_D_NO_FUNC("\n");
     }
+#else
+    printf("CalcBalancedCurrent:%i\n", mod);
+#endif
 } //CalcBalancedCurrent
-
 
 
 void Timer1S_singlerun(void) {
@@ -1733,6 +1742,7 @@ uint8_t ow = 0, x;
 }
 
 
+#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION == 3   //CH32 and v3 ESP32
 /**
  * Load Balancing 	Modbus Address  LoadBl
     Disabled     	0x01            0x00
@@ -2119,7 +2129,7 @@ uint8_t processAllNodeStates(uint8_t NodeNr) {
 
     return write;
 }
-
+#endif
 
 // Task that handles the Cable Lock and modbus
 // 
@@ -2178,7 +2188,6 @@ static uint8_t PollEVNode = NR_EVSES, updated = 0;
         }
     }
 
-//#ifdef SMARTEVSE_VERSION //ESP32 //TODO I think this loop should run on CH32?
 #if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION == 3   //CH32 and v3 ESP32
     // Every 2 seconds, request measurements from modbus meters
     if (ModbusRequest) {                                                    // Slaves all have ModbusRequest at 0 so they never enter here
