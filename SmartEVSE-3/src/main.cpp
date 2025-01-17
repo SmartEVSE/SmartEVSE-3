@@ -56,9 +56,9 @@ struct DelayedTimeStruct DelayedStopTime;
 #else //CH32
 #define EXT extern "C"
 #include "ch32.h"
+#include "utils.h"
 extern "C" {
     #include "ch32v003fun.h"
-    #include "utils.h"
 }
 #endif
 
@@ -272,7 +272,7 @@ extern bool OcppForcesLock;
 EXT void setup();
 EXT void setState(uint8_t NewState);
 EXT int8_t TemperatureSensor();
-EXT uint8_t OneWireReadCardId();
+uint8_t OneWireReadCardId();
 EXT uint8_t ProximityPin();
 EXT void PowerPanic(void);
 EXT int Set_Nr_of_Phases_Charging(void);
