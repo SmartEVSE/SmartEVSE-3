@@ -1,3 +1,5 @@
+#ifdef SMARTEVSE_VERSION //ESP32
+
 #include <ArduinoJson.h>
 #include <SPI.h>
 #include <Preferences.h>
@@ -3214,3 +3216,4 @@ void loop() {
 #endif //ENABLE_OCPP
 
 }
+#endif //ESP32

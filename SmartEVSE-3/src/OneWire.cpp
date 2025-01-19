@@ -21,6 +21,7 @@
 ; OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 ; THE SOFTWARE.
 */
+#ifdef SMARTEVSE_VERSION //ESP32
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -335,3 +336,156 @@ void CheckRFID(void) {
         } else RFIDstatus = 0;
     }
 }
+#else //CH32
+
+/*
+;    Project:       Smart EVSE
+;
+;
+;
+; Permission is hereby granted, free of charge, to any person obtaining a copy
+; of this software and associated documentation files (the "Software"), to deal
+; in the Software without restriction, including without limitation the rights
+; to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+; copies of the Software, and to permit persons to whom the Software is
+; furnished to do so, subject to the following conditions:
+;
+; The above copyright notice and this permission notice shall be included in
+; all copies or substantial portions of the Software.
+;
+; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+; IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+; FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+; AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+; LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+; OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+; THE SOFTWARE.
+*/
+
+#include "ch32v003fun.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include "ch32.h"
+#include "utils.h"
+extern "C" {
+    #include "evse.h"
+}
+
+
+// ############################# OneWire functions #############################
+
+// SW set to 0, set to output (driven low)
+void ONEWIRE_LOW(void)
+{
+    funDigitalWrite(SW_IN, FUN_LOW);
+    funPinMode(SW_IN, GPIO_CFGLR_OUT_2Mhz_PP);
+}
+
+// SW set to 1, set to output (driven high)
+void ONEWIRE_HIGH(void)
+{
+    funDigitalWrite(SW_IN, FUN_HIGH);
+    funPinMode(SW_IN, GPIO_CFGLR_OUT_2Mhz_PP);
+}
+
+// SW input (floating high)
+void ONEWIRE_FLOATHIGH(void)
+{
+    GPIOB->BSHR = 0x0020;           // Set OUTDR bit 5 -> enabling Pull up (might be able to do the same with funDigitalWrite)
+    funPinMode(SW_IN, GPIO_CFGLR_IN_PUPD);
+}
+
+
+// Reset 1-Wire device on SW input
+// returns:  1 Device found
+//           0 No device found
+//         255 Error. Line is pulled low (short, or external button pressed?)
+//
+uint8_t OneWireReset(void) {
+    unsigned char r;
+
+    if (funDigitalRead(SW_IN) == FUN_LOW) return 255;                 // Error, pulled low by external device?
+
+    ONEWIRE_LOW();                                                // Drive wire low
+    delayMicroseconds(480);
+    ONEWIRE_FLOATHIGH();                                          // don't drive high, but use pullup
+    delayMicroseconds(70);
+
+    if (funDigitalRead(SW_IN) == FUN_HIGH) r = 0;                     // sample pin to see if there is a OneWire device..
+    else r = 1;
+
+    delayMicroseconds(410);
+    return r;
+}
+
+void OneWireWriteBit(uint8_t v) {
+
+    if (v & 1) {                                                  // write a '1'
+        ONEWIRE_LOW();                                            // Drive low
+        delayMicroseconds(10);
+        ONEWIRE_HIGH();                                           // Drive high
+        delayMicroseconds(55);
+    } else {                                                      // write a '0'
+        ONEWIRE_LOW();                                            // Drive low
+        delayMicroseconds(65);
+        ONEWIRE_HIGH();                                           // Drive high
+        delayMicroseconds(5);
+    }
+}
+
+uint8_t OneWireReadBit(void) {
+    unsigned char r;
+
+    ONEWIRE_LOW();
+    delayMicroseconds(3);
+    ONEWIRE_FLOATHIGH();
+    delayMicroseconds(10);
+
+    if (funDigitalRead(SW_IN) == FUN_HIGH) r = 1u;                    // sample pin
+    else r = 0;
+
+    delayMicroseconds(53);
+    return r;
+}
+
+void OneWireWrite(uint8_t v) {
+    unsigned char bitmask;
+    for (bitmask = 0x01; bitmask ; bitmask <<= 1) {
+        OneWireWriteBit( (bitmask & v) ? 1u : 0);
+    }
+}
+
+uint8_t OneWireRead(void) {
+    unsigned char bitmask, r = 0;
+
+    for (bitmask = 0x01; bitmask ; bitmask <<= 1) {
+        if ( OneWireReadBit()) r |= bitmask;
+    }
+    return r;
+}
+
+uint8_t OneWireReadCardId() {
+    unsigned char x;
+
+    if (OneWireReset() == 1) {                                    // RFID card detected
+        OneWireWrite(0x33);                                       // OneWire ReadRom Command
+        for (x=0 ; x<8 ; x++) RFID[x] = OneWireRead();            // read Family code (0x01) RFID ID (6 bytes) and crc8
+        // Dump raw RFID data
+        for (x=0;  x<8 ; x++) printf("%02x",RFID[x]);
+        printf("\n");
+
+        if (crc8(RFID,8)) {
+            RFID[0] = 0;                                          // CRC incorrect, clear first byte of RFID buffer
+            return 0;
+        } else {
+   //         for (x=1 ; x<7 ; x++) printf("%02x",RFID[x]);
+   //         printf("\n");
+            return 1;
+        }
+    }
+    return 0;
+}
+
+
+
+#endif

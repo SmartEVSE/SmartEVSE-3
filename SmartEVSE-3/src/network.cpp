@@ -1,3 +1,5 @@
+#if defined(ESP32)
+
 #include <WiFi.h>
 //#include "esp_ota_ops.h"
 #include "mbedtls/md_internal.h"
@@ -1427,3 +1429,4 @@ void network_loop() {
     Debug.handle();
 #endif
 }
+#endif

@@ -24,6 +24,7 @@
 #ifndef __EVSE_DEBUG
 
 #define __EVSE_DEBUG
+#include "stdio.h"
 
 #ifndef VERSION
 //please note that this version will only be displayed with the correct time/date if the program is recompiled
@@ -32,7 +33,7 @@
 #define VERSION (__TIME__ " @" __DATE__)
 #endif
 
-#if DBG == 0
+#if DBG == 0 || (!defined(SMARTEVSE_VERSION) && DBG == 1)
 //used to steer RemoteDebug
 #define DEBUG_DISABLED 1
 #define _LOG_W( ... ) //dummy
@@ -47,7 +48,7 @@
 #define _LOG_A_NO_FUNC( ... ) //dummy
 #endif
 
-#if DBG == 1
+#if DBG == 1 && defined(SMARTEVSE_VERSION) //only on ESP32
 #define _LOG_A(fmt, ...) if (Debug.isActive(Debug.ANY))                Debug.printf("(%s)(C%d) " fmt, __func__, xPortGetCoreID(), ##__VA_ARGS__) //Always = Errors!!!
 #define _LOG_P(fmt, ...) if (Debug.isActive(Debug.PROFILER))   Debug.printf("(%s)(C%d) " fmt, __func__, xPortGetCoreID(), ##__VA_ARGS__)
 #define _LOG_V(fmt, ...) if (Debug.isActive(Debug.VERBOSE))    Debug.printf("(%s)(C%d) " fmt, __func__, xPortGetCoreID(), ##__VA_ARGS__)         //Verbose
@@ -69,6 +70,7 @@ extern RemoteDebug Debug;
 #define EVSE_LOG_FORMAT(letter, format) "[%6u][" #letter "][%s:%u] %s(): " format , (uint32_t) (esp_timer_get_time() / 1000ULL), pathToFileName(__FILE__), __LINE__, __FUNCTION__
 
 #if DBG == 2
+#ifdef SMARTEVSE_VERSION //ESP32
 #define DEBUG_DISABLED 1
 #if LOG_LEVEL >= 1  // Errors
 #define _LOG_A(fmt, ... ) Serial.printf(EVSE_LOG_FORMAT(E, fmt), ##__VA_ARGS__)
@@ -105,6 +107,44 @@ extern RemoteDebug Debug;
 #define _LOG_V( ... ) 
 #define _LOG_V_NO_FUNC( ... )
 #endif
+#else //CH32
+#define DEBUG_DISABLED 1
+#if LOG_LEVEL >= 1  // Errors
+#define _LOG_A_NO_FUNC( ... ) printf ( "MSG:" __VA_ARGS__ )
+#define _LOG_A( ... ) printf ( "MSG:" __VA_ARGS__ )
+#else
+#define _LOG_A( ... )
+#define _LOG_A_NO_FUNC( ... )
+#endif
+#if LOG_LEVEL >= 2  // Warnings
+#define _LOG_W_NO_FUNC( ... ) printf ( "MSG:" __VA_ARGS__ )
+#define _LOG_W( ... ) printf ( "MSG:" __VA_ARGS__ )
+#else
+#define _LOG_W( ... ) 
+#define _LOG_W_NO_FUNC( ... )
+#endif
+#if LOG_LEVEL >= 3  // Info
+#define _LOG_I_NO_FUNC( ... ) printf ( "MSG:" __VA_ARGS__ )
+#define _LOG_I( ... ) printf ( "MSG:" __VA_ARGS__ )
+#else
+#define _LOG_I( ... )
+#define _LOG_I_NO_FUNC( ... )
+#endif
+#if LOG_LEVEL >= 4  // Debug
+#define _LOG_D_NO_FUNC( ... ) printf ( "MSG:" __VA_ARGS__ )
+#define _LOG_D( ... ) printf ( "MSG:" __VA_ARGS__ )
+#else
+#define _LOG_D( ... ) 
+#define _LOG_D_NO_FUNC( ... )
+#endif
+#if LOG_LEVEL >= 5  // Verbose
+#define _LOG_V_NO_FUNC( ... ) printf ( "MSG:" __VA_ARGS__ )
+#define _LOG_V( ... ) printf ( "MSG:" __VA_ARGS__ )
+#else
+#define _LOG_V( ... ) 
+#define _LOG_V_NO_FUNC( ... )
+#endif
+#endif //SMARTEVSE_VERSION
 #endif  // if DBG == 2
 
 #endif

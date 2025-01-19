@@ -21,6 +21,7 @@
 ; OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 ; THE SOFTWARE.
  */
+#ifdef SMARTEVSE_VERSION //ESP32
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1431,4 +1432,4 @@ void GLCD_init(void) {
     glcd_clrln(7, 0x00);
 #endif
 }
-
+#endif

@@ -1,5 +1,5 @@
 /*
-;	 Project:       Smart EVSE
+;    Project:       Smart EVSE
 ;
 ;
 ;
@@ -20,17 +20,36 @@
 ; LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 ; OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 ; THE SOFTWARE.
-*/
+ */
 
+// This is a guard condition so that contents of this file are not included
+// more than once.  
+#ifndef UTILS_H
+#define	UTILS_H
+#ifdef SMARTEVSE_VERSION //ESP32
 
-#ifndef __ONEWIRE_H
-#define __ONEWIRE_H
+extern unsigned long pow_10[10];
 
-extern Preferences preferences;
+uint32_t MacId();
+unsigned char crc8(unsigned char *buf, unsigned char len);
+unsigned int crc16(unsigned char *buf, unsigned char len);
+void sprintfl(char *str, const char *Format, signed long Value, unsigned char Divisor, unsigned char Decimal);
+unsigned char triwave8(unsigned char in);
+unsigned char scale8(unsigned char i, unsigned char scale);
+unsigned char ease8InOutQuad(unsigned char i);
+#else //CH32
 
-void ReadRFIDlist(void);
-void DeleteAllRFID(void);
-void CheckRFID(void);
-void LoadandStoreRFID(unsigned int *RFIDparam);
+#define max(a,b) ((a)>(b)?(a):(b))
+#define min(a,b) ((a)<(b)?(a):(b))
 
-#endif // #ifndef __ONEWIRE_H
+extern unsigned long pow_10[10];
+
+uint8_t crc8(uint8_t *buf, uint8_t len);
+uint16_t crc16(uint8_t *buf, uint8_t len);
+uint8_t triwave8(uint8_t in);
+uint8_t scale8(uint8_t i, uint8_t scale);
+uint8_t ease8InOutQuad(uint8_t i);
+//int _write(int fd, char *buf, int size);
+
+#endif
+#endif	/* UTILS_H */
