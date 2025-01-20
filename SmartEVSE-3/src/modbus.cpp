@@ -60,6 +60,7 @@ void ModbusSend8(uint8_t address, uint8_t function, uint16_t reg, uint16_t data)
 }
 #else //CH32
 #include "ch32v003fun.h"
+#include "main.h"
 #include "main_c.h"
 #include "ch32.h"
 #include "modbus.h"
@@ -69,6 +70,7 @@ extern "C" {
 }
 
 extern struct ModBus MB;
+extern struct Sensorbox SB2;
 
 // ########################## Modbus helper functions ##########################
 
@@ -387,105 +389,7 @@ void ModbusDecode(uint8_t * buf, uint8_t len) {
             break;
     }
 }
-
-
-
-// ########################### EVSE modbus functions ###########################
-
-
-/**
- * Send measurement request over modbus
- * 
- * @param uint8_t Meter
- * @param uint8_t Address
- * @param uint16_t Register
- * @param uint8_t Count
- */
-void requestMeasurement(uint8_t Meter, uint8_t Address, uint16_t Register, uint8_t Count) {
-    ModbusReadInputRequest(Address, EMConfig[Meter].Function, Register, (EMConfig[Meter].DataType == MB_DATATYPE_INT16 ? Count : (Count * 2u)));
-}
-
-/**
- * Send current measurement request over modbus
- * 
- * @param uint8_t Meter
- * @param uint8_t Address
- */
-void requestCurrentMeasurement(uint8_t Meter, uint8_t Address) {
-    switch(Meter) {
-        case EM_API:
-            break;
-        case EM_SENSORBOX:
-            if (SB2.SoftwareVer >= 1) {
-                ModbusReadInputRequest(Address, 4, 0, 32);
-            } else ModbusReadInputRequest(Address, 4, 0, 20);
-            break;
-        case EM_EASTRON1P:
-        case EM_EASTRON3P:
-        case EM_EASTRON3P_INV:
-            // Phase 1-3 current: Register 0x06 - 0x0B (unsigned)
-            // Phase 1-3 power:   Register 0x0C - 0x11 (signed)
-            ModbusReadInputRequest(Address, 4, 0x06, 12);
-            break;
-        case EM_ABB:
-            // Phase 1-3 current: Register 0x5B0C - 0x5B11 (unsigned)
-            // Phase 1-3 power:   Register 0x5B16 - 0x5B1B (signed)
-            ModbusReadInputRequest(Address, 3, 0x5B0C, 16);
-            break;
-        case EM_SOLAREDGE:
-            // Read 3 Current values + scaling factor
-            ModbusReadInputRequest(Address, EMConfig[Meter].Function, EMConfig[Meter].IRegister, 4);
-            break;
-        case EM_FINDER_7M:
-            // Phase 1-3 current: Register 2516 - 2521 (unsigned)
-            // Phase 1-3 power:   Register 2530 - 2535 (signed)
-            ModbusReadInputRequest(Address, 4, 2516, 20);
-            break;
-        default:
-            // Read 3 Current values
-            requestMeasurement(Meter, Address, EMConfig[Meter].IRegister, 3);
-            break;
-    }  
-}
-
-/**
- * Map a Modbus register to an item ID (MENU_xxx or STATUS_xxx)
- * 
- * @return uint8_t ItemID
- */
-uint8_t mapModbusRegister2ItemID() {
-    uint16_t RegisterStart, ItemStart, Count;
-
-    // Register 0x00*: Status
-    if (MB.Register < (MODBUS_EVSE_STATUS_START + MODBUS_EVSE_STATUS_COUNT)) {
-        RegisterStart = MODBUS_EVSE_STATUS_START;
-        ItemStart = STATUS_STATE;
-        Count = MODBUS_EVSE_STATUS_COUNT;
-
-    // Register 0x01*: Node specific configuration
-    } else if (MB.Register >= MODBUS_EVSE_CONFIG_START && MB.Register < (MODBUS_EVSE_CONFIG_START + MODBUS_EVSE_CONFIG_COUNT)) {
-        RegisterStart = MODBUS_EVSE_CONFIG_START;
-        ItemStart = MENU_CONFIG;
-        Count = MODBUS_EVSE_CONFIG_COUNT;
-
-    // Register 0x02*: System configuration (same on all SmartEVSE in a LoadBalancing setup)
-    } else if (MB.Register >= MODBUS_SYS_CONFIG_START && MB.Register < (MODBUS_SYS_CONFIG_START + MODBUS_SYS_CONFIG_COUNT)) {
-        RegisterStart = MODBUS_SYS_CONFIG_START;
-        ItemStart = MENU_MODE;
-        Count = MODBUS_SYS_CONFIG_COUNT;
-
-    } else {
-        return 0;
-    }
-    
-    if (MB.RegisterCount <= (RegisterStart + Count) - MB.Register) {
-        return (MB.Register - RegisterStart + ItemStart);
-    } else {
-        return 0;
-    }
-}
-
-#else //SMARTEVSE_VERSION CH32
+#else //CH32
 
 
 // ########################### Modbus main functions ###########################
@@ -751,6 +655,7 @@ void ModbusDecode(uint8_t * buf, uint8_t len) {
 #endif
 }
 
+#endif
 
 
 // ########################### EVSE modbus functions ###########################
@@ -768,7 +673,6 @@ void requestMeasurement(uint8_t Meter, uint8_t Address, uint16_t Register, uint8
     ModbusReadInputRequest(Address, EMConfig[Meter].Function, Register, (EMConfig[Meter].DataType == MB_DATATYPE_INT16 ? Count : (Count * 2u)));
 }
 
-
 /**
  * Send current measurement request over modbus
  * 
@@ -780,7 +684,9 @@ void requestCurrentMeasurement(uint8_t Meter, uint8_t Address) {
         case EM_API:
             break;
         case EM_SENSORBOX:
-            ModbusReadInputRequest(Address, 4, 0, 20);
+            if (SB2.SoftwareVer >= 1) {
+                ModbusReadInputRequest(Address, 4, 0, 32);
+            } else ModbusReadInputRequest(Address, 4, 0, 20);
             break;
         case EM_EASTRON1P:
         case EM_EASTRON3P:
@@ -809,7 +715,6 @@ void requestCurrentMeasurement(uint8_t Meter, uint8_t Address) {
             break;
     }  
 }
-
 
 /**
  * Map a Modbus register to an item ID (MENU_xxx or STATUS_xxx)
@@ -847,6 +752,8 @@ uint8_t mapModbusRegister2ItemID() {
         return 0;
     }
 }
+
+#ifndef SMARTEVSE_VERSION //CH32
 
 /**
  * Read item values and send modbus response

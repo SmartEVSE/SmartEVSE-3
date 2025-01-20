@@ -36,10 +36,6 @@ typedef struct {
 } CircularBuffer;
 
 // used in modbus.c
-extern uint8_t LoadBl;                          // Load Balance Setting (0:Disable / 1:Master / 2-4:Node)
-extern uint8_t Grid;                            // Type of Grid connected to Sensorbox (0:4Wire / 1:3Wire )
-extern uint16_t MaxMains;                       // Max Mains Amps (hard limit, limited by the MAINS connection) (A)
-extern uint8_t GridActive;                      // When the CT's are used on Sensorbox2, it enables the GRID menu option.
 extern CircularBuffer ModbusTx;                 // USART2 Transmit buffer (modbus)
 
 
@@ -50,7 +46,5 @@ uint8_t buffer_dequeue(CircularBuffer *cb, char *data);
 int buffer_write(CircularBuffer *cb, char *data, uint16_t size);
 void uart_start_dma_transfer(void);
 int _write(int fd, const char *buffer, int size);
-//extern uint8_t setItemValue(uint8_t nav, uint16_t val);
-uint16_t getItemValue(uint8_t nav);
 void delay(uint32_t ms);
 #endif
