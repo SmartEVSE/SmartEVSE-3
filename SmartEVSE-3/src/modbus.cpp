@@ -134,7 +134,6 @@ void ModbusSend8(uint8_t address, uint8_t function, uint16_t reg, uint16_t data)
 // ########################### Modbus main functions ###########################
 
 
-#ifdef SMARTEVSE_VERSION //ESP32
 
 /**
  * Request read holding (FC=3) or read input register (FC=04) to a device over modbus
@@ -161,9 +160,13 @@ void ModbusReadInputRequest(uint8_t address, uint8_t function, uint16_t reg, uin
  * @param uint8_t count of values
  */
 void ModbusReadInputResponse(uint8_t address, uint8_t function, uint16_t *values, uint8_t count) {
+#ifdef SMARTEVSE_VERSION //ESP32
     _LOG_A("ModbusReadInputResponse, to do!\n");
-    //ModbusSend(address, function, count * 2u, values, count);
+#else
+    ModbusSend(address, function, count * 2u, values, count);
+#endif
 }
+
 
 /**
  * Request write single register (FC=06) to a device over modbus
@@ -178,6 +181,8 @@ void ModbusWriteSingleRequest(uint8_t address, uint16_t reg, uint16_t value) {
     MB.RequestRegister = reg;
     ModbusSend8(address, 0x06, reg, value);  
 }
+
+#ifdef SMARTEVSE_VERSION //ESP32
 
 /**
  * Request write multiple register (FC=16) to a device over modbus
@@ -562,49 +567,6 @@ void WriteMultipleItemValueResponse(void) {
 
 // ########################### Modbus main functions ###########################
 
-
-
-/**
- * Request read holding (FC=3) or read input register (FC=04) to a device over modbus
- * 
- * @param uint8_t address
- * @param uint8_t function
- * @param uint16_t register
- * @param uint16_t quantity
- */
-void ModbusReadInputRequest(uint8_t address, uint8_t function, uint16_t reg, uint16_t quantity) {
-    MB.RequestAddress = address;
-    MB.RequestFunction = function;
-    MB.RequestRegister = reg;
-    ModbusSend8(address, function, reg, quantity);
-}
-
-
-/**
- * Response read holding (FC=3) or read input register (FC=04) to a device over modbus
- * 
- * @param uint8_t address
- * @param uint8_t function
- * @param uint16_t pointer to values
- * @param uint8_t count of values
- */
-void ModbusReadInputResponse(uint8_t address, uint8_t function, uint16_t *values, uint8_t count) {
-    ModbusSend(address, function, count * 2u, values, count);
-}
-
-/**
- * Request write single register (FC=06) to a device over modbus
- * 
- * @param uint8_t address
- * @param uint16_t register
- * @param uint16_t value
- */
-void ModbusWriteSingleRequest(uint8_t address, uint16_t reg, uint16_t value) {
-    MB.RequestAddress = address;
-    MB.RequestFunction = 0x06;
-    MB.RequestRegister = reg;
-    ModbusSend8(address, 0x06, reg, value);  
-}
 
 /**
  * Response write single register (FC=06) to a device over modbus
