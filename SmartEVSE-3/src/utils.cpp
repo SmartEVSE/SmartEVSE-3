@@ -42,6 +42,8 @@ uint8_t crc8(uint8_t *buf, uint8_t len) {
     return crc;
 }
 
+
+
 /* triwave8: triangle (sawtooth) wave generator.  Useful for
            turning a one-byte ever-increasing value into a
            one-byte value that oscillates up and down.
@@ -50,29 +52,31 @@ uint8_t crc8(uint8_t *buf, uint8_t len) {
            0..127        0..254 (positive slope)
            128..255      254..0 (negative slope)
  */
-unsigned char triwave8(unsigned char in) {
+uint8_t triwave8(uint8_t in) {
     if (in & 0x80) {
         in = 255u - in;
     }
-    unsigned char out = in << 1;
+    uint8_t out = in << 1;
     return out;
 }
 
-unsigned char scale8(unsigned char i, unsigned char scale) {
-    return (((unsigned int) i) * (1 + (unsigned int) (scale))) >> 8;
+
+uint8_t scale8(uint8_t i, uint8_t scale) {
+    return (((uint16_t) i) * (1 + (uint16_t) (scale))) >> 8;
 }
+
 
 /* easing functions; see http://easings.net
 
     ease8InOutQuad: 8-bit quadratic ease-in / ease-out function
- */
-unsigned char ease8InOutQuad(unsigned char i) {
-    unsigned char j = i;
+*/
+uint8_t ease8InOutQuad(uint8_t i) {
+    uint8_t j = i;
     if (j & 0x80) {
         j = 255u - j;
     }
-    unsigned char jj = scale8(j, j);
-    unsigned char jj2 = jj << 1;
+    uint8_t jj = scale8(j, j);
+    uint8_t jj2 = jj << 1;
     if (i & 0x80) {
         jj2 = 255u - jj2;
     }
