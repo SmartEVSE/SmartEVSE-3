@@ -560,64 +560,6 @@ void WriteMultipleItemValueResponse(void) {
 #else //SMARTEVSE_VERSION CH32
 
 
-/**
- * Combine Bytes received over modbus
- * 
- * @param pointer to var
- * @param pointer to buf
- * @param uint8_t pos
- * @param uint8_t endianness:\n
- *        0: low byte first, low word first (little endian)\n
- *        1: low byte first, high word first\n
- *        2: high byte first, low word first\n
- *        3: high byte first, high word first (big endian)
- * @param MBDataType dataType: used to determine how many bytes should be combined
- */
-void combineBytes(void *var, uint8_t *buf, uint8_t pos, uint8_t endianness, MBDataType dataType) {
-    char *pBytes;
-    pBytes = (char *)var;
-
-    // CH32V is little endian
-    switch(endianness) {
-        case ENDIANESS_LBF_LWF: // low byte first, low word first (little endian)
-            *pBytes++ = (uint8_t)buf[pos + 0];
-            *pBytes++ = (uint8_t)buf[pos + 1];
-            if (dataType != MB_DATATYPE_INT16) {
-                *pBytes++ = (uint8_t)buf[pos + 2];
-                *pBytes   = (uint8_t)buf[pos + 3];
-            }
-            break;
-        case ENDIANESS_LBF_HWF: // low byte first, high word first
-            if (dataType != MB_DATATYPE_INT16) {
-                *pBytes++ = (uint8_t)buf[pos + 2];
-                *pBytes++ = (uint8_t)buf[pos + 3];
-            }
-            *pBytes++ = (uint8_t)buf[pos + 0];
-            *pBytes   = (uint8_t)buf[pos + 1];
-            break;
-        case ENDIANESS_HBF_LWF: // high byte first, low word first
-            *pBytes++ = (uint8_t)buf[pos + 1];
-            *pBytes++ = (uint8_t)buf[pos + 0];
-            if (dataType != MB_DATATYPE_INT16) {
-                *pBytes++ = (uint8_t)buf[pos + 3];
-                *pBytes   = (uint8_t)buf[pos + 2];
-            }
-            break;
-        case ENDIANESS_HBF_HWF: // high byte first, high word first (big endian)
-            if (dataType != MB_DATATYPE_INT16) {
-                *pBytes++ = (uint8_t)buf[pos + 3];
-                *pBytes++ = (uint8_t)buf[pos + 2];
-            }
-            *pBytes++ = (uint8_t)buf[pos + 1];
-            *pBytes   = (uint8_t)buf[pos + 0];
-            break;
-        default:
-            break;
-    }
-}
-
-
-
 // ########################### Modbus main functions ###########################
 
 
@@ -941,41 +883,6 @@ void requestMeasurement(uint8_t Meter, uint8_t Address, uint16_t Register, uint8
     ModbusReadInputRequest(Address, EMConfig[Meter].Function, Register, (EMConfig[Meter].DataType == MB_DATATYPE_INT16 ? Count : (Count * 2u)));
 }
 
-/**
- * Decode measurement value
- * 
- * @param pointer to buf
- * @param uint8_t Count
- * @param uint8_t Endianness
- * @param MBDataType dataType
- * @param signed char Divisor
- * @return signed int Measurement
- */
-signed int receiveMeasurement(uint8_t *buf, uint8_t Count, uint8_t Endianness, MBDataType dataType, signed char Divisor) {
-    float dCombined;
-    signed int lCombined;
-
-    if (dataType == MB_DATATYPE_FLOAT32) {
-        combineBytes(&dCombined, buf, Count * (dataType == MB_DATATYPE_INT16 ? 2u : 4u), Endianness, dataType);
-        if (Divisor >= 0) {
-            lCombined = (signed int)(dCombined / (signed int)pow_10[(unsigned)Divisor]);
-        } else {
-            lCombined = (signed int)(dCombined * (signed int)pow_10[(unsigned)-Divisor]);
-        }
-    } else {
-        combineBytes(&lCombined, buf, Count * (dataType == MB_DATATYPE_INT16 ? 2u : 4u), Endianness, dataType);
-        if (dataType == MB_DATATYPE_INT16) {
-            lCombined = (signed int)((int16_t)lCombined); /* sign extend 16bit into 32bit */
-        }
-        if (Divisor >= 0) {
-            lCombined = lCombined / (signed int)pow_10[(unsigned)Divisor];
-        } else {
-            lCombined = lCombined * (signed int)pow_10[(unsigned)-Divisor];
-        }
-    }
-
-    return lCombined;
-}
 
 /**
  * Send current measurement request over modbus
