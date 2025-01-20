@@ -343,8 +343,14 @@ void ModbusDecode(uint8_t * buf, uint8_t len) {
         _LOG_V_NO_FUNC(" %02x", buf[x]);
     }
     _LOG_V_NO_FUNC("\n");
-
-#ifdef SMARTEVSE_VERSION //ESP32
+#ifndef SMARTEVSE_VERSION //CH32
+    if (crc16(buf, len)) {//ESP32 has crc checked in modbus library
+        _LOG_A("Modbus CRC16 error!");
+        return;
+    }
+    //ESP32 has crc16 chopped off:
+    len = len - 2;
+#endif
     // Modbus error packets length is 5 bytes
     if (len == 3) {
         MB.Type = MODBUS_EXCEPTION;
@@ -467,145 +473,6 @@ void ModbusDecode(uint8_t * buf, uint8_t len) {
                 break;
         }
     }
-#else //CH32
-    // Modbus error packets length is 5 bytes
-    if (len == 5) {
-        // calculate checksum over all data (including crc16)
-        // when checksum == 0 data is ok.
-        if (!crc16(buf, len)) {
-            MB.Type = MODBUS_EXCEPTION;
-            // Modbus device address
-            MB.Address = buf[0];
-            // Modbus function
-            MB.Function = buf[1];
-            // Modbus Exception code
-            MB.Exception = buf[2];
-        }
-    // Modbus data packets minimum length is 8 bytes
-    } else if (len >= 8) {
-        // Modbus device address
-        MB.Address = buf[0];
-        // Modbus function
-        MB.Function = buf[1];
-        // calculate checksum over all data (including crc16)
-        // when checksum == 0 data is ok.
-        if (!crc16(buf, len)) {
-            // CRC OK
-#ifdef LOG_DEBUG_MODBUS
-            printf(" valid Modbus packet: Address %02x Function %02x", MB.Address, MB.Function);
-#endif            
-            switch (MB.Function) {
-                case 0x03: // (Read holding register)
-                case 0x04: // (Read input register)
-                    if (len == 8) {
-                        // request packet
-                        MB.Type = MODBUS_REQUEST;
-                        // Modbus register
-                        MB.Register = (uint16_t)(buf[2] <<8) | buf[3];
-                        // Modbus register count
-                        MB.RegisterCount = (uint16_t)(buf[4] <<8) | buf[5];
-                    } else {
-                        // Modbus datacount
-                        MB.DataLength = buf[2];
-                        if (MB.DataLength == len - 5) {
-                            // packet length OK
-                            // response packet
-                            MB.Type = MODBUS_RESPONSE;
-#ifdef LOG_WARN_MODBUS
-                        } else {
-                            printf("\nInvalid modbus FC=04 packet");
-#endif
-                        }
-                    }
-                    break;
-                case 0x06:
-                    // (Write single register)
-                    if (len == 8) {
-                        // request and response packet are the same
-                        MB.Type = MODBUS_OK;
-                        // Modbus register
-                        MB.Register = (uint16_t)(buf[2] <<8) | buf[3];
-                        // Modbus register count
-                        MB.RegisterCount = 1;
-                        // value
-                        MB.Value = (uint16_t)(buf[4] <<8) | buf[5];
-#ifdef LOG_WARN_MODBUS
-                    } else {
-                        printf("\nInvalid modbus FC=06 packet");
-#endif
-                    }
-                    break;
-                case 0x10:
-                    // (Write multiple register))
-                    // Modbus register
-                    MB.Register = (uint16_t)(buf[2] <<8) | buf[3];
-                    // Modbus register count
-                    MB.RegisterCount = (uint16_t)(buf[4] <<8) | buf[5];
-                    if (len == 8) {
-                        // response packet
-                        MB.Type = MODBUS_RESPONSE;
-                    } else {
-                        // Modbus datacount
-                        MB.DataLength = buf[6];
-                        if (MB.DataLength == len - 9) {
-                            // packet length OK
-                            // request packet
-                            MB.Type = MODBUS_REQUEST;
-#ifdef LOG_WARN_MODBUS
-                        } else {
-                            printf("\nInvalid modbus FC=16 packet");
-#endif
-                        }
-                    }
-                    break;
-                default:
-                    break;
-            }
-
-            // MB.Data
-            if (MB.Type && MB.DataLength) {
-                // Set pointer to Data
-                MB.Data = buf;
-                // Modbus data is always at the end ahead the checksum
-                MB.Data = MB.Data + (len - MB.DataLength - 2);
-            }
-            
-            // Request - Response check
-            switch (MB.Type) {
-                case MODBUS_REQUEST:
-                    MB.RequestAddress = MB.Address;
-                    MB.RequestFunction = MB.Function;
-                    MB.RequestRegister = MB.Register;
-                    break;
-                case MODBUS_RESPONSE:
-                    // If address and function identical with last send or received request, it is a valid response
-                    if (MB.Address == MB.RequestAddress && MB.Function == MB.RequestFunction) {
-                        if (MB.Function == 0x03 || MB.Function == 0x04) 
-                            MB.Register = MB.RequestRegister;
-                    }
-                    MB.RequestAddress = 0;
-                    MB.RequestFunction = 0;
-                    MB.RequestRegister = 0;
-                    break;
-                case MODBUS_OK:
-                    // If address and function identical with last send or received request, it is a valid response
-                    if (MB.Address == MB.RequestAddress && MB.Function == MB.RequestFunction && MB.Address != BROADCAST_ADR) {
-                        MB.Type = MODBUS_RESPONSE;
-                        MB.RequestAddress = 0;
-                        MB.RequestFunction = 0;
-                        MB.RequestRegister = 0;
-                    } else {
-                        MB.Type = MODBUS_REQUEST;
-                        MB.RequestAddress = MB.Address;
-                        MB.RequestFunction = MB.Function;
-                        MB.RequestRegister = MB.Register;
-                    }
-                default:
-                    break;
-            }
-        }
-    }
-#endif
     if(MB.Type) {
         _LOG_V_NO_FUNC(" Register 0x%04x", MB.Register);
     }
