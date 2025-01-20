@@ -344,8 +344,8 @@ void ModbusDecode(uint8_t * buf, uint8_t len) {
     }
     _LOG_V_NO_FUNC("\n");
 #ifndef SMARTEVSE_VERSION //CH32
-    if (crc16(buf, len)) {//ESP32 has crc checked in modbus library
-        _LOG_A("Modbus CRC16 error!");
+    if (len <= 4 || crc16(buf, len)) {//ESP32 has crc checked in modbus library
+        _LOG_A("Modbus CRC16 error, len=%d!", len);
         return;
     }
     //ESP32 has crc16 chopped off:
