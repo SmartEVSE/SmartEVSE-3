@@ -45,13 +45,6 @@ struct EMstruct {
 };
 #define SB2_WIFI_MODE 0 
 
-#ifdef __cplusplus
-#define EXTC extern "C"
-#else
-#define EXTC extern
-#define bool _Bool
-#endif
-
 #define NUM_ADC_SAMPLES 32
 
 // Node specific configuration
@@ -145,35 +138,35 @@ struct EMstruct {
 #define NR_EVSES 8
 #define BROADCAST_ADR 0x09
 
-EXTC uint8_t Force_Single_Phase_Charging(void);
-EXTC uint16_t getItemValue(uint8_t nav);
-EXTC EnableC2_t EnableC2;
-EXTC uint8_t Pilot();
-EXTC uint8_t pilot;
-EXTC int16_t Isum;
-EXTC uint8_t LoadBl;
-EXTC uint8_t setItemValue(uint8_t nav, uint16_t val); //this somehow prevents undefined reference in CH32 compile
-EXTC char IsCurrentAvailable(void);
-EXTC void receiveNodeStatus(uint8_t *buf, uint8_t NodeNr);
-EXTC void receiveNodeConfig(uint8_t *buf, uint8_t NodeNr);
-EXTC void requestMeasurement(uint8_t Meter, uint8_t Address, uint16_t Register, uint8_t Count);
-EXTC void requestCurrentMeasurement(uint8_t Meter, uint8_t Address);
-EXTC void ModbusWriteSingleRequest(uint8_t address, uint16_t reg, uint16_t value);
-EXTC void ModbusReadInputRequest(uint8_t address, uint8_t function, uint16_t reg, uint16_t quantity);
-EXTC void ModbusWriteMultipleRequest(uint8_t address, uint16_t reg, uint16_t *values, uint8_t count);
-EXTC void SetCurrent(uint16_t current);
+extern uint8_t Force_Single_Phase_Charging(void);
+extern uint16_t getItemValue(uint8_t nav);
+extern EnableC2_t EnableC2;
+extern uint8_t Pilot();
+extern uint8_t pilot;
+extern int16_t Isum;
+extern uint8_t LoadBl;
+extern uint8_t setItemValue(uint8_t nav, uint16_t val); //this somehow prevents undefined reference in CH32 compile
+extern char IsCurrentAvailable(void);
+extern void receiveNodeStatus(uint8_t *buf, uint8_t NodeNr);
+extern void receiveNodeConfig(uint8_t *buf, uint8_t NodeNr);
+extern void requestMeasurement(uint8_t Meter, uint8_t Address, uint16_t Register, uint8_t Count);
+extern void requestCurrentMeasurement(uint8_t Meter, uint8_t Address);
+extern void ModbusWriteSingleRequest(uint8_t address, uint16_t reg, uint16_t value);
+extern void ModbusReadInputRequest(uint8_t address, uint8_t function, uint16_t reg, uint16_t quantity);
+extern void ModbusWriteMultipleRequest(uint8_t address, uint16_t reg, uint16_t *values, uint8_t count);
+extern void SetCurrent(uint16_t current);
 
-EXTC uint8_t ModbusRx[256];
-EXTC void ReadItemValueResponse(void);
-EXTC void WriteItemValueResponse(void);
-EXTC void WriteMultipleItemValueResponse(void);
-EXTC void ModbusDecode(uint8_t * buf, uint8_t len);
-EXTC void SetCPDuty(uint32_t DutyCycle);
+extern uint8_t ModbusRx[256];
+extern void ReadItemValueResponse(void);
+extern void WriteItemValueResponse(void);
+extern void WriteMultipleItemValueResponse(void);
+extern void ModbusDecode(uint8_t * buf, uint8_t len);
+extern void SetCPDuty(uint32_t DutyCycle);
 
-EXTC uint8_t Initialized;
-EXTC uint8_t PwrPanic;
-EXTC uint8_t ModemPwr;
-EXTC volatile uint8_t RxRdy1;
-EXTC volatile uint8_t ModbusRxLen;
+extern uint8_t Initialized;
+extern uint8_t PwrPanic;
+extern uint8_t ModemPwr;
+extern volatile uint8_t RxRdy1;
+extern volatile uint8_t ModbusRxLen;
 
 #endif
