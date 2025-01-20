@@ -232,6 +232,96 @@ void ModbusException(uint8_t address, uint8_t function, uint8_t exception) {
     //ModbusSend(address, function, exception, temp, 0);
 }
 
+#else //CH32
+
+
+// ########################### Modbus main functions ###########################
+
+
+/**
+ * Response write single register (FC=06) to a device over modbus
+ * 
+ * @param uint8_t address
+ * @param uint16_t register
+ * @param uint16_t value
+ */
+void ModbusWriteSingleResponse(uint8_t address, uint16_t reg, uint16_t value) {
+    ModbusSend8(address, 0x06, reg, value);  
+}
+
+
+/**
+ * Request write multiple register (FC=16) to a device over modbus
+ * 
+ * @param uint8_t address
+ * @param uint16_t register
+ * @param uint8_t pointer to data
+ * @param uint8_t count of data
+ */
+void ModbusWriteMultipleRequest(uint8_t address, uint16_t reg, uint16_t *values, uint8_t count) {
+    uint16_t i, n = 0, cs;
+    uint8_t Tbuffer[MODBUS_BUFFER_SIZE];
+
+    MB.RequestAddress = address;
+    MB.RequestFunction = 0x10;
+    MB.RequestRegister = reg;
+    
+    // Device Address
+    Tbuffer[n++] = address;
+    // Function Code 16
+    Tbuffer[n++] = 0x10;
+    // Data Address of the first register
+    Tbuffer[n++] = ((uint8_t)(reg>>8));
+    Tbuffer[n++] = ((uint8_t)(reg));
+    // Number of registers to write
+    Tbuffer[n++] = 0x00;
+    Tbuffer[n++] = count;
+    // Number of data bytes to follow (2 registers x 2 bytes each = 4 bytes)
+    Tbuffer[n++] = count * 2u;
+    // Values
+    for (i = 0; i < count; i++) {
+        Tbuffer[n++] = ((uint8_t)(values[i]>>8));
+        Tbuffer[n++] = ((uint8_t)(values[i]));
+    }
+    // Calculate CRC16 from data
+    cs = crc16(Tbuffer, n);
+    Tbuffer[n++] = ((uint8_t)(cs));
+    Tbuffer[n++] = ((uint8_t)(cs>>8));	
+    // Send buffer to RS485 port
+    buffer_write(&ModbusTx, (char *) &Tbuffer, n);
+    // switch RS485 transceiver to transmit
+    funDigitalWrite(RS485_DIR, FUN_HIGH);
+    // enable transmit interrupt
+    USART2->CTLR1 |= USART_CTLR1_TXEIE;  
+}
+
+/**
+ * Response write multiple register (FC=16) to a device over modbus
+ * 
+ * @param uint8_t address
+ * @param uint16_t register
+ * @param uint16_t count
+ */
+void ModbusWriteMultipleResponse(uint8_t address, uint16_t reg, uint16_t count) {
+    ModbusSend8(address, 0x10, reg, count);
+}
+
+/**
+ * Response an exception
+ * 
+ * @param uint8_t address
+ * @param uint8_t function
+ * @param uint8_t exeption
+ */
+void ModbusException(uint8_t address, uint8_t function, uint8_t exception) {
+    uint16_t temp[1];
+    ModbusSend(address, function, exception, temp, 0);
+}
+
+
+#endif
+
+#ifdef SMARTEVSE_VERSION //ESP32
 /**
  * Decode received modbus packet
  * 
@@ -390,91 +480,6 @@ void ModbusDecode(uint8_t * buf, uint8_t len) {
     }
 }
 #else //CH32
-
-
-// ########################### Modbus main functions ###########################
-
-
-/**
- * Response write single register (FC=06) to a device over modbus
- * 
- * @param uint8_t address
- * @param uint16_t register
- * @param uint16_t value
- */
-void ModbusWriteSingleResponse(uint8_t address, uint16_t reg, uint16_t value) {
-    ModbusSend8(address, 0x06, reg, value);  
-}
-
-
-/**
- * Request write multiple register (FC=16) to a device over modbus
- * 
- * @param uint8_t address
- * @param uint16_t register
- * @param uint8_t pointer to data
- * @param uint8_t count of data
- */
-void ModbusWriteMultipleRequest(uint8_t address, uint16_t reg, uint16_t *values, uint8_t count) {
-    uint16_t i, n = 0, cs;
-    uint8_t Tbuffer[MODBUS_BUFFER_SIZE];
-
-    MB.RequestAddress = address;
-    MB.RequestFunction = 0x10;
-    MB.RequestRegister = reg;
-    
-    // Device Address
-    Tbuffer[n++] = address;
-    // Function Code 16
-    Tbuffer[n++] = 0x10;
-    // Data Address of the first register
-    Tbuffer[n++] = ((uint8_t)(reg>>8));
-    Tbuffer[n++] = ((uint8_t)(reg));
-    // Number of registers to write
-    Tbuffer[n++] = 0x00;
-    Tbuffer[n++] = count;
-    // Number of data bytes to follow (2 registers x 2 bytes each = 4 bytes)
-    Tbuffer[n++] = count * 2u;
-    // Values
-    for (i = 0; i < count; i++) {
-        Tbuffer[n++] = ((uint8_t)(values[i]>>8));
-        Tbuffer[n++] = ((uint8_t)(values[i]));
-    }
-    // Calculate CRC16 from data
-    cs = crc16(Tbuffer, n);
-    Tbuffer[n++] = ((uint8_t)(cs));
-    Tbuffer[n++] = ((uint8_t)(cs>>8));	
-    // Send buffer to RS485 port
-    buffer_write(&ModbusTx, (char *) &Tbuffer, n);
-    // switch RS485 transceiver to transmit
-    funDigitalWrite(RS485_DIR, FUN_HIGH);
-    // enable transmit interrupt
-    USART2->CTLR1 |= USART_CTLR1_TXEIE;  
-}
-
-/**
- * Response write multiple register (FC=16) to a device over modbus
- * 
- * @param uint8_t address
- * @param uint16_t register
- * @param uint16_t count
- */
-void ModbusWriteMultipleResponse(uint8_t address, uint16_t reg, uint16_t count) {
-    ModbusSend8(address, 0x10, reg, count);
-}
-
-/**
- * Response an exception
- * 
- * @param uint8_t address
- * @param uint8_t function
- * @param uint8_t exeption
- */
-void ModbusException(uint8_t address, uint8_t function, uint8_t exception) {
-    uint16_t temp[1];
-    ModbusSend(address, function, exception, temp, 0);
-}
-
 /**
  * Decode received modbus packet
  * 
@@ -654,10 +659,7 @@ void ModbusDecode(uint8_t * buf, uint8_t len) {
     }
 #endif
 }
-
 #endif
-
-
 // ########################### EVSE modbus functions ###########################
 
 
