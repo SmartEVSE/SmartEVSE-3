@@ -58,11 +58,83 @@ void ModbusSend8(uint8_t address, uint8_t function, uint16_t reg, uint16_t data)
 #endif //SMARTEVSE_VERSION
     _LOG_V_NO_FUNC(" address: 0x%02x, function: 0x%02x, reg: 0x%04x, token:0x%08x, data: 0x%04x.\n", address, function, reg, token, data);
 }
+#else //CH32
+#include "ch32v003fun.h"
+#include "main_c.h"
+#include "ch32.h"
+#include "modbus.h"
+#include "utils.h"
+extern "C" {
+    #include "evse.h"
+}
 
+extern struct ModBus MB;
+
+// ########################## Modbus helper functions ##########################
+
+/**
+ * Send data over modbus
+ * 
+ * @param uint8_t address
+ * @param uint8_t function
+ * @param uint8_t byte
+ * @param uint16_t pointer to values
+ * @param uint8_t count of values
+ */
+void ModbusSend(uint8_t address, uint8_t function, uint8_t byte, uint16_t *values, uint8_t count) {
+    uint16_t cs, i, n = 0;
+    uint8_t Tbuffer[MODBUS_BUFFER_SIZE];
+
+    // Device address
+    Tbuffer[n++] = address;
+    // Function
+    Tbuffer[n++] = function;
+    // The number of data bytes to follow
+    if (byte) Tbuffer[n++] = byte;
+    // Values
+    for (i = 0; i < count; i++) {
+        Tbuffer[n++] = ((uint8_t)(values[i]>>8));
+        Tbuffer[n++] = ((uint8_t)(values[i]));
+    }
+    // Calculate CRC16 from data
+    cs = crc16(Tbuffer, n);
+    Tbuffer[n++] = ((uint8_t)(cs));
+    Tbuffer[n++] = ((uint8_t)(cs>>8));
+
+    printf("Sending response to master (len=%u) ", n);
+    for (i = 0; i < n; i++) printf("%02x ", Tbuffer[i]);
+    printf("\n");
+
+    // Send buffer to RS485 port
+    buffer_write(&ModbusTx, (char *) &Tbuffer, n);
+    // switch RS485 transceiver to transmit
+    funDigitalWrite(RS485_DIR, FUN_HIGH);
+    // enable transmit interrupt
+    USART2->CTLR1 |= USART_CTLR1_TXEIE;
+}
+
+/**
+ * Send single value over modbus
+ * 
+ * @param uint8_t address
+ * @param uint8_t function
+ * @param uint16_t register
+ * @param uint16_t data
+ */
+void ModbusSend8(uint8_t address, uint8_t function, uint16_t reg, uint16_t data) {
+    uint16_t values[2];
+
+    values[0] = reg;
+    values[1] = data;
+    
+    ModbusSend(address, function, 0, values, 2);
+}
+#endif
 
 // ########################### Modbus main functions ###########################
 
 
+#ifdef SMARTEVSE_VERSION //ESP32
 
 /**
  * Request read holding (FC=3) or read input register (FC=04) to a device over modbus
@@ -487,76 +559,6 @@ void WriteMultipleItemValueResponse(void) {
 */
 #else //SMARTEVSE_VERSION CH32
 
-#include "ch32v003fun.h"
-#include "main_c.h"
-#include "ch32.h"
-#include "modbus.h"
-#include "utils.h"
-extern "C" {
-    #include "evse.h"
-}
-
-extern struct ModBus MB;
-
-// ########################## Modbus helper functions ##########################
-
-/**
- * Send data over modbus
- * 
- * @param uint8_t address
- * @param uint8_t function
- * @param uint8_t byte
- * @param uint16_t pointer to values
- * @param uint8_t count of values
- */
-void ModbusSend(uint8_t address, uint8_t function, uint8_t byte, uint16_t *values, uint8_t count) {
-    uint16_t cs, i, n = 0;
-    uint8_t Tbuffer[MODBUS_BUFFER_SIZE];
-
-    // Device address
-    Tbuffer[n++] = address;
-    // Function
-    Tbuffer[n++] = function;
-    // The number of data bytes to follow
-    if (byte) Tbuffer[n++] = byte;
-    // Values
-    for (i = 0; i < count; i++) {
-        Tbuffer[n++] = ((uint8_t)(values[i]>>8));
-        Tbuffer[n++] = ((uint8_t)(values[i]));
-    }
-    // Calculate CRC16 from data
-    cs = crc16(Tbuffer, n);
-    Tbuffer[n++] = ((uint8_t)(cs));
-    Tbuffer[n++] = ((uint8_t)(cs>>8));
-
-    printf("Sending response to master (len=%u) ", n);
-    for (i = 0; i < n; i++) printf("%02x ", Tbuffer[i]);
-    printf("\n");
-
-    // Send buffer to RS485 port
-    buffer_write(&ModbusTx, (char *) &Tbuffer, n);
-    // switch RS485 transceiver to transmit
-    funDigitalWrite(RS485_DIR, FUN_HIGH);
-    // enable transmit interrupt
-    USART2->CTLR1 |= USART_CTLR1_TXEIE;
-}
-
-/**
- * Send single value over modbus
- * 
- * @param uint8_t address
- * @param uint8_t function
- * @param uint16_t register
- * @param uint16_t data
- */
-void ModbusSend8(uint8_t address, uint8_t function, uint16_t reg, uint16_t data) {
-    uint16_t values[2];
-
-    values[0] = reg;
-    values[1] = data;
-    
-    ModbusSend(address, function, 0, values, 2);
-}
 
 /**
  * Combine Bytes received over modbus
