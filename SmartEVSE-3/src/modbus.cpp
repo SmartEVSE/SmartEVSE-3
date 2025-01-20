@@ -321,7 +321,6 @@ void ModbusException(uint8_t address, uint8_t function, uint8_t exception) {
 
 #endif
 
-#ifdef SMARTEVSE_VERSION //ESP32
 /**
  * Decode received modbus packet
  * 
@@ -345,6 +344,7 @@ void ModbusDecode(uint8_t * buf, uint8_t len) {
     }
     _LOG_V_NO_FUNC("\n");
 
+#ifdef SMARTEVSE_VERSION //ESP32
     // Modbus error packets length is 5 bytes
     if (len == 3) {
         MB.Type = MODBUS_EXCEPTION;
@@ -467,45 +467,7 @@ void ModbusDecode(uint8_t * buf, uint8_t len) {
                 break;
         }
     }
-    if(MB.Type) {
-        _LOG_V_NO_FUNC(" Register 0x%04x", MB.Register);
-    }
-    switch (MB.Type) {
-        case MODBUS_REQUEST:
-            _LOG_V_NO_FUNC(" Request\n");
-            break;
-        case MODBUS_RESPONSE:
-            _LOG_V_NO_FUNC(" Response\n");
-            break;
-    }
-}
 #else //CH32
-/**
- * Decode received modbus packet
- * 
- * @param uint8_t pointer to buffer
- * @param uint8_t length of buffer
- */
-void ModbusDecode(uint8_t * buf, uint8_t len) {
-    // Clear old values
-    MB.Address = 0;
-    MB.Function = 0;
-    MB.Register = 0;
-    MB.RegisterCount = 0;
-    MB.Value = 0;
-    MB.DataLength = 0;
-    MB.Type = MODBUS_INVALID;
-    MB.Exception = 0;
-
-#ifdef LOG_INFO_MODBUS
-    printf("Received packet");
-#endif
-#ifdef LOG_DEBUG_MODBUS
-    printf(" (%u bytes) ", len);
-    for (uint8_t x=0; x<len; x++) printf("%02x ", buf[x]);
-#endif
-//    printf("\n");
-
     // Modbus error packets length is 5 bytes
     if (len == 5) {
         // calculate checksum over all data (including crc16)
@@ -643,23 +605,19 @@ void ModbusDecode(uint8_t * buf, uint8_t len) {
             }
         }
     }
-#ifdef LOG_DEBUG_MODBUS
-    if(MB.Type) {
-        printf(" Register %04x", MB.Register);
-    }
 #endif
-#ifdef LOG_INFO_MODBUS
+    if(MB.Type) {
+        _LOG_V_NO_FUNC(" Register 0x%04x", MB.Register);
+    }
     switch (MB.Type) {
         case MODBUS_REQUEST:
-            printf(" Request\n");
+            _LOG_V_NO_FUNC(" Request\n");
             break;
         case MODBUS_RESPONSE:
-            printf(" Response\n");
+            _LOG_V_NO_FUNC(" Response\n");
             break;
     }
-#endif
 }
-#endif
 // ########################### EVSE modbus functions ###########################
 
 
