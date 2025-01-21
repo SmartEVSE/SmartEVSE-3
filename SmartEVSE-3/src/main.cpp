@@ -1735,6 +1735,154 @@ uint8_t ow = 0, x;
 }
 
 
+#if SMARTEVSE_VERSION == 3
+// Monitor EV Meter responses, and update Enery and Power and Current measurements
+// Both the Master and Nodes will receive their own EV meter measurements here.
+// Does not send any data back.
+//
+ModbusMessage MBEVMeterResponse(ModbusMessage request) {
+    ModbusDecode( (uint8_t*)request.data(), request.size());
+    EVMeter.ResponseToMeasurement();
+    // As this is a response to an earlier request, do not send response.
+    
+    return NIL_RESPONSE;              
+}
+
+
+// Data handler for Master
+// Responses from Slaves/Nodes are handled here
+void MBhandleData(ModbusMessage msg, uint32_t token) 
+{
+    uint8_t Address = msg.getServerID();    // returns Server ID or 0 if MM_data is shorter than 3
+    if (Address == MainsMeter.Address) {
+        //_LOG_A("MainsMeter data\n");
+        ModbusDecode( (uint8_t*)msg.data(), msg.size());
+        MainsMeter.ResponseToMeasurement();
+    } else if (Address == EVMeter.Address) {
+        //_LOG_A("EV Meter data\n");
+        MBEVMeterResponse(msg);
+    // Only responses to FC 03/04 are handled here. FC 06/10 response is only a acknowledge.
+    } else {
+        //_LOG_V("Received Packet with ServerID=%i, FunctionID=%i, token=%08x.\n", msg.getServerID(), msg.getFunctionCode(), token);
+        ModbusDecode( (uint8_t*)msg.data(), msg.size());
+        // ModbusDecode does NOT always decodes the register correctly.
+        // This bug manifested itself as the <Mode=186 bug>:
+
+        // (Timer100ms)(C1) ModbusRequest 4: Request Configuration Node 1
+        // (D) (ModbusSend8)(C1) Sent packet address: 02, function: 04, reg: 0108, data: 0002.
+        // (D) (ModbusDecode)(C0) Received packet (7 bytes) 02 04 04 00 00 00 0c
+        // (V) (ModbusDecode)(C0)  valid Modbus packet: Address 02 Function 04 Register 0000 Response
+        // (D) (receiveNodeStatus)(C0) ReceivedNode[1]Status State:0 Error:12, BalancedMax:2530, Mode:186, ConfigChanged:253.
+
+        // The response is the response for a request of node config 0x0108, but is interpreted as a request for node status 0x0000
+        //
+        // Using a global variable struct ModBus MB is not a good idea, but localizing it does not
+        // solve the problem.
+
+        // Luckily we have coded the register in the token we sent....
+        // token: first byte address, second byte function, third and fourth reg
+        uint8_t token_function = (token & 0x00FF0000) >> 16;
+        uint8_t token_address = token >> 24;
+        if (token_address != MB.Address) {
+            _LOG_A("ERROR: Address=%u, MB.Address=%u, token_address=%u.\n", Address, MB.Address, token_address);
+        }    
+        if (token_function != MB.Function) {
+            _LOG_A("ERROR: MB.Function=%u, token_function=%u.\n", MB.Function, token_function);
+        }    
+        uint16_t reg = (token & 0x0000FFFF);
+        MB.Register = reg;
+
+        if (MB.Address > 1 && MB.Address <= NR_EVSES && (MB.Function == 03 || MB.Function == 04)) {
+        
+            // Packet from Node EVSE
+            if (MB.Register == 0x0000) {
+                // Node status
+            //    _LOG_A("Node Status received\n");
+                receiveNodeStatus(MB.Data, MB.Address - 1u);
+            }  else if (MB.Register == 0x0108) {
+                // Node EV meter settings
+            //    _LOG_A("Node EV Meter settings received\n");
+                receiveNodeConfig(MB.Data, MB.Address - 1u);
+            }
+        }
+    }
+
+}
+
+
+void MBhandleError(Error error, uint32_t token) 
+{
+  // ModbusError wraps the error code and provides a readable error message for it
+  ModbusError me(error);
+  uint8_t address, function;
+  uint16_t reg;
+  address = token >> 24;
+  function = (token >> 16);
+  reg = token & 0xFFFF;
+
+  if (LoadBl == 1 && ((address>=2 && address <=8 && function == 4 && reg == 0) || address == 9)) {  //master sends out messages to nodes 2-8, if no EVSE is connected with that address
+                                                                                //a timeout will be generated. This is legit!
+                                                                                //same goes for broadcast address 9
+    _LOG_V("Error response: %02X - %s, address: %02x, function: %02x, reg: %04x.\n", error, (const char *)me,  address, function, reg);
+  }
+  else {
+    _LOG_A("Error response: %02X - %s, address: %02x, function: %02x, reg: %04x.\n", error, (const char *)me,  address, function, reg);
+  }
+}
+
+
+void ConfigureModbusMode(uint8_t newmode) {
+
+    _LOG_A("changing LoadBl from %u to %u\n",LoadBl, newmode);
+    
+    if ((LoadBl < 2 && newmode > 1) || (LoadBl > 1 && newmode < 2) || (newmode == 255) ) {
+        
+        if (newmode != 255 ) LoadBl = newmode;
+
+        // Setup Modbus workers for Node
+        if (LoadBl > 1 ) {
+            
+            _LOG_A("Setup MBserver/Node workers, end Master/Client\n");
+            // Stop Master background task (if active)
+            if (newmode != 255 ) MBclient.end();    
+            _LOG_A("ConfigureModbusMode1 task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
+
+            // Register worker. at serverID 'LoadBl', all function codes
+            MBserver.registerWorker(LoadBl, ANY_FUNCTION_CODE, &MBNodeRequest);      
+            // Also add handler for all broadcast messages from Master.
+            MBserver.registerWorker(BROADCAST_ADR, ANY_FUNCTION_CODE, &MBbroadcast);
+
+            if (EVMeter.Type && EVMeter.Type != EM_API) MBserver.registerWorker(EVMeter.Address, ANY_FUNCTION_CODE, &MBEVMeterResponse);
+
+            // Start ModbusRTU Node background task
+            MBserver.begin(Serial1);
+
+        } else if (LoadBl < 2 ) {
+            // Setup Modbus workers as Master 
+            // Stop Node background task (if active)
+            _LOG_A("Setup Modbus as Master/Client, stop Server/Node handler\n");
+
+            if (newmode != 255) MBserver.end();
+            _LOG_A("ConfigureModbusMode2 task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
+
+            MBclient.setTimeout(85);                        // Set modbus timeout to 85ms. 15ms lower then modbusRequestloop time of 100ms.
+            MBclient.onDataHandler(&MBhandleData);
+            MBclient.onErrorHandler(&MBhandleError);
+            // Start ModbusRTU Master background task
+            MBclient.begin(Serial1, 1);                                         //pinning it to core1 reduces modbus problems
+        } 
+    } else if (newmode > 1) {
+        // Register worker. at serverID 'LoadBl', all function codes
+        _LOG_A("Registering new LoadBl worker at id %u\n", newmode);
+        LoadBl = newmode;
+        MBserver.registerWorker(newmode, ANY_FUNCTION_CODE, &MBNodeRequest);   
+    }
+    
+}
+
+#endif
+
+
 #if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION == 3   //CH32 and v3 ESP32
 /**
  * Load Balancing 	Modbus Address  LoadBl
