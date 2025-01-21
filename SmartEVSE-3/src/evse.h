@@ -26,7 +26,6 @@
 
 
 #include "main_c.h"
-extern struct EMstruct EMConfig[EM_CUSTOM + 1];
 
 // USART Circular buffers
 typedef struct {

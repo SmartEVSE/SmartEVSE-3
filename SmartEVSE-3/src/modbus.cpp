@@ -71,6 +71,7 @@ extern "C" {
 
 extern struct ModBus MB;
 extern struct Sensorbox SB2;
+extern struct EMstruct EMConfig[EM_CUSTOM + 1];
 
 // ########################## Modbus helper functions ##########################
 
