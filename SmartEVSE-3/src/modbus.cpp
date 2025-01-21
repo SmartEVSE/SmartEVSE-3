@@ -26,8 +26,23 @@
 
 #ifdef SMARTEVSE_VERSION //ESP32
 #include "driver/uart.h"
+#else
+#include "ch32v003fun.h"
+#include "main.h"
+#include "main_c.h"
+#include "ch32.h"
+#include "utils.h"
+extern "C" {
+    #include "evse.h"
+}
+extern struct Sensorbox SB2;
+extern struct EMstruct EMConfig[EM_CUSTOM + 1];
+#endif
 
 #include "modbus.h"
+struct ModBus MB;
+
+#ifdef SMARTEVSE_VERSION //ESP32
 
 // ########################## Modbus helper functions ##########################
 
@@ -59,20 +74,6 @@ void ModbusSend8(uint8_t address, uint8_t function, uint16_t reg, uint16_t data)
     _LOG_V_NO_FUNC(" address: 0x%02x, function: 0x%02x, reg: 0x%04x, token:0x%08x, data: 0x%04x.\n", address, function, reg, token, data);
 }
 #else //CH32
-#include "ch32v003fun.h"
-#include "main.h"
-#include "main_c.h"
-#include "ch32.h"
-#include "modbus.h"
-#include "utils.h"
-extern "C" {
-    #include "evse.h"
-}
-
-extern struct ModBus MB;
-extern struct Sensorbox SB2;
-extern struct EMstruct EMConfig[EM_CUSTOM + 1];
-
 // ########################## Modbus helper functions ##########################
 
 /**

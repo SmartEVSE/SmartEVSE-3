@@ -29,7 +29,7 @@
 #include <Arduino.h>
 #include "main.h"
 #include "glcd.h"  //TODO necessary?
-
+#include "meter.h"
 
 // Pin definitions left side ESP32
 #define PIN_TEMP 36

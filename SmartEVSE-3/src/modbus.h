@@ -25,9 +25,8 @@
 #ifndef __EVSE_MODBUS
 #define __EVSE_MODBUS
 
-#ifdef SMARTEVSE_VERSION //ESP32
-
 #include "meter.h"
+#ifdef SMARTEVSE_VERSION //ESP32
 #include "ModbusServerRTU.h"
 #include "ModbusClientRTU.h"
 #endif
@@ -47,8 +46,9 @@ struct ModBus {
     uint8_t Exception;
 };
 
-#ifdef SMARTEVSE_VERSION //ESP32
 extern struct ModBus MB;
+
+#ifdef SMARTEVSE_VERSION //ESP32
 
 // definition of MBserver / MBclient class is done in evse.cpp
 extern ModbusServerRTU MBserver;

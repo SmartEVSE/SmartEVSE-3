@@ -20,29 +20,6 @@ struct Node_t {
 
 typedef enum { NOT_PRESENT, ALWAYS_OFF, SOLAR_OFF, ALWAYS_ON, AUTO } EnableC2_t;
 
-typedef enum mb_datatype {
-    MB_DATATYPE_INT32 = 0,
-    MB_DATATYPE_FLOAT32 = 1,
-    MB_DATATYPE_INT16 = 2,
-    MB_DATATYPE_MAX,
-} MBDataType;
-
-struct EMstruct {
-    uint8_t Desc[10];
-    uint8_t Endianness;     // 0: low byte first, low word first, 1: low byte first, high word first, 2: high byte first, low word first, 3: high byte first, high word first
-    uint8_t Function;       // 3: holding registers, 4: input registers
-    MBDataType DataType;    // How data is represented on this Modbus meter
-    uint16_t URegister;     // Single phase voltage (V)
-    int8_t UDivisor;        // 10^x
-    uint16_t IRegister;     // Single phase current (A)
-    int8_t IDivisor;        // 10^x
-    uint16_t PRegister;     // Total power (W) -- only used for EV/PV meter momentary power
-    int8_t PDivisor;        // 10^x
-    uint16_t ERegister;     // Total imported energy (kWh); equals total energy if meter doesnt support exported energy
-    int8_t EDivisor;        // 10^x
-    uint16_t ERegister_Exp; // Total exported energy (kWh)
-    int8_t EDivisor_Exp;    // 10^x
-};
 #define SB2_WIFI_MODE 0 
 
 #define NUM_ADC_SAMPLES 32

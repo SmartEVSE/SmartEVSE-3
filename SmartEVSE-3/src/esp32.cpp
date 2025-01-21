@@ -129,8 +129,6 @@ Preferences preferences;
 extern esp_adc_cal_characteristics_t * adc_chars_CP;
 extern void setStatePowerUnavailable(void);
 
-struct ModBus MB;          // Used by SmartEVSE fuctions
-
 extern unsigned char RFID[8];
 
 extern const char StrStateName[15][13];
