@@ -29,29 +29,12 @@
 
 #define NOSTATE 255
 
-extern uint8_t Force_Single_Phase_Charging(void);
-extern uint8_t Pilot();
-extern uint8_t pilot;
-extern int16_t Isum;
 extern uint8_t LoadBl;
-extern char IsCurrentAvailable(void);
-extern void receiveNodeStatus(uint8_t *buf, uint8_t NodeNr);
-extern void receiveNodeConfig(uint8_t *buf, uint8_t NodeNr);
-extern void requestMeasurement(uint8_t Meter, uint8_t Address, uint16_t Register, uint8_t Count);
-extern void requestCurrentMeasurement(uint8_t Meter, uint8_t Address);
-extern void ModbusWriteSingleRequest(uint8_t address, uint16_t reg, uint16_t value);
-extern void ModbusReadInputRequest(uint8_t address, uint8_t function, uint16_t reg, uint16_t quantity);
-extern void ModbusWriteMultipleRequest(uint8_t address, uint16_t reg, uint16_t *values, uint8_t count);
 extern void SetCurrent(uint16_t current);
 
 extern uint8_t ModbusRx[256];
-extern void ReadItemValueResponse(void);
-extern void WriteItemValueResponse(void);
-extern void WriteMultipleItemValueResponse(void);
-extern void ModbusDecode(uint8_t * buf, uint8_t len);
 extern void SetCPDuty(uint32_t DutyCycle);
 
-extern uint8_t Initialized;
 extern uint8_t PwrPanic;
 extern uint8_t ModemPwr;
 extern volatile uint8_t RxRdy1;

@@ -288,6 +288,10 @@ extern unsigned char triwave8(unsigned char in);
 extern const char StrStateName[15][13] = {"A", "B", "C", "D", "COMM_B", "COMM_B_OK", "COMM_C", "COMM_C_OK", "Activate", "B1", "C1", "MODEM1", "MODEM2", "MODEM_OK", "MODEM_DENIED"}; //note that the extern is necessary here because the const will point the compiler to internal linkage; https://cplusplus.com/forum/general/81640/
 extern const char StrEnableC2[5][12] = { "Not present", "Always Off", "Solar Off", "Always On", "Auto" };
 
+//TODO perhaps move those routines from modbus to main?
+extern void ReadItemValueResponse(void);
+extern void WriteItemValueResponse(void);
+extern void WriteMultipleItemValueResponse(void);
 uint8_t ModbusRx[256];                          // Modbus Receive buffer
 
 #ifndef SMARTEVSE_VERSION //CH32 version
@@ -2557,6 +2561,7 @@ static unsigned int LedPwm = 0;                                                /
 #endif
 
 
+#ifndef SMARTEVSE_VERSION //CH32
 // printf can be slow.
 // By measuring the time the 10ms loop actually takes to execute we found that:
 // it takes ~625uS to execute when using printf (and tx interrrupts)
@@ -2567,8 +2572,7 @@ static unsigned int LedPwm = 0;                                                /
 //
 // Called by 10ms loop when new modbus data is available
 // ModbusRxLen contains length of data contained in array ModbusRx
-void CheckRS485Comm(void) //looks like MBHandleData
-{
+void CheckRS485Comm(void) { //looks like MBhandleData
     ModbusDecode(ModbusRx, ModbusRxLen);
 
     // Data received is a response to an earlier request from the master.
@@ -2654,6 +2658,7 @@ void CheckRS485Comm(void) //looks like MBHandleData
 
 }
 
+#endif
 
 void Timer10ms_singlerun(void) {
 #if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION == 3   //CH32 and v3 ESP32

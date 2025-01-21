@@ -128,8 +128,12 @@ Preferences preferences;
 
 extern esp_adc_cal_characteristics_t * adc_chars_CP;
 extern void setStatePowerUnavailable(void);
-
+extern char IsCurrentAvailable(void);
+extern void receiveNodeStatus(uint8_t *buf, uint8_t NodeNr);
+extern void receiveNodeConfig(uint8_t *buf, uint8_t NodeNr);
 extern unsigned char RFID[8];
+extern uint8_t pilot;
+extern uint8_t Initialized;
 
 extern const char StrStateName[15][13];
 const char StrStateNameWeb[15][17] = {"Ready to Charge", "Connected to EV", "Charging", "D", "Request State B", "State B OK", "Request State C", "State C OK", "Activate", "Charging Stopped", "Stop Charging", "Modem Setup", "Modem Request", "Modem Done", "Modem Denied"};

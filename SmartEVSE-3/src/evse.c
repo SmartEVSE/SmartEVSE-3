@@ -28,7 +28,6 @@
 #include "ch32.h"
 #include "evse.h"
 
-extern uint8_t Initialized;
 extern uint8_t State;
 extern uint8_t ErrorFlags;
 uint8_t PwrPanic = 0;                                                       // Power Panic feature
