@@ -5,8 +5,6 @@
 //here should be declarations for code that will run on both the CH32 and the ESP32
 //THUS it can only be C-code, NO C++ here!!
 
-#define SB2_WIFI_MODE 0 
-
 #define NUM_ADC_SAMPLES 32
 
 #define STATE_A 0                                                               // A Vehicle not connected

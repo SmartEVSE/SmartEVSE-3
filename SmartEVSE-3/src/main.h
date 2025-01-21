@@ -130,7 +130,7 @@
 #define SOLARSTARTTIME 40                                                       // Seconds to keep chargecurrent at 6A
 #define OCPP_MODE 0
 #define AUTOUPDATE 0                                                            // default for Automatic Firmware Update: 0 = disabled, 1 = enabled
-
+#define SB2_WIFI_MODE 0
 #define LCD_LOCK 0                                                              // 0 = LCD buttons operational, 1 = LCD buttons disabled
 #define INITIALIZED 0
 
