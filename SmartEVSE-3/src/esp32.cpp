@@ -212,20 +212,7 @@ extern uint16_t BalancedMax[NR_EVSES];
 extern uint8_t BalancedState[NR_EVSES];
 extern uint16_t BalancedError[NR_EVSES];
 
-Node_t Node[NR_EVSES];
-/*= {                                                        // 0: Master / 1: Node 1 ...
-   //         Config   EV     EV       Min      Used    Charge Interval Solar *          // Interval Time   : last Charge time, reset when not charging
-    * Online, Changed, Meter, Address, Current, Phases,  Timer,  Timer, Timer, Mode    // Min Current     : minimal measured current per phase the EV consumes when starting to charge @ 6A (can be lower then 6A)
-    {      1,       0,     0,       0,       0,      0,      0,      0,     0,    0 },   // Used Phases     : detected nr of phases when starting to charge (works with configured EVmeter meter, and might work with sensorbox)
-    {      0,       1,     0,       0,       0,      0,      0,      0,     0,    0 },
-    {      0,       1,     0,       0,       0,      0,      0,      0,     0,    0 },
-    {      0,       1,     0,       0,       0,      0,      0,      0,     0,    0 },    
-    {      0,       1,     0,       0,       0,      0,      0,      0,     0,    0 },
-    {      0,       1,     0,       0,       0,      0,      0,      0,     0,    0 },
-    {      0,       1,     0,       0,       0,      0,      0,      0,     0,    0 },
-    {      0,       1,     0,       0,       0,      0,      0,      0,     0,    0 }            
-};
-*/
+extern Node_t Node[NR_EVSES];
 extern uint8_t lock1, lock2;
 extern uint16_t BacklightTimer;
 extern uint8_t BacklightSet;

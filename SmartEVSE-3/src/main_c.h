@@ -5,19 +5,6 @@
 //here should be declarations for code that will run on both the CH32 and the ESP32
 //THUS it can only be C-code, NO C++ here!!
 
-struct Node_t {
-    uint8_t Online;
-    uint8_t ConfigChanged;
-    uint8_t EVMeter;
-    uint8_t EVAddress;
-    uint8_t MinCurrent;     // 0.1A
-    uint8_t Phases;
-    uint32_t Timer;         // 1s
-    uint32_t IntTimer;      // 1s
-    uint16_t SolarTimer;    // 1s
-    uint8_t Mode;
-};
-
 typedef enum { NOT_PRESENT, ALWAYS_OFF, SOLAR_OFF, ALWAYS_ON, AUTO } EnableC2_t;
 
 #define SB2_WIFI_MODE 0 

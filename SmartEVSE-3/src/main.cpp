@@ -145,18 +145,7 @@ uint16_t BalancedMax[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};                  // M
 uint8_t BalancedState[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};                 // State of all EVSE's 0=not active (state A), 1=charge request (State B), 2= Charging (State C)
 uint16_t BalancedError[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};                // Error state of EVSE
 
-struct {
-    uint8_t Online;
-    uint8_t ConfigChanged;
-    uint8_t EVMeter;
-    uint8_t EVAddress;
-    uint8_t MinCurrent;     // 0.1A
-    uint8_t Phases;
-    uint32_t Timer;         // 1s
-    uint32_t IntTimer;      // 1s
-    uint16_t SolarTimer;    // 1s
-    uint8_t Mode;
-} Node[NR_EVSES] = {                                                        // 0: Master / 1: Node 1 ...
+Node_t Node[NR_EVSES] = {                                                        // 0: Master / 1: Node 1 ...
    /*         Config   EV     EV       Min      Used    Charge Interval Solar *          // Interval Time   : last Charge time, reset when not charging
     * Online, Changed, Meter, Address, Current, Phases,  Timer,  Timer, Timer, Mode */   // Min Current     : minimal measured current per phase the EV consumes when starting to charge @ 6A (can be lower then 6A)
     {      1,       0,     0,       0,       0,      0,      0,      0,     0,    0 },   // Used Phases     : detected nr of phases when starting to charge (works with configured EVmeter meter, and might work with sensorbox)
