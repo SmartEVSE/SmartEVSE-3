@@ -251,20 +251,12 @@ EXT hw_timer_t * timerA;
 esp_adc_cal_characteristics_t * adc_chars_CP;
 #endif
 
-#if ENABLE_OCPP
-#include <MicroOcpp.h>
-EXT float OcppCurrentLimit;
-extern bool OcppForcesLock;
-#endif
-
 //functions
 EXT void setup();
 EXT void setState(uint8_t NewState);
 EXT int8_t TemperatureSensor();
 uint8_t OneWireReadCardId();
 EXT uint8_t ProximityPin();
-EXT void PowerPanic(void);
-EXT int Set_Nr_of_Phases_Charging(void);
 EXT void PowerPanicCtrl(uint8_t enable);
 EXT void ModemPower(uint8_t enable);
 EXT uint16_t WchVersion;
