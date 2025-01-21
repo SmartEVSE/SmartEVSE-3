@@ -189,6 +189,7 @@ extern struct DelayedTimeStruct DelayedStopTime;
 extern uint8_t DelayedRepeat;
 extern uint8_t LCDlock;
 extern uint8_t Grid;
+extern EnableC2_t EnableC2;
 extern uint8_t SB2_WIFImode;
 extern uint8_t RFIDReader;
 #if FAKE_RFID

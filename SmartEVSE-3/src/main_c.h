@@ -5,8 +5,6 @@
 //here should be declarations for code that will run on both the CH32 and the ESP32
 //THUS it can only be C-code, NO C++ here!!
 
-typedef enum { NOT_PRESENT, ALWAYS_OFF, SOLAR_OFF, ALWAYS_ON, AUTO } EnableC2_t;
-
 #define SB2_WIFI_MODE 0 
 
 #define NUM_ADC_SAMPLES 32
@@ -38,7 +36,6 @@ typedef enum { NOT_PRESENT, ALWAYS_OFF, SOLAR_OFF, ALWAYS_ON, AUTO } EnableC2_t;
 
 extern uint8_t Force_Single_Phase_Charging(void);
 extern uint16_t getItemValue(uint8_t nav);
-extern EnableC2_t EnableC2;
 extern uint8_t Pilot();
 extern uint8_t pilot;
 extern int16_t Isum;

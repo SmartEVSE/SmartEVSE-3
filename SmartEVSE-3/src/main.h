@@ -360,6 +360,7 @@ struct Sensorbox {
     uint8_t APpassword[9];      // 8 characters + null termination
 };
 
+enum EnableC2_t { NOT_PRESENT, ALWAYS_OFF, SOLAR_OFF, ALWAYS_ON, AUTO };
 
 struct Node_t {
     uint8_t Online;
