@@ -362,6 +362,9 @@ struct Sensorbox {
     uint8_t APpassword[9];      // 8 characters + null termination
 };
 
+uint8_t setItemValue(uint8_t nav, uint16_t val);
+uint16_t getItemValue(uint8_t nav);
+
 enum EnableC2_t { NOT_PRESENT, ALWAYS_OFF, SOLAR_OFF, ALWAYS_ON, AUTO };
 
 struct Node_t {

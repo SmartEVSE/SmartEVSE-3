@@ -30,12 +30,10 @@
 #define NOSTATE 255
 
 extern uint8_t Force_Single_Phase_Charging(void);
-extern uint16_t getItemValue(uint8_t nav);
 extern uint8_t Pilot();
 extern uint8_t pilot;
 extern int16_t Isum;
 extern uint8_t LoadBl;
-extern uint8_t setItemValue(uint8_t nav, uint16_t val); //this somehow prevents undefined reference in CH32 compile
 extern char IsCurrentAvailable(void);
 extern void receiveNodeStatus(uint8_t *buf, uint8_t NodeNr);
 extern void receiveNodeConfig(uint8_t *buf, uint8_t NodeNr);
