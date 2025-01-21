@@ -29,9 +29,6 @@
 
 #define NOSTATE 255
 
-#define NR_EVSES 8
-#define BROADCAST_ADR 0x09
-
 extern uint8_t Force_Single_Phase_Charging(void);
 extern uint16_t getItemValue(uint8_t nav);
 extern uint8_t Pilot();
