@@ -64,6 +64,8 @@ extern "C" {
 
 // Global data
 
+//CALL_ON_RECEIVE(State, setState) calls setState(param) when State:param is received
+#define CALL_ON_RECEIVE(X,Y)     ret = strstr(SerialBuf, token); if (ret != NULL && *(ret+sizeof(#X)) == ':') { Y(atoi(ret+strlen(token))); }
 
 uint8_t Initialized = INITIALIZED;                                          // When first powered on, the settings need to be initialized.
 // The following data will be updated by eeprom/storage data at powerup:
@@ -362,30 +364,28 @@ ConfigItem configItems[] = {
 
 // CH32 receives info from ESP32
 void CheckSerialComm(void) {
-    char buf[256];
+    char SerialBuf[256];
     uint8_t len;
     char *ret;
 
-    len = ReadESPdata(buf);
+    len = ReadESPdata(SerialBuf);
     RxRdy1 = 0;
 
     // Is it a request?
     char token[64];
     strncpy(token, "version?", sizeof(token));
-    ret = strstr(buf, token);
+    ret = strstr(SerialBuf, token);
     if (ret != NULL) printf("version:%04u\n", WchVersion);          // Send WCH software version
 
-//CH32_CALL_ON_RECEIVE(State, setState) calls setState(param) when State:param is received
-#define CH32_CALL_ON_RECEIVE(X,Y)     ret = strstr(buf, token); if (ret != NULL && *(ret+sizeof(#X)) == ':') { Y(atoi(ret+strlen(token))); }
-    CH32_CALL_ON_RECEIVE(State, setState)
-    CH32_CALL_ON_RECEIVE(SetCPDuty, SetCPDuty)
-    CH32_CALL_ON_RECEIVE(SetCurrent, SetCurrent)
-    CH32_CALL_ON_RECEIVE(CalcBalancedCurrent, CalcBalancedCurrent)
+    CALL_ON_RECEIVE(State, setState)
+    CALL_ON_RECEIVE(SetCPDuty, SetCPDuty)
+    CALL_ON_RECEIVE(SetCurrent, SetCurrent)
+    CALL_ON_RECEIVE(CalcBalancedCurrent, CalcBalancedCurrent)
 
     // We received configuration settings from the ESP. 
     // Scan for all variables, and update values
     for (ConfigItem* item = configItems; item->keyword != NULL; item++) { //e
-        const char* found = strstr(buf, item->keyword);
+        const char* found = strstr(SerialBuf, item->keyword);
         if (found) {
             const char* valueStr = found + strlen(item->keyword);
             switch (item->type) {
@@ -416,7 +416,7 @@ void CheckSerialComm(void) {
 //        ConfigChanged = 1;
     //}
     
-    memset(buf, 0, len);    // clear buffer
+    memset(SerialBuf, 0, len);    // clear SerialBuffer
 
 }
 
@@ -1434,6 +1434,9 @@ void CalcBalancedCurrent(char mod) {
         }
         _LOG_D_NO_FUNC("\n");
     }
+#ifndef SMARTEVSE_VERSION //CH32 only
+    printf("Balanced0:%u\n", Balanced[0]);
+#endif
 #else
     printf("CalcBalancedCurrent:%i\n", mod);
 #endif
