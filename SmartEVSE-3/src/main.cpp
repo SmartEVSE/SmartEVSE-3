@@ -3211,18 +3211,8 @@ void Timer10ms_singlerun(void) {
                 ExtSwitch.TimeOfPress = millis();
                 ExtSwitch.HandleSwitch();
             }
-
-            strncpy(token, "Access:", sizeof(token)); //b
-            ret = strstr(SerialBuf, token);
-            if (ret != NULL) {
-                setAccess(atoi(ret+strlen(token)));
-            }
-
-            strncpy(token, "Mode:", sizeof(token)); //b
-            ret = strstr(SerialBuf, token);
-            if (ret != NULL) {
-                setAccess(atoi(ret+strlen(token)));
-            }
+            CALL_ON_RECEIVE(Access, setAccess)
+            CALL_ON_RECEIVE(Mode, setMode)
 
             strncpy(token, "version:", sizeof(token));
             ret = strstr(SerialBuf, token);
