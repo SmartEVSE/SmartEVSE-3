@@ -1453,8 +1453,6 @@ static uint8_t x;
 
     if (BacklightTimer) BacklightTimer--;                               // Decrease backlight counter every second.
 #else //CH32
-//somehow this print statement is needed to get into State_C ; FIXME timing problems ??
-printf("MSG: DINGO pilot=%u, state=%u, pilot()=%u.\n", pilot, State, Pilot());
 uint8_t ow = 0, x;
 #endif
     // wait for Activation mode to start
