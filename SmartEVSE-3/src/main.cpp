@@ -375,29 +375,12 @@ void CheckSerialComm(void) {
     ret = strstr(buf, token);
     if (ret != NULL) printf("version:%04u\n", WchVersion);          // Send WCH software version
 
-    strncpy(token, "State:", sizeof(token)); //b
-    ret = strstr(buf, token);
-    if (ret != NULL) {
-        setState(atoi(ret+strlen(token)));
-    }
-
-    strncpy(token, "SetCPDuty:", sizeof(token)); //b
-    ret = strstr(buf, token);
-    if (ret != NULL) {
-        SetCPDuty(atoi(ret+strlen(token)));
-    }
-
-    strncpy(token, "SetCurrent:", sizeof(token)); //b
-    ret = strstr(buf, token);
-    if (ret != NULL) {
-        SetCurrent(atoi(ret+strlen(token)));
-    }
-
-    strncpy(token, "CalcBalancedCurrent:", sizeof(token)); //b
-    ret = strstr(buf, token);
-    if (ret != NULL) {
-        CalcBalancedCurrent(atoi(ret+strlen(token)));
-    }
+//CH32_CALL_ON_RECEIVE(State, setState) calls setState(param) when State:param is received
+#define CH32_CALL_ON_RECEIVE(X,Y)     ret = strstr(buf, token); if (ret != NULL && *(ret+sizeof(#X)) == ':') { Y(atoi(ret+strlen(token))); }
+    CH32_CALL_ON_RECEIVE(State, setState)
+    CH32_CALL_ON_RECEIVE(SetCPDuty, SetCPDuty)
+    CH32_CALL_ON_RECEIVE(SetCurrent, SetCurrent)
+    CH32_CALL_ON_RECEIVE(CalcBalancedCurrent, CalcBalancedCurrent)
 
     // We received configuration settings from the ESP. 
     // Scan for all variables, and update values
