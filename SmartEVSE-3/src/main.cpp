@@ -66,6 +66,8 @@ extern "C" {
 
 //CALL_ON_RECEIVE(State, setState) calls setState(param) when State:param is received
 #define CALL_ON_RECEIVE(X,Y)     ret = strstr(SerialBuf, token); if (ret != NULL && *(ret+sizeof(#X)) == ':') { Y(atoi(ret+strlen(token))); }
+//SET_ON_RECEIVE(Pilot, pilot) sets pilot=parm when Pilot:param is received
+#define SET_ON_RECEIVE(X,Y)     ret = strstr(SerialBuf, token); if (ret != NULL && *(ret+sizeof(#X)) == ':') { Y=atoi(ret+strlen(token)); }
 
 uint8_t Initialized = INITIALIZED;                                          // When first powered on, the settings need to be initialized.
 // The following data will be updated by eeprom/storage data at powerup:
@@ -3213,6 +3215,10 @@ void Timer10ms_singlerun(void) {
             }
             CALL_ON_RECEIVE(Access, setAccess)
             CALL_ON_RECEIVE(Mode, setMode)
+            SET_ON_RECEIVE(Pilot, pilot)
+            SET_ON_RECEIVE(Temp, TempEVSE)
+            SET_ON_RECEIVE(State, State)
+            SET_ON_RECEIVE(Balanced0, Balanced[0])
 
             strncpy(token, "version:", sizeof(token));
             ret = strstr(SerialBuf, token);
@@ -3228,22 +3234,10 @@ void Timer10ms_singlerun(void) {
                 CommState = COMM_STATUS_REQ;
             }
 
-            strncpy(token, "Pilot:", sizeof(token));
-            ret = strstr(SerialBuf, token);
-            if (ret != NULL) {
-                pilot = atoi(ret+strlen(token)); //e
-            }
-
             strncpy(token, "EnableC2:", sizeof(token));
             ret = strstr(SerialBuf, token);
             if (ret != NULL) {
                 EnableC2 = (EnableC2_t) atoi(ret+strlen(token)); //e
-            }
-
-            strncpy(token, "Temp:", sizeof(token));
-            ret = strstr(SerialBuf, token);
-            if (ret != NULL) {
-                TempEVSE = atoi(ret+strlen(token)); //e
             }
 
             strncpy(token, "Irms:", sizeof(token));
@@ -3286,11 +3280,11 @@ void Timer10ms_singlerun(void) {
                     _LOG_A("Received corrupt %s, n=%d, message from WCH:%s.\n", token, n, SerialBuf);
             }
 
+/*
             strncpy(token, "State:", sizeof(token));
             ret = strstr(SerialBuf, token);
             if (ret != NULL ) {
                 State = atoi(ret+strlen(token)); //e
-/*
                 if (State == STATE_COMM_B) NewState = STATE_COMM_B_OK;
                 else if (State == STATE_COMM_C) NewState = STATE_COMM_C_OK;
 
@@ -3298,8 +3292,8 @@ void Timer10ms_singlerun(void) {
                     Serial1.printf("WchState:%u\n",NewState );        // send confirmation back to WCH
                     Serial.printf("[->] WchState:%u\n",NewState );    // send confirmation back to WCH
                     NewState = 0;
-                }*/
-            }
+                }
+            }*/
         }
         memset(SerialBuf,0,idx);        // Clear buffer
         idx = 0;
