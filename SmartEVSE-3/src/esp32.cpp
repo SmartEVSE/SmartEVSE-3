@@ -2665,11 +2665,11 @@ void setup() {
 
     }
 
-/*
+
     if (WchFirmwareUpdate()) {
         _LOG_A("Firmware update failed.\n");
     } else _LOG_D("WCH programming done\n");
-*/
+
     // should not be needed to reset the WCH ic at powerup/reset on the production version.
     _LOG_D("reset WCH ic\n");
     WchReset();
