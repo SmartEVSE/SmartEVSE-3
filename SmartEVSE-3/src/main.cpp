@@ -65,9 +65,17 @@ extern "C" {
 // Global data
 
 //CALL_ON_RECEIVE(State, setState) calls setState(param) when State:param is received
-#define CALL_ON_RECEIVE(X,Y)     ret = strstr(SerialBuf, token); if (ret != NULL && *(ret+sizeof(#X)) == ':') { Y(atoi(ret+strlen(token))); }
-//SET_ON_RECEIVE(Pilot, pilot) sets pilot=parm when Pilot:param is received
-#define SET_ON_RECEIVE(X,Y)     ret = strstr(SerialBuf, token); if (ret != NULL && *(ret+sizeof(#X)) == ':') { Y=atoi(ret+strlen(token)); }
+#define CALL_ON_RECEIVE(X,Y) \
+    ret = strstr(SerialBuf, #X);\
+    if (ret) \
+        Y(atoi(ret+strlen(#X)));
+
+//SET_ON_RECEIVE(Pilot:, pilot) sets pilot=parm when Pilot:param is received
+#define SET_ON_RECEIVE(X,Y) \
+    ret = strstr(SerialBuf, #X);\
+    if (ret) \
+        Y = atoi(ret+strlen(#X));
+
 
 uint8_t Initialized = INITIALIZED;                                          // When first powered on, the settings need to be initialized.
 // The following data will be updated by eeprom/storage data at powerup:
@@ -379,10 +387,10 @@ void CheckSerialComm(void) {
     ret = strstr(SerialBuf, token);
     if (ret != NULL) printf("version:%04u\n", WchVersion);          // Send WCH software version
 
-    CALL_ON_RECEIVE(State, setState)
-    CALL_ON_RECEIVE(SetCPDuty, SetCPDuty)
-    CALL_ON_RECEIVE(SetCurrent, SetCurrent)
-    CALL_ON_RECEIVE(CalcBalancedCurrent, CalcBalancedCurrent)
+    CALL_ON_RECEIVE(State:, setState)
+    CALL_ON_RECEIVE(SetCPDuty:, SetCPDuty)
+    CALL_ON_RECEIVE(SetCurrent:, SetCurrent)
+    CALL_ON_RECEIVE(CalcBalancedCurrent:, CalcBalancedCurrent)
 
     // We received configuration settings from the ESP. 
     // Scan for all variables, and update values
@@ -3211,12 +3219,12 @@ void Timer10ms_singlerun(void) {
                 ExtSwitch.TimeOfPress = millis();
                 ExtSwitch.HandleSwitch();
             }
-            CALL_ON_RECEIVE(Access, setAccess)
-            CALL_ON_RECEIVE(Mode, setMode)
-            SET_ON_RECEIVE(Pilot, pilot)
-            SET_ON_RECEIVE(Temp, TempEVSE)
-            SET_ON_RECEIVE(State, State)
-            SET_ON_RECEIVE(Balanced0, Balanced[0])
+            CALL_ON_RECEIVE(Access:, setAccess)
+            CALL_ON_RECEIVE(Mode:, setMode)
+            SET_ON_RECEIVE(Pilot:, pilot)
+            SET_ON_RECEIVE(Temp:, TempEVSE)
+            SET_ON_RECEIVE(State:, State)
+            SET_ON_RECEIVE(Balanced0:, Balanced[0])
 
             strncpy(token, "version:", sizeof(token));
             ret = strstr(SerialBuf, token);
