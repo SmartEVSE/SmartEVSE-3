@@ -1764,7 +1764,6 @@ void BroadcastCurrent(void) {
 
 /**
  * EVSE Register 0x02*: System configuration (same on all SmartEVSE in a LoadBalancing setup)
- * TODO not sure if this is used anywhere in the code?
 Regis 	Access 	Description 	                                        Unit 	Values
 0x0200 	R/W 	EVSE mode 		                                        0:Normal / 1:Smart / 2:Solar
 0x0201 	R/W 	EVSE Circuit max Current 	                        A 	10 - 160
