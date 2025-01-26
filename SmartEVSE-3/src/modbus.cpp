@@ -32,6 +32,7 @@
 #include "main_c.h"
 #include "ch32.h"
 #include "utils.h"
+#include "meter.h"
 extern "C" {
     #include "evse.h"
 }

@@ -305,24 +305,6 @@
 #define _A0_0 digitalWrite(PIN_LCD_A0_B2, LOW);
 #define _A0_1 digitalWrite(PIN_LCD_A0_B2, HIGH);
 
-#define EM_SENSORBOX 1                                                          // Mains meter types
-#define EM_PHOENIX_CONTACT 2
-#define EM_FINDER_7E 3
-#define EM_EASTRON3P 4
-#define EM_EASTRON3P_INV 5
-#define EM_ABB 6
-#define EM_SOLAREDGE 7
-#define EM_WAGO 8
-#define EM_API 9
-#define EM_EASTRON1P 10
-#define EM_FINDER_7M 11
-#define EM_SINOTIMER 12
-#define EM_UNUSED_SLOT1 13
-#define EM_UNUSED_SLOT2 14
-#define EM_UNUSED_SLOT3 15
-#define EM_UNUSED_SLOT4 16
-#define EM_CUSTOM 17
-
 class Button {
   public:
     void CheckSwitch(bool force = false);

@@ -26,20 +26,36 @@
 
 #define __EVSE_METER
 
+#include "main.h"
+#ifndef SMARTEVSE_VERSION //CH32
+#include "ch32.h"
+#endif
+
+
+#define EM_SENSORBOX 1                                                          // Mains meter types
+#define EM_PHOENIX_CONTACT 2
+#define EM_FINDER_7E 3
+#define EM_EASTRON3P 4
+#define EM_EASTRON3P_INV 5
+#define EM_ABB 6
+#define EM_SOLAREDGE 7
+#define EM_WAGO 8
+#define EM_API 9
+#define EM_EASTRON1P 10
+#define EM_FINDER_7M 11
+#define EM_SINOTIMER 12
+#define EM_UNUSED_SLOT1 13
+#define EM_UNUSED_SLOT2 14
+#define EM_UNUSED_SLOT3 15
+#define EM_UNUSED_SLOT4 16
+#define EM_CUSTOM 17
+
 typedef enum mb_datatype {
     MB_DATATYPE_INT32 = 0,
     MB_DATATYPE_FLOAT32 = 1,
     MB_DATATYPE_INT16 = 2,
     MB_DATATYPE_MAX,
 } MBDataType;
-
-#include "main.h" //TODO move EM_CUSTOM to meter.h
-#ifdef SMARTEVSE_VERSION //v3 and v4
-#include "esp32.h"
-#else //CH32
-#include "ch32.h"
-#endif
-
 
 struct EMstruct {
     uint8_t Desc[10];
@@ -57,6 +73,7 @@ struct EMstruct {
     uint16_t ERegister_Exp; // Total exported energy (kWh)
     int8_t EDivisor_Exp;    // 10^x
 };
+
 extern struct EMstruct EMConfig[EM_CUSTOM + 1];
 extern struct Sensorbox SB2;
 
