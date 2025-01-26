@@ -2827,7 +2827,7 @@ void loop() {
             ESP.restart();
         }
 
-#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40 //TODO
+#if SMARTEVSE_VERSION >=30
         // TODO move this to a once a minute loop?
         if (DelayedStartTime.epoch2 && LocalTimeSet) {
             // Compare the times
