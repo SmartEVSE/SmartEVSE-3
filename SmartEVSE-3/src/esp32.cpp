@@ -269,7 +269,6 @@ extern uint8_t ColorSmart[3] ;
 extern uint8_t ColorSolar[3] ;
 extern uint8_t ColorCustom[3];
 
-//#define FW_UPDATE_DELAY 30        //DINGO TODO                                            // time between detection of new version and actual update in seconds
 #define FW_UPDATE_DELAY 3600                                                    // time between detection of new version and actual update in seconds
 extern uint16_t firmwareUpdateTimer;
                                                                                 // 0 means timer inactive
@@ -1098,7 +1097,6 @@ void read_settings() {
 
 
         EnableC2 = (EnableC2_t) preferences.getUShort("EnableC2", ENABLE_C2);
-        //TODO Serial1.printf("EnableC2:%u\n", EnableC2); //probably covered by ConfigItems?
         strncpy(RequiredEVCCID, preferences.getString("RequiredEVCCID", "").c_str(), sizeof(RequiredEVCCID));
         maxTemp = preferences.getUShort("maxTemp", MAX_TEMPERATURE);
 
@@ -1160,7 +1158,7 @@ void write_settings(void) {
     preferences.putUChar("EMFunction", EMConfig[EM_CUSTOM].Function);
     preferences.putUChar("WIFImode", WIFImode);
     preferences.putUShort("EnableC2", EnableC2);
-    Serial1.printf("EnableC2:%u\n", EnableC2); //TODO or do a full ConfigItems write?
+    Serial1.printf("EnableC2:%u\n", EnableC2); //TODO do a full ConfigItems write
     preferences.putString("RequiredEVCCID", String(RequiredEVCCID));
     preferences.putUShort("maxTemp", maxTemp);
     preferences.putUChar("AutoUpdate", AutoUpdate);

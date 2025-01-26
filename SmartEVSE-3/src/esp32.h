@@ -28,7 +28,7 @@
 
 #include <Arduino.h>
 #include "main.h"
-#include "glcd.h"  //TODO necessary?
+#include "glcd.h"
 #include "meter.h"
 
 // Pin definitions left side ESP32
@@ -66,14 +66,13 @@
 #define SPI_MISO -1
 #define SPI_SCK 26
 #define SPI_SS -1
-#endif //SMARTEVSE_VERSION
 
-//TODO only v3?
 #define CP_CHANNEL 0
 #define RED_CHANNEL 2                                                           // PWM channel 2 (0 and 1 are used by CP signal)
 #define GREEN_CHANNEL 3
 #define BLUE_CHANNEL 4
 #define LCD_CHANNEL 5                                                           // LED Backlight LCD
+#endif //SMARTEVSE_VERSION
 
 #define PWM_5 50                                                                // 5% of PWM
 #define PWM_95 950                                                              // 95% of PWM
