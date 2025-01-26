@@ -12,7 +12,7 @@
 #include <Preferences.h>
 
 #include "esp32.h"
-#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
+#if SMARTEVSE_VERSION >=30
 #include "OneWire.h"
 #endif
 
@@ -1004,7 +1004,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
                         FREE(signature);
                     }
                 } else //end of firmware.signed.bin
-#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40  //TODO make this work for v4 too!
+#if SMARTEVSE_VERSION >=30
                 if (!memcmp(file,"rfid.txt", sizeof("rfid.txt"))) {
                     if (offset != 0) {
                         mg_http_reply(c, 400, "", "rfid.txt too big, only 100 rfid's allowed!");
@@ -1279,7 +1279,7 @@ void SetupPortalTask(void * parameter) {
     write_settings();
     CliState= 0;
 #ifndef SENSORBOX_VERSION                                                       //so we are not on a sensorbox but on a smartevse
-#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40 //TODO enable this when LCD menu in v4 is enabled
+#if SMARTEVSE_VERSION >=30
     LCDNav = 0;
 #endif
 #else
