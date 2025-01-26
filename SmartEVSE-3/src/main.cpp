@@ -694,7 +694,7 @@ void SetCPDuty(uint32_t DutyCycle){
 #if SMARTEVSE_VERSION >= 40 //ESP32
     Serial1.printf("SetCPDuty:%u\n", DutyCycle);
 #else
-#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40 //ESP32
+#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40 //v3 ESP32
     ledcWrite(CP_CHANNEL, DutyCycle);                                       // update PWM signal
 #endif
 #ifndef SMARTEVSE_VERSION  //CH32
@@ -717,7 +717,7 @@ void SetCurrent(uint16_t current) {
                                                                             // calculate DutyCycle from current
     else if ((current > 510) && (current <= 800)) DutyCycle = (current / 2.5) + 640;
     else DutyCycle = 100;                                                   // invalid, use 6A
-#ifdef SMARTEVSE_VERSION //ESP32 FIXME should only run on CH32?
+#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40 //v3 ESP32
     DutyCycle = DutyCycle * 1024 / 1000;                                    // conversion to 1024 = 100%
 #endif
     SetCPDuty(DutyCycle);
