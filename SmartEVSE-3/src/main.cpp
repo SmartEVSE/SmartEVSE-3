@@ -663,7 +663,7 @@ void setSolarStopTimer(uint16_t Timer) {
 #endif
 }
 
-//TODO #if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
+#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
 /**
  * Checks all parameters to determine whether
  * we are going to force single phase charging
@@ -686,7 +686,7 @@ uint8_t Force_Single_Phase_Charging() {                                         
     //in case we don't know, stick to 3f charging
     return 0;
 }
-//#endif
+#endif
 
 // Write duty cycle to pin
 // Value in range 0 (0% duty) to 1024 (100% duty) for ESP32, 1000 (100% duty) for CH32
@@ -934,6 +934,7 @@ void setAccess(bool Access) { //c
 }
 
 
+#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
 // Set global var Nr_Of_Phases_Charging
 // 0 = undetected, 1 - 3 nr of phases we are charging
 // returns nr of phases we are charging, and 3 if undetected
@@ -996,7 +997,7 @@ int Set_Nr_of_Phases_Charging(void) {
         return 3;
     return Nr_Of_Phases_Charging;
 }
-
+#endif
 
 #ifndef SMARTEVSE_VERSION //CH32
 // Determine the state of the Pilot signal
