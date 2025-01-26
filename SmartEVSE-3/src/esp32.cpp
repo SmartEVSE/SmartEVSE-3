@@ -42,7 +42,7 @@
 #include <MicroOcpp/Core/Context.h>
 #endif //ENABLE_OCPP
 
-#if SMARTEVSE_VERSION == 4
+#if SMARTEVSE_VERSION >= 40
 #include <esp_sleep.h>
 #include <driver/uart.h>
 
@@ -115,7 +115,7 @@ void PowerPanicESP() {
 
 #endif //SMARTEVSE_VERSION
 
-#if SMARTEVSE_VERSION == 3
+#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
 // Create a ModbusRTU server, client and bridge instance on Serial1
 ModbusServerRTU MBserver(2000, PIN_RS485_DIR);     // TCP timeout set to 2000 ms
 ModbusClientRTU MBclient(PIN_RS485_DIR);
@@ -304,7 +304,7 @@ extern unsigned long OcppLastTxNotification;
 #endif //ENABLE_OCPP
 
 
-#if SMARTEVSE_VERSION == 3
+#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
 // Some low level stuff here to setup the ADC, and perform the conversion.
 //
 //
@@ -395,7 +395,7 @@ uint16_t GetCurrent() {
 #endif //ENABLE_OCPP
 
 
-#if SMARTEVSE_VERSION == 3
+#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
 // Sample the Temperature sensor.
 //
 int8_t TemperatureSensor() {
@@ -567,7 +567,7 @@ void DisconnectEvent(void){
     strncpy(EVCCID, "", sizeof(EVCCID));
 }
 
-#if SMARTEVSE_VERSION == 3
+#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
 void getButtonState() {
     // Sample the three < o > buttons.
     // As the buttons are shared with the SPI lines going to the LCD,
@@ -1029,7 +1029,7 @@ void validate_settings(void) {
         EMConfig[EM_CUSTOM].ERegister = 0;
     }
 
-#if SMARTEVSE_VERSION == 3
+#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
     // If the address of the MainsMeter or EVmeter on a Node has changed, we must re-register the Modbus workers.
     if (LoadBl > 1) {
         if (EVMeter.Type && EVMeter.Type != EM_API) MBserver.registerWorker(EVMeter.Address, ANY_FUNCTION_CODE, &MBEVMeterResponse);
@@ -1997,7 +1997,7 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
         }
         if(request->hasParam("loadbl")) {
             int LBL = strtol(request->getParam("loadbl")->value().c_str(),NULL,0);
-#if SMARTEVSE_VERSION == 3
+#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
             ConfigureModbusMode(LBL);
 #endif
             LoadBl = LBL;
@@ -2374,7 +2374,7 @@ void ocppLoop() {
 
 
 void setup() {
-#if SMARTEVSE_VERSION == 3
+#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
 
     pinMode(PIN_CP_OUT, OUTPUT);            // CP output
     //pinMode(PIN_SW_IN, INPUT);            // SW Switch input, handled by OneWire32 class
@@ -2716,7 +2716,7 @@ void setup() {
         NULL            // Task handle
     );
 
-#if SMARTEVSE_VERSION == 3
+#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
     // Create Task BlinkLed (10ms)
     xTaskCreate(
         BlinkLed,       // Function that should be called
@@ -2763,7 +2763,7 @@ void setup() {
 
     WiFiSetup();
 
-#if SMARTEVSE_VERSION == 3
+#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
     // Set eModbus LogLevel to 1, to suppress possible E5 errors
     MBUlogLvl = LOG_LEVEL_CRITICAL;
     ConfigureModbusMode(255);
@@ -2772,7 +2772,7 @@ void setup() {
     BacklightTimer = BACKLIGHT;
     GLCD_init();
 
-#if SMARTEVSE_VERSION == 3
+#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
     CP_ON;           // CP signal ACTIVE
 #endif
 
@@ -2820,7 +2820,7 @@ void loop() {
         //this block is for non-time critical stuff that needs to run approx 1 / second
 
         // a reboot is requested, but we kindly wait until no EV connected
-#if SMARTEVSE_VERSION == 3 //TODO
+#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40 //TODO
         if (shouldReboot && State == STATE_A) {                                 //slaves in STATE_C continue charging when Master reboots
 #else  //SMARTEVSE_VERSION
         if (shouldReboot) {
@@ -2829,7 +2829,7 @@ void loop() {
             ESP.restart();
         }
 
-#if SMARTEVSE_VERSION == 3 //TODO
+#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40 //TODO
         // TODO move this to a once a minute loop?
         if (DelayedStartTime.epoch2 && LocalTimeSet) {
             // Compare the times

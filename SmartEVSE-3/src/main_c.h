@@ -18,7 +18,7 @@
 #define STATE_ACTSTART 8                                                        // I Activation mode in progress
 #define STATE_B1 9                                                              // J Vehicle connected / EVSE not ready to deliver energy: no PWM signal
 #define STATE_C1 10                                                             // K Vehicle charging / EVSE not ready to deliver energy: no PWM signal (temp state when stopping charge from EVSE)
-//#if SMARTEVSE_VERSION == 3 TODO
+//#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40 TODO
 #define STATE_MODEM_REQUEST 11                                                          // L Vehicle connected / requesting ISO15118 communication, 0% duty
 #define STATE_MODEM_WAIT 12                                                          // M Vehicle connected / requesting ISO15118 communication, 5% duty
 #define STATE_MODEM_DONE 13                                                // Modem communication succesful, SoCs extracted. Here, re-plug vehicle

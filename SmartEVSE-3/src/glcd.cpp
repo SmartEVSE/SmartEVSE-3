@@ -38,7 +38,7 @@
 #include <MicroOcpp.h>
 #endif
 
-#if SMARTEVSE_VERSION == 4
+#if SMARTEVSE_VERSION >= 40
 #include "Melopero_RV3028.h"
 #endif //SMARTEVSE_VERSION
 
@@ -90,7 +90,7 @@ extern void handleWIFImode(void *s  = &Serial);
 extern char SmartConfigKey[16];
 extern Button ExtSwitch;
 
-#if SMARTEVSE_VERSION == 3
+#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
 
 void st7565_command(unsigned char data) {
     _A0_0;
@@ -179,7 +179,7 @@ void GLCD_buffer_clr(void) {
     } while (x != 0);
 }
 
-#if SMARTEVSE_VERSION == 3
+#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
 void GLCD_sendbuf(unsigned char RowAdr, unsigned char Rows) {
     unsigned char i, y = 0;
     unsigned int x = 0;
@@ -1364,7 +1364,7 @@ void GLCDMenu(uint8_t Buttons) {
 
 
 void GLCD_init(void) {
-#if SMARTEVSE_VERSION == 3
+#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
     delay(200);                                                                 // transients on the line could have garbled the LCD, wait 200ms then re-init.
     _A0_0;                                                                      // A0=0
     _RSTB_0;                                                                    // Reset GLCD module

@@ -1,4 +1,4 @@
-#if SMARTEVSE_VERSION == 4
+#if SMARTEVSE_VERSION >= 40
 #include "Melopero_RV3028.h"
 
 Melopero_RV3028::Melopero_RV3028(){

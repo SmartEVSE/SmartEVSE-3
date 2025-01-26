@@ -1,4 +1,4 @@
-#if SMARTEVSE_VERSION == 4
+#if SMARTEVSE_VERSION >= 40
 #ifndef Melopero_RV3028_H_INCLUDED
 #define Melopero_RV3028_H_INCLUDED
 

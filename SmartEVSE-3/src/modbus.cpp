@@ -61,7 +61,7 @@ void ModbusSend8(uint8_t address, uint8_t function, uint16_t reg, uint16_t data)
     token = reg;
     token += address << 24;
     token += function << 16;
-#if SMARTEVSE_VERSION ==3
+#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
     Error err = MBclient.addRequest(token, address, function, reg, data);
     if (err!=SUCCESS) {
         ModbusError e(err);
@@ -207,7 +207,7 @@ void ModbusWriteMultipleRequest(uint8_t address, uint16_t reg, uint16_t *values,
     token = reg;
     token += address << 24;
     token += 0x10 << 16;
-#if SMARTEVSE_VERSION ==3
+#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
     Error err = MBclient.addRequest(token, address, 0x10, reg, (uint16_t) count, count * 2u, values);
     if (err!=SUCCESS) {
       ModbusError e(err);

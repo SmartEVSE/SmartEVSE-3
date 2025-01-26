@@ -1,4 +1,4 @@
-#if SMARTEVSE_VERSION == 4
+#if SMARTEVSE_VERSION >= 40
 extern SPIClass QCA_SPI1;
 
 uint16_t qcaspi_read_register16(uint16_t reg);

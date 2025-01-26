@@ -1,4 +1,4 @@
-#if SMARTEVSE_VERSION == 4
+#if SMARTEVSE_VERSION >= 40
 #include <Arduino.h>
 #include <SPI.h>
 #include "esp32.h"

@@ -1,7 +1,7 @@
 /*
  * This file has shared code between SmartEVSE-3, SmartEVSE-4 and SmartEVSE-4_CH32
- * #if SMARTEVSE_VERSION == 3  //SmartEVSEv3 code
- * #if SMARTEVSE_VERSION == 4  //SmartEVSEv4 code
+ * #if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40  //SmartEVSEv3 code
+ * #if SMARTEVSE_VERSION >= 40  //SmartEVSEv4 code
  * #ifndef SMARTEVSE_VERSION   //CH32 code
  */
 
@@ -525,14 +525,14 @@ void Button::HandleSwitch(void) {
 #endif
 
 void Button::CheckSwitch(bool force) {
-#if SMARTEVSE_VERSION == 3
+#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
     uint8_t Read = digitalRead(PIN_SW_IN);
 #endif
 #ifndef SMARTEVSE_VERSION //CH32
     uint8_t Read = funDigitalRead(SW_IN) && funDigitalRead(BUT_SW_IN);          // BUT_SW_IN = LED pushbutton, SW_IN = 12pin plug at bottom
 #endif
 
-#if SMARTEVSE_VERSION != 4   //this code executed in CH32V, not in ESP32
+#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
     static uint8_t RB2count = 0, RB2last = 2;
 
     if (force)                                                                  // force to read switch position
@@ -589,7 +589,7 @@ Button ExtSwitch;
  */
 void setMode(uint8_t NewMode) {
 #ifdef SMARTEVSE_VERSION //v3 and v4
-#if SMARTEVSE_VERSION == 4
+#if SMARTEVSE_VERSION >= 40
     Serial1.printf("Mode:%u\n", Mode); //d
 #endif
     // If mainsmeter disabled we can only run in Normal Mode
@@ -663,7 +663,7 @@ void setSolarStopTimer(uint16_t Timer) {
 #endif
 }
 
-//TODO #if SMARTEVSE_VERSION != 4
+//TODO #if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
 /**
  * Checks all parameters to determine whether
  * we are going to force single phase charging
@@ -691,10 +691,10 @@ uint8_t Force_Single_Phase_Charging() {                                         
 // Write duty cycle to pin
 // Value in range 0 (0% duty) to 1024 (100% duty) for ESP32, 1000 (100% duty) for CH32
 void SetCPDuty(uint32_t DutyCycle){
-#if SMARTEVSE_VERSION == 4 //ESP32
+#if SMARTEVSE_VERSION >= 40 //ESP32
     Serial1.printf("SetCPDuty:%u\n", DutyCycle);
 #else
-#if SMARTEVSE_VERSION == 3 //ESP32
+#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40 //ESP32
     ledcWrite(CP_CHANNEL, DutyCycle);                                       // update PWM signal
 #endif
 #ifndef SMARTEVSE_VERSION  //CH32
@@ -708,7 +708,7 @@ void SetCPDuty(uint32_t DutyCycle){
 // Set Charge Current 
 // Current in Amps * 10 (160 = 16A)
 void SetCurrent(uint16_t current) {
-#if SMARTEVSE_VERSION == 4 //ESP32
+#if SMARTEVSE_VERSION >= 40 //ESP32
     Serial1.printf("SetCurrent:%u\n", current);
 #else
     uint32_t DutyCycle;
@@ -761,7 +761,7 @@ void setState(uint8_t NewState) { //c
         char Str[50];
         snprintf(Str, sizeof(Str), "%02d:%02d:%02d STATE %s -> %s\n",timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec, StrStateName[State], StrStateName[NewState] );
         _LOG_A("%s",Str);
-#if SMARTEVSE_VERSION == 4
+#if SMARTEVSE_VERSION >= 40
         Serial1.printf("State:%u\n", NewState); //a
 #endif
 #else //CH32
@@ -769,7 +769,7 @@ void setState(uint8_t NewState) { //c
 #endif
     }
 
-#if SMARTEVSE_VERSION != 4 //a
+#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32 //a
     switch (NewState) {
         case STATE_B1:
             if (!ChargeDelay) ChargeDelay = 3;                                  // When entering State B1, wait at least 3 seconds before switching to another state.
@@ -908,7 +908,7 @@ void setState(uint8_t NewState) { //c
 void setAccess(bool Access) { //c
 #ifdef SMARTEVSE_VERSION //v3 and v4
     Access_bit = Access;
-#if SMARTEVSE_VERSION == 4
+#if SMARTEVSE_VERSION >= 40
     Serial1.printf("Access:%u\n", Access_bit); //d
 #endif
     if (Access == 0) {
@@ -1058,7 +1058,7 @@ uint8_t Pilot() {
 }
 #endif
 
-#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION == 3   //CH32 and v3 ESP32
+#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
 // Is there at least 6A(configurable MinCurrent) available for a new EVSE?
 // Look whether there would be place for one more EVSE if we could lower them all down to MinCurrent
 // returns 1 if there is 6A available
@@ -1145,7 +1145,7 @@ char IsCurrentAvailable(void) {
 // mod =1 we have a new EVSE requesting to start charging.
 // only runs on the Master or when loadbalancing Disabled
 void CalcBalancedCurrent(char mod) {
-#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION == 3   //CH32 and v3 ESP32
+#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
     int Average, MaxBalanced, Idifference, Baseload_EV;
     int ActiveEVSE = 0;
     signed int IsumImport = 0;
@@ -1551,7 +1551,7 @@ uint8_t ow = 0, x;
     }
 #endif
 
-#if SMARTEVSE_VERSION != 4 //runs on v3 ESP32 or v4 CH32
+#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
     // once a second, measure temperature
     // range -40 .. +125C
     TempEVSE = TemperatureSensor();                                                             
@@ -1715,7 +1715,7 @@ uint8_t ow = 0, x;
 
 
 
-#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION == 3   //CH32 and v3 ESP32
+#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
 /**
  * Load Balancing 	Modbus Address  LoadBl
     Disabled     	0x01            0x00
@@ -2161,7 +2161,7 @@ static uint8_t PollEVNode = NR_EVSES, updated = 0;
         }
     }
 
-#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION == 3   //CH32 and v3 ESP32
+#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
     // Every 2 seconds, request measurements from modbus meters
     if (ModbusRequest) {                                                    // Slaves all have ModbusRequest at 0 so they never enter here
         switch (ModbusRequest) {                                            // State
@@ -2323,14 +2323,14 @@ static uint8_t PollEVNode = NR_EVSES, updated = 0;
 #endif
 }
 
-#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION == 3   //CH32 and v3 ESP32
+#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
 // Blink the RGB LED and LCD Backlight.
 //
 // NOTE: need to add multiple colour schemes 
 //
 // Task is called every 10ms
 void BlinkLed_singlerun(void) {
-#if SMARTEVSE_VERSION == 3
+#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
 static uint8_t LcdPwm = 0;
 static uint8_t RedPwm = 0, GreenPwm = 0, BluePwm = 0;
 static uint8_t LedCount = 0;                                                   // Raw Counter before being converted to PWM value
@@ -2541,7 +2541,7 @@ static unsigned int LedPwm = 0;                                                /
 #endif
 
 
-#if SMARTEVSE_VERSION == 3
+#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
 // Request handler for modbus messages addressed to -this- Node/Slave EVSE.
 // Sends response back to Master
 //
@@ -2939,7 +2939,7 @@ void CheckRS485Comm(void) { //looks like MBhandleData
 #endif
 
 void Timer10ms_singlerun(void) {
-#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION == 3   //CH32 and v3 ESP32
+#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
     static uint8_t DiodeCheck = 0;
     static uint16_t StateTimer = 0;                                                 // When switching from State B to C, make sure pilot is at 6v for 100ms
     BlinkLed_singlerun();
@@ -2972,7 +2972,7 @@ void Timer10ms_singlerun(void) {
     }
 #endif
 
-#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION == 3 //CH32 and v3
+#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40 //CH32 and v3
     // Check the external switch and RCM sensor
     ExtSwitch.CheckSwitch();
     // sample the Pilot line
@@ -3169,7 +3169,7 @@ void Timer10ms_singlerun(void) {
 
     } // end of State C code
 #endif //v3 and CH32
-#if SMARTEVSE_VERSION == 4 //v4
+#if SMARTEVSE_VERSION >= 40 //v4
     //ESP32 receives info from CH32
     if (Serial1.available()) {
         //Serial.printf("[<-] ");        // Data available from mainboard?
@@ -3369,7 +3369,7 @@ void Timer1S(void * parameter) {
     } // while(1) loop
 }
 
-#if SMARTEVSE_VERSION == 3 //does not run on v4
+#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40 //does not run on v4
 void BlinkLed(void * parameter) {
     // infinite loop
     while(1) {
@@ -3428,7 +3428,7 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
             ImportCurrent = val;
             break;
         case MENU_LOADBL:
-#if SMARTEVSE_VERSION == 3
+#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
             ConfigureModbusMode(val);
 #endif
             LoadBl = val;
@@ -3676,7 +3676,7 @@ uint16_t getItemValue(uint8_t nav) {
     }
 }
 
-//#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION == 3 //not on ESP32 v4
+//#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40 //not on ESP32 v4
 /**
  * Returns the known battery charge rate if the data is not too old.
  * Returns 0 if data is too old.

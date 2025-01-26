@@ -61,7 +61,7 @@
 #define PIN_LEDR 2
 #define PIN_CPOFF 15
 
-#if SMARTEVSE_VERSION == 3
+#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
 #define SPI_MOSI 33                                                             // SPI connections to LCD
 #define SPI_MISO -1
 #define SPI_SCK 26
@@ -156,7 +156,7 @@
 #define STATE_ACTSTART 8                                                        // I Activation mode in progress
 #define STATE_B1 9                                                              // J Vehicle connected / EVSE not ready to deliver energy: no PWM signal
 #define STATE_C1 10                                                             // K Vehicle charging / EVSE not ready to deliver energy: no PWM signal (temp state when stopping charge from EVSE)
-//#if SMARTEVSE_VERSION == 3 TODO
+//#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40 TODO
 #define STATE_MODEM_REQUEST 11                                                          // L Vehicle connected / requesting ISO15118 communication, 0% duty
 #define STATE_MODEM_WAIT 12                                                          // M Vehicle connected / requesting ISO15118 communication, 5% duty
 #define STATE_MODEM_DONE 13                                                // Modem communication succesful, SoCs extracted. Here, re-plug vehicle
@@ -395,7 +395,7 @@ MicroOcpp::TxNotification ocppGetTxNotification();
 bool ocppLockingTxDefined();
 #endif //ENABLE_OCPP
 
-#if SMARTEVSE_VERSION == 4
+#if SMARTEVSE_VERSION >= 40
 // Pin definitions
 #define PIN_QCA700X_INT 9           // SPI connections to QCA7000X
 #define PIN_QCA700X_CS 11           // on ESP-S3 with OCTAL flash/PSRAM, GPIO pins 33-37 can not be used!
