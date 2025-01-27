@@ -167,6 +167,7 @@ CAPACITY      (only appears when a MAINSMET is configured):
 CAP STOP      (only appears when CAPACITY is configured):
               Timer in minutes; if CAPACITY is exceeded, we do not immediately stop
               charging but wait until the timer expires.
+              If set to "Disabled", charging stops immediately when CAPACITY is exceeded
 
 The following options are only shown when MODE is set to <Solar> and
 PWR SHARE set to <Disabled> or <Master>:
