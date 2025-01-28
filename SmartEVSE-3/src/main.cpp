@@ -3208,9 +3208,7 @@ void Timer10ms_singlerun(void) {
 
         strncpy(token, "MSG:", sizeof(token));                              // if a command starts with MSG: the rest of the line is no longer parsed
         ret = strstr(SerialBuf, token);
-        if (ret != NULL) {
-            _LOG_A("WCH %s.\n,", SerialBuf);
-        } else {                                                            // parse the line
+        if (ret == NULL) {
 /*                ret = strstr(SerialBuf, "Pilot:");
             //  [<-] Pilot:6,State:0,ChargeDelay:0,Error:0,Temp:34,Lock:0,Mode:0,Access:1
             if (ret != NULL) {
