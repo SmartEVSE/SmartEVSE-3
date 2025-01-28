@@ -594,6 +594,7 @@ int8_t TemperatureSensor() {
     uint32_t TempAvg = 0;
     uint8_t n;
     int8_t Temperature;
+    static int8_t Old_Temperature = 255;
 
     for(n=0; n<NUM_ADC_SAMPLES; n++) TempAvg += ADC_Temp[n];
     TempAvg = TempAvg / NUM_ADC_SAMPLES ;
@@ -604,9 +605,10 @@ int8_t TemperatureSensor() {
     // 3.3V / 4096(12bit ADC) = ~ 800uV/step. Convert measurement to mV*10 by multiplying by 8
     // Subtract 500mV offset, and finally divide by 100 to convert to C.
     Temperature = (int16_t)((TempAvg *8)- 5000)/100;
-
-    //printf("Temp: %i C (%u mV*10)\n", Temperature , TempAvg);
-    printf("Temp:%u\n", Temperature); //send data to ESP32
+    if (Temperature != Old_Temperature) {
+        printf("Temp:%u\n", Temperature); //send data to ESP32
+        Old_Temperature = Temperature;
+    }
     return Temperature;
 }
 
