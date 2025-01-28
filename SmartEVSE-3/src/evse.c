@@ -157,7 +157,7 @@ void EXTI9_5_IRQHandler()
 }
 
 // Serial comm interrupt handler between WCH and ESP
-// 115200 bps
+// FUNCONF_UART_PRINTF_BAUD bps
 void USART1_IRQHandler(void) __attribute__((interrupt));
 void USART1_IRQHandler()
 {
@@ -342,7 +342,7 @@ void UsartInit(void)
     RCC->APB2PRSTR |= RCC_APB2Periph_USART1;
     RCC->APB2PRSTR &= ~RCC_APB2Periph_USART1;
 
-    USART1->BRR = FUNCONF_SYSTEM_CORE_CLOCK / 115200;             // USART1 Serial comm between ESP32 and WCH @ 115200bps
+    USART1->BRR = FUNCONF_SYSTEM_CORE_CLOCK / FUNCONF_UART_PRINTF_BAUD;             // USART1 Serial comm between ESP32 and WCH @ FUNCONF_UART_PRINTF_BAUDbps
     // Enable Uart1, TX, RX and Receive interrupt
     USART1->CTLR1 = USART_CTLR1_UE  | USART_CTLR1_TE | USART_CTLR1_RE | USART_CTLR1_RXNEIE;// | USART_CTLR1_TXEIE;
 
@@ -713,7 +713,7 @@ void setup(void) {
 	SysTick->CTLR = 1;                              // Enable SysTick counter HCLK/8, count up
     
 	GPIOInit();
-	UsartInit();                                    // Usart1 = 115200. Usart2 = Modbus 9600bps 8N1
+	UsartInit();                                    // Usart1 = FUNCONF_UART_PRINTF_BAUD bps. Usart2 = Modbus 9600bps 8N1
 	DMAInit();                                      // DMA transfer for Uart1 TX
 
 	// Note that printf will only actually send data to the uart, when it detects a newline, or after a timeout

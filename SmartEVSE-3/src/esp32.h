@@ -72,6 +72,8 @@
 #define GREEN_CHANNEL 3
 #define BLUE_CHANNEL 4
 #define LCD_CHANNEL 5                                                           // LED Backlight LCD
+#else
+#include "funconfig.h"
 #endif //SMARTEVSE_VERSION
 
 #define PWM_5 50                                                                // 5% of PWM

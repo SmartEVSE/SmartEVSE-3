@@ -2668,6 +2668,7 @@ void setup() {
         _LOG_A("Firmware update failed.\n");
     } else _LOG_D("WCH programming done\n");
 
+    Serial1.begin(FUNCONF_UART_PRINTF_BAUD, SERIAL_8N1, USART_RX, USART_TX, false);       // Serial connection to main board microcontroller
     // should not be needed to reset the WCH ic at powerup/reset on the production version.
     _LOG_D("reset WCH ic\n");
     WchReset();
