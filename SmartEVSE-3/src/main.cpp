@@ -910,7 +910,7 @@ uint8_t Pilot() {
     if ((Min >= 2000) && (Max < 2400)) ret = PILOT_3V;                      // Pilot at 3V
     if ((Min > 100) && (Max < 350)) ret = PILOT_DIODE;                      // Diode Check OK
     if (ret != old_pilot) {
-        //printf("Pilot:%u\n", ret); //d
+        printf("Pilot:%u\n", ret); //d
         old_pilot = ret;
     }
     return ret;
