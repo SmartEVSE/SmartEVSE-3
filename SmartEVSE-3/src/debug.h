@@ -33,7 +33,8 @@
 #define VERSION (__TIME__ " @" __DATE__)
 #endif
 
-#if DBG == 0 || (!defined(SMARTEVSE_VERSION) && DBG == 1)
+
+#if (defined(SMARTEVSE_VERSION) && DBG == 0) || (!defined(SMARTEVSE_VERSION) && DBG_CH32 == 0)
 //used to steer RemoteDebug
 #define DEBUG_DISABLED 1
 #define _LOG_W( ... ) //dummy
@@ -69,8 +70,7 @@ extern RemoteDebug Debug;
 
 #define EVSE_LOG_FORMAT(letter, format) "[%6u][" #letter "][%s:%u] %s(): " format , (uint32_t) (esp_timer_get_time() / 1000ULL), pathToFileName(__FILE__), __LINE__, __FUNCTION__
 
-#if DBG == 2
-#ifdef SMARTEVSE_VERSION //ESP32
+#if DBG == 2 && defined(SMARTEVSE_VERSION) //only on ESP32
 #define DEBUG_DISABLED 1
 #if LOG_LEVEL >= 1  // Errors
 #define _LOG_A(fmt, ... ) Serial.printf(EVSE_LOG_FORMAT(E, fmt), ##__VA_ARGS__)
@@ -107,8 +107,11 @@ extern RemoteDebug Debug;
 #define _LOG_V( ... ) 
 #define _LOG_V_NO_FUNC( ... )
 #endif
-#else //CH32
+#endif //ESP32
+
+#if !defined(SMARTEVSE_VERSION) && (DBG_CH32 == 1 || DBG_CH32 == 2) //CH32
 #define DEBUG_DISABLED 1
+#define LOG_LEVEL 5
 #if LOG_LEVEL >= 1  // Errors
 #define _LOG_A_NO_FUNC( ... ) printf ( "MSG:" __VA_ARGS__ )
 #define _LOG_A( ... ) printf ( "MSG:" __VA_ARGS__ )
@@ -144,7 +147,6 @@ extern RemoteDebug Debug;
 #define _LOG_V( ... ) 
 #define _LOG_V_NO_FUNC( ... )
 #endif
-#endif //SMARTEVSE_VERSION
-#endif  // if DBG == 2
+#endif //CH32
 
 #endif
