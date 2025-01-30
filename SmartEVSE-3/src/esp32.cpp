@@ -2667,6 +2667,9 @@ void setup() {
     }
 
 #if NO_FLASH_CH32_ON_BOOT != 1
+    // we reset before flashing because when the WCH chip is sending messages (by printf) the programming can fail
+    _LOG_D("reset WCH ic\n");
+    WchReset();
     if (WchFirmwareUpdate()) {
         _LOG_A("Firmware update failed.\n");
     } else _LOG_D("WCH programming done\n");
