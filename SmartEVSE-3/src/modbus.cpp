@@ -41,6 +41,7 @@ extern struct EMstruct EMConfig[EM_CUSTOM + 1];
 #endif
 
 #include "modbus.h"
+
 struct ModBus MB;
 
 #ifdef SMARTEVSE_VERSION //ESP32
@@ -138,7 +139,7 @@ void ModbusSend8(uint8_t address, uint8_t function, uint16_t reg, uint16_t data)
 
 // ########################### Modbus main functions ###########################
 
-
+#if !defined(SMARTEVSE_VERSION) || (SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40) //CH32 and v3 ESP32
 
 /**
  * Request read holding (FC=3) or read input register (FC=04) to a device over modbus
@@ -186,6 +187,32 @@ void ModbusWriteSingleRequest(uint8_t address, uint16_t reg, uint16_t value) {
     MB.RequestRegister = reg;
     ModbusSend8(address, 0x06, reg, value);  
 }
+
+
+/**
+ * Response write single register (FC=06) to a device over modbus
+ *
+ * @param uint8_t address
+ * @param uint16_t register
+ * @param uint16_t value
+ */
+void ModbusWriteSingleResponse(uint8_t address, uint16_t reg, uint16_t value) {
+    ModbusSend8(address, 0x06, reg, value);
+}
+
+
+/**
+ * Response write multiple register (FC=16) to a device over modbus
+ *
+ * @param uint8_t address
+ * @param uint16_t register
+ * @param uint16_t count
+ */
+void ModbusWriteMultipleResponse(uint8_t address, uint16_t reg, uint16_t count) {
+    ModbusSend8(address, 0x10, reg, count);
+}
+
+#endif
 
 #ifdef SMARTEVSE_VERSION //ESP32
 
@@ -242,18 +269,6 @@ void ModbusException(uint8_t address, uint8_t function, uint8_t exception) {
 
 
 /**
- * Response write single register (FC=06) to a device over modbus
- * 
- * @param uint8_t address
- * @param uint16_t register
- * @param uint16_t value
- */
-void ModbusWriteSingleResponse(uint8_t address, uint16_t reg, uint16_t value) {
-    ModbusSend8(address, 0x06, reg, value);  
-}
-
-
-/**
  * Request write multiple register (FC=16) to a device over modbus
  * 
  * @param uint8_t address
@@ -296,17 +311,6 @@ void ModbusWriteMultipleRequest(uint8_t address, uint16_t reg, uint16_t *values,
     funDigitalWrite(RS485_DIR, FUN_HIGH);
     // enable transmit interrupt
     USART2->CTLR1 |= USART_CTLR1_TXEIE;  
-}
-
-/**
- * Response write multiple register (FC=16) to a device over modbus
- * 
- * @param uint8_t address
- * @param uint16_t register
- * @param uint16_t count
- */
-void ModbusWriteMultipleResponse(uint8_t address, uint16_t reg, uint16_t count) {
-    ModbusSend8(address, 0x10, reg, count);
 }
 
 /**
@@ -547,6 +551,8 @@ void requestCurrentMeasurement(uint8_t Meter, uint8_t Address) {
     }  
 }
 
+
+#if !defined(SMARTEVSE_VERSION) || (SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40) //CH32 and v3 ESP32
 /**
  * Map a Modbus register to an item ID (MENU_xxx or STATUS_xxx)
  * 
@@ -584,7 +590,6 @@ uint8_t mapModbusRegister2ItemID() {
     }
 }
 
-#ifndef SMARTEVSE_VERSION //CH32
 
 /**
  * Read item values and send modbus response
@@ -617,7 +622,15 @@ void WriteItemValueResponse(void) {
     if (ItemID) {
         OK = setItemValue(ItemID, MB.Value);
     }
-    //if (OK && ItemID < STATUS_STATE) write_settings();        // TODO
+    _LOG_V("Broadcast received FC06 Item:%u val:%u\n",ItemID, MB.Value);
+
+    if (OK && ItemID < STATUS_STATE) {
+#if !defined(SMARTEVSE_VERSION) //CH32
+        printf("write_settings\n");
+#else
+        write_settings();
+#endif
+    }
 
     if (MB.Address != BROADCAST_ADR || LoadBl == 0) {
         if (!ItemID) {
@@ -646,7 +659,13 @@ void WriteMultipleItemValueResponse(void) {
         }
     }
 
-    //if (OK && ItemID < STATUS_STATE) write_settings();        // TODO
+    if (OK && ItemID < STATUS_STATE) {
+#if !defined(SMARTEVSE_VERSION) //CH32
+        printf("write_settings\n");
+#else
+        write_settings();
+#endif
+    }
 
     if (MB.Address != BROADCAST_ADR || LoadBl == 0) {
         if (!ItemID) {
@@ -658,5 +677,4 @@ void WriteMultipleItemValueResponse(void) {
         }
     }
 }
-
 #endif

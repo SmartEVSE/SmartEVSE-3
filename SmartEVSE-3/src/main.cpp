@@ -2559,6 +2559,54 @@ static unsigned int LedPwm = 0;                                                /
 #endif
 
 
+#if !defined(SMARTEVSE_VERSION) || (SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40) //CH32 and v3 ESP32
+void HandleModbusRequest(void) {
+        // Broadcast or addressed to this device
+        switch (MB.Function) {
+            // FC 03 and 04 are not possible with broadcast messages.
+            case 0x03: // (Read holding register)
+            case 0x04: // (Read input register)
+                // Addressed to this device
+                _LOG_V("read register(s) ");
+                if (MB.Address != BROADCAST_ADR) {
+                    ReadItemValueResponse();
+                }
+                break;
+            case 0x06: // (Write single register)
+                WriteItemValueResponse();
+                break;
+            case 0x10: // (Write multiple register))
+                // 0x0020: Balance currents
+                if (MB.Register == 0x0020 && LoadBl > 1) {      // Message for Node(s)
+                    Balanced[0] = (MB.Data[(LoadBl - 1) * 2] <<8) | MB.Data[(LoadBl - 1) * 2 + 1];
+                    if (Balanced[0] == 0 && State == STATE_C) setState(STATE_C1);               // tell EV to stop charging if charge current is zero
+                    else if ((State == STATE_B) || (State == STATE_C)) SetCurrent(Balanced[0]); // Set charge current, and PWM output
+                    MainsMeter.Timeout = COMM_TIMEOUT;                          // reset 10 second timeout
+                    _LOG_V("Broadcast received, Node %.1f A, MainsMeter Irms ", (float) Balanced[0]/10);
+
+                    //now decode registers 0x0028-0x002A
+                    if (MB.DataLength >= 16+6) {
+                        Isum = 0;
+                        for (int i=0; i<3; i++ ) {
+                            int16_t combined = (MB.Data[(i * 2) + 16] <<8) + MB.Data[(i * 2) + 17]; 
+                            Isum = Isum + combined;
+                            MainsMeter.Irms[i] = combined;
+                            _LOG_V_NO_FUNC("L%i=%.1fA,", i+1, (float)MainsMeter.Irms[i]/10);
+                        }
+                        _LOG_V_NO_FUNC("\n");
+                    }
+                } else {
+
+                    WriteMultipleItemValueResponse();
+                    _LOG_V("Other Broadcast received\n");
+                }
+                break;
+            default:
+                break;
+        }
+}
+#endif
+
 #if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
 // Request handler for modbus messages addressed to -this- Node/Slave EVSE.
 // Sends response back to Master
@@ -2658,64 +2706,9 @@ ModbusMessage MBEVMeterResponse(ModbusMessage request) {
 // The Node/Server receives a broadcast message from the Master
 // Does not send any data back.
 ModbusMessage MBbroadcast(ModbusMessage request) {
-    uint8_t ItemID, i, OK = 0;
-    uint16_t value;
-    int16_t combined;
-
     ModbusDecode( (uint8_t*)request.data(), request.size());
-    ItemID = mapModbusRegister2ItemID();
-
     if (MB.Type == MODBUS_REQUEST) {
-
-        // Broadcast or addressed to this device
-        switch (MB.Function) {
-            // FC 03 and 04 are not possible with broadcast messages.
-            case 0x06: // (Write single register)
-                //WriteItemValueResponse();
-                if (ItemID) {
-                    OK = setItemValue(ItemID, MB.Value);
-                }
-
-                if (OK && ItemID < STATUS_STATE) write_settings();
-                _LOG_V("Broadcast received FC06 Item:%u val:%u\n",ItemID, MB.Value);
-                break;
-            case 0x10: // (Write multiple register))
-                // 0x0020: Balance currents
-                if (MB.Register == 0x0020 && LoadBl > 1) {      // Message for Node(s)
-                    Balanced[0] = (MB.Data[(LoadBl - 1) * 2] <<8) | MB.Data[(LoadBl - 1) * 2 + 1];
-                    if (Balanced[0] == 0 && State == STATE_C) setState(STATE_C1);               // tell EV to stop charging if charge current is zero
-                    else if ((State == STATE_B) || (State == STATE_C)) SetCurrent(Balanced[0]); // Set charge current, and PWM output
-                    MainsMeter.Timeout = COMM_TIMEOUT;                          // reset 10 second timeout
-                    _LOG_V("Broadcast received, Node %.1f A, MainsMeter Irms ", (float) Balanced[0]/10);
-
-                    //now decode registers 0x0028-0x002A
-                    if (MB.DataLength >= 16+6) {
-                        Isum = 0;    
-                        for (i=0; i<3; i++ ) {
-                            combined = (MB.Data[(i * 2) + 16] <<8) + MB.Data[(i * 2) + 17]; 
-                            Isum = Isum + combined;
-                            MainsMeter.Irms[i] = combined;
-                            _LOG_V_NO_FUNC("L%i=%.1fA,", i+1, (float)MainsMeter.Irms[i]/10);
-                        }
-                        _LOG_V_NO_FUNC("\n");
-                    }
-                } else {
-
-                    //WriteMultipleItemValueResponse();
-                    if (ItemID) {
-                        for (i = 0; i < MB.RegisterCount; i++) {
-                            value = (MB.Data[i * 2] <<8) | MB.Data[(i * 2) + 1];
-                            OK += setItemValue(ItemID + i, value);
-                        }
-                    }
-
-                    if (OK && ItemID < STATUS_STATE) write_settings();
-                    _LOG_V("Other Broadcast received\n");
-                }    
-                break;
-            default:
-                break;
-        }
+        HandleModbusRequest();
     }
 
     // As it is a broadcast message, do not send response.
@@ -2901,46 +2894,12 @@ void CheckRS485Comm(void) { //looks like MBhandleData
 
         // Broadcast or addressed to this device
         if (MB.Address == BROADCAST_ADR || (LoadBl > 0 && MB.Address == LoadBl)) {
-            switch (MB.Function) {
-                case 0x03: // (Read holding register)
-                case 0x04: // (Read input register)
-                    // Addressed to this device
-                    printf("read register(s) ");
-                    if (MB.Address != BROADCAST_ADR) {
-                        ReadItemValueResponse();
-                    }
-                    break;
-                case 0x06: // (Write single register)
-                    printf("write register ");
-                    WriteItemValueResponse();
-                    break;
-                case 0x10: // (Write multiple register))
-                    // 0x0020: Balance currents
-                    if (MB.Register == 0x0020 && LoadBl > 1) {      // Message for Node(s)
-                        Balanced[0] = (MB.Data[(LoadBl - 1) * 2] <<8) | MB.Data[(LoadBl - 1) * 2 + 1];
-                        if (Balanced[0] == 0 && State == STATE_C) setState(STATE_C1);               // tell EV to stop charging if charge current is zero
-                        else if ((State == STATE_B) || (State == STATE_C)) SetCurrent(Balanced[0]); // Set charge current, and PWM output
-#ifdef LOG_DEBUG_MODBUS
-                        printf("Broadcast received, Node %u.%1u A\n", Balanced[0]/10, Balanced[0]%10);
-#endif
-                        MainsMeter.Timeout = 10;                                   // reset 10 second timeout
-                    } else {
-                        printf("write multiple registers ");
-                        WriteMultipleItemValueResponse();
-                    }
-                    break;
-                default:
-                    break;
-            }
+            HandleModbusRequest();
         }
     } else if (MB.Type == MODBUS_EXCEPTION) {
-#ifdef LOG_DEBUG_MODBUS
-        printf("Modbus Address %02x exception %u received\n", MB.Address, MB.Exception);
-#endif
-#ifdef LOG_WARN_MODBUS
+        _LOG_D("Modbus Address %02x exception %u received\n", MB.Address, MB.Exception);
     } else {
-        printf("\nCRC invalid\n");
-#endif
+        _LOG_D("\nCRC invalid\n");
     }
 
 
@@ -3229,6 +3188,7 @@ void Timer10ms_singlerun(void) {
             }
             CALL_ON_RECEIVE_PARAM(Access:, setAccess)
             CALL_ON_RECEIVE_PARAM(Mode:, setMode)
+            CALL_ON_RECEIVE(write_settings)
             SET_ON_RECEIVE(Pilot:, pilot)
             SET_ON_RECEIVE(Temp:, TempEVSE)
             SET_ON_RECEIVE(State:, State)
