@@ -616,7 +616,7 @@ void setStatePowerUnavailable(void) {
     if (State == STATE_C) setState(STATE_C1);                       // If we are charging, tell EV to stop charging
     else if (State != STATE_C1) setState(STATE_B1);                 // If we are not in State C1, switch to State B1
 #else //v4 ESP32
-    printf("setStatePowerUnavailable:\n");
+    printf("setStatePowerUnavailable\n");
 #endif
 }
 
