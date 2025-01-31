@@ -751,6 +751,123 @@ void setTimeZone(void * parameter) {
     vTaskDelete(NULL);                                                          //end this task so it will not take up resources
 }
 
+String homeWizardHost;
+
+/**
+ * @brief Discovers a HomeWizard P1 meter service on the local network.
+ *
+ * This function uses mDNS to search for services advertising "_hwenergy._tcp" on the local network.
+ *
+ * @return A string containing the hostname and port of the first matching HomeWizard P1 meter service
+ * or an empty string in case no HomeWizard P1 meter is found in the local network
+ */
+String discoverHomeWizardP1() {
+
+    // If there's a cached result, return it immediately
+    if (!homeWizardHost.isEmpty()) {
+        _LOG_A("discoverHWP1(): Using cached host '%s'.\n", homeWizardHost.c_str());
+        return homeWizardHost;
+    }
+
+    // Search for _hwenergy._tcp services.
+    // https://api-documentation.homewizard.com/docs/discovery/
+    const int n = MDNS.queryService("hwenergy", "tcp");
+    if (n < 0) {
+        _LOG_A("discoverHWP1(): MDNS query failed.\n");
+    } else if (n == 0) {
+        _LOG_A("discoverHWP1(): No MDNS services found.\n");
+    } else {
+        for (int i = 0; i < n; i++) {
+            String hostname = MDNS.hostname(i);
+            if (hostname.startsWith("p1meter-")) {
+                const uint16_t port = MDNS.port(i);
+                _LOG_A("discoverHWP1(): Found HWP1 service: %s.local (%s:%d)\n", hostname.c_str(),
+                       MDNS.IP(i).toString().c_str(), port);
+
+                // Return first match.
+                // Cache the result before returning it
+                homeWizardHost = hostname + ".local" + (port != 80 ? ":" + String(port) : "");
+                return homeWizardHost;
+            }
+        }
+        _LOG_A("discoverHWP1(): No matching HWP1 service found.\n");
+    }
+    return "";
+}
+
+/**
+ * @brief Retrieves active current values from a HomeWizard P1 meter API.
+ *
+ * This function sends an HTTP GET request to the specified URL to fetch the active current data
+ * in JSON format, parses the JSON response, and retrieves specific fields for current.
+ *
+ * @return A pair containing:
+ *     - A boolean flag indicating success or failure
+ *     - An array of 3 values representing the active current in amps for L1, L2, and L3
+ */
+std::pair<bool, std::array<std::int8_t, 3> > getMainsFromHomeWizardP1() {
+
+    _LOG_A("getMainsFromHWP1(): invocation\n");
+    const String hostname = discoverHomeWizardP1();
+    if (hostname == "") {
+        return {false, {0, 0, 0}};
+    }
+
+    const String url = "http://" + hostname + "/api/v1/data";
+    _LOG_A("getMainsFromHWP1(): connect to URL %s\n", url.c_str());
+
+    HTTPClient httpClient;
+    httpClient.begin(url);
+
+    // Add headers
+    httpClient.addHeader("User-Agent", "SmartEVSE-v3");
+    httpClient.addHeader("Accept", "application/json");
+    // The HTTPClient library already sets Connection: keep-alive by default.
+    httpClient.setTimeout(4000);
+
+    // Handle HTTP errors or timeout.
+    const int httpCode = httpClient.GET();
+    if (httpCode != HTTP_CODE_OK) {
+        _LOG_A("getMainsFromHWP1(): Error on HTTP request (httpCode=%i), url=%s.\n", httpCode, url);
+        httpClient.end(); // Always cleanup
+        return {false, {0, 0, 0}};
+    }
+
+    // Get the response stream
+    WiFiClient *stream = httpClient.getStreamPtr();
+
+    // Create a filter to parse only specific fields
+    StaticJsonDocument<96> filter;
+    filter["active_current_l1_a"] = true;
+    filter["active_current_l2_a"] = true;
+    filter["active_current_l3_a"] = true;
+
+    // Create a filtered JSON document to hold the parsed data.
+    DynamicJsonDocument doc(256);
+    const DeserializationError error = deserializeJson(doc, *stream, DeserializationOption::Filter(filter));
+    httpClient.end();
+
+    // Handle JSON parsing errors.
+    if (error) {
+        _LOG_A("getMainsFromHWP1(): JSON deserialization failed: %s\n", error.c_str());
+        return {false, {0, 0, 0}};
+    }
+
+    // Extract specific fields.
+    if (doc.containsKey("active_current_l1_a") &&
+        doc.containsKey("active_current_l2_a") &&
+        doc.containsKey("active_current_l3_a")) {
+        const int8_t L1 = doc["active_current_l1_a"];
+        const int8_t L2 = doc["active_current_l2_a"];
+        const int8_t L3 = doc["active_current_l3_a"];
+        return {true, {L1, L2, L3}};
+    }
+
+    // Fields not found.
+    _LOG_A("getMainsFromHWP1(): JSON fields 'active_current_l[1..3]_a' not found\n");
+    return {false, {0, 0, 0}};
+}
+
 
 void webServerRequest::setMessage(struct mg_http_message *hm) {
     hm_internal = hm;

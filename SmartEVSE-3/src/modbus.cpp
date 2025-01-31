@@ -512,6 +512,7 @@ void requestMeasurement(uint8_t Meter, uint8_t Address, uint16_t Register, uint8
 void requestCurrentMeasurement(uint8_t Meter, uint8_t Address) {
     switch(Meter) {
         case EM_API:
+        case EM_HOMEWIZARD_P1:
             break;
         case EM_SENSORBOX:
             if (SB2.SoftwareVer >= 1) {

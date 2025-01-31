@@ -1381,7 +1381,10 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
 
         doc["mains_meter"]["import_active_energy"] = round((float)MainsMeter.Import_active_energy / 100)/10; //in kWh, precision 1 decimal
         doc["mains_meter"]["export_active_energy"] = round((float)MainsMeter.Export_active_energy / 100)/10; //in kWh, precision 1 decimal
-
+        if (MainsMeter.Type == EM_HOMEWIZARD_P1) {
+            doc["mains_meter"]["host"] = !homeWizardHost.isEmpty() ? homeWizardHost : "HomeWizard P1 Not Found";
+        }
+          
         doc["phase_currents"]["TOTAL"] = MainsMeter.Irms[0] + MainsMeter.Irms[1] + MainsMeter.Irms[2];
         doc["phase_currents"]["L1"] = MainsMeter.Irms[0];
         doc["phase_currents"]["L2"] = MainsMeter.Irms[1];
@@ -2809,10 +2812,42 @@ bool fwNeedsUpdate(char * version) {
     return false;
 }
 
+/**
+  * Periodically retrieves current measurements from the HomeWizard P1 energy meter
+  * and updates the main meter's currents.
+  *
+  * This function ensures a delay of at least 5 seconds between consecutive data retrieval attempts.
+  */
+void homewizard_loop() {
+    static unsigned long lastCheck_homewizard = 0;
+
+    constexpr unsigned long interval = 5000; // 5 seconds
+    const unsigned long currentTime = millis();
+
+    if (currentTime - lastCheck_homewizard < interval) {
+        return;
+    }
+
+    _LOG_A("homewizard_loop(): start HomeWizrd P1 reading.");
+    lastCheck_homewizard = currentTime;
+
+    const auto currents = getMainsFromHomeWizardP1();
+    if (currents.first) {
+        MainsMeter.Irms[0] = currents.second[0] * 10;
+        MainsMeter.Irms[1] = currents.second[1] * 10;
+        MainsMeter.Irms[2] = currents.second[2] * 10;
+        CalcIsum();
+        MainsMeter.Timeout = COMM_TIMEOUT;
+    }
+}
 
 void loop() {
 
     network_loop();
+    if (MainsMeter.Type == EM_HOMEWIZARD_P1 && LoadBl < 2) {
+        homewizard_loop();
+    }
+    
     static unsigned long lastCheck = 0;
     if (millis() - lastCheck >= 1000) {
         lastCheck = millis();
