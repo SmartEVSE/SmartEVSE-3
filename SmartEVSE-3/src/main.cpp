@@ -2608,6 +2608,32 @@ void HandleModbusRequest(void) {
                 break;
         }
 }
+
+
+void HandleModbusResponse(void) {
+    //printf("MSG: Modbus Response Address %u / Function %02x / Register %02x\n",MB.Address,MB.Function,MB.Register);
+    switch (MB.Function) {
+        case 0x03: // (Read holding register)
+        case 0x04: // (Read input register)
+            if (MainsMeter.Type && MB.Address == MainsMeter.Address) {
+                MainsMeter.ResponseToMeasurement();
+            } else if (EVMeter.Type && MB.Address == EVMeter.Address) {
+                EVMeter.ResponseToMeasurement();
+            } else if (LoadBl == 1 && MB.Address > 1 && MB.Address <= NR_EVSES) {
+                // Packet from a Node EVSE, only for Master!
+                if (MB.Register == 0x0000) {
+                    // Node status
+                    receiveNodeStatus(MB.Data, MB.Address - 1u);
+                }  else if (MB.Register == 0x0108) {
+                    // Node configuration
+                    receiveNodeConfig(MB.Data, MB.Address - 1u);
+                }
+            }
+            break;
+        default:
+            break;
+    }
+}
 #endif
 
 #if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
@@ -2617,9 +2643,6 @@ ModbusMessage response;     // response message to be sent back
 //
 ModbusMessage MBNodeRequest(ModbusMessage request) {
     ModbusMessage tmp; response = tmp; //clear global response message
-    uint8_t ItemID;
-    uint8_t i, OK = 0;
-    uint16_t value, values[MODBUS_MAX_REGISTER_READ];
     
     // Check if the call is for our current ServerID, or maybe for an old ServerID?
     if (LoadBl != request.getServerID()) return NIL_RESPONSE;
@@ -2660,60 +2683,10 @@ ModbusMessage MBbroadcast(ModbusMessage request) {
 // Responses from Slaves/Nodes are handled here
 void MBhandleData(ModbusMessage msg, uint32_t token) 
 {
-    uint8_t Address = msg.getServerID();    // returns Server ID or 0 if MM_data is shorter than 3
-    if (Address == MainsMeter.Address) {
-        //_LOG_A("MainsMeter data\n");
-        ModbusDecode( (uint8_t*)msg.data(), msg.size());
-        MainsMeter.ResponseToMeasurement();
-    } else if (Address == EVMeter.Address) {
-        //_LOG_A("EV Meter data\n");
-        MBEVMeterResponse(msg);
-    // Only responses to FC 03/04 are handled here. FC 06/10 response is only a acknowledge.
-    } else {
-        //_LOG_V("Received Packet with ServerID=%i, FunctionID=%i, token=%08x.\n", msg.getServerID(), msg.getFunctionCode(), token);
-        ModbusDecode( (uint8_t*)msg.data(), msg.size());
-        // ModbusDecode does NOT always decodes the register correctly.
-        // This bug manifested itself as the <Mode=186 bug>:
-
-        // (Timer100ms)(C1) ModbusRequest 4: Request Configuration Node 1
-        // (D) (ModbusSend8)(C1) Sent packet address: 02, function: 04, reg: 0108, data: 0002.
-        // (D) (ModbusDecode)(C0) Received packet (7 bytes) 02 04 04 00 00 00 0c
-        // (V) (ModbusDecode)(C0)  valid Modbus packet: Address 02 Function 04 Register 0000 Response
-        // (D) (receiveNodeStatus)(C0) ReceivedNode[1]Status State:0 Error:12, BalancedMax:2530, Mode:186, ConfigChanged:253.
-
-        // The response is the response for a request of node config 0x0108, but is interpreted as a request for node status 0x0000
-        //
-        // Using a global variable struct ModBus MB is not a good idea, but localizing it does not
-        // solve the problem.
-
-        // Luckily we have coded the register in the token we sent....
-        // token: first byte address, second byte function, third and fourth reg
-        uint8_t token_function = (token & 0x00FF0000) >> 16;
-        uint8_t token_address = token >> 24;
-        if (token_address != MB.Address) {
-            _LOG_A("ERROR: Address=%u, MB.Address=%u, token_address=%u.\n", Address, MB.Address, token_address);
-        }    
-        if (token_function != MB.Function) {
-            _LOG_A("ERROR: MB.Function=%u, token_function=%u.\n", MB.Function, token_function);
-        }    
-        uint16_t reg = (token & 0x0000FFFF);
-        MB.Register = reg;
-
-        if (MB.Address > 1 && MB.Address <= NR_EVSES && (MB.Function == 03 || MB.Function == 04)) {
-        
-            // Packet from Node EVSE
-            if (MB.Register == 0x0000) {
-                // Node status
-            //    _LOG_A("Node Status received\n");
-                receiveNodeStatus(MB.Data, MB.Address - 1u);
-            }  else if (MB.Register == 0x0108) {
-                // Node EV meter settings
-            //    _LOG_A("Node EV Meter settings received\n");
-                receiveNodeConfig(MB.Data, MB.Address - 1u);
-            }
-        }
-    }
-
+    ModbusDecode( (uint8_t*)msg.data(), msg.size());
+    if (MB.Function > 4)
+        _LOG_A("WARNING: response NOT HANDLED: address: %02x, function: %02x, reg: %04x.\n", MB.Address, MB.Function, MB.Register);
+    HandleModbusResponse(); //now responses from functions other then 3 or 4 are not handled?!?
 }
 
 
@@ -2806,28 +2779,7 @@ void CheckRS485Comm(void) { //looks like MBhandleData
 
     // Data received is a response to an earlier request from the master.
     if (MB.Type == MODBUS_RESPONSE) {
-        //printf("MSG: Modbus Response Address %u / Function %02x / Register %02x\n",MB.Address,MB.Function,MB.Register);
-        switch (MB.Function) {
-            case 0x03: // (Read holding register)
-            case 0x04: // (Read input register)
-                if (MainsMeter.Type && MB.Address == MainsMeter.Address) {
-                    MainsMeter.ResponseToMeasurement();
-                } else if (EVMeter.Type && MB.Address == EVMeter.Address) {
-                    EVMeter.ResponseToMeasurement();
-                } else if (LoadBl == 1 && MB.Address > 1 && MB.Address <= NR_EVSES) {
-                    // Packet from a Node EVSE, only for Master!
-                    if (MB.Register == 0x0000) {
-                        // Node status
-                        receiveNodeStatus(MB.Data, MB.Address - 1u);
-                    }  else if (MB.Register == 0x0108) {
-                        // Node configuration
-                        receiveNodeConfig(MB.Data, MB.Address - 1u);
-                    }
-                }
-                break;
-            default:
-                break;
-        }
+        HandleModbusResponse();
     // Data received is a request from the master to a device on the bus.
     } else if (MB.Type == MODBUS_REQUEST) { //looks like MBBroadcast
         //printf("Modbus Request Address %u / Function %02x / Register %02x\n",MB.Address,MB.Function,MB.Register);
