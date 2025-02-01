@@ -45,6 +45,7 @@ extern struct EMstruct EMConfig[EM_CUSTOM + 1];
 struct ModBus MB;
 
 #ifdef SMARTEVSE_VERSION //ESP32
+extern ModbusMessage response;
 
 // ########################## Modbus helper functions ##########################
 
@@ -165,13 +166,19 @@ void ModbusReadInputRequest(uint8_t address, uint8_t function, uint16_t reg, uin
  * @param uint16_t pointer to values
  * @param uint8_t count of values
  */
+#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
 void ModbusReadInputResponse(uint8_t address, uint8_t function, uint16_t *values, uint8_t count) {
-#ifdef SMARTEVSE_VERSION //ESP32
-    _LOG_A("ModbusReadInputResponse, to do!\n");
-#else
-    ModbusSend(address, function, count * 2u, values, count);
-#endif
+    response.add(MB.Address, MB.Function, (uint8_t)(MB.RegisterCount * 2));
+    for (int i = 0; i < MB.RegisterCount; i++) {
+        response.add(values[i]);
+    }
 }
+#endif
+#ifndef SMARTEVSE_VERSION //CH32
+void ModbusReadInputResponse(uint8_t address, uint8_t function, uint16_t *values, uint8_t count) {
+    ModbusSend(address, function, count * 2u, values, count);
+}
+#endif
 
 
 /**
@@ -257,9 +264,7 @@ void ModbusWriteMultipleRequest(uint8_t address, uint16_t reg, uint16_t *values,
  * @param uint8_t exeption
  */
 void ModbusException(uint8_t address, uint8_t function, uint8_t exception) {
-    //uint16_t temp[1];
-    _LOG_A("ModbusException, to do!\n");
-    //ModbusSend(address, function, exception, temp, 0);
+    response.setError(address, function, (Modbus::Error) exception);
 }
 
 #else //CH32

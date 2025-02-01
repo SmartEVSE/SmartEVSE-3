@@ -2611,84 +2611,21 @@ void HandleModbusRequest(void) {
 #endif
 
 #if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
+ModbusMessage response;     // response message to be sent back
 // Request handler for modbus messages addressed to -this- Node/Slave EVSE.
 // Sends response back to Master
 //
 ModbusMessage MBNodeRequest(ModbusMessage request) {
-    ModbusMessage response;     // response message to be sent back
+    ModbusMessage tmp; response = tmp; //clear global response message
     uint8_t ItemID;
     uint8_t i, OK = 0;
     uint16_t value, values[MODBUS_MAX_REGISTER_READ];
     
     // Check if the call is for our current ServerID, or maybe for an old ServerID?
     if (LoadBl != request.getServerID()) return NIL_RESPONSE;
-    
 
     ModbusDecode( (uint8_t*)request.data(), request.size());
-    ItemID = mapModbusRegister2ItemID();
-
-    switch (MB.Function) {
-        case 0x03: // (Read holding register)
-        case 0x04: // (Read input register)
-            //     ReadItemValueResponse();
-            if (ItemID) {
-                response.add(MB.Address, MB.Function, (uint8_t)(MB.RegisterCount * 2));
-
-                _LOG_D("Node answering NodeStatus request");
-                for (i = 0; i < MB.RegisterCount; i++) {
-                    values[i] = getItemValue(ItemID + i);
-                    response.add(values[i]);
-                    _LOG_V_NO_FUNC(" value[%u]=%u", i, values[i]);
-                }
-                _LOG_D_NO_FUNC("\n");
-                //ModbusReadInputResponse(MB.Address, MB.Function, values, MB.RegisterCount);
-            } else {
-                response.setError(MB.Address, MB.Function, ILLEGAL_DATA_ADDRESS);
-            }
-            break;
-        case 0x06: // (Write single register)
-            //WriteItemValueResponse();
-            if (ItemID) {
-                OK = setItemValue(ItemID, MB.Value);
-            }
-
-            if (OK && ItemID < STATUS_STATE) write_settings();
-
-            if (MB.Address != BROADCAST_ADR || LoadBl == 0) {
-                if (!ItemID) {
-                    response.setError(MB.Address, MB.Function, ILLEGAL_DATA_ADDRESS);
-                } else if (!OK) {
-                    response.setError(MB.Address, MB.Function, ILLEGAL_DATA_VALUE);
-                } else {
-                    return ECHO_RESPONSE;
-                }
-            }
-            break;
-        case 0x10: // (Write multiple register))
-            //      WriteMultipleItemValueResponse();
-            if (ItemID) {
-                for (i = 0; i < MB.RegisterCount; i++) {
-                    value = (MB.Data[i * 2] <<8) | MB.Data[(i * 2) + 1];
-                    OK += setItemValue(ItemID + i, value);
-                }
-            }
-
-            if (OK && ItemID < STATUS_STATE) write_settings();
-
-            if (MB.Address != BROADCAST_ADR || LoadBl == 0) {
-                if (!ItemID) {
-                    response.setError(MB.Address, MB.Function, ILLEGAL_DATA_ADDRESS);
-                } else if (!OK) {
-                    response.setError(MB.Address, MB.Function, ILLEGAL_DATA_VALUE);
-                } else  {
-                    response.add(MB.Address, MB.Function, (uint16_t)MB.Register, (uint16_t)OK);
-                }
-            }
-            break;
-        default:
-            break;
-    }
-
+    HandleModbusRequest();
   return response;
 }
 
