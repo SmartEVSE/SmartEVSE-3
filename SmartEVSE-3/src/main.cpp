@@ -2593,6 +2593,9 @@ void HandleModbusRequest(void) {
                             MainsMeter.Irms[i] = combined;
                             _LOG_V_NO_FUNC("L%i=%.1fA,", i+1, (float)MainsMeter.Irms[i]/10);
                         }
+#ifndef SMARTEVSE_VERSION //CH32
+                        printf("Irms:%03u,%d,%d,%d\n", MainsMeter.Address, MainsMeter.Irms[0], MainsMeter.Irms[1], MainsMeter.Irms[2]); //Irms:011,312,123,124 means: the meter on address 11(dec) has MainsMeter.Irms[0] 312 dA, MainsMeter.Irms[1] of 123 dA, MainsMeter.Irms[2] of 124 dA.
+#endif
                         _LOG_V_NO_FUNC("\n");
                     }
                 } else {
