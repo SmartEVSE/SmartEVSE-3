@@ -711,9 +711,9 @@ void HandleModbusResponse(void) {
         case 0x03: // (Read holding register)
         case 0x04: // (Read input register)
             if (MainsMeter.Type && MB.Address == MainsMeter.Address) {
-                MainsMeter.ResponseToMeasurement();
+                MainsMeter.ResponseToMeasurement(MB);
             } else if (EVMeter.Type && MB.Address == EVMeter.Address) {
-                EVMeter.ResponseToMeasurement();
+                EVMeter.ResponseToMeasurement(MB);
             } else if (LoadBl == 1 && MB.Address > 1 && MB.Address <= NR_EVSES) {
                 // Packet from a Node EVSE, only for Master!
                 if (MB.Register == 0x0000) {
@@ -754,7 +754,7 @@ ModbusMessage MBNodeRequest(ModbusMessage request) {
 //
 ModbusMessage MBEVMeterResponse(ModbusMessage request) {
     ModbusDecode( (uint8_t*)request.data(), request.size());
-    EVMeter.ResponseToMeasurement();
+    EVMeter.ResponseToMeasurement(MB);
     // As this is a response to an earlier request, do not send response.
 
     return NIL_RESPONSE;

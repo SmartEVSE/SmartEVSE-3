@@ -96,10 +96,10 @@ class Meter {
     // constructor
     Meter(uint8_t type, uint8_t address, uint8_t timeout);
     void UpdateEnergies();
-    void ResponseToMeasurement();
+    void ResponseToMeasurement(struct ModBus MB);
     void CalcImeasured(void);
   private:
-    uint8_t receiveCurrentMeasurement(uint8_t *buf);
+    uint8_t receiveCurrentMeasurement(ModBus MB);
     signed int receivePowerMeasurement(uint8_t *buf);
     signed int receiveEnergyMeasurement(uint8_t *buf);
     void combineBytes(void *var, uint8_t *buf, uint8_t pos, uint8_t endianness, MBDataType dataType);

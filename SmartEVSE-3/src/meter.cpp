@@ -158,7 +158,8 @@ signed int Meter::decodeMeasurement(uint8_t *buf, uint8_t Count, uint8_t Endiann
  * @param pointer to Current (mA)
  * @return uint8_t error
  */
-uint8_t Meter::receiveCurrentMeasurement(uint8_t *buf) {
+uint8_t Meter::receiveCurrentMeasurement(ModBus MB) {
+    uint8_t *buf = MB.Data;
     uint8_t x, offset;
     int32_t var[3];
 
@@ -356,16 +357,16 @@ void Meter::UpdateEnergies() {
 }
 
 // Calls appropriate measurement from response
-void Meter::ResponseToMeasurement() {
+void Meter::ResponseToMeasurement(ModBus MB) {
     if (MB.Type == MODBUS_RESPONSE) {
         if (MB.Register == EMConfig[Type].IRegister) {
             if (Address == MainsMeter.Address) {
-                if (receiveCurrentMeasurement(MB.Data)) {
+                if (receiveCurrentMeasurement(MB)) {
                     Timeout = COMM_TIMEOUT;
                 }
                 CalcIsum();
             } else if (Address == EVMeter.Address) {
-                if (receiveCurrentMeasurement(MB.Data)) {
+                if (receiveCurrentMeasurement(MB)) {
                     Timeout = COMM_EVTIMEOUT;
                 }
                 CalcImeasured();

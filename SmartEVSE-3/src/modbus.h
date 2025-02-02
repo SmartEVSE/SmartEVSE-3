@@ -46,8 +46,6 @@ struct ModBus {
     uint8_t Exception;
 };
 
-extern struct ModBus MB;
-
 #ifdef SMARTEVSE_VERSION //ESP32
 
 // definition of MBserver / MBclient class is done in evse.cpp
