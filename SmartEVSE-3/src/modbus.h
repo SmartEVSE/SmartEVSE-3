@@ -53,30 +53,12 @@ extern struct ModBus MB;
 // definition of MBserver / MBclient class is done in evse.cpp
 extern ModbusServerRTU MBserver;
 extern ModbusClientRTU MBclient; 
-
-void RS485SendBuf(uint8_t *buffer, uint8_t len);
-
-#else //SMARTEVSE_VERSION
-
-signed int receiveMeasurement(uint8_t *buf, uint8_t pos, uint8_t Endianness, MBDataType dataType, signed char Divisor);
-signed int receiveEnergyMeasurement(uint8_t *buf, uint8_t Meter);
-void requestPowerMeasurement(uint8_t Meter, uint8_t Address);
-signed int receivePowerMeasurement(uint8_t *buf, uint8_t Meter);
-uint8_t receiveCurrentMeasurement(uint8_t *buf, uint8_t Meter, int32_t *var);
-
-void ReadItemValueResponse(void);
-void WriteItemValueResponse(void);
-void WriteMultipleItemValueResponse(void);
-
-
 #endif
-uint8_t mapModbusRegister2ItemID();
 
 void ModbusReadInputRequest(uint8_t address, uint8_t function, uint16_t reg, uint16_t quantity);
 void ModbusWriteSingleRequest(uint8_t address, uint16_t reg, uint16_t value);
 void ModbusWriteMultipleRequest(uint8_t address, uint16_t reg, uint16_t *values, uint8_t count);
 void ModbusException(uint8_t address, uint8_t function, uint8_t exception);
-void ModbusDecode(uint8_t *buf, uint8_t len);
 
 void requestMeasurement(uint8_t Meter, uint8_t Address, uint16_t Register, uint8_t Count);
 void requestCurrentMeasurement(uint8_t Meter, uint8_t Address);
