@@ -58,9 +58,6 @@ void RS485SendBuf(uint8_t *buffer, uint8_t len);
 
 #else //SMARTEVSE_VERSION
 
-void ModbusWriteSingleResponse(uint8_t address, uint16_t reg, uint16_t value);
-void ModbusWriteMultipleResponse(uint8_t address, uint16_t reg, uint16_t count);
-
 signed int receiveMeasurement(uint8_t *buf, uint8_t pos, uint8_t Endianness, MBDataType dataType, signed char Divisor);
 signed int receiveEnergyMeasurement(uint8_t *buf, uint8_t Meter);
 void requestPowerMeasurement(uint8_t Meter, uint8_t Address);
@@ -76,7 +73,6 @@ void WriteMultipleItemValueResponse(void);
 uint8_t mapModbusRegister2ItemID();
 
 void ModbusReadInputRequest(uint8_t address, uint8_t function, uint16_t reg, uint16_t quantity);
-void ModbusReadInputResponse(uint8_t address, uint8_t function, uint16_t *values, uint8_t count);
 void ModbusWriteSingleRequest(uint8_t address, uint16_t reg, uint16_t value);
 void ModbusWriteMultipleRequest(uint8_t address, uint16_t reg, uint16_t *values, uint8_t count);
 void ModbusException(uint8_t address, uint8_t function, uint8_t exception);

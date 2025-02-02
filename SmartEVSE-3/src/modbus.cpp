@@ -179,31 +179,6 @@ void ModbusWriteSingleRequest(uint8_t address, uint16_t reg, uint16_t value) {
     MB.RequestRegister = reg;
     ModbusSend8(address, 0x06, reg, value);  
 }
-
-
-/**
- * Response write single register (FC=06) to a device over modbus
- *
- * @param uint8_t address
- * @param uint16_t register
- * @param uint16_t value
- */
-void ModbusWriteSingleResponse(uint8_t address, uint16_t reg, uint16_t value) {
-    ModbusSend8(address, 0x06, reg, value);
-}
-
-
-/**
- * Response write multiple register (FC=16) to a device over modbus
- *
- * @param uint8_t address
- * @param uint16_t register
- * @param uint16_t count
- */
-void ModbusWriteMultipleResponse(uint8_t address, uint16_t reg, uint16_t count) {
-    ModbusSend8(address, 0x10, reg, count);
-}
-
 #endif
 
 #ifdef SMARTEVSE_VERSION //ESP32
@@ -636,7 +611,8 @@ void WriteItemValueResponse(void) {
         } else if (!OK) {
             ModbusException(MB.Address, MB.Function, MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
         } else {
-            ModbusWriteSingleResponse(MB.Address, MB.Register, MB.Value);
+            //ModbusWriteSingleResponse(MB.Address, MB.Register, MB.Value);
+            ModbusSend8(MB.Address, 0x06, MB.Register, MB.Value);
         }
     }
 }
@@ -671,7 +647,8 @@ void WriteMultipleItemValueResponse(void) {
         } else if (!OK) {
             ModbusException(MB.Address, MB.Function, MODBUS_EXCEPTION_ILLEGAL_DATA_VALUE);
         } else  {
-            ModbusWriteMultipleResponse(MB.Address, MB.Register, OK);
+            //ModbusWriteMultipleResponse(MB.Address, MB.Register, OK);
+            ModbusSend8(MB.Address, 0x10, MB.Register, OK);
         }
     }
 }
