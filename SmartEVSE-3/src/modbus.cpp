@@ -737,7 +737,7 @@ ModbusMessage response;     // response message to be sent back
 // Sends response back to Master
 //
 ModbusMessage MBNodeRequest(ModbusMessage request) {
-    ModbusMessage tmp; response = tmp; //clear global response message
+    response.clear(); //clear global response message
 
     // Check if the call is for our current ServerID, or maybe for an old ServerID?
     if (LoadBl != request.getServerID()) return NIL_RESPONSE;
