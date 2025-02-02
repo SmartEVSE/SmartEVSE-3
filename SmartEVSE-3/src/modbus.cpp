@@ -41,8 +41,16 @@ extern struct EMstruct EMConfig[EM_CUSTOM + 1];
 #endif
 
 #include "modbus.h"
+struct ModBus MB; //TODO do not define for ESP32v4
 
-struct ModBus MB;
+#if !defined(SMARTEVSE_VERSION) || (SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40) //CH32 and v3 ESP32
+extern uint16_t Balanced[NR_EVSES];
+extern uint8_t State;
+extern int16_t Isum;
+extern void setState(uint8_t NewState);
+extern void receiveNodeStatus(uint8_t *buf, uint8_t NodeNr); //TODO move to modbus.cpp?
+extern void receiveNodeConfig(uint8_t *buf, uint8_t NodeNr); //TODO move to modbus.cpp?
+#endif
 
 #ifdef SMARTEVSE_VERSION //ESP32
 extern ModbusMessage response;
@@ -682,4 +690,252 @@ void WriteMultipleItemValueResponse(void) {
         }
     }
 }
+#endif
+
+#if !defined(SMARTEVSE_VERSION) || (SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40) //CH32 and v3 ESP32
+void HandleModbusRequest(void) {
+        // Broadcast or addressed to this device
+        switch (MB.Function) {
+            // FC 03 and 04 are not possible with broadcast messages.
+            case 0x03: // (Read holding register)
+            case 0x04: // (Read input register)
+                // Addressed to this device
+                _LOG_V("read register(s) ");
+                if (MB.Address != BROADCAST_ADR) {
+                    ReadItemValueResponse();
+                }
+                break;
+            case 0x06: // (Write single register)
+                WriteItemValueResponse();
+                break;
+            case 0x10: // (Write multiple register))
+                // 0x0020: Balance currents
+                if (MB.Register == 0x0020 && LoadBl > 1) {      // Message for Node(s)
+                    Balanced[0] = (MB.Data[(LoadBl - 1) * 2] <<8) | MB.Data[(LoadBl - 1) * 2 + 1];
+                    if (Balanced[0] == 0 && State == STATE_C) setState(STATE_C1);               // tell EV to stop charging if charge current is zero
+                    else if ((State == STATE_B) || (State == STATE_C)) SetCurrent(Balanced[0]); // Set charge current, and PWM output
+                    MainsMeter.Timeout = COMM_TIMEOUT;                          // reset 10 second timeout
+                    _LOG_V("Broadcast received, Node %.1f A, MainsMeter Irms ", (float) Balanced[0]/10);
+
+                    //now decode registers 0x0028-0x002A
+                    if (MB.DataLength >= 16+6) {
+                        Isum = 0;
+                        for (int i=0; i<3; i++ ) {
+                            int16_t combined = (MB.Data[(i * 2) + 16] <<8) + MB.Data[(i * 2) + 17]; 
+                            Isum = Isum + combined;
+                            MainsMeter.Irms[i] = combined;
+                            _LOG_V_NO_FUNC("L%i=%.1fA,", i+1, (float)MainsMeter.Irms[i]/10);
+                        }
+#ifndef SMARTEVSE_VERSION //CH32
+                        printf("Irms:%03u,%d,%d,%d\n", MainsMeter.Address, MainsMeter.Irms[0], MainsMeter.Irms[1], MainsMeter.Irms[2]); //Irms:011,312,123,124 means: the meter on address 11(dec) has MainsMeter.Irms[0] 312 dA, MainsMeter.Irms[1] of 123 dA, MainsMeter.Irms[2] of 124 dA.
+#endif
+                        _LOG_V_NO_FUNC("\n");
+                    }
+                } else {
+
+                    WriteMultipleItemValueResponse();
+                    _LOG_V("Other Broadcast received\n");
+                }
+                break;
+            default:
+                break;
+        }
+}
+
+
+void HandleModbusResponse(void) {
+    //printf("MSG: Modbus Response Address %u / Function %02x / Register %02x\n",MB.Address,MB.Function,MB.Register);
+    switch (MB.Function) {
+        case 0x03: // (Read holding register)
+        case 0x04: // (Read input register)
+            if (MainsMeter.Type && MB.Address == MainsMeter.Address) {
+                MainsMeter.ResponseToMeasurement();
+            } else if (EVMeter.Type && MB.Address == EVMeter.Address) {
+                EVMeter.ResponseToMeasurement();
+            } else if (LoadBl == 1 && MB.Address > 1 && MB.Address <= NR_EVSES) {
+                // Packet from a Node EVSE, only for Master!
+                if (MB.Register == 0x0000) {
+                    // Node status
+                    receiveNodeStatus(MB.Data, MB.Address - 1u);
+                }  else if (MB.Register == 0x0108) {
+                    // Node configuration
+                    receiveNodeConfig(MB.Data, MB.Address - 1u);
+                }
+            }
+            break;
+        default:
+            break;
+    }
+}
+#endif
+
+#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
+ModbusMessage response;     // response message to be sent back
+// Request handler for modbus messages addressed to -this- Node/Slave EVSE.
+// Sends response back to Master
+//
+ModbusMessage MBNodeRequest(ModbusMessage request) {
+    ModbusMessage tmp; response = tmp; //clear global response message
+
+    // Check if the call is for our current ServerID, or maybe for an old ServerID?
+    if (LoadBl != request.getServerID()) return NIL_RESPONSE;
+
+    ModbusDecode( (uint8_t*)request.data(), request.size());
+    HandleModbusRequest();
+  return response;
+}
+
+
+// Monitor EV Meter responses, and update Enery and Power and Current measurements
+// Both the Master and Nodes will receive their own EV meter measurements here.
+// Does not send any data back.
+//
+ModbusMessage MBEVMeterResponse(ModbusMessage request) {
+    ModbusDecode( (uint8_t*)request.data(), request.size());
+    EVMeter.ResponseToMeasurement();
+    // As this is a response to an earlier request, do not send response.
+
+    return NIL_RESPONSE;
+}
+
+
+// The Node/Server receives a broadcast message from the Master
+// Does not send any data back.
+ModbusMessage MBbroadcast(ModbusMessage request) {
+    ModbusDecode( (uint8_t*)request.data(), request.size());
+    if (MB.Type == MODBUS_REQUEST) {
+        HandleModbusRequest();
+    }
+
+    // As it is a broadcast message, do not send response.
+    return NIL_RESPONSE;
+}
+
+
+// Data handler for Master
+// Responses from Slaves/Nodes are handled here
+void MBhandleData(ModbusMessage msg, uint32_t token)
+{
+    ModbusDecode( (uint8_t*)msg.data(), msg.size());
+    if (MB.Function > 4)
+        _LOG_A("WARNING: response NOT HANDLED: address: %02x, function: %02x, reg: %04x.\n", MB.Address, MB.Function, MB.Register);
+    HandleModbusResponse(); //now responses from functions other then 3 or 4 are not handled?!?
+}
+
+
+void MBhandleError(Error error, uint32_t token)
+{
+  // ModbusError wraps the error code and provides a readable error message for it
+  ModbusError me(error);
+  uint8_t address, function;
+  uint16_t reg;
+  address = token >> 24;
+  function = (token >> 16);
+  reg = token & 0xFFFF;
+
+  if (LoadBl == 1 && ((address>=2 && address <=8 && function == 4 && reg == 0) || address == 9)) {  //master sends out messages to nodes 2-8, if no EVSE is connected with that address
+                                                                                //a timeout will be generated. This is legit!
+                                                                                //same goes for broadcast address 9
+    _LOG_V("Error response: %02X - %s, address: %02x, function: %02x, reg: %04x.\n", error, (const char *)me,  address, function, reg);
+  }
+  else {
+    _LOG_A("Error response: %02X - %s, address: %02x, function: %02x, reg: %04x.\n", error, (const char *)me,  address, function, reg);
+  }
+}
+
+
+void ConfigureModbusMode(uint8_t newmode) {
+
+    _LOG_A("changing LoadBl from %u to %u\n",LoadBl, newmode);
+
+    if ((LoadBl < 2 && newmode > 1) || (LoadBl > 1 && newmode < 2) || (newmode == 255) ) {
+
+        if (newmode != 255 ) LoadBl = newmode;
+
+        // Setup Modbus workers for Node
+        if (LoadBl > 1 ) {
+
+            _LOG_A("Setup MBserver/Node workers, end Master/Client\n");
+            // Stop Master background task (if active)
+            if (newmode != 255 ) MBclient.end();
+            _LOG_A("ConfigureModbusMode1 task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
+
+            // Register worker. at serverID 'LoadBl', all function codes
+            MBserver.registerWorker(LoadBl, ANY_FUNCTION_CODE, &MBNodeRequest);
+            // Also add handler for all broadcast messages from Master.
+            MBserver.registerWorker(BROADCAST_ADR, ANY_FUNCTION_CODE, &MBbroadcast);
+
+            if (EVMeter.Type && EVMeter.Type != EM_API) MBserver.registerWorker(EVMeter.Address, ANY_FUNCTION_CODE, &MBEVMeterResponse);
+
+            // Start ModbusRTU Node background task
+            MBserver.begin(Serial1);
+
+        } else if (LoadBl < 2 ) {
+            // Setup Modbus workers as Master
+            // Stop Node background task (if active)
+            _LOG_A("Setup Modbus as Master/Client, stop Server/Node handler\n");
+
+            if (newmode != 255) MBserver.end();
+            _LOG_A("ConfigureModbusMode2 task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
+
+            MBclient.setTimeout(85);                        // Set modbus timeout to 85ms. 15ms lower then modbusRequestloop time of 100ms.
+            MBclient.onDataHandler(&MBhandleData);
+            MBclient.onErrorHandler(&MBhandleError);
+            // Start ModbusRTU Master background task
+            MBclient.begin(Serial1, 1);                                         //pinning it to core1 reduces modbus problems
+        }
+    } else if (newmode > 1) {
+        // Register worker. at serverID 'LoadBl', all function codes
+        _LOG_A("Registering new LoadBl worker at id %u\n", newmode);
+        LoadBl = newmode;
+        MBserver.registerWorker(newmode, ANY_FUNCTION_CODE, &MBNodeRequest);
+    }
+
+}
+
+#endif
+
+
+#ifndef SMARTEVSE_VERSION //CH32
+// printf can be slow.
+// By measuring the time the 10ms loop actually takes to execute we found that:
+// it takes ~625uS to execute when using printf (and tx interrrupts)
+// ~151uS without printf (with tx interrupt)
+// and only ~26uS when using DMA
+// printf with Circular DMA buffer takes ~536uS
+// current version with snprintf takes ~296uS
+//
+// Called by 10ms loop when new modbus data is available
+// ModbusRxLen contains length of data contained in array ModbusRx
+void CheckRS485Comm(void) { //looks like MBhandleData
+    ModbusDecode(ModbusRx, ModbusRxLen);
+
+    // Data received is a response to an earlier request from the master.
+    if (MB.Type == MODBUS_RESPONSE) {
+        HandleModbusResponse();
+    // Data received is a request from the master to a device on the bus.
+    } else if (MB.Type == MODBUS_REQUEST) { //looks like MBBroadcast
+        //printf("Modbus Request Address %u / Function %02x / Register %02x\n",MB.Address,MB.Function,MB.Register);
+
+        // Broadcast or addressed to this device
+        if (MB.Address == BROADCAST_ADR || (LoadBl > 0 && MB.Address == LoadBl)) {
+            HandleModbusRequest();
+        }
+    } else if (MB.Type == MODBUS_EXCEPTION) {
+        _LOG_D("Modbus Address %02x exception %u received\n", MB.Address, MB.Exception);
+    } else {
+        _LOG_D("\nCRC invalid\n");
+    }
+
+
+
+
+//    char buf[256];
+//    for (uint8_t x=0; x<ModbusRxLen; x++) snprintf(buf+(x*3), 4, "%02X ", ModbusRx[x]);
+//    printf("MB:%s\n", buf);
+
+    ModbusRxLen = 0;
+
+}
+
 #endif
