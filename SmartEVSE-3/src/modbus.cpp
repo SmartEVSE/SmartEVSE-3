@@ -167,29 +167,6 @@ void ModbusReadInputRequest(uint8_t address, uint8_t function, uint16_t reg, uin
 
 
 /**
- * Response read holding (FC=3) or read input register (FC=04) to a device over modbus
- * 
- * @param uint8_t address
- * @param uint8_t function
- * @param uint16_t pointer to values
- * @param uint8_t count of values
- */
-#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
-void ModbusReadInputResponse(uint8_t address, uint8_t function, uint16_t *values, uint8_t count) {
-    response.add(MB.Address, MB.Function, (uint8_t)(MB.RegisterCount * 2));
-    for (int i = 0; i < MB.RegisterCount; i++) {
-        response.add(values[i]);
-    }
-}
-#endif
-#ifndef SMARTEVSE_VERSION //CH32
-void ModbusReadInputResponse(uint8_t address, uint8_t function, uint16_t *values, uint8_t count) {
-    ModbusSend(address, function, count * 2u, values, count);
-}
-#endif
-
-
-/**
  * Request write single register (FC=06) to a device over modbus
  * 
  * @param uint8_t address
@@ -617,7 +594,15 @@ void ReadItemValueResponse(void) {
         for (i = 0; i < MB.RegisterCount; i++) {
             values[i] = getItemValue(ItemID + i);
         }
-        ModbusReadInputResponse(MB.Address, MB.Function, values, MB.RegisterCount);
+        // ModbusReadInputResponse:
+#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
+        response.add(MB.Address, MB.Function, (uint8_t)(MB.RegisterCount * 2));
+        for (int i = 0; i < MB.RegisterCount; i++) {
+            response.add(values[i]);
+        }
+#else //CH32
+        ModbusSend(MB.Address, MB.Function, MB.RegisterCount * 2u, values, MB.RegisterCount);
+#endif
     } else {
         ModbusException(MB.Address, MB.Function, MODBUS_EXCEPTION_ILLEGAL_DATA_ADDRESS);
     }
