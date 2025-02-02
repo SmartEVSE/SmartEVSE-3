@@ -2129,8 +2129,11 @@ void CheckSerialComm(void) {
 //
 void Timer100ms_singlerun(void) {
 static unsigned int locktimer = 0, unlocktimer = 0;
+#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
 static unsigned int energytimer = 0;
 static uint8_t PollEVNode = NR_EVSES, updated = 0;
+#endif
+
 #ifndef SMARTEVSE_VERSION //CH32
     //Check Serial communication with ESP32
     if (RxRdy1) CheckSerialComm();
