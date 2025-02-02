@@ -828,7 +828,7 @@ std::pair<bool, std::array<std::int8_t, 3> > getMainsFromHomeWizardP1() {
     // Handle HTTP errors or timeout.
     const int httpCode = httpClient.GET();
     if (httpCode != HTTP_CODE_OK) {
-        _LOG_A("getMainsFromHWP1(): Error on HTTP request (httpCode=%i), url=%s.\n", httpCode, url);
+        _LOG_A("getMainsFromHWP1(): Error on HTTP request (httpCode=%i), url=%s.\n", httpCode, url.c_str());
         httpClient.end(); // Always cleanup
         return {false, {0, 0, 0}};
     }
