@@ -93,19 +93,6 @@
 #endif
 
 
-#define PILOT_CONNECTED funDigitalWrite(CPOFF, FUN_LOW);
-#define PILOT_DISCONNECTED funDigitalWrite(CPOFF, FUN_HIGH);
-
-#define CONTACTOR1_ON funDigitalWrite(SSR1, FUN_HIGH);
-#define CONTACTOR1_OFF funDigitalWrite(SSR1, FUN_LOW);
-
-#define CONTACTOR2_ON funDigitalWrite(SSR2, FUN_HIGH);
-#define CONTACTOR2_OFF funDigitalWrite(SSR2, FUN_LOW);
-
-#define ACTUATOR_LOCK { funDigitalWrite(ACTB, FUN_HIGH); funDigitalWrite(ACTA, FUN_LOW); }
-#define ACTUATOR_UNLOCK { funDigitalWrite(ACTB, FUN_LOW); funDigitalWrite(ACTA, FUN_HIGH); }
-#define ACTUATOR_OFF { funDigitalWrite(ACTB, FUN_HIGH); funDigitalWrite(ACTA, FUN_HIGH); }
-
 #define true 1
 #define false 0
 
