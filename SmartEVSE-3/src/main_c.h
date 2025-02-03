@@ -29,6 +29,23 @@
 
 #define NOSTATE 255
 
+// Error flags
+#define NO_ERROR 0
+#define LESS_6A 1
+#define CT_NOCOMM 2
+#define TEMP_HIGH 4
+#define EV_NOCOMM 8
+#define RCM_TRIPPED 16                                                          // RCM tripped. >6mA DC residual current detected.
+#define NO_SUN 32
+#define Test_IO 64
+#define BL_FLASH 128
+
+#define PWM_5 50                                                                // 5% of PWM
+#define PWM_95 950                                                              // 95% of PWM
+#define PWM_96 960                                                              // PWM 96%
+#define PWM_100 1000                                                            // 100% of PWM
+
+
 extern uint8_t LoadBl;
 extern void SetCurrent(uint16_t current);
 

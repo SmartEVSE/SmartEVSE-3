@@ -98,22 +98,6 @@
 
 #define INITIALIZED 0
 
-
-
-// Error flags
-#define NO_ERROR 0
-#define LESS_6A 1
-#define CT_NOCOMM 2
-#define TEMP_HIGH 4
-#define EV_NOCOMM 8
-#define RCM_TRIPPED 16                                                          // RCM tripped. >6mA DC residual current detected.
-#define NO_SUN 32
-#define Test_IO 64
-#define BL_FLASH 128
-
-#define PWM_5       50              // PWM 5%
-#define PWM_96      960             // PWM 96%
-
 void delayMicroseconds(uint32_t us);
 uint32_t millis();
 

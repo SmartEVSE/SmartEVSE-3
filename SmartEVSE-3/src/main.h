@@ -73,11 +73,6 @@
 #define MODEM 0  //0 = no modem 1 = modem
 #endif
 
-#define PWM_5 50                                                                // 5% of PWM
-#define PWM_95 950                                                              // 95% of PWM
-#define PWM_96 960                                                              // PWM 96%
-#define PWM_100 1000                                                            // 100% of PWM
-
 #define MAX_MAINS 25                                                            // max Current the Mains connection can supply
 #define MAX_SUMMAINS 0                                                          // only used for capacity rate limiting, max current over the sum of all phases
 #define MAX_SUMMAINSTIME 0
@@ -174,6 +169,11 @@
 #define NO_SUN 32
 #define Test_IO 64
 #define BL_FLASH 128
+
+#define _RSTB_0 digitalWrite(PIN_LCD_RST, LOW);
+#define _RSTB_1 digitalWrite(PIN_LCD_RST, HIGH);
+#define _A0_0 digitalWrite(PIN_LCD_A0_B2, LOW);
+#define _A0_1 digitalWrite(PIN_LCD_A0_B2, HIGH);
 
 #define STATE_A_LED_BRIGHTNESS 40
 #define STATE_B_LED_BRIGHTNESS 255
@@ -299,11 +299,6 @@
 #define MENU_EXIT 42
 
 #define MENU_STATE 50
-
-#define _RSTB_0 digitalWrite(PIN_LCD_RST, LOW);
-#define _RSTB_1 digitalWrite(PIN_LCD_RST, HIGH);
-#define _A0_0 digitalWrite(PIN_LCD_A0_B2, LOW);
-#define _A0_1 digitalWrite(PIN_LCD_A0_B2, HIGH);
 
 class Button {
   public:
