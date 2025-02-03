@@ -77,48 +77,6 @@
 #endif //SMARTEVSE_VERSION
 
 
-#define MAINS_METER_ADDRESS 10
-#define PV_METER 0
-#define PV_METER_ADDRESS 11
-#define EV_METER 0
-#define EV_METER_ADDRESS 12
-#define MIN_METER_ADDRESS 10
-#define MAX_METER_ADDRESS 247
-#define EMCUSTOM_ENDIANESS 0
-#define EMCUSTOM_DATATYPE 0
-#define EMCUSTOM_FUNCTION 4
-#define EMCUSTOM_UREGISTER 0
-#define EMCUSTOM_UDIVISOR 8
-#define EMCUSTOM_IREGISTER 0
-#define EMCUSTOM_IDIVISOR 8
-#define EMCUSTOM_PREGISTER 0
-#define EMCUSTOM_PDIVISOR 8
-#define EMCUSTOM_EREGISTER 0
-#define EMCUSTOM_EDIVISOR 8
-#define RFID_READER 0
-#define ACCESS_BIT 1
-#define WIFI_MODE 0
-#define CARD_OFFSET 0
-#define ENABLE_C2 ALWAYS_ON
-#define MAX_TEMPERATURE 65
-#define DELAYEDSTARTTIME 0                                                             // The default StartTime for delayed charged, 0 = not delaying
-#define DELAYEDSTOPTIME 0                                                       // The default StopTime for delayed charged, 0 = not stopping
-#define OCPP_MODE 0
-#define LCD_LOCK 0                                                              // 0 = LCD buttons operational, 1 = LCD buttons disabled
-
-// Mode settings
-#define MODE_NORMAL 0
-#define MODE_SMART 1
-#define MODE_SOLAR 2
-
-#define MODBUS_BAUDRATE 9600
-#define MODBUS_TIMEOUT 4
-#define ACK_TIMEOUT 1000                                                        // 1000ms timeout
-#define NR_EVSES 8
-#define BROADCAST_ADR 0x09
-#define COMM_TIMEOUT 11                                                         // Timeout for MainsMeter
-#define COMM_EVTIMEOUT 8*NR_EVSES                                               // Timeout for EV Energy Meters
-
 #define STATE_A 0                                                               // A Vehicle not connected
 #define STATE_B 1                                                               // B Vehicle connected / not ready to accept energy
 #define STATE_C 2                                                               // C Vehicle connected / ready to accept energy / ventilation not required
