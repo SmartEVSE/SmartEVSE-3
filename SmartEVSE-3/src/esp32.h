@@ -76,34 +76,7 @@
 #include "funconfig.h"
 #endif //SMARTEVSE_VERSION
 
-#define PWM_5 50                                                                // 5% of PWM
-#define PWM_95 950                                                              // 95% of PWM
-#define PWM_100 1000                                                            // 100% of PWM
 
-#define MAX_MAINS 25                                                            // max Current the Mains connection can supply
-#define MAX_SUMMAINS 0                                                          // only used for capacity rate limiting, max current over the sum of all phases
-#define GRID_RELAY_MAX_SUMMAINS 18                                              // only used for rate limiting by grid switched relay,
-                                                                                // max current over the sum of all phases
-                                                                                // 6A * 3 phases * 230V = 4140W, law says 4.2kW ...
-#define MAX_CURRENT 13                                                          // max charging Current for the EV
-#ifndef MIN_CURRENT
-#define MIN_CURRENT 6                                                           // minimum Current the EV will accept
-#endif
-#define MODE 0                                                                  // Normal EVSE mode
-#define LOCK 0                                                                  // No Cable lock
-#define MAX_CIRCUIT 16                                                          // Max current of the EVSE circuit breaker
-#define CONFIG 0                                                                // Configuration: 0= TYPE 2 socket, 1= Fixed Cable
-#define LOADBL 0                                                                // Load Balancing disabled
-#define SWITCH 0                                                                // 0= Charge on plugin, 1= (Push)Button on IO2 is used to Start/Stop charging.
-#define RC_MON 0                                                                // Residual Current Monitoring on IO3. Disabled=0, RCM14=1
-#define CHARGEDELAY 60                                                          // Seconds to wait after overcurrent, before trying again
-#define BACKLIGHT 120                                                           // Seconds delay for the LCD backlight to turn off.
-#define RFIDLOCKTIME 60                                                         // Seconds delay for the EVSE to lock again (RFIDreader = EnableOne)
-#define START_CURRENT 4                                                         // Start charging when surplus current on sum of all phases exceeds 4A (Solar)
-#define STOP_TIME 10                                                            // Stop charging after 10 minutes at MIN charge current (Solar)
-#define IMPORT_CURRENT 0                                                        // Allow the use of grid power when solar charging (Amps)
-#define MAINS_METER 0                                                           // Mains Meter, 0=Disabled, 1= Sensorbox, 2=Phoenix, 3= Finder, 4= Eastron, 5=Custom
-#define GRID 0                                                                  // Grid, 0= 4-Wire CW, 1= 4-Wire CCW, 2= 3-Wire CW, 3= 3-Wire CCW
 #define MAINS_METER_ADDRESS 10
 #define PV_METER 0
 #define PV_METER_ADDRESS 11
