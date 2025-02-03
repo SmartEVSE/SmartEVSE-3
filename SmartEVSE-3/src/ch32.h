@@ -114,12 +114,6 @@
 #define PWM_5       50              // PWM 5%
 #define PWM_96      960             // PWM 96%
 
-
-#define ENDIANESS_LBF_LWF 0
-#define ENDIANESS_LBF_HWF 1
-#define ENDIANESS_HBF_LWF 2
-#define ENDIANESS_HBF_HWF 3
-
 void delayMicroseconds(uint32_t us);
 uint32_t millis();
 
