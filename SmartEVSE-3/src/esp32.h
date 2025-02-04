@@ -408,9 +408,6 @@ bool ocppLockingTxDefined();
 /* V2GTP */
 #define V2GTP_HEADER_SIZE 8 /* header has 8 bytes */
 
-extern struct tm timeinfo;
-
-
 struct rtcTime {
     uint8_t Status;
     uint8_t Hour;
