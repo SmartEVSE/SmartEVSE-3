@@ -201,10 +201,6 @@ extern uint8_t Show_RFID;
 
 extern uint16_t maxTemp;
 
-extern uint8_t State;
-extern uint8_t ErrorFlags;
-extern uint8_t NextState;
-
 extern uint16_t MaxCapacity;                                                       // Cable limit (A) (limited by the wire in the charge cable, set automatically, or manually if Config=Fixed Cable)
 extern uint16_t ChargeCurrent;                                                     // Calculated Charge Current (Amps *10)
 extern uint16_t OverrideCurrent;
