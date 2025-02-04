@@ -118,7 +118,6 @@ extern struct tm timeinfo;
 extern uint8_t Mode;                                                            // EVSE mode
 extern uint8_t LoadBl;                                                          // Load Balance Setting (Disable, Master or Node)
 extern uint8_t Grid;
-extern uint8_t SB2_WIFImode;
 #if FAKE_RFID
 extern uint8_t Show_RFID;
 #endif
@@ -134,8 +133,6 @@ extern uint8_t LCDTimer;
 extern uint16_t BacklightTimer;                                                 // remaining seconds the LCD backlight is active
 extern uint8_t ButtonState;                                                     // Holds latest push Buttons state (LSB 2:0)
 extern uint8_t OldButtonState;                                                  // Holds previous push Buttons state (LSB 2:0)
-extern uint8_t LCDNav;
-extern uint8_t SubMenu;
 extern uint32_t ScrollTimer;
 extern uint8_t ChargeDelay;                                                     // Delays charging in seconds.
 extern uint8_t TestState;

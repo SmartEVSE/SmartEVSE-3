@@ -188,17 +188,11 @@ extern uint8_t AutoUpdate;
 extern uint16_t StartCurrent;
 extern uint16_t StopTime;
 extern uint16_t ImportCurrent;
-extern struct DelayedTimeStruct DelayedStartTime;
 extern struct DelayedTimeStruct DelayedStopTime;
 extern uint8_t DelayedRepeat;
 extern uint8_t LCDlock;
-extern uint8_t Grid;
 extern EnableC2_t EnableC2;
-extern uint8_t SB2_WIFImode;
 extern uint8_t RFIDReader;
-#if FAKE_RFID
-extern uint8_t Show_RFID;
-#endif
 
 extern uint16_t maxTemp;
 
@@ -217,14 +211,10 @@ extern Node_t Node[NR_EVSES];
 extern uint8_t lock1, lock2;
 extern uint16_t BacklightTimer;
 extern uint8_t BacklightSet;
-extern uint8_t LCDTimer;
 extern uint8_t AccessTimer;
 extern int8_t TempEVSE;
 extern uint8_t ButtonState;
 extern uint8_t OldButtonState;
-extern uint8_t LCDNav;
-extern uint8_t SubMenu;
-extern uint32_t ScrollTimer;
 extern uint8_t ChargeDelay;
 extern uint8_t C1Timer;
 extern uint8_t ModemStage;
@@ -234,17 +224,14 @@ extern uint8_t ToModemDoneStateTimer;
 extern uint8_t LeaveModemDoneStateTimer;
 extern uint8_t LeaveModemDeniedStateTimer;
 extern uint8_t NoCurrent;
-extern uint8_t TestState;
 extern uint8_t ModbusRequest;
 extern uint8_t NodeNewMode;
-extern uint8_t Access_bit;
 extern uint16_t CardOffset;
 
 extern uint8_t ConfigChanged;
 extern uint8_t GridActive;
 
 extern uint16_t SolarStopTimer;
-extern uint8_t RFIDstatus;
 extern bool PilotDisconnected;
 extern uint8_t PilotDisconnectTime;
 
@@ -274,8 +261,6 @@ extern uint16_t firmwareUpdateTimer;
                                                                                 //                                              whether an update is necessary
 
 #if ENABLE_OCPP
-extern uint8_t OcppMode;
-
 extern unsigned char OcppRfidUuid [7];
 extern size_t OcppRfidUuidLen;
 extern unsigned long OcppLastRfidUpdate;
