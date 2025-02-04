@@ -29,7 +29,6 @@
 #include "evse.h"
 
 extern uint8_t State;
-extern uint8_t ErrorFlags;
 uint8_t PwrPanic = 0;                                                       // Power Panic feature
 uint8_t ModemPwr = 0;                                                       // Enable power to the Modem
 uint16_t WchVersion = WCH_VERSION;
@@ -150,7 +149,7 @@ void EXTI9_5_IRQHandler()
     // check again, to prevent voltage spikes from tripping the RCM detection
     if (funDigitalRead(RCMFAULT) == FUN_HIGH ) {
         if (State) setState(STATE_B1);
-        ErrorFlags |= RCM_TRIPPED;
+        Error2.RCM_tripped = 1;
     }
 
     EXTI->INTFR = 0x1ffffff;                        // clear interrupt flag register

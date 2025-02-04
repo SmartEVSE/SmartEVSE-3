@@ -123,7 +123,6 @@ extern uint8_t Show_RFID;
 #endif
 
 extern uint8_t State;
-extern uint8_t ErrorFlags;
 extern uint8_t NextState;
 
 extern int16_t Isum;

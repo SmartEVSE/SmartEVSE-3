@@ -137,7 +137,7 @@ uint8_t Nr_Of_Phases_Charging = 0;                                          // 0
 Single_Phase_t Switching_To_Single_Phase = FALSE;
 
 uint8_t State = STATE_A;
-uint8_t ErrorFlags = NO_ERROR;
+ErrorFl_t Error2;
 uint8_t NextState;
 uint8_t pilot;
 uint8_t prev_pilot;
