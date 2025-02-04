@@ -105,16 +105,6 @@ uint16_t MaxCurrent = MAX_CURRENT;                                          // M
 uint16_t MinCurrent = MIN_CURRENT;                                          // Minimal current the EV is happy with (A)
 uint8_t Mode = MODE;                                                        // EVSE mode (0:Normal / 1:Smart / 2:Solar)
 uint32_t CurrentPWM = 0;                                                    // Current PWM duty cycle value (0 - 1024)
-int8_t InitialSoC = -1;                                                     // State of charge of car
-int8_t FullSoC = -1;                                                        // SoC car considers itself fully charged
-int8_t ComputedSoC = -1;                                                    // Estimated SoC, based on charged kWh
-int8_t RemainingSoC = -1;                                                   // Remaining SoC, based on ComputedSoC
-int32_t TimeUntilFull = -1;                                                 // Remaining time until car reaches FullSoC, in seconds
-int32_t EnergyCapacity = -1;                                                // Car's total battery capacity
-int32_t EnergyRequest = -1;                                                 // Requested amount of energy by car
-char EVCCID[32];                                                            // Car's EVCCID (EV Communication Controller Identifer)
-char RequiredEVCCID[32];                                                    // Required EVCCID before allowing charging
-
 bool CPDutyOverride = false;
 uint8_t Lock = LOCK;                                                        // Cable lock (0:Disable / 1:Solenoid / 2:Motor)
 uint16_t MaxCircuit = MAX_CIRCUIT;                                          // Max current of the EVSE circuit (A)
@@ -290,7 +280,9 @@ extern uint8_t processAllNodeStates(uint8_t NodeNr);
 extern void BroadcastCurrent(void);
 extern void CheckRFID(void);
 extern void mqttPublishData();
-
+extern void DisconnectEvent(void);
+extern char EVCCID[32];
+extern char RequiredEVCCID[32];
 extern bool CPDutyOverride;
 extern uint8_t ModbusRequest;
 extern unsigned char ease8InOutQuad(unsigned char i);

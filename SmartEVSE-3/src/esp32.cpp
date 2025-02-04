@@ -127,6 +127,16 @@ extern ModbusMessage MBEVMeterResponse(ModbusMessage request);
 hw_timer_t * timerA = NULL;
 Preferences preferences;
 
+int8_t InitialSoC = -1;                                                     // State of charge of car
+int8_t FullSoC = -1;                                                        // SoC car considers itself fully charged
+int8_t ComputedSoC = -1;                                                    // Estimated SoC, based on charged kWh
+int8_t RemainingSoC = -1;                                                   // Remaining SoC, based on ComputedSoC
+int32_t TimeUntilFull = -1;                                                 // Remaining time until car reaches FullSoC, in seconds
+int32_t EnergyCapacity = -1;                                                // Car's total battery capacity
+int32_t EnergyRequest = -1;                                                 // Requested amount of energy by car
+char EVCCID[32];                                                            // Car's EVCCID (EV Communication Controller Identifer)
+char RequiredEVCCID[32];                                                    // Required EVCCID before allowing charging
+
 extern esp_adc_cal_characteristics_t * adc_chars_CP;
 extern void setStatePowerUnavailable(void);
 extern char IsCurrentAvailable(void);
@@ -164,15 +174,6 @@ extern uint16_t MinCurrent;
 extern uint8_t Mode;
 extern uint32_t CurrentPWM;
 extern void SetCurrent(uint16_t current);
-extern int8_t InitialSoC;
-extern int8_t FullSoC;
-extern int8_t ComputedSoC;
-extern int8_t RemainingSoC;
-extern int32_t TimeUntilFull;
-extern int32_t EnergyCapacity;
-extern int32_t EnergyRequest;
-extern char EVCCID[32];                                                            // Car's EVCCID (EV Communication Controller Identifer)
-extern char RequiredEVCCID[32];                                                    // Required EVCCID before allowing charging
 
 extern bool CPDutyOverride;
 extern uint8_t Lock;
