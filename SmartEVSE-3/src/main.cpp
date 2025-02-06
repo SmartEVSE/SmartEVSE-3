@@ -486,7 +486,7 @@ void setMode(uint8_t NewMode) {
 #endif
 
     if (NewMode == MODE_SMART || NewMode == MODE_SOLAR) {                       // the smart-solar button used to clear all those flags toggling between those modes
-        ErrorFlags &= ~(NO_SUN | LESS_6A);                                      // Clear All errors
+        ErrorFlags &= ~(NO_SUN | LESS_6A);                                      // Clear All errors //FIXME v4
         setSolarStopTimer(0);                                                   // Also make sure the SolarTimer is disabled.
         MaxSumMainsTimer = 0;
     }
@@ -1442,7 +1442,7 @@ uint8_t ow = 0, x;
 #endif
         if (SolarStopTimer == 0) {
             if (State == STATE_C) setState(STATE_C1);                   // tell EV to stop charging
-            ErrorFlags |= NO_SUN;                                       // Set error: NO_SUN
+            ErrorFlags |= NO_SUN;                                       // Set error: NO_SUN //FIXME v4
         }
     }
 
@@ -1453,7 +1453,7 @@ uint8_t ow = 0, x;
         MaxSumMainsTimer--;                                             // Decrease MaxSumMains counter every second.
         if (MaxSumMainsTimer == 0) {
             if (State == STATE_C) setState(STATE_C1);                   // tell EV to stop charging
-            ErrorFlags |= LESS_6A;                                      // Set error: LESS_6A
+            ErrorFlags |= LESS_6A;                                      // Set error: LESS_6A //FIXME v4
         }
     }
 
@@ -3153,7 +3153,7 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
             if (val != State) setState(val);
             break;
         case STATUS_ERROR:
-            ErrorFlags = val;
+            ErrorFlags = val; //FIXME v4
             if (ErrorFlags) {                                                   // Is there an actual Error? Maybe the error got cleared?
                 if (ErrorFlags & CT_NOCOMM) MainsMeter.Timeout = 0;             // clear MainsMeter.Timeout on a CT_NOCOMM error, so the error will be immediate.
                 setStatePowerUnavailable();
@@ -3277,7 +3277,7 @@ uint16_t getItemValue(uint8_t nav) {
         case STATUS_STATE:
             return State;
         case STATUS_ERROR:
-            return ErrorFlags;
+            return ErrorFlags; //FIXME v4
         case STATUS_CURRENT:
             return Balanced[0];
         case STATUS_SOLAR_TIMER:

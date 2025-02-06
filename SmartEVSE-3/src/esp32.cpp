@@ -2155,7 +2155,7 @@ void ocppInit() {
                 CalcBalancedCurrent(0);
                 if (IsCurrentAvailable()) {
                     // OCPP is the exclusive LB, clear LESS_6A error if set
-                    ErrorFlags &= ~LESS_6A;
+                    ErrorFlags &= ~LESS_6A; //FIXME v4
                     ChargeDelay = 0;
                 }
                 if ((State == STATE_B || State == STATE_C) && !CPDutyOverride) {
