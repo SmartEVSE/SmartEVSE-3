@@ -309,14 +309,21 @@ Button::Button(void) {
     CheckSwitch(true);
 }
 
+
 //since in v4 ESP32 only a copy of ErrorFlags is available, we need to have functions so v4 ESP32 can set CH32 ErrorFlags
-void clearErrorFlags(void) {
-    ErrorFlags = NO_ERROR;
+void setErrorFlags(uint8_t flags) {
+    ErrorFlags |= flags;
 #if SMARTEVSE_VERSION >= 40 //v4 ESP32
-    Serial1.printf("ErrorFlags:%u\n", ErrorFlags);
+    Serial1.printf("setErrorFlags:%u\n", flags);
 #endif
 }
 
+void clearErrorFlags(uint8_t flags) {
+    ErrorFlags &= ~flags;
+#if SMARTEVSE_VERSION >= 40 //v4 ESP32
+    Serial1.printf("clearErrorFlags:%u\n", flags);
+#endif
+}
 
 #ifndef SMARTEVSE_VERSION //CH32 version
 void Button::HandleSwitch(void) {
@@ -486,7 +493,7 @@ void setMode(uint8_t NewMode) {
 #endif
 
     if (NewMode == MODE_SMART || NewMode == MODE_SOLAR) {                       // the smart-solar button used to clear all those flags toggling between those modes
-        ErrorFlags &= ~(NO_SUN | LESS_6A);                                      // Clear All errors //FIXME v4
+        clearErrorFlags(NO_SUN | LESS_6A);                                      // Clear All errors
         setSolarStopTimer(0);                                                   // Also make sure the SolarTimer is disabled.
         MaxSumMainsTimer = 0;
     }
@@ -1442,7 +1449,7 @@ uint8_t ow = 0, x;
 #endif
         if (SolarStopTimer == 0) {
             if (State == STATE_C) setState(STATE_C1);                   // tell EV to stop charging
-            ErrorFlags |= NO_SUN;                                       // Set error: NO_SUN //FIXME v4
+            setErrorFlags(NO_SUN);                                      // Set error: NO_SUN
         }
     }
 
@@ -1453,7 +1460,7 @@ uint8_t ow = 0, x;
         MaxSumMainsTimer--;                                             // Decrease MaxSumMains counter every second.
         if (MaxSumMainsTimer == 0) {
             if (State == STATE_C) setState(STATE_C1);                   // tell EV to stop charging
-            ErrorFlags |= LESS_6A;                                      // Set error: LESS_6A //FIXME v4
+            setErrorFlags(LESS_6A);                                     // Set error: LESS_6A
         }
     }
 
@@ -2065,7 +2072,9 @@ void CheckSerialComm(void) {
     CALL_ON_RECEIVE_PARAM(SetCurrent:, SetCurrent)
     CALL_ON_RECEIVE_PARAM(CalcBalancedCurrent:, CalcBalancedCurrent)
     CALL_ON_RECEIVE(setStatePowerUnavailable)
-    SET_ON_RECEIVE(ErrorFlags:, ErrorFlags)                                     //used to clear the ErrorFlags
+    CALL_ON_RECEIVE_PARAM(setErrorFlags:, setErrorFlags)
+    CALL_ON_RECEIVE_PARAM(clearErrorFlags:, clearErrorFlags)
+
     // We received configuration settings from the ESP.
     // Scan for all variables, and update values
     for (ConfigItem* item = configItems; item->keyword != NULL; item++) { //e

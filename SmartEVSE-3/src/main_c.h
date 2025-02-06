@@ -74,7 +74,8 @@ typedef union {
 
 extern ErrorFl_t Error2;
 #define ErrorFlags Error2.Flags
-
+extern void setErrorFlags(uint8_t flags);
+extern void clearErrorFlags(uint8_t flags);
 //#endif
 
 #endif

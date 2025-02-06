@@ -89,7 +89,6 @@ extern void CheckSwitch(bool force = false);
 extern void handleWIFImode(void *s  = &Serial);
 extern char SmartConfigKey[16];
 extern Button ExtSwitch;
-extern void clearErrorFlags(void);
 
 #if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
 
@@ -1299,7 +1298,7 @@ void GLCDMenu(uint8_t Buttons) {
             if (LCDNav == MENU_EXIT) {                                          // Exit Main Menu
                 LCDNav = 0;
                 SubMenu = 0;
-                clearErrorFlags();                                              // Clear All Errors when exiting the Main Menu
+                clearErrorFlags(!(NO_ERROR));                                           // Clear All Errors when exiting the Main Menu
                 TestState = 0;                                                  // Clear TestState
                 ChargeDelay = 0;                                                // Clear ChargeDelay
                 setSolarStopTimer(0);                                           // Disable Solar Timer
