@@ -309,6 +309,14 @@ Button::Button(void) {
     CheckSwitch(true);
 }
 
+//since in v4 ESP32 only a copy of ErrorFlags is available, we need to have functions so v4 ESP32 can set CH32 ErrorFlags
+void clearErrorFlags(void) {
+    ErrorFlags = NO_ERROR;
+#if SMARTEVSE_VERSION >= 40 //v4 ESP32
+    Serial1.printf("ErrorFlags:%u\n", ErrorFlags);
+#endif
+}
+
 
 #ifndef SMARTEVSE_VERSION //CH32 version
 void Button::HandleSwitch(void) {
@@ -2057,6 +2065,7 @@ void CheckSerialComm(void) {
     CALL_ON_RECEIVE_PARAM(SetCurrent:, SetCurrent)
     CALL_ON_RECEIVE_PARAM(CalcBalancedCurrent:, CalcBalancedCurrent)
     CALL_ON_RECEIVE(setStatePowerUnavailable)
+    SET_ON_RECEIVE(ErrorFlags:, ErrorFlags)                                     //used to clear the ErrorFlags
     // We received configuration settings from the ESP.
     // Scan for all variables, and update values
     for (ConfigItem* item = configItems; item->keyword != NULL; item++) { //e
