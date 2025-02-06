@@ -59,6 +59,7 @@ struct DelayedTimeStruct DelayedStopTime;
 #include "utils.h"
 extern "C" {
     #include "ch32v003fun.h"
+    void RCmonCtrl(uint8_t enable);
 }
 extern void CheckRS485Comm(void);
 #endif
@@ -435,20 +436,6 @@ void Button::CheckSwitch(bool force) {
                 setState(STATE_C1);
                 if (!TestState) ChargeDelay = 15;                               // Keep in State B for 15 seconds, so the Charge cable can be removed.
             }
-        }
-    }
-#endif
-#ifdef SMARTEVSE_VERSION //both v3 and v4
-    // TODO This piece of code doesnt really belong in CheckSwitch but should be called every 10ms
-    // Residual current monitor active, and DC current > 6mA ?
-    // FIXME should be running on CH32 or v3 ESP32
-    if (RCmon == 1 && digitalRead(PIN_RCM_FAULT) == HIGH) {
-        delay(1);
-        // check again, to prevent voltage spikes from tripping the RCM detection
-        if (digitalRead(PIN_RCM_FAULT) == HIGH) {
-            if (State) setState(STATE_B1);
-            ErrorFlags = RCM_TRIPPED;
-            LCDTimer = 0;                                                   // display the correct error message on the LCD
         }
     }
 #endif
@@ -2785,6 +2772,18 @@ void Timer10ms_singlerun(void) {
         } else StateTimer = 0;
 
     } // end of State C code
+#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40 //v3 ESP32 only, v4 has this in CH32 evse.c interrupt routine
+    // Residual current monitor active, and DC current > 6mA ?
+    if (RCmon == 1 && digitalRead(PIN_RCM_FAULT) == HIGH) {
+        delay(1);
+        // check again, to prevent voltage spikes from tripping the RCM detection
+        if (digitalRead(PIN_RCM_FAULT) == HIGH) {
+            if (State) setState(STATE_B1);
+            ErrorFlags = RCM_TRIPPED;
+            LCDTimer = 0;                                                   // display the correct error message on the LCD
+        }
+    }
+#endif //v3
 #endif //v3 and CH32
 #if SMARTEVSE_VERSION >= 40 //v4
     //ESP32 receives info from CH32
@@ -3075,6 +3074,9 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
             break;
         case MENU_RCMON:
             RCmon = val;
+#if !defined(SMARTEVSE_VERSION) //CH32
+            RCmonCtrl(RCmon);
+#endif
             break;
         case MENU_GRID:
             Grid = val;
