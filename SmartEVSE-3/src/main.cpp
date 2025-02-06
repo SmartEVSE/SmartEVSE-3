@@ -1588,7 +1588,7 @@ uint8_t ow = 0, x;
  //   printf("10ms loop:%lu uS systick:%lu millis:%lu\n", elapsedmax/12, (uint32_t)SysTick->CNT, millis());
     // this section sends outcomes of functions and variables to ESP32 to fill Shadow variables
     // FIXME this section preferably should be empty
-    printf("IsCurrentAvalable:%u", IsCurrentAvailable());
+    printf("IsCurrentAvailable:%u", IsCurrentAvailable());
     printf("ErrorFlags:%u", ErrorFlags);
     elapsedmax = 0;
 #endif
