@@ -77,7 +77,6 @@ extern void CheckRS485Comm(void);
     ret = strstr(SerialBuf, #X);\
     if (ret) \
         Y(atoi(ret+strlen(#X)));
-
 //SET_ON_RECEIVE(Pilot:, pilot) sets pilot=parm when Pilot:param is received
 #define SET_ON_RECEIVE(X,Y) \
     ret = strstr(SerialBuf, #X);\
@@ -1567,7 +1566,7 @@ uint8_t ow = 0, x;
  //   printf("10ms loop:%lu uS systick:%lu millis:%lu\n", elapsedmax/12, (uint32_t)SysTick->CNT, millis());
     // this section sends outcomes of functions and variables to ESP32 to fill Shadow variables
     // FIXME this section preferably should be empty
-    printf("IsCurrentAv:%u", IsCurrentAvailable());
+    printf("IsCurrentAvalable:%u", IsCurrentAvailable());
     elapsedmax = 0;
 #endif
 }
@@ -2827,6 +2826,7 @@ void Timer10ms_singlerun(void) {
             SET_ON_RECEIVE(Temp:, TempEVSE)
             SET_ON_RECEIVE(State:, State)
             SET_ON_RECEIVE(Balanced0:, Balanced[0])
+            SET_ON_RECEIVE(IsCurrentAvailable:, Shadow_IsCurrentAvailable)
 
             strncpy(token, "version:", sizeof(token));
             ret = strstr(SerialBuf, token);
