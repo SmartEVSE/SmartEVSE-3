@@ -3162,7 +3162,7 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
             if (val != State) setState(val);
             break;
         case STATUS_ERROR:
-            ErrorFlags = val; //FIXME v4
+            setErrorFlags(val);
             if (ErrorFlags) {                                                   // Is there an actual Error? Maybe the error got cleared?
                 if (ErrorFlags & CT_NOCOMM) MainsMeter.Timeout = 0;             // clear MainsMeter.Timeout on a CT_NOCOMM error, so the error will be immediate.
                 setStatePowerUnavailable();
@@ -3286,7 +3286,7 @@ uint16_t getItemValue(uint8_t nav) {
         case STATUS_STATE:
             return State;
         case STATUS_ERROR:
-            return ErrorFlags; //FIXME v4
+            return ErrorFlags;
         case STATUS_CURRENT:
             return Balanced[0];
         case STATUS_SOLAR_TIMER:
