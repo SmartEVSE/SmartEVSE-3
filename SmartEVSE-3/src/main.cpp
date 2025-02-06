@@ -2815,8 +2815,8 @@ void Timer10ms_singlerun(void) {
             SerialBuf[idx] = RXbyte;
             idx++;
         }
-        SerialBuf[idx] = '\0'; //null terminate
-        _LOG_D("[<-] %s.\n", SerialBuf);
+        //SerialBuf[idx] = '\0'; //null terminate
+        _LOG_D("[(%u)<-] %.*s.\n", idx, idx, SerialBuf);
     }
     // process data from mainboard
     if (idx > 5) {
