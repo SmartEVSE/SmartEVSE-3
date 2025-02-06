@@ -60,6 +60,7 @@ struct DelayedTimeStruct DelayedStopTime;
 extern "C" {
     #include "ch32v003fun.h"
     void RCmonCtrl(uint8_t enable);
+    void delay(uint32_t ms);
 }
 extern void CheckRS485Comm(void);
 #endif
