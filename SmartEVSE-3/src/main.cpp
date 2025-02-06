@@ -373,11 +373,6 @@ void Button::HandleSwitch(void) {
                     } else if (Mode == MODE_SOLAR) {
                         setMode(MODE_SMART);
                     }
-                    //TODO isnt all this stuff done in setMode?
-                    ErrorFlags &= ~(NO_SUN | LESS_6A);                   // Clear All errors
-                    ChargeDelay = 0;                                // Clear any Chargedelay
-                    setSolarStopTimer(0);                           // Also make sure the SolarTimer is disabled.
-                    MaxSumMainsTimer = 0;
                     LCDTimer = 0;
                 }
                 break;
@@ -483,7 +478,7 @@ void setMode(uint8_t NewMode) {
     lastMqttUpdate = 10;
 #endif
 
-    if (NewMode == MODE_SMART) {
+    if (NewMode == MODE_SMART || NewMode == MODE_SOLAR) {                       // the smart-solar button used to clear all those flags toggling between those modes
         ErrorFlags &= ~(NO_SUN | LESS_6A);                                      // Clear All errors
         setSolarStopTimer(0);                                                   // Also make sure the SolarTimer is disabled.
         MaxSumMainsTimer = 0;
