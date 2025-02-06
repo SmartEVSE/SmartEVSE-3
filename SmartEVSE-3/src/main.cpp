@@ -1567,6 +1567,7 @@ uint8_t ow = 0, x;
     // this section sends outcomes of functions and variables to ESP32 to fill Shadow variables
     // FIXME this section preferably should be empty
     printf("IsCurrentAvalable:%u", IsCurrentAvailable());
+    printf("ErrorFlags:%u", ErrorFlags);
     elapsedmax = 0;
 #endif
 }
@@ -2822,11 +2823,13 @@ void Timer10ms_singlerun(void) {
             CALL_ON_RECEIVE_PARAM(Access:, setAccess)
             CALL_ON_RECEIVE_PARAM(Mode:, setMode)
             CALL_ON_RECEIVE(write_settings)
+            //these variables are owned by CH32 and copies are sent to ESP32:
             SET_ON_RECEIVE(Pilot:, pilot)
             SET_ON_RECEIVE(Temp:, TempEVSE)
             SET_ON_RECEIVE(State:, State)
             SET_ON_RECEIVE(Balanced0:, Balanced[0])
             SET_ON_RECEIVE(IsCurrentAvailable:, Shadow_IsCurrentAvailable)
+            SET_ON_RECEIVE(ErrorFlags:, ErrorFlags)
 
             strncpy(token, "version:", sizeof(token));
             ret = strstr(SerialBuf, token);
