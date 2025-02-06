@@ -160,16 +160,6 @@
 #define PILOT_NOK   0
 #endif
 
-#define NO_ERROR 0
-#define LESS_6A 1
-#define CT_NOCOMM 2
-#define TEMP_HIGH 4
-#define EV_NOCOMM 8
-#define RCM_TRIPPED 16                                                          // RCM tripped. >6mA DC residual current detected.
-#define NO_SUN 32
-#define Test_IO 64
-#define BL_FLASH 128
-
 #define _RSTB_0 digitalWrite(PIN_LCD_RST, LOW);
 #define _RSTB_1 digitalWrite(PIN_LCD_RST, HIGH);
 #define _A0_0 digitalWrite(PIN_LCD_A0_B2, LOW);
