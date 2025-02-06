@@ -69,19 +69,25 @@ extern void CheckRS485Comm(void);
 //CALL_ON_RECEIVE(setStatePowerUnavailable) setStatePowerUnavailable() when setStatePowerUnavailable is received
 #define CALL_ON_RECEIVE(X) \
     ret = strstr(SerialBuf, #X);\
-    if (ret) \
-        X();
+    if (ret) {\
+/*        _LOG_A("DEBUG: calling %s().\n", #X); */ \
+        X();\
+    }
 
 //CALL_ON_RECEIVE_PARAM(State, setState) calls setState(param) when State:param is received
 #define CALL_ON_RECEIVE_PARAM(X,Y) \
     ret = strstr(SerialBuf, #X);\
-    if (ret) \
-        Y(atoi(ret+strlen(#X)));
+    if (ret) {\
+/*        _LOG_A("DEBUG: calling %s(%u).\n", #X, atoi(ret+strlen(#X))); */ \
+        Y(atoi(ret+strlen(#X)));\
+    }
 //SET_ON_RECEIVE(Pilot:, pilot) sets pilot=parm when Pilot:param is received
 #define SET_ON_RECEIVE(X,Y) \
     ret = strstr(SerialBuf, #X);\
-    if (ret) \
-        Y = atoi(ret+strlen(#X));
+    if (ret) {\
+/*        _LOG_A("DEBUG: setting %s to %u.\n", #Y, atoi(ret+strlen(#X))); */ \
+        Y = atoi(ret+strlen(#X));\
+    }
 
 
 uint8_t Initialized = INITIALIZED;                                          // When first powered on, the settings need to be initialized.
