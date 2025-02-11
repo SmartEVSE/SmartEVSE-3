@@ -548,39 +548,35 @@ void DisconnectEvent(void){
     strncpy(EVCCID, "", sizeof(EVCCID));
 }
 
-#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
 void getButtonState() {
     // Sample the three < o > buttons.
     // As the buttons are shared with the SPI lines going to the LCD,
     // we have to make sure that this does not interfere by write actions to the LCD.
     // Therefore updating the LCD is also done in this task.
+/*    if (ButtonStateOverride != 7)
+        ButtonState = ButtonStateOverride;
+    else {*/
+#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
+        pinMatrixOutDetach(PIN_LCD_SDO_B3, false, false);       // disconnect MOSI pin
+        pinMode(PIN_LCD_SDO_B3, INPUT);
+        pinMode(PIN_LCD_A0_B2, INPUT);
 
-    pinMatrixOutDetach(PIN_LCD_SDO_B3, false, false);       // disconnect MOSI pin
-    pinMode(PIN_LCD_SDO_B3, INPUT);
-    pinMode(PIN_LCD_A0_B2, INPUT);
-    // sample buttons                                       < o >
-    if (digitalRead(PIN_LCD_SDO_B3)) ButtonState = 4;       // > (right)
-    else ButtonState = 0;
-    if (digitalRead(PIN_LCD_A0_B2)) ButtonState |= 2;       // o (middle)
-    if (digitalRead(PIN_IO0_B1)) ButtonState |= 1;          // < (left)
+        // sample buttons                                                         < o >
+        ButtonState = (digitalRead(PIN_LCD_SDO_B3) ? 4 : 0) |  // > (right)
+                      (digitalRead(PIN_LCD_A0_B2)  ? 2 : 0) |  // o (middle)
+                      (digitalRead(PIN_IO0_B1)     ? 1 : 0);   // < (left)
 
-    pinMode(PIN_LCD_SDO_B3, OUTPUT);
-    pinMatrixOutAttach(PIN_LCD_SDO_B3, VSPID_IN_IDX, false, false); // re-attach MOSI pin
-    pinMode(PIN_LCD_A0_B2, OUTPUT);
-}
+        pinMode(PIN_LCD_SDO_B3, OUTPUT);
+        pinMatrixOutAttach(PIN_LCD_SDO_B3, VSPID_IN_IDX, false, false); // re-attach MOSI pin
 #else
-void getButtonState() {
-    // Sample the three < o > buttons.
-
-    pinMode(LCD_A0_B2, INPUT_PULLUP);                   // Switch the shared pin for the middle button to input
-    if (digitalRead(BUTTON3)) ButtonState = 4;          // > (right)
-    else ButtonState = 0;
-    // sample the middle button
-    if (digitalRead(LCD_A0_B2)) ButtonState |= 2;       // o (middle)
-    pinMode(LCD_A0_B2, OUTPUT);                         // switch pin back to output
-    if (digitalRead(BUTTON1)) ButtonState |= 1;         // < (left)
-}
+        pinMode(PIN_LCD_A0_B2, INPUT_PULLUP);                  // Switch the shared pin for the middle button to input
+        ButtonState = (digitalRead(BUTTON3)        ? 4 : 0) |  // > (right)
+                      (digitalRead(PIN_LCD_A0_B2)  ? 2 : 0) |  // o (middle)
+                      (digitalRead(BUTTON1)        ? 1 : 0);   // < (left)
 #endif
+        pinMode(PIN_LCD_A0_B2, OUTPUT);                        // switch pin back to output
+//    }
+}
 
 
 #if MQTT
@@ -2506,10 +2502,10 @@ void setup() {
     pinMode(BUTTON3, INPUT_PULLUP);
 
     pinMode(LCD_LED, OUTPUT);               // LCD backlight
-    pinMode(LCD_RST, OUTPUT);               // LCD reset, active high
+    pinMode(PIN_LCD_RST, OUTPUT);           // LCD reset, active high
     pinMode(LCD_SDA, OUTPUT);               // LCD Data
     pinMode(LCD_SCK, OUTPUT);               // LCD Clock
-    pinMode(LCD_A0_B2, OUTPUT);             // Select button + A0 LCD
+    pinMode(PIN_LCD_A0_B2, OUTPUT);             // Select button + A0 LCD
     pinMode(LCD_CS, OUTPUT);
 
     pinMode(WCH_SWDIO, INPUT);              // WCH-Link (unused/unconnected)

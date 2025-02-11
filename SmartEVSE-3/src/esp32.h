@@ -38,7 +38,6 @@
 #define PIN_LOCK_IN 35
 #define PIN_SSR 32
 #define PIN_LCD_SDO_B3 33                                                       // = SPI_MOSI
-#define PIN_LCD_A0_B2 25
 #define PIN_LCD_CLK 26                                                          // = SPI_SCK
 #define PIN_SSR2 27
 #define PIN_LCD_LED 14
@@ -53,7 +52,6 @@
 #define PIN_RS485_TX 21
 #define PIN_CP_OUT 19
 #define PIN_ACTB 18
-#define PIN_LCD_RST 5
 #define PIN_ACTA 17
 #define PIN_SW_IN 16
 #define PIN_LEDG 4
@@ -62,6 +60,8 @@
 #define PIN_CPOFF 15
 
 #if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
+#define PIN_LCD_A0_B2 25
+#define PIN_LCD_RST 5
 #define SPI_MOSI 33                                                             // SPI connections to LCD
 #define SPI_MISO -1
 #define SPI_SCK 26
@@ -73,6 +73,8 @@
 #define BLUE_CHANNEL 4
 #define LCD_CHANNEL 5                                                           // LED Backlight LCD
 #else
+#define PIN_LCD_A0_B2 40
+#define PIN_LCD_RST 42
 #include "funconfig.h"
 #endif //SMARTEVSE_VERSION
 
@@ -276,17 +278,10 @@ bool ocppLockingTxDefined();
 
 #define LCD_SDA 38                  // LCD interface
 #define LCD_SCK 39
-#define LCD_A0_B2 40
 #define LCD_LED 41
-#define LCD_RST 42
 #define LCD_CS 1
 
 #define LCD_CHANNEL 5               // PWM channel
-
-#define LCD_RST_0 digitalWrite(LCD_RST, LOW);
-#define LCD_RST_1 digitalWrite(LCD_RST, HIGH);
-#define LCD_A0_0 digitalWrite(LCD_A0_B2, LOW);
-#define LCD_A0_1 digitalWrite(LCD_A0_B2, HIGH);
 
 
 // RTC power sources

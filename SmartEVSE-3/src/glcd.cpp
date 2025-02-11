@@ -106,21 +106,21 @@ extern Melopero_RV3028 rtc;
 extern struct rtcTime rtcTS;
 
 void st7565_command(unsigned char data) {
-    LCD_A0_0;
+    _A0_0;
     digitalWrite(LCD_CS, LOW);
     LCD_SPI2.transfer(data);
     digitalWrite(LCD_CS, HIGH);
 }
 
 void st7565_data(unsigned char data) {
-    LCD_A0_1;
+    _A0_1;
     digitalWrite(LCD_CS, LOW);
     LCD_SPI2.transfer(data);
     digitalWrite(LCD_CS, HIGH);
 }
 
 void st7565_data_buf(unsigned char *data, unsigned char len) {
-    LCD_A0_1;
+    _A0_1;
     digitalWrite(LCD_CS, LOW);
     LCD_SPI2.transfer(data, len);
     digitalWrite(LCD_CS, HIGH);
@@ -1368,12 +1368,13 @@ void GLCDMenu(uint8_t Buttons) {
 void GLCD_init(void) {
 #if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
     delay(200);                                                                 // transients on the line could have garbled the LCD, wait 200ms then re-init.
+#endif
     _A0_0;                                                                      // A0=0
     _RSTB_0;                                                                    // Reset GLCD module
     delayMicroseconds(4);
     _RSTB_1;                                                                    // Reset line high
     delayMicroseconds(4);
-    
+
     st7565_command(0xA2);                                                       // (11) set bias at duty cycle 1.65 (0xA2=1.9 0xA3=1.6)
     st7565_command(0xA0);                                                       // (8) SEG direction (0xA0 or 0xA1)
     st7565_command(0xC8);                                                       // (15) comm direction normal =0xC0 comm reverse= 0xC8
@@ -1396,36 +1397,7 @@ void GLCD_init(void) {
     goto_col(0x00);                                                             // (4) Set column addr LSB
  
     st7565_command(0xAF);                                                       // (1) ON command
-#else //SMARTEVSE_VERSION
-    LCD_A0_0;                                                                   // A0=0
-    LCD_RST_0;                                                                 // Reset GLCD module
-    delayMicroseconds(4);
-    LCD_RST_1;                                                                 // Reset line high
-    delayMicroseconds(4);
-
-    st7565_command(0xA2);                                                       // (11) set bias at duty cycle 1.65 (0xA2=1.9 0xA3=1.6)
-    st7565_command(0xA0);                                                       // (8) SEG direction (0xA0 or 0xA1)
-    st7565_command(0xC8);                                                       // (15) comm direction normal =0xC0 comm reverse= 0xC8
-
-    st7565_command(0x20 | 0x04);                                                // (17) set Regulation Ratio (0-7)
-
-    st7565_command(0xF8);                                                       // (19) send Booster command
-    st7565_command(0x01);                                                       // set Booster value 00=4x 01=5x
-
-    st7565_command(0x81);                                                       // (18) send Electronic Volume command 0x81
-    st7565_command(0x24);                                                       // set Electronic volume (0x00-0x3f)
-
-    st7565_command(0xA6);                                                       // (9) Inverse display (0xA7=inverse 0xA6=normal)
-    st7565_command(0xA4);                                                       // (10) ALL pixel on (A4=normal, A5=all ON)
-
-    st7565_command(0x28 | 0x07);                                                // (16) ALL Power Control ON
-
-    glcd_clear();                                                               // clear internal GLCD buffer
-    goto_row(0x00);                                                             // (3) Set page address
-    goto_col(0x00);                                                             // (4) Set column addr LSB
-
-    st7565_command(0xAF);                                                       // (1) ON command
-
+#if SMARTEVSE_VERSION >= 40
     glcd_clrln(0, 0x00);
     glcd_clrln(1, 0x04);                                                // horizontal line
     GLCD_print_buf2(2, (const char *) "SmartEVSE 4");
