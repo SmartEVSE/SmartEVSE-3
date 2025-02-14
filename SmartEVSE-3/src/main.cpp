@@ -234,6 +234,7 @@ uint16_t firmwareUpdateTimer = 0;                                               
                                                                                 // 0 < timer < FW_UPDATE_DELAY means we are in countdown for an actual update
                                                                                 // FW_UPDATE_DELAY <= timer <= 0xffff means we are in countdown for checking
                                                                                 //                                              whether an update is necessary
+uint16_t WchVersion = WCH_VERSION;
 
 #if ENABLE_OCPP
 uint8_t OcppMode = OCPP_MODE; //OCPP Client mode. 0:Disable / 1:Enable
@@ -275,7 +276,6 @@ uint8_t OneWireReadCardId();
 EXT uint8_t ProximityPin();
 EXT void PowerPanicCtrl(uint8_t enable);
 EXT void ModemPower(uint8_t enable);
-EXT uint16_t WchVersion;
 EXT uint8_t ReadESPdata(char *buf);
 
 extern void printStatus(void);

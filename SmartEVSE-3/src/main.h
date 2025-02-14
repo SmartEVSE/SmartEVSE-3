@@ -290,6 +290,8 @@
 
 #define MENU_STATE 50
 
+#define WCH_VERSION 1               // software version (this software)
+
 class Button {
   public:
     void CheckSwitch(bool force = false);

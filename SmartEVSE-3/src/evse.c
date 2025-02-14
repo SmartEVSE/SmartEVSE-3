@@ -31,7 +31,6 @@
 extern uint8_t State;
 uint8_t PwrPanic = 0;                                                       // Power Panic feature
 uint8_t ModemPwr = 0;                                                       // Enable power to the Modem
-uint16_t WchVersion = WCH_VERSION;
 
 uint8_t LockCable = 0;
 uint8_t RFID[8] = {0, 0, 0, 0, 0, 0, 0, 0};                                 // Last RFID reading. First byte is always 01, last byte is CRC
