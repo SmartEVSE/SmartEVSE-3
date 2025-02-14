@@ -50,11 +50,6 @@
 #include "Melopero_RV3028.h"
 #include "qca.h"
 
-#define CIRCUIT_METER 0                                                         // Electric meter used for EVSE Circuit
-#define CIRCUIT_METER_ADDRESS 13
-uint8_t CircuitMeter = CIRCUIT_METER;
-uint8_t CircuitMeterAddress = CIRCUIT_METER_ADDRESS;
-
 SPIClass QCA_SPI1(FSPI);  // The ESP32-S3 has two usable SPI busses FSPI and HSPI
 SPIClass LCD_SPI2(HSPI);
 
