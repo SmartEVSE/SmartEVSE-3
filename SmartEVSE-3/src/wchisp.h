@@ -23,5 +23,5 @@
 
 void WchEnterBootloader(void);
 void WchReset(void);
-uint8_t WchFirmwareUpdate(void);
+uint8_t WchFirmwareUpdate(unsigned long);
 #endif

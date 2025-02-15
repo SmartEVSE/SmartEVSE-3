@@ -290,8 +290,6 @@
 
 #define MENU_STATE 50
 
-#define WCH_VERSION 1               // software version (this software)
-
 class Button {
   public:
     void CheckSwitch(bool force = false);
@@ -316,7 +314,7 @@ extern void BlinkLed(void * parameter);
 extern void getButtonState();
 extern void PowerPanicESP();
 
-extern uint8_t LCDlock, MainVersion;
+extern uint8_t LCDlock;
 enum Single_Phase_t { FALSE, GOING_TO_SWITCH, AFTER_SWITCH };
 extern void CalcBalancedCurrent(char mod);
 extern void write_settings(void);

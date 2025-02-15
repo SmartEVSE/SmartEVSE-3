@@ -53,6 +53,8 @@
 extern Preferences preferences;
 struct DelayedTimeStruct DelayedStartTime;
 struct DelayedTimeStruct DelayedStopTime;
+extern time_t WCHfirmware_timestamp;
+extern void WCHUPDATE(unsigned long);
 #else //CH32
 #define EXT extern "C"
 #include "ch32.h"
@@ -234,8 +236,6 @@ uint16_t firmwareUpdateTimer = 0;                                               
                                                                                 // 0 < timer < FW_UPDATE_DELAY means we are in countdown for an actual update
                                                                                 // FW_UPDATE_DELAY <= timer <= 0xffff means we are in countdown for checking
                                                                                 //                                              whether an update is necessary
-uint16_t WchVersion = WCH_VERSION;
-
 #if ENABLE_OCPP
 uint8_t OcppMode = OCPP_MODE; //OCPP Client mode. 0:Disable / 1:Enable
 
@@ -1330,6 +1330,16 @@ void Timer1S_singlerun(void) {
 static uint8_t Broadcast = 1;
 #ifdef SMARTEVSE_VERSION //ESP32
 
+//print WCHfirmware_timestamp TODO debug only!
+tm TM;
+TM = *localtime(&WCHfirmware_timestamp);
+char Str[26];
+if (!strftime(Str, sizeof(Str), "%a %e %R", &TM)) {
+    _LOG_A("DINGO: could not convert WCHfirmware_timestamp.\n");
+} else {
+    _LOG_A("DINGO: WCHTime=%s, epoch=%lu.\n", Str, WCHfirmware_timestamp);
+}
+
 static uint8_t x;
 
     if (BacklightTimer) BacklightTimer--;                               // Decrease backlight counter every second.
@@ -2067,12 +2077,16 @@ void CheckSerialComm(void) {
 
     len = ReadESPdata(SerialBuf);
     RxRdy1 = 0;
-
+#ifndef WCH_VERSION
+#define WCH_VERSION 0 //if WCH_VERSION not defined compile time, 0 means this firmware will be overwritten by any other version
+#endif
     // Is it a request?
     char token[64];
     strncpy(token, "version?", sizeof(token));
     ret = strstr(SerialBuf, token);
-    if (ret != NULL) printf("version:%04u\n", WchVersion);          // Send WCH software version
+    unsigned long tmp = WCH_VERSION;
+    if (ret != NULL) printf("version:%lu\n", tmp);          // Send WCH software version
+    //if (ret != NULL) printf("version:%lu\n", (unsigned long) WCH_VERSION);          // Send WCH software version
 
     CALL_ON_RECEIVE_PARAM(State:, setState)
     CALL_ON_RECEIVE_PARAM(SetCPDuty:, SetCPDuty)
@@ -2859,14 +2873,17 @@ void Timer10ms_singlerun(void) {
             strncpy(token, "version:", sizeof(token));
             ret = strstr(SerialBuf, token);
             if (ret != NULL) {
-                MainVersion = atoi(ret+strlen(token));
-                Serial.printf("version %u received\n", MainVersion);
+                unsigned long WCHRunningVersion = atoi(ret+strlen(token));
+                _LOG_A("version %lu received\n", WCHRunningVersion);
+                //_LOG_V("version %lu received\n", WCHRunningVersion);
+                //WCHUPDATE(WCHRunningVersion); dont need to flash here 
+                Initialized = 1;
                 CommState = COMM_CONFIG_SET;
             }
 
             ret = strstr(SerialBuf, "Config:OK");
             if (ret != NULL) {
-                Serial.printf("Config set\n");
+                _LOG_V("Config set\n");
                 CommState = COMM_STATUS_REQ;
             }
 
@@ -2934,18 +2951,19 @@ void Timer10ms_singlerun(void) {
         memset(SerialBuf,0,idx);        // Clear buffer
         idx = 0;
     }
-
+_LOG_A("DINGO: CommTimeout=%d, CommState=%d.\n", CommTimeout, CommState);
     if (CommTimeout == 0) {
         switch (CommState) {
 
             case COMM_VER_REQ:
                 CommTimeout = 10;
                 Serial1.print("version?\n");            // send command to WCH ic
-                Serial.print("[->] version?\n");        // send command to WCH ic
+                _LOG_V("[->] version?\n");        // send command to WCH ic
                 break;
 
             case COMM_CONFIG_SET:                       // Set mainboard configuration
                 CommTimeout = 10;
+_LOG_A("DINGO: sending config to WCH, Initialized=%u.\n", Initialized);
                 // send configuration to WCH IC
                 Serial1.printf("Config:%u,Lock:%u,Mode:%u,CardOffset:%u,LoadBl:%u,MaxMains:%u,MaxSumMains:%u, MaxCurrent:%u, MinCurrent:%u, MaxCircuit:%u, Switch:%u, RCmon:%u, StartCurrent:%u\n", Config, Lock, Mode, CardOffset, LoadBl, MaxMains, MaxSumMains, MaxCurrent, MinCurrent, MaxCircuit, Switch, RCmon, StartCurrent);
                 delay(1000);

@@ -307,11 +307,12 @@ void setTimeZone(char *tzname) {
         } while (filepos < filelen && !found);
     }
 }*/
-uint8_t WchFirmwareUpdate(void) {
+time_t WCHfirmware_timestamp = 0;
+uint8_t WchFirmwareUpdate(unsigned long WCHRunningVersion) {
 
     void *fp;
     size_t filelen = 0;
-    filesystem->st(WCHfirmware, &filelen, NULL);
+    filesystem->st(WCHfirmware, &filelen, &WCHfirmware_timestamp);
     if (!filesystem) {
         _LOG_A("ERROR cannot find CH32 flash file:%s.\n", WCHfirmware);
         return 1;
@@ -320,7 +321,12 @@ uint8_t WchFirmwareUpdate(void) {
         _LOG_A("ERROR cannot open CH32 flash file:%s.\n", WCHfirmware);
         return 2;
     }
-    WchProgram(fp, filelen);                                                       	// Program Chip
+    if (WCHfirmware_timestamp > WCHRunningVersion + 60)  { //CH32 may take 60s to compile
+        _LOG_A("Flashing WCHfirmware version %lu over %lu.\n", WCHfirmware_timestamp, WCHRunningVersion);
+        WchProgram(fp, filelen);                                                       	// Program Chip
+    } else {
+        _LOG_A("NOT Flashing WCHfirmware version %lu over %lu.\n", WCHfirmware_timestamp, WCHRunningVersion);
+    }
     filesystem->cl(fp);
     return 0;
 }
