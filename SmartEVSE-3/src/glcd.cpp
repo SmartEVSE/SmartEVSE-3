@@ -770,7 +770,7 @@ void GLCD(void) {
                             time_t epoch = DelayedStartTime.epoch2 + EPOCH2_OFFSET;
                             DelayedStartTimeTM = *localtime(&epoch);
                         }
-                        if (!strftime(Str, 26, StrFormat.c_str(), &DelayedStartTimeTM))
+                        if (!strftime(Str, sizeof(Str), StrFormat.c_str(), &DelayedStartTimeTM))
                             sprintf(Str, "later...");
                         GLCD_print_buf2(4, Str);
                         //print current time
