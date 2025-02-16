@@ -2348,13 +2348,6 @@ void WCHUPDATE(unsigned long RunningVersion) {
         // we reset before flashing because when the WCH chip is sending messages (by printf) the programming can fail
         _LOG_D("reset WCH ic\n");
         WchReset();
-        //Serial1.end();
-        WchReset();
-        Serial1.begin(115200, SERIAL_8N1);
-        //Serial1.begin(FUNCONF_UART_PRINTF_BAUD, SERIAL_8N1, USART_RX, USART_TX, true);       // Serial connection to main board microcontroller
-        Serial1.flush();
-        WchReset();
-        Serial1.flush();
         if (WchFirmwareUpdate(RunningVersion)) {
             _LOG_A("Firmware update failed.\n");
         } else _LOG_D("WCH programming done\n");
