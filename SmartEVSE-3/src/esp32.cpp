@@ -2696,9 +2696,6 @@ void setup() {
     uint8_t CommTimeout;
     CommTimeout = 0;
     CommState = COMM_VER_REQ;
-    WchReset(); //after boot WCH does not seem to respond without this
-    Serial1.begin(FUNCONF_UART_PRINTF_BAUD, SERIAL_8N1, USART_RX, USART_TX, false); // Serial connection to main board microcontroller
-    WchReset(); //after boot WCH does not seem to respond without this
     do {
         //ESP32 receives info from CH32; we need to do this outside of the ESP32 10ms routines because
         //the timer routines disturb the WCH flashing process
