@@ -93,7 +93,9 @@ extern void CheckRS485Comm(void);
     }
 
 
+#ifndef SMARTEVSE_VERSION //CH32 version
 uint8_t Initialized = INITIALIZED;                                          // When first powered on, the settings need to be initialized.
+#endif
 // The following data will be updated by eeprom/storage data at powerup:
 uint16_t MaxMains = MAX_MAINS;                                              // Max Mains Amps (hard limit, limited by the MAINS connection) (A)
 uint16_t MaxSumMains = MAX_SUMMAINS;                                        // Max Mains Amps summed over all 3 phases, limit used by EU capacity rate
@@ -2863,10 +2865,7 @@ void Timer10ms_singlerun(void) {
             ret = strstr(SerialBuf, token);
             if (ret != NULL) {
                 unsigned long WCHRunningVersion = atoi(ret+strlen(token));
-                _LOG_A("version %lu received\n", WCHRunningVersion);
-                //_LOG_V("version %lu received\n", WCHRunningVersion);
-                //WCHUPDATE(WCHRunningVersion); dont need to flash here 
-                Initialized = 1;
+                _LOG_V("version %lu received\n", WCHRunningVersion);
                 CommState = COMM_CONFIG_SET;
             }
 
@@ -2955,7 +2954,7 @@ void Timer10ms_singlerun(void) {
                 // send configuration to WCH IC
                 Serial1.printf("Config:%u,Lock:%u,Mode:%u,CardOffset:%u,LoadBl:%u,MaxMains:%u,MaxSumMains:%u, MaxCurrent:%u, MinCurrent:%u, MaxCircuit:%u, Switch:%u, RCmon:%u, StartCurrent:%u\n", Config, Lock, Mode, CardOffset, LoadBl, MaxMains, MaxSumMains, MaxCurrent, MinCurrent, MaxCircuit, Switch, RCmon, StartCurrent);
                 delay(1000);
-                Serial1.printf("StopTime:%u, ImportCurrent:%u, Grid:%u, RFIDReader:%u, MainsMeterType:%u, MainsMAddress:%u, EVMeterType:%u, EVMeterAddress:%u, Initialized:%u, EnableC2:%u, maxTemp:%u, PwrPanic:%u, ModemPwr:%u\n", StopTime, ImportCurrent, Grid, RFIDReader, MainsMeter.Type, MainsMeter.Address, EVMeter.Type, EVMeter.Address, Initialized, EnableC2, maxTemp, PwrPanic, ModemPwr);
+                Serial1.printf("StopTime:%u, ImportCurrent:%u, Grid:%u, RFIDReader:%u, MainsMeterType:%u, MainsMAddress:%u, EVMeterType:%u, EVMeterAddress:%u, Initialized:1, EnableC2:%u, maxTemp:%u, PwrPanic:%u, ModemPwr:%u\n", StopTime, ImportCurrent, Grid, RFIDReader, MainsMeter.Type, MainsMeter.Address, EVMeter.Type, EVMeter.Address, EnableC2, maxTemp, PwrPanic, ModemPwr); //Initialized is always set to 1 here
                 //Serial1.printf("Config:%u,Lock:%u,Mode:%u,CardOffset:%u,LoadBl:%u,MaxMains:%u,MaxSumMains:%u, MaxCurrent:%u, MinCurrent:%u, MaxCircuit:%u, Switch:%u, RCmon:%u, StartCurrent:%u, StopTime:%u, ImportCurrent:%u, Grid:%u, RFIDReader:%u, MainsMeterType:%u, MainsMAddress:%u, EVMeterType:%u, EVMeterAddress:%u, Initialized:%u, EnableC2:%u, maxTemp:%u, PwrPanic:%u, ModemPwr:%u\n", Config, Lock, Mode, CardOffset, LoadBl, MaxMains, MaxSumMains, MaxCurrent, MinCurrent, MaxCircuit, Switch, RCmon, StartCurrent, StopTime, ImportCurrent, Grid, RFIDReader, MainsMeter.Type, MainsMeter.Address, EVMeter.Type, EVMeter.Address, Initialized, EnableC2, maxTemp, PwrPanic, ModemPwr);
 
 //TODO ChargeCurrent?

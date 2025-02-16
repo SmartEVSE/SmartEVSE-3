@@ -2692,13 +2692,12 @@ void setup() {
     uint8_t RXbyte, idx = 0;
     static char *ret;
     static char SerialBuf[256];
-    extern uint8_t Initialized;
     extern uint8_t CommState;
     uint8_t CommTimeout;
     CommTimeout = 0;
     CommState = COMM_VER_REQ;
     WchReset(); //after boot WCH does not seem to respond without this
-    Serial1.begin(FUNCONF_UART_PRINTF_BAUD, SERIAL_8N1, USART_RX, USART_TX, false);       // Serial connection to main board microcontroller
+    Serial1.begin(FUNCONF_UART_PRINTF_BAUD, SERIAL_8N1, USART_RX, USART_TX, false); // Serial connection to main board microcontroller
     WchReset(); //after boot WCH does not seem to respond without this
     do {
         //ESP32 receives info from CH32; we need to do this outside of the ESP32 10ms routines because
@@ -2715,7 +2714,7 @@ void setup() {
         // process data from mainboard
         if (idx > 5) {
             char token[64];
-            strncpy(token, "MSG:", sizeof(token));                              // if a command starts with MSG: the rest of the line is no longer parsed
+            strncpy(token, "MSG:", sizeof(token));                         // if a command starts with MSG: the rest of the line is no longer parsed
             ret = strstr(SerialBuf, token);
             if (ret == NULL) {
                 strncpy(token, "version:", sizeof(token));
@@ -2725,28 +2724,24 @@ void setup() {
                     _LOG_A("version %lu received\n", WCHRunningVersion);
                     //_LOG_V("version %lu received\n", WCHRunningVersion);
                     WCHUPDATE(WCHRunningVersion);
-                    Initialized = 1;
                     CommState = COMM_CONFIG_SET;
                 }
             }
-            memset(SerialBuf,0,idx);        // Clear buffer
+            memset(SerialBuf,0,idx);                                       // Clear buffer
             idx = 0;
         }
         if (CommTimeout == 0 && CommState == COMM_VER_REQ) {
-            CommTimeout = 20;
-            Serial1.print("version?\n");            // send command to WCH ic
-            _LOG_V("[->] version?\n");        // send command to WCH ic
+            CommTimeout = 10;
+            Serial1.print("version?\n");                                   // send command to WCH ic
+            _LOG_V("[->] version?\n");                                     // send command to WCH ic
         }
 
         if (CommTimeout) CommTimeout--;
         vTaskDelay(10 / portTICK_PERIOD_MS);
     } while (CommState < COMM_CONFIG_SET && millis() - FlashTimeout < 10000); //only try for 10s, then release so ESP32 can boot and OTA updates are possible
 
-    if (CommState < COMM_CONFIG_SET) {                                            // we timed out
-      _LOG_A("Received no version response of WCH, flashing WCH firmware.\n");
+    if (CommState < COMM_CONFIG_SET) {                                     // we timed out
         WCHUPDATE(0);
-    } else {
-      _LOG_A("Received version response of WCH, checking version of WCH firmware.\n");
     }
 #endif
 
