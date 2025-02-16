@@ -2687,14 +2687,12 @@ void setup() {
 
 #if SMARTEVSE_VERSION >=40 //v4
     Serial1.print("version?\n");            // send command to WCH ic
-    _LOG_V("[->] version?\n");        // send command to WCH ic
+    _LOG_V("[->] version?\n");
     static unsigned long FlashTimeout = millis();
     uint8_t RXbyte, idx = 0;
     static char *ret;
     static char SerialBuf[256];
     extern uint8_t CommState;
-    uint8_t CommTimeout;
-    CommTimeout = 0;
     CommState = COMM_VER_REQ;
     do {
         //ESP32 receives info from CH32; we need to do this outside of the ESP32 10ms routines because
@@ -2718,8 +2716,7 @@ void setup() {
                 ret = strstr(SerialBuf, token);
                 if (ret != NULL) {
                     unsigned long WCHRunningVersion = atoi(ret+strlen(token));
-                    _LOG_A("version %lu received\n", WCHRunningVersion);
-                    //_LOG_V("version %lu received\n", WCHRunningVersion);
+                    _LOG_V("version %lu received\n", WCHRunningVersion);
                     WCHUPDATE(WCHRunningVersion);
                     CommState = COMM_CONFIG_SET;
                 }
@@ -2727,14 +2724,12 @@ void setup() {
             memset(SerialBuf,0,idx);                                       // Clear buffer
             idx = 0;
         }
-        if (CommTimeout == 0 && CommState == COMM_VER_REQ) {
-            CommTimeout = 10;
+        if (CommState == COMM_VER_REQ) {
             Serial1.print("version?\n");                                   // send command to WCH ic
             _LOG_V("[->] version?\n");                                     // send command to WCH ic
         }
 
-        if (CommTimeout) CommTimeout--;
-        vTaskDelay(10 / portTICK_PERIOD_MS);
+        vTaskDelay(100 / portTICK_PERIOD_MS);
     } while (CommState < COMM_CONFIG_SET && millis() - FlashTimeout < 10000); //only try for 10s, then release so ESP32 can boot and OTA updates are possible
 
     if (CommState < COMM_CONFIG_SET) {                                     // we timed out
