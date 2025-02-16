@@ -62,7 +62,8 @@ unsigned long WchTimeout;
 uint8_t WchWaitRX = 0;
 
 const char* WCHfirmware = "/data/CH32V203.bin";
-
+extern void glcd_clrln(unsigned char ln, unsigned char data);
+extern void GLCD_print_buf2(unsigned char y, const char* str);
 
 void WchEnterBootloader(void) {
 
@@ -323,6 +324,13 @@ uint8_t WchFirmwareUpdate(unsigned long WCHRunningVersion) {
     }
     if (WCHfirmware_timestamp > WCHRunningVersion + 60)  { //CH32 may take 60s to compile
         _LOG_A("Flashing WCHfirmware version %lu over %lu.\n", WCHfirmware_timestamp, WCHRunningVersion);
+        glcd_clrln(0, 0x00);
+        glcd_clrln(1, 0x04);                                                // horizontal line
+        GLCD_print_buf2(2, (const char *) "SmartEVSE 4");
+        GLCD_print_buf2(4, (const char *) "Flashing WCH");
+        glcd_clrln(6, 0x10);                                                // horizontal line
+        glcd_clrln(7, 0x00);
+
         WchProgram(fp, filelen);                                                       	// Program Chip
     } else {
         _LOG_A("NOT Flashing WCHfirmware version %lu over %lu.\n", WCHfirmware_timestamp, WCHRunningVersion);

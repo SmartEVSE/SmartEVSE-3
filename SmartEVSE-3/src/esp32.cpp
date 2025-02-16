@@ -2694,6 +2694,8 @@ _LOG_A("DINGO: checkpoint -1.\n");
         write_settings();
     }
 
+    BacklightTimer = BACKLIGHT;
+    GLCD_init();
 #if SMARTEVSE_VERSION >=40 //v4
 _LOG_A("DINGO: checkpoint 1.\n");
     Serial1.print("version?\n");            // send command to WCH ic
@@ -2860,8 +2862,6 @@ _LOG_A("DINGO: sending config to WCH, Initialized=%u.\n", Initialized);
     ConfigureModbusMode(255);
 #endif
 
-    BacklightTimer = BACKLIGHT;
-    GLCD_init();
 
 #if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
     CP_ON;           // CP signal ACTIVE
