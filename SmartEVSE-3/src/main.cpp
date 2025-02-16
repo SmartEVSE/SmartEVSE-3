@@ -53,8 +53,6 @@
 extern Preferences preferences;
 struct DelayedTimeStruct DelayedStartTime;
 struct DelayedTimeStruct DelayedStopTime;
-extern time_t WCHfirmware_timestamp;
-extern void WCHUPDATE(unsigned long);
 #else //CH32
 #define EXT extern "C"
 #include "ch32.h"
@@ -2069,15 +2067,17 @@ void CheckSerialComm(void) {
     len = ReadESPdata(SerialBuf);
     RxRdy1 = 0;
 #ifndef WCH_VERSION
-#define WCH_VERSION 0 //if WCH_VERSION not defined compile time, 0 means this firmware will be overwritten by any other version
+#define WCH_VERSION 0 //if WCH_VERSION not defined compile time, 0 means this firmware will be overwritten by any other version; it will be re-flashed every boot
+//if you compile with
+//    PLATFORMIO_BUILD_FLAGS='-DWCH_VERSION='"`date +%s`" pio run -e v4 -t upload
+//the current time (in epoch) is compiled via WCH_VERSION in the CH32 firmware
+//which will prevent it to be reflashed every reboot
 #endif
     // Is it a request?
     char token[64];
     strncpy(token, "version?", sizeof(token));
     ret = strstr(SerialBuf, token);
-    unsigned long tmp = WCH_VERSION;
-    if (ret != NULL) printf("version:%lu\n", tmp);          // Send WCH software version
-    //if (ret != NULL) printf("version:%lu\n", (unsigned long) WCH_VERSION);          // Send WCH software version
+    if (ret != NULL) printf("version:%lu\n", (unsigned long) WCH_VERSION);          // Send WCH software version
 
     CALL_ON_RECEIVE_PARAM(State:, setState)
     CALL_ON_RECEIVE_PARAM(SetCPDuty:, SetCPDuty)
