@@ -2686,15 +2686,17 @@ void setup() {
     GLCD_init();
 
 #if SMARTEVSE_VERSION >=40 //v4
-    Serial1.print("version?\n");            // send command to WCH ic
-    _LOG_V("[->] version?\n");
     static unsigned long FlashTimeout = millis();
     uint8_t RXbyte, idx = 0;
     static char *ret;
     static char SerialBuf[256];
-    extern uint8_t CommState;
-    CommState = COMM_VER_REQ;
+    bool gotVersion = false;
     do {
+        Serial1.print("version?\n");            // send command to WCH ic
+        _LOG_V("[->] version?\n");
+
+        vTaskDelay(100 / portTICK_PERIOD_MS);
+
         //ESP32 receives info from CH32; we need to do this outside of the ESP32 10ms routines because
         //the timer routines disturb the WCH flashing process
         if (Serial1.available()) {
@@ -2718,21 +2720,16 @@ void setup() {
                     unsigned long WCHRunningVersion = atoi(ret+strlen(token));
                     _LOG_V("version %lu received\n", WCHRunningVersion);
                     WCHUPDATE(WCHRunningVersion);
-                    CommState = COMM_CONFIG_SET;
+                    gotVersion = true;
                 }
             }
             memset(SerialBuf,0,idx);                                       // Clear buffer
             idx = 0;
         }
-        if (CommState == COMM_VER_REQ) {
-            Serial1.print("version?\n");                                   // send command to WCH ic
-            _LOG_V("[->] version?\n");                                     // send command to WCH ic
-        }
 
-        vTaskDelay(100 / portTICK_PERIOD_MS);
-    } while (CommState < COMM_CONFIG_SET && millis() - FlashTimeout < 10000); //only try for 10s, then release so ESP32 can boot and OTA updates are possible
+    } while (!gotVersion && millis() - FlashTimeout < 10000);              //only try for 10s, then release so ESP32 can boot and OTA updates are possible
 
-    if (CommState < COMM_CONFIG_SET) {                                     // we timed out
+    if (!gotVersion) {                                                     // we timed out
         WCHUPDATE(0);
     }
 #endif
