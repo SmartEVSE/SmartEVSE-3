@@ -1329,17 +1329,6 @@ void CalcBalancedCurrent(char mod) {
 void Timer1S_singlerun(void) {
 static uint8_t Broadcast = 1;
 #ifdef SMARTEVSE_VERSION //ESP32
-
-//print WCHfirmware_timestamp TODO debug only!
-tm TM;
-TM = *localtime(&WCHfirmware_timestamp);
-char Str[26];
-if (!strftime(Str, sizeof(Str), "%a %e %R", &TM)) {
-    _LOG_A("DINGO: could not convert WCHfirmware_timestamp.\n");
-} else {
-    _LOG_A("DINGO: WCHTime=%s, epoch=%lu.\n", Str, WCHfirmware_timestamp);
-}
-
 static uint8_t x;
 
     if (BacklightTimer) BacklightTimer--;                               // Decrease backlight counter every second.
@@ -2951,7 +2940,6 @@ void Timer10ms_singlerun(void) {
         memset(SerialBuf,0,idx);        // Clear buffer
         idx = 0;
     }
-_LOG_A("DINGO: CommTimeout=%d, CommState=%d.\n", CommTimeout, CommState);
     if (CommTimeout == 0) {
         switch (CommState) {
 
@@ -2963,7 +2951,7 @@ _LOG_A("DINGO: CommTimeout=%d, CommState=%d.\n", CommTimeout, CommState);
 
             case COMM_CONFIG_SET:                       // Set mainboard configuration
                 CommTimeout = 10;
-_LOG_A("DINGO: sending config to WCH, Initialized=%u.\n", Initialized);
+
                 // send configuration to WCH IC
                 Serial1.printf("Config:%u,Lock:%u,Mode:%u,CardOffset:%u,LoadBl:%u,MaxMains:%u,MaxSumMains:%u, MaxCurrent:%u, MinCurrent:%u, MaxCircuit:%u, Switch:%u, RCmon:%u, StartCurrent:%u\n", Config, Lock, Mode, CardOffset, LoadBl, MaxMains, MaxSumMains, MaxCurrent, MinCurrent, MaxCircuit, Switch, RCmon, StartCurrent);
                 delay(1000);

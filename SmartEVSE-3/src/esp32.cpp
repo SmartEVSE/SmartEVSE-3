@@ -2661,10 +2661,6 @@ void setup() {
 
     // After powerup request WCH version (version?)
     // then send Configuration to WCH
-_LOG_A("DINGO: checkpoint -2.\n");
-//    WCHUPDATE(0);
-_LOG_A("DINGO: checkpoint -1.\n");
-//    Serial1.begin(FUNCONF_UART_PRINTF_BAUD, SERIAL_8N1, USART_RX, USART_TX, false);       // Serial connection to main board microcontroller
 
     Config = 0;         // Configuration (0:Socket / 1:Fixed Cable)
     Mode = 1;           // EVSE mode (0:Normal / 1:Smart / 2:Solar)
@@ -2675,7 +2671,6 @@ _LOG_A("DINGO: checkpoint -1.\n");
     PwrPanic = 0;       // Enable PowerPanic feature
     LoadBl = 3;         // Set to Node 2
     ModemPwr = 1;       // Modem Power ON
-//    Initialized = 1;    // Set Initialized to 1
 
 
 #endif //SMARTEVSE_VERSION
@@ -2696,8 +2691,8 @@ _LOG_A("DINGO: checkpoint -1.\n");
 
     BacklightTimer = BACKLIGHT;
     GLCD_init();
+
 #if SMARTEVSE_VERSION >=40 //v4
-_LOG_A("DINGO: checkpoint 1.\n");
     Serial1.print("version?\n");            // send command to WCH ic
     _LOG_V("[->] version?\n");        // send command to WCH ic
     static unsigned long FlashTimeout = millis();
@@ -2712,90 +2707,54 @@ _LOG_A("DINGO: checkpoint 1.\n");
     WchReset(); //after boot WCH does not seem to respond without this
     Serial1.begin(FUNCONF_UART_PRINTF_BAUD, SERIAL_8N1, USART_RX, USART_TX, false);       // Serial connection to main board microcontroller
     WchReset(); //after boot WCH does not seem to respond without this
-  do {
-//_LOG_A("DINGO: checkpoint 2.\n");
-    //ESP32 receives info from CH32; we need to do this outside of the ESP32 10ms routines because
-    //the timer routines disturb the WCH flashing process
-    if (Serial1.available()) {
-        //Serial.printf("[<-] ");        // Data available from mainboard?
-        while (Serial1.available()) {
-            RXbyte = Serial1.read();
-            //Serial.printf("%c",RXbyte);
-            SerialBuf[idx] = RXbyte;
-            idx++;
-        }
-        //SerialBuf[idx] = '\0'; //null terminate
-        _LOG_D("[(%u)<-] %.*s.\n", idx, idx, SerialBuf);
-    }
-//_LOG_A("DINGO: checkpoint 3.\n");
-    // process data from mainboard
-    if (idx > 5) {
-        //if (memcmp(SerialBuf, "!Panic", 6) == 0) PowerPanicESP();
-
-        char token[64];
-
-        strncpy(token, "MSG:", sizeof(token));                              // if a command starts with MSG: the rest of the line is no longer parsed
-        ret = strstr(SerialBuf, token);
-        if (ret == NULL) {
-            strncpy(token, "version:", sizeof(token));
-            ret = strstr(SerialBuf, token);
-            if (ret != NULL) {
-                unsigned long WCHRunningVersion = atoi(ret+strlen(token));
-                _LOG_A("version %lu received\n", WCHRunningVersion);
-                //_LOG_V("version %lu received\n", WCHRunningVersion);
-                WCHUPDATE(WCHRunningVersion);
-                Initialized = 1;
-                CommState = COMM_CONFIG_SET;
+    do {
+        //ESP32 receives info from CH32; we need to do this outside of the ESP32 10ms routines because
+        //the timer routines disturb the WCH flashing process
+        if (Serial1.available()) {
+            while (Serial1.available()) {
+                RXbyte = Serial1.read();
+                SerialBuf[idx] = RXbyte;
+                idx++;
             }
+            _LOG_D("[(%u)<-] %.*s.\n", idx, idx, SerialBuf);
         }
-        memset(SerialBuf,0,idx);        // Clear buffer
-        idx = 0;
-    }
-_LOG_A("DINGO2: CommTimeout=%d, CommState=%d.\n", CommTimeout, CommState);
-    if (CommTimeout == 0) {
-        switch (CommState) {
 
-            case COMM_VER_REQ:
-                CommTimeout = 20;
-                Serial1.print("version?\n");            // send command to WCH ic
-                _LOG_V("[->] version?\n");        // send command to WCH ic
-                break;
-
-            case COMM_CONFIG_SET:                       // Set mainboard configuration
-                CommTimeout = 10;
-_LOG_A("DINGO: sending config to WCH, Initialized=%u.\n", Initialized);
-                // send configuration to WCH IC
-                Serial1.printf("Config:%u,Lock:%u,Mode:%u,CardOffset:%u,LoadBl:%u,MaxMains:%u,MaxSumMains:%u, MaxCurrent:%u, MinCurrent:%u, MaxCircuit:%u, Switch:%u, RCmon:%u, StartCurrent:%u\n", Config, Lock, Mode, CardOffset, LoadBl, MaxMains, MaxSumMains, MaxCurrent, MinCurrent, MaxCircuit, Switch, RCmon, StartCurrent);
-                delay(1000);
-                Serial1.printf("StopTime:%u, ImportCurrent:%u, Grid:%u, RFIDReader:%u, MainsMeterType:%u, MainsMAddress:%u, EVMeterType:%u, EVMeterAddress:%u, Initialized:%u, EnableC2:%u, maxTemp:%u, PwrPanic:%u, ModemPwr:%u\n", StopTime, ImportCurrent, Grid, RFIDReader, MainsMeter.Type, MainsMeter.Address, EVMeter.Type, EVMeter.Address, Initialized, EnableC2, maxTemp, PwrPanic, ModemPwr);
-                //Serial1.printf("Config:%u,Lock:%u,Mode:%u,CardOffset:%u,LoadBl:%u,MaxMains:%u,MaxSumMains:%u, MaxCurrent:%u, MinCurrent:%u, MaxCircuit:%u, Switch:%u, RCmon:%u, StartCurrent:%u, StopTime:%u, ImportCurrent:%u, Grid:%u, RFIDReader:%u, MainsMeterType:%u, MainsMAddress:%u, EVMeterType:%u, EVMeterAddress:%u, Initialized:%u, EnableC2:%u, maxTemp:%u, PwrPanic:%u, ModemPwr:%u\n", Config, Lock, Mode, CardOffset, LoadBl, MaxMains, MaxSumMains, MaxCurrent, MinCurrent, MaxCircuit, Switch, RCmon, StartCurrent, StopTime, ImportCurrent, Grid, RFIDReader, MainsMeter.Type, MainsMeter.Address, EVMeter.Type, EVMeter.Address, Initialized, EnableC2, maxTemp, PwrPanic, ModemPwr);
-
-//TODO ChargeCurrent?
-//FIXME  EMEndianness:%u, EMIRegister:%u, EMIDivisor:%u, EMURegister:%u, EMUDivisor:%u, EMPRegister:%u, EMPDivisor:%u, EMERegister:%u, EMEDivisor:%u, EMDataType:%u, EMFunction:%u,
-//  EMEndianness, EMIRegister, EMIDivisor, EMURegister, EMUDivisor, EMPRegister, EMPDivisor, EMERegister, EMEDivisor, EMDataType, EMFunction,
-                break;
-
-            case COMM_STATUS_REQ:                       // Ready to receive status from mainboard
-                CommTimeout = 10;
-                /*
-                State: A
-                Temp: 28
-                Error: 0
-                */
+        // process data from mainboard
+        if (idx > 5) {
+            char token[64];
+            strncpy(token, "MSG:", sizeof(token));                              // if a command starts with MSG: the rest of the line is no longer parsed
+            ret = strstr(SerialBuf, token);
+            if (ret == NULL) {
+                strncpy(token, "version:", sizeof(token));
+                ret = strstr(SerialBuf, token);
+                if (ret != NULL) {
+                    unsigned long WCHRunningVersion = atoi(ret+strlen(token));
+                    _LOG_A("version %lu received\n", WCHRunningVersion);
+                    //_LOG_V("version %lu received\n", WCHRunningVersion);
+                    WCHUPDATE(WCHRunningVersion);
+                    Initialized = 1;
+                    CommState = COMM_CONFIG_SET;
+                }
+            }
+            memset(SerialBuf,0,idx);        // Clear buffer
+            idx = 0;
         }
+        if (CommTimeout == 0 && CommState == COMM_VER_REQ) {
+            CommTimeout = 20;
+            Serial1.print("version?\n");            // send command to WCH ic
+            _LOG_V("[->] version?\n");        // send command to WCH ic
+        }
+
+        if (CommTimeout) CommTimeout--;
+        vTaskDelay(10 / portTICK_PERIOD_MS);
+    } while (CommState < COMM_CONFIG_SET && millis() - FlashTimeout < 10000); //only try for 10s, then release so ESP32 can boot and OTA updates are possible
+
+    if (CommState < COMM_CONFIG_SET) {                                            // we timed out
+      _LOG_A("Received no version response of WCH, flashing WCH firmware.\n");
+        WCHUPDATE(0);
+    } else {
+      _LOG_A("Received version response of WCH, checking version of WCH firmware.\n");
     }
-
-
-    if (CommTimeout) CommTimeout--;
-    vTaskDelay(10 / portTICK_PERIOD_MS);
-  } while (CommState < COMM_CONFIG_SET && millis() - FlashTimeout < 10000); //only try for 10s, then release so ESP32 can boot and OTA updates are possible
-
-  if (CommState < COMM_CONFIG_SET) {                                            // we timed out
-    _LOG_A("Received no version response of WCH, flashing WCH firmware.\n");
-      WCHUPDATE(0);
-  } else {
-    _LOG_A("Received version response of WCH, checking version of WCH firmware.\n");
-  }
 #endif
 
     // Create Task EVSEStates, that handles changes in the CP signal
