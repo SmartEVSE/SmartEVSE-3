@@ -2711,17 +2711,13 @@ void setup() {
         // process data from mainboard
         if (idx > 5) {
             char token[64];
-            strncpy(token, "MSG:", sizeof(token));                         // if a command starts with MSG: the rest of the line is no longer parsed
+            strncpy(token, "version:", sizeof(token));
             ret = strstr(SerialBuf, token);
-            if (ret == NULL) {
-                strncpy(token, "version:", sizeof(token));
-                ret = strstr(SerialBuf, token);
-                if (ret != NULL) {
-                    unsigned long WCHRunningVersion = atoi(ret+strlen(token));
-                    _LOG_V("version %lu received\n", WCHRunningVersion);
-                    WCHUPDATE(WCHRunningVersion);
-                    gotVersion = true;
-                }
+            if (ret != NULL) {
+                unsigned long WCHRunningVersion = atoi(ret+strlen(token));
+                _LOG_V("version %lu received\n", WCHRunningVersion);
+                WCHUPDATE(WCHRunningVersion);
+                gotVersion = true;
             }
             memset(SerialBuf,0,idx);                                       // Clear buffer
             idx = 0;

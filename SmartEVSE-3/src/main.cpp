@@ -2828,113 +2828,82 @@ void Timer10ms_singlerun(void) {
         if (memcmp(SerialBuf, "!Panic", 6) == 0) PowerPanicESP();
 
         char token[64];
-
-        strncpy(token, "MSG:", sizeof(token));                              // if a command starts with MSG: the rest of the line is no longer parsed
+        strncpy(token, "ExtSwitch:", sizeof(token));
         ret = strstr(SerialBuf, token);
-        if (ret == NULL) {
-/*                ret = strstr(SerialBuf, "Pilot:");
-            //  [<-] Pilot:6,State:0,ChargeDelay:0,Error:0,Temp:34,Lock:0,Mode:0,Access:1
-            if (ret != NULL) {
-                int hit = sscanf(SerialBuf, "Pilot:%u,State:%u,ChargeDelay:%u,Error:%u,Temp:%u,Lock:%u,Mode:%u, Access:%u", &pilot, &State, &ChargeDelay, &ErrorFlags, &TempEVSE, &Lock, &Mode, &Access_bit);
-                if (hit != 8) {
-                    _LOG_A("ERROR parsing line from WCH, hit=%u, line=%s.\n", hit, SerialBuf);
-                } else {
-                    _LOG_A("DINGO: pilot=%u, State=%u, ChargeDelay=%u, ErrorFlags = %u, TempEVSE=%u, Lock=%u, Mode=%u, Access_bit=%u.\n", pilot, State,ChargeDelay, ErrorFlags, TempEVSE, Lock, Mode, Access_bit);
+        if (ret != NULL) {
+            ExtSwitch.Pressed = atoi(ret+strlen(token));
+            ExtSwitch.TimeOfPress = millis();
+            ExtSwitch.HandleSwitch();
+        }
+        CALL_ON_RECEIVE_PARAM(Access:, setAccess)
+        CALL_ON_RECEIVE_PARAM(Mode:, setMode)
+        CALL_ON_RECEIVE(write_settings)
+        //these variables are owned by CH32 and copies are sent to ESP32:
+        SET_ON_RECEIVE(Pilot:, pilot)
+        SET_ON_RECEIVE(Temp:, TempEVSE)
+        SET_ON_RECEIVE(State:, State)
+        SET_ON_RECEIVE(Balanced0:, Balanced[0])
+        SET_ON_RECEIVE(IsCurrentAvailable:, Shadow_IsCurrentAvailable)
+        SET_ON_RECEIVE(ErrorFlags:, ErrorFlags)
+
+        strncpy(token, "version:", sizeof(token));
+        ret = strstr(SerialBuf, token);
+        if (ret != NULL) {
+            unsigned long WCHRunningVersion = atoi(ret+strlen(token));
+            _LOG_V("version %lu received\n", WCHRunningVersion);
+            CommState = COMM_CONFIG_SET;
+        }
+
+        ret = strstr(SerialBuf, "Config:OK");
+        if (ret != NULL) {
+            _LOG_V("Config set\n");
+            CommState = COMM_STATUS_REQ;
+        }
+
+        strncpy(token, "EnableC2:", sizeof(token));
+        ret = strstr(SerialBuf, token);
+        if (ret != NULL) {
+            EnableC2 = (EnableC2_t) atoi(ret+strlen(token)); //e
+        }
+
+        strncpy(token, "Irms:", sizeof(token));
+        //Irms:011,312,123,124 means: the meter on address 11(dec) has Irms[0] 312 dA, Irms[1] of 123 dA, Irms[2] of 124 dA.
+        ret = strstr(SerialBuf, token);
+        if (ret != NULL) {
+            short unsigned int Address;
+            int16_t Irms[3];
+            int n = sscanf(SerialBuf,"Irms:%03hu,%hi,%hi,%hi", &Address, &Irms[0], &Irms[1], &Irms[2]);
+            if (n == 4) {   //success
+                if (Address == MainsMeter.Address) {
+                    for (int x = 0; x < 3; x++)
+                        MainsMeter.Irms[x] = Irms[x];
+                    MainsMeter.Timeout = COMM_TIMEOUT;
+                    CalcIsum();
+                } else if (Address == EVMeter.Address) {
+                    for (int x = 0; x < 3; x++)
+                        EVMeter.Irms[x] = Irms[x];
+                    EVMeter.Timeout = COMM_EVTIMEOUT;
+                    EVMeter.CalcImeasured();
                 }
-            }*/
+            } else
+                _LOG_A("Received corrupt %s, n=%d, message from WCH:%s.\n", token, n, SerialBuf);
+        }
 
-            strncpy(token, "ExtSwitch:", sizeof(token));
-            ret = strstr(SerialBuf, token);
-            if (ret != NULL) {
-                ExtSwitch.Pressed = atoi(ret+strlen(token));
-                ExtSwitch.TimeOfPress = millis();
-                ExtSwitch.HandleSwitch();
-            }
-            CALL_ON_RECEIVE_PARAM(Access:, setAccess)
-            CALL_ON_RECEIVE_PARAM(Mode:, setMode)
-            CALL_ON_RECEIVE(write_settings)
-            //these variables are owned by CH32 and copies are sent to ESP32:
-            SET_ON_RECEIVE(Pilot:, pilot)
-            SET_ON_RECEIVE(Temp:, TempEVSE)
-            SET_ON_RECEIVE(State:, State)
-            SET_ON_RECEIVE(Balanced0:, Balanced[0])
-            SET_ON_RECEIVE(IsCurrentAvailable:, Shadow_IsCurrentAvailable)
-            SET_ON_RECEIVE(ErrorFlags:, ErrorFlags)
-
-            strncpy(token, "version:", sizeof(token));
-            ret = strstr(SerialBuf, token);
-            if (ret != NULL) {
-                unsigned long WCHRunningVersion = atoi(ret+strlen(token));
-                _LOG_V("version %lu received\n", WCHRunningVersion);
-                CommState = COMM_CONFIG_SET;
-            }
-
-            ret = strstr(SerialBuf, "Config:OK");
-            if (ret != NULL) {
-                _LOG_V("Config set\n");
-                CommState = COMM_STATUS_REQ;
-            }
-
-            strncpy(token, "EnableC2:", sizeof(token));
-            ret = strstr(SerialBuf, token);
-            if (ret != NULL) {
-                EnableC2 = (EnableC2_t) atoi(ret+strlen(token)); //e
-            }
-
-            strncpy(token, "Irms:", sizeof(token));
-            //Irms:011,312,123,124 means: the meter on address 11(dec) has Irms[0] 312 dA, Irms[1] of 123 dA, Irms[2] of 124 dA.
-            ret = strstr(SerialBuf, token);
-            if (ret != NULL) {
-                short unsigned int Address;
-                int16_t Irms[3];
-                int n = sscanf(SerialBuf,"Irms:%03hu,%hi,%hi,%hi", &Address, &Irms[0], &Irms[1], &Irms[2]);
-                if (n == 4) {   //success
-                    if (Address == MainsMeter.Address) {
-                        for (int x = 0; x < 3; x++)
-                            MainsMeter.Irms[x] = Irms[x];
-                        MainsMeter.Timeout = COMM_TIMEOUT;
-                        CalcIsum();
-                    } else if (Address == EVMeter.Address) {
-                        for (int x = 0; x < 3; x++)
-                            EVMeter.Irms[x] = Irms[x];
-                        EVMeter.Timeout = COMM_EVTIMEOUT;
-                        EVMeter.CalcImeasured();
-                    }
-                } else
-                    _LOG_A("Received corrupt %s, n=%d, message from WCH:%s.\n", token, n, SerialBuf);
-            }
-
-            strncpy(token, "PowerMeasured:", sizeof(token));
-            //printf("PowerMeasured:%03u,%d\n", Address, PowerMeasured);
-            ret = strstr(SerialBuf, token);
-            if (ret != NULL) {
-                short unsigned int Address;
-                int16_t PowerMeasured;
-                int n = sscanf(SerialBuf,"PowerMeasured:%03hu,%hi", &Address, &PowerMeasured);
-                if (n == 2) {   //success
-                    if (Address == MainsMeter.Address) {
-                        MainsMeter.PowerMeasured = PowerMeasured;
-                    } else if (Address == EVMeter.Address) {
-                        EVMeter.PowerMeasured = PowerMeasured;
-                    }
-                } else
-                    _LOG_A("Received corrupt %s, n=%d, message from WCH:%s.\n", token, n, SerialBuf);
-            }
-
-/*
-            strncpy(token, "State:", sizeof(token));
-            ret = strstr(SerialBuf, token);
-            if (ret != NULL ) {
-                State = atoi(ret+strlen(token)); //e
-                if (State == STATE_COMM_B) NewState = STATE_COMM_B_OK;
-                else if (State == STATE_COMM_C) NewState = STATE_COMM_C_OK;
-
-                if (NewState) {    // only send confirmation when state needs to change.
-                    Serial1.printf("WchState:%u\n",NewState );        // send confirmation back to WCH
-                    Serial.printf("[->] WchState:%u\n",NewState );    // send confirmation back to WCH
-                    NewState = 0;
+        strncpy(token, "PowerMeasured:", sizeof(token));
+        //printf("PowerMeasured:%03u,%d\n", Address, PowerMeasured);
+        ret = strstr(SerialBuf, token);
+        if (ret != NULL) {
+            short unsigned int Address;
+            int16_t PowerMeasured;
+            int n = sscanf(SerialBuf,"PowerMeasured:%03hu,%hi", &Address, &PowerMeasured);
+            if (n == 2) {   //success
+                if (Address == MainsMeter.Address) {
+                    MainsMeter.PowerMeasured = PowerMeasured;
+                } else if (Address == EVMeter.Address) {
+                    EVMeter.PowerMeasured = PowerMeasured;
                 }
-            }*/
+            } else
+                _LOG_A("Received corrupt %s, n=%d, message from WCH:%s.\n", token, n, SerialBuf);
         }
         memset(SerialBuf,0,idx);        // Clear buffer
         idx = 0;
