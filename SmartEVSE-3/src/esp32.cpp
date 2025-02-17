@@ -2487,7 +2487,7 @@ void setup() {
     }
     
 
-#else //SMARTEVSE_VERSION
+#else //SMARTEVSE_VERSION v4
     uint8_t writeValue;
     uint8_t readValue;
     uint16_t reg16;
@@ -2652,9 +2652,6 @@ void setup() {
 
     }
 
-    // After powerup request WCH version (version?)
-    // then send Configuration to WCH
-
     Config = 0;         // Configuration (0:Socket / 1:Fixed Cable)
     Mode = 1;           // EVSE mode (0:Normal / 1:Smart / 2:Solar)
     Lock = 1;           // Cable lock (0:Disable / 1:Solenoid / 2:Motor)
@@ -2686,6 +2683,8 @@ void setup() {
     GLCD_init();
 
 #if SMARTEVSE_VERSION >=40 //v4
+    // After powerup request WCH version (version?)
+    // then send Configuration to WCH
     static unsigned long FlashTimeout = millis();
     uint8_t RXbyte, idx = 0;
     static char *ret;
@@ -2724,6 +2723,7 @@ void setup() {
         }
 
     } while (!gotVersion && millis() - FlashTimeout < 10000);              //only try for 10s, then release so ESP32 can boot and OTA updates are possible
+    memset(SerialBuf, 0, sizeof(SerialBuf));                               // clear SerialBuffer
 
     if (!gotVersion) {                                                     // we timed out
         WCHUPDATE(0);

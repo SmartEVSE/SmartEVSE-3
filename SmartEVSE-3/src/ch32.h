@@ -94,7 +94,6 @@
 #define true 1
 #define false 0
 
-#define INITIALIZED 0
 
 void delayMicroseconds(uint32_t us);
 uint32_t millis();
