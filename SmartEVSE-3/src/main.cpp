@@ -1986,77 +1986,6 @@ uint8_t processAllNodeStates(uint8_t NodeNr) {
 
 
 #ifndef SMARTEVSE_VERSION //CH32 version
-// Used for reading configuration data from ESP
-typedef enum {
-    UINT8,
-    INT8,
-    UINT16
-} ValueType;
-
-// Used for reading configuration data from ESP
-typedef union {
-    uint8_t* u8;
-    int8_t* i8;
-    uint16_t* u16;
-} ValuePtr;
-
-// Used for reading configuration data from ESP
-typedef struct {
-    const char* keyword;
-    ValuePtr valuePtr;
-    ValueType type;
-} ConfigItem;
-
-
-// Configuration items array
-ConfigItem configItems[] = {
-    {"Config:",{.u8 = &Config}, UINT8},
-    {"Lock:", {.u8 = &Lock}, UINT8},
-    {"Mode:", {.u8 = &Mode}, UINT8}, //e
-    {"Access:", {.u8 = &Access_bit}, UINT8}, //e
-    {"CardOffset:", {.u16 = &CardOffset}, UINT16},
-    {"LoadBl:", {.u8 = &LoadBl}, UINT8},
-    {"MaxMains:", {.u16 = &MaxMains}, UINT16},
-    {"MaxSumMains:", {.u16 = &MaxSumMains},  UINT16},
-    {"MaxCurrent:", {.u16 = &MaxCurrent}, UINT16},
-    {"MinCurrent:", {.u16 = &MinCurrent}, UINT16},
-    {"MaxCircuit:", {.u16 = &MaxCircuit}, UINT16},
-    {"Switch:", {.u8 = &Switch}, UINT8},
-    {"RCmon:", {.u8 = &RCmon}, UINT8},
-    {"StartCurrent:", {.u16 = &StartCurrent}, UINT16},
-    {"StopTime:", {.u16 = &StopTime}, UINT16},
-    {"ImportCurrent:", {.u16 = &ImportCurrent}, UINT16},
-    {"Grid:", {.u8 = &Grid}, UINT8},
-    {"RFIDReader:", {.u8 = &RFIDReader}, UINT8},
-    {"MainsMeterType:", {.u8 = &MainsMeter.Type}, UINT8},
-    {"MainsMAddress:", {.u8 = &MainsMeter.Address}, UINT8},
-    {"EVMeterType:", {.u8 = &EVMeter.Type}, UINT8},
-    {"EVMeterAddress:", {.u8 = &EVMeter.Address}, UINT8},
-    {"EMEndianness:", {.u8 = &EMConfig[EM_CUSTOM].Endianness}, UINT8},
-    {"EMIRegister:", {.u16 = &EMConfig[EM_CUSTOM].IRegister}, UINT16},
-    {"EMIDivisor:", {.i8 = &EMConfig[EM_CUSTOM].IDivisor}, INT8},
-    {"EMURegister:", {.u16 = &EMConfig[EM_CUSTOM].URegister}, UINT16},
-    {"EMUDivisor:", {.i8 = &EMConfig[EM_CUSTOM].UDivisor}, INT8},
-    {"EMPRegister:", {.u16 = &EMConfig[EM_CUSTOM].PRegister}, UINT16},
-    {"EMPDivisor:", {.i8 = &EMConfig[EM_CUSTOM].PDivisor}, INT8},
-    {"EMERegister:", {.u16 = &EMConfig[EM_CUSTOM].ERegister}, UINT16},
-    {"EMEDivisor:", {.i8 = &EMConfig[EM_CUSTOM].EDivisor}, INT8},
-    {"EMDataType:", {.u8 = (uint8_t*)&EMConfig[EM_CUSTOM].DataType}, UINT8},
-    {"EMFunction:", {.u8 = &EMConfig[EM_CUSTOM].Function}, UINT8},
-    {"Initialized:", {.u8 = &Initialized}, UINT8},
-    {"EnableC2:", {.u8 = (uint8_t*)&EnableC2}, UINT8},
-    {"maxTemp:", {.u16 = &maxTemp}, UINT16},
-
-    // the following variables are not configuration registers
-
-//    {"State:", {.u8 = &State}, UINT8},
-    {"ChargeCurrent:", {.u16 = &ChargeCurrent}, UINT16},
-    {"PwrPanic:", {.u8 = &PwrPanic}, UINT8},
-    {"ModemPwr:", {.u8 = &ModemPwr}, UINT8},
-
-//    {NULL, {NULL}, UINT8} // End of array
-};
-
 
 // CH32 receives info from ESP32
 void CheckSerialComm(void) {
@@ -2086,26 +2015,49 @@ void CheckSerialComm(void) {
     CALL_ON_RECEIVE(setStatePowerUnavailable)
     CALL_ON_RECEIVE_PARAM(setErrorFlags:, setErrorFlags)
     CALL_ON_RECEIVE_PARAM(clearErrorFlags:, clearErrorFlags)
-
-    // We received configuration settings from the ESP.
-    // Scan for all variables, and update values
-    for (ConfigItem* item = configItems; item->keyword != NULL; item++) { //e
-        const char* found = strstr(SerialBuf, item->keyword);
-        if (found) {
-            const char* valueStr = found + strlen(item->keyword);
-            switch (item->type) {
-                case UINT8:
-                    *(item->valuePtr.u8) = (uint8_t)atoi(valueStr);
-                    break;
-                case INT8:
-                    *(item->valuePtr.i8) = (int8_t)atoi(valueStr);
-                    break;
-                case UINT16:
-                    *(item->valuePtr.u16) = (uint16_t)atoi(valueStr);
-                    break;
-            }
-        }
-    }
+    // these veriables are owned by ESP32 and copies are kept in CH32:
+// Configuration items array
+//ConfigItem configItems[] = {
+    SET_ON_RECEIVE(Config:, Config)
+    SET_ON_RECEIVE(Lock:, Lock)
+    SET_ON_RECEIVE(Mode:, Mode)
+    SET_ON_RECEIVE(Access:, Access_bit)
+    SET_ON_RECEIVE(CardOffset:, CardOffset)
+    SET_ON_RECEIVE(LoadBl:, LoadBl)
+    SET_ON_RECEIVE(MaxMains:, MaxMains)
+    SET_ON_RECEIVE(MaxSumMains:, MaxSumMains)
+    SET_ON_RECEIVE(MaxCurrent:, MaxCurrent)
+    SET_ON_RECEIVE(MinCurrent:, MinCurrent)
+    SET_ON_RECEIVE(MaxCircuit:, MaxCircuit)
+    SET_ON_RECEIVE(Switch:, Switch)
+    SET_ON_RECEIVE(RCmon:, RCmon)
+    SET_ON_RECEIVE(StartCurrent:, StartCurrent)
+    SET_ON_RECEIVE(StopTime:, StopTime)
+    SET_ON_RECEIVE(ImportCurrent:, ImportCurrent)
+    SET_ON_RECEIVE(Grid:, Grid)
+    SET_ON_RECEIVE(RFIDReader:, RFIDReader)
+    SET_ON_RECEIVE(MainsMeterType:, MainsMeter.Type)
+    SET_ON_RECEIVE(MainsMAddress:, MainsMeter.Address)
+    SET_ON_RECEIVE(EVMeterType:, EVMeter.Type)
+    SET_ON_RECEIVE(EVMeterAddress:, EVMeter.Address)
+    SET_ON_RECEIVE(EMEndianness:, EMConfig[EM_CUSTOM].Endianness)
+    SET_ON_RECEIVE(EMIRegister:, EMConfig[EM_CUSTOM].IRegister)
+    SET_ON_RECEIVE(EMIDivisor:, EMConfig[EM_CUSTOM].IDivisor)
+    SET_ON_RECEIVE(EMURegister:, EMConfig[EM_CUSTOM].URegister)
+    SET_ON_RECEIVE(EMUDivisor:, EMConfig[EM_CUSTOM].UDivisor)
+    SET_ON_RECEIVE(EMPRegister:, EMConfig[EM_CUSTOM].PRegister)
+    SET_ON_RECEIVE(EMPDivisor:, EMConfig[EM_CUSTOM].PDivisor)
+    SET_ON_RECEIVE(EMERegister:, EMConfig[EM_CUSTOM].ERegister)
+    SET_ON_RECEIVE(EMEDivisor:, EMConfig[EM_CUSTOM].EDivisor)
+    uint8_t tmp;
+    SET_ON_RECEIVE(EMDataType:, tmp); EMConfig[EM_CUSTOM].DataType = (mb_datatype) tmp;
+    SET_ON_RECEIVE(EMFunction:, EMConfig[EM_CUSTOM].Function)
+    SET_ON_RECEIVE(Initialized:, Initialized)
+    SET_ON_RECEIVE(EnableC2:, tmp); EnableC2 = (EnableC2_t) tmp;
+    SET_ON_RECEIVE(maxTemp:, maxTemp)
+    SET_ON_RECEIVE(ChargeCurrent:, ChargeCurrent)
+    SET_ON_RECEIVE(PwrPanic:, PwrPanic)
+    SET_ON_RECEIVE(ModemPwr:, ModemPwr)
 
     // Wait till initialized is set by ESP
     if (Initialized) printf("Config:OK\n");
