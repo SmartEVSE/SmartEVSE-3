@@ -2313,28 +2313,6 @@ void BlinkLed_singlerun(void) {
 static uint8_t RedPwm = 0, GreenPwm = 0, BluePwm = 0;
 static uint8_t LedCount = 0;                                                   // Raw Counter before being converted to PWM value
 static unsigned int LedPwm = 0;                                                // PWM value 0-255
-#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
-static uint8_t LcdPwm = 0;
-
-    // Backlight LCD
-    if (BacklightTimer > 1 && BacklightSet != 1) {                      // Enable LCD backlight at max brightness
-                                                                        // start only when fully off(0) or when we are dimming the backlight(2)
-        LcdPwm = LCD_BRIGHTNESS;
-        ledcWrite(LCD_CHANNEL, LcdPwm);
-        BacklightSet = 1;                                               // 1: we have set the backlight to max brightness
-    } 
-    
-    if (BacklightTimer == 1 && LcdPwm >= 3) {                           // Last second of Backlight
-        LcdPwm -= 3;
-        ledcWrite(LCD_CHANNEL, ease8InOutQuad(LcdPwm));                 // fade out
-        BacklightSet = 2;                                               // 2: we are dimming the backlight
-    }
-                                                                        // Note: could be simplified by removing following code if LCD_BRIGHTNESS is multiple of 3                                                               
-    if (BacklightTimer == 0 && BacklightSet) {                          // End of LCD backlight
-        ledcWrite(LCD_CHANNEL, 0);                                      // switch off LED PWM
-        BacklightSet = 0;                                               // 0: backlight fully off
-    }
-#endif
 
     // RGB LED
     if (ErrorFlags || ChargeDelay) {
@@ -2484,6 +2462,27 @@ void Timer10ms_singlerun(void) {
     //Check RS485 communication
     if (ModbusRxLen) CheckRS485Comm();
 #else //v3 and v4
+    static uint8_t LcdPwm = 0;
+
+    // Backlight LCD
+    if (BacklightTimer > 1 && BacklightSet != 1) {                      // Enable LCD backlight at max brightness
+                                                                        // start only when fully off(0) or when we are dimming the backlight(2)
+        LcdPwm = LCD_BRIGHTNESS;
+        ledcWrite(LCD_CHANNEL, LcdPwm);
+        BacklightSet = 1;                                               // 1: we have set the backlight to max brightness
+    }
+
+    if (BacklightTimer == 1 && LcdPwm >= 3) {                           // Last second of Backlight
+        LcdPwm -= 3;
+        ledcWrite(LCD_CHANNEL, ease8InOutQuad(LcdPwm));                 // fade out
+        BacklightSet = 2;                                               // 2: we are dimming the backlight
+    }
+                                                                        // Note: could be simplified by removing following code if LCD_BRIGHTNESS is multiple of 3
+    if (BacklightTimer == 0 && BacklightSet) {                          // End of LCD backlight
+        ledcWrite(LCD_CHANNEL, 0);                                      // switch off LED PWM
+        BacklightSet = 0;                                               // 0: backlight fully off
+    }
+
 // Task that handles EVSE State Changes
 // Reads buttons, and updates the LCD.
     static uint16_t old_sec = 0;
