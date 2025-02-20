@@ -2310,11 +2310,11 @@ static uint8_t PollEVNode = NR_EVSES, updated = 0;
 //
 // Task is called every 10ms
 void BlinkLed_singlerun(void) {
-#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
-static uint8_t LcdPwm = 0;
 static uint8_t RedPwm = 0, GreenPwm = 0, BluePwm = 0;
 static uint8_t LedCount = 0;                                                   // Raw Counter before being converted to PWM value
 static unsigned int LedPwm = 0;                                                // PWM value 0-255
+#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
+static uint8_t LcdPwm = 0;
 
     // Backlight LCD
     if (BacklightTimer > 1 && BacklightSet != 1) {                      // Enable LCD backlight at max brightness
@@ -2334,6 +2334,7 @@ static unsigned int LedPwm = 0;                                                /
         ledcWrite(LCD_CHANNEL, 0);                                      // switch off LED PWM
         BacklightSet = 0;                                               // 0: backlight fully off
     }
+#endif
 
     // RGB LED
     if (ErrorFlags || ChargeDelay) {
@@ -2447,71 +2448,16 @@ static unsigned int LedPwm = 0;                                                /
         }    
 
     }
+#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
     ledcWrite(RED_CHANNEL, RedPwm);
     ledcWrite(GREEN_CHANNEL, GreenPwm);
     ledcWrite(BLUE_CHANNEL, BluePwm);
 
 #else // CH32
-    static uint8_t RedPwm = 0, GreenPwm = 0, BluePwm = 0;
-    static uint8_t LedCount = 0;                                            // Raw Counter before being converted to PWM value
-    static uint16_t LedPwm = 0;                                             // PWM value 0-255
-
-
-    // RGB LED
-    if (ErrorFlags || ChargeDelay) {
-
-        if (ErrorFlags & (RCM_TRIPPED | CT_NOCOMM | EV_NOCOMM) ) {
-            LedCount += 20;                                                 // Very rapid flashing, RCD tripped or no Serial Communication.
-            if (LedCount > 128) LedPwm = ERROR_LED_BRIGHTNESS;              // Red LED 50% of time on, full brightness
-            else LedPwm = 0;
-            RedPwm = LedPwm;
-            GreenPwm = 0;
-            BluePwm = 0;
-        } else {                                                            // Waiting for Solar power or not enough current to start charging
-            LedCount += 2;                                                  // Slow blinking.
-            if (LedCount > 230) LedPwm = WAITING_LED_BRIGHTNESS;            // LED 10% of time on, full brightness
-            else LedPwm = 0;
-
-            if (Mode == MODE_SOLAR) {                                       // Orange
-                RedPwm = LedPwm;
-                GreenPwm = LedPwm * 2 / 3;
-            } else {                                                        // Green
-                RedPwm = 0;
-                GreenPwm = LedPwm;
-            }
-            BluePwm = 0;
-        }
-
-    } else if (Access_bit == 0 || State == STATE_MODEM_DENIED) {            // No Access, LEDs off
-        RedPwm = 0;
-        GreenPwm = 0;
-        BluePwm = 0;
-        LedPwm = 0;
-    } else {                                                                // State A, B or C
-
-        if (State == STATE_A) {
-            LedPwm = STATE_A_LED_BRIGHTNESS;                                // STATE A, LED on (dimmed)
-
-        } else if (State == STATE_B || State == STATE_B1 || State == STATE_MODEM_REQUEST || State == STATE_MODEM_WAIT) {
-            LedPwm = STATE_B_LED_BRIGHTNESS;                                // STATE B, LED on (full brightness)
-            LedCount = 128;                                                 // When switching to STATE C, start at full brightness
-
-        } else if (State == STATE_C) {
-            if (Mode == MODE_SOLAR) LedCount ++;                            // Slower fading (Solar mode)
-            else LedCount += 2;                                             // Faster fading (Smart mode)
-            LedPwm = ease8InOutQuad(triwave8(LedCount));                    // pre calculate new LedPwm value
-        }
-
-        if (Mode == MODE_SOLAR) {                                           // Orange/Yellow for Solar mode
-            RedPwm = LedPwm;
-            GreenPwm = LedPwm * 2 / 3;
-        } else {
-            RedPwm = 0;                                                     // Green for Normal/Smart mode
-            GreenPwm = LedPwm;
-        }
-        BluePwm = 0;
-
-    }
+    // somehow the CH32 chokes on 255 values
+    if (RedPwm > 254) RedPwm = 254;
+    if (GreenPwm > 254) GreenPwm = 254;
+    if (BluePwm > 254) BluePwm = 254;
 
     TIM3->CH1CVR = RedPwm;
     TIM3->CH2CVR = GreenPwm;
