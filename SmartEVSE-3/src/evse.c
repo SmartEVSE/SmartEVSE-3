@@ -604,7 +604,7 @@ int8_t TemperatureSensor() {
     // Subtract 500mV offset, and finally divide by 100 to convert to C.
     Temperature = (int16_t)((TempAvg *8)- 5000)/100;
     if (Temperature != Old_Temperature) {
-        printf("Temp:%u\n", Temperature); //send data to ESP32
+        printf("Temp@%u\n", Temperature); //send data to ESP32
         Old_Temperature = Temperature;
     }
     return Temperature;

@@ -1127,7 +1127,7 @@ void write_settings(void) {
     preferences.putUChar("EMFunction", EMConfig[EM_CUSTOM].Function);
     preferences.putUChar("WIFImode", WIFImode);
     preferences.putUShort("EnableC2", EnableC2);
-    Serial1.printf("EnableC2:%u\n", EnableC2); //TODO do a full ConfigItems write
+    Serial1.printf("EnableC2@%u\n", EnableC2); //TODO do a full ConfigItems write
     preferences.putString("RequiredEVCCID", String(RequiredEVCCID));
     preferences.putUShort("maxTemp", maxTemp);
     preferences.putUChar("AutoUpdate", AutoUpdate);
@@ -2710,7 +2710,7 @@ void setup() {
         // process data from mainboard
         if (idx > 5) {
             char token[64];
-            strncpy(token, "version:", sizeof(token));
+            strncpy(token, "version@", sizeof(token));
             ret = strstr(SerialBuf, token);
             if (ret != NULL) {
                 unsigned long WCHRunningVersion = atoi(ret+strlen(token));
