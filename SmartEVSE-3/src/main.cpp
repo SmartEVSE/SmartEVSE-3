@@ -467,7 +467,8 @@ Button ExtSwitch;
 void setMode(uint8_t NewMode) {
 #ifdef SMARTEVSE_VERSION //v3 and v4
 #if SMARTEVSE_VERSION >= 40
-    Serial1.printf("Mode:%u\n", Mode); //d
+    Serial1.printf("Mode:%u\n", NewMode); //d
+    _LOG_V("[->] Mode:%u\n", NewMode);
 #endif
     // If mainsmeter disabled we can only run in Normal Mode
     if (!MainsMeter.Type && NewMode != MODE_NORMAL)
@@ -521,7 +522,8 @@ void setMode(uint8_t NewMode) {
         preferences.end();
     }
 #else //CH32
-    printf("Mode:%1u.\n", Mode); //a
+    printf("Mode:%1u.\n", NewMode); //a
+    _LOG_V("[<-] Mode:%u\n", NewMode);
 #endif //SMARTEVSE_VERSION
 }
 
