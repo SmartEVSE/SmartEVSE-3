@@ -113,35 +113,35 @@ extern RemoteDebug Debug;
 #define DEBUG_DISABLED 1
 #define LOG_LEVEL 5
 #if LOG_LEVEL >= 1  // Errors
-#define _LOG_A_NO_FUNC( ... ) printf ( "MSG:" __VA_ARGS__ )
+#define _LOG_A_NO_FUNC( ... ) printf ( __VA_ARGS__ )
 #define _LOG_A( ... ) printf ( "MSG:" __VA_ARGS__ )
 #else
 #define _LOG_A( ... )
 #define _LOG_A_NO_FUNC( ... )
 #endif
 #if LOG_LEVEL >= 2  // Warnings
-#define _LOG_W_NO_FUNC( ... ) printf ( "MSG:" __VA_ARGS__ )
+#define _LOG_W_NO_FUNC( ... ) printf ( __VA_ARGS__ )
 #define _LOG_W( ... ) printf ( "MSG:" __VA_ARGS__ )
 #else
 #define _LOG_W( ... ) 
 #define _LOG_W_NO_FUNC( ... )
 #endif
 #if LOG_LEVEL >= 3  // Info
-#define _LOG_I_NO_FUNC( ... ) printf ( "MSG:" __VA_ARGS__ )
+#define _LOG_I_NO_FUNC( ... ) printf ( __VA_ARGS__ )
 #define _LOG_I( ... ) printf ( "MSG:" __VA_ARGS__ )
 #else
 #define _LOG_I( ... )
 #define _LOG_I_NO_FUNC( ... )
 #endif
 #if LOG_LEVEL >= 4  // Debug
-#define _LOG_D_NO_FUNC( ... ) printf ( "MSG:" __VA_ARGS__ )
+#define _LOG_D_NO_FUNC( ... ) printf ( __VA_ARGS__ )
 #define _LOG_D( ... ) printf ( "MSG:" __VA_ARGS__ )
 #else
 #define _LOG_D( ... ) 
 #define _LOG_D_NO_FUNC( ... )
 #endif
 #if LOG_LEVEL >= 5  // Verbose
-#define _LOG_V_NO_FUNC( ... ) printf ( "MSG:" __VA_ARGS__ )
+#define _LOG_V_NO_FUNC( ... ) printf ( __VA_ARGS__ )
 #define _LOG_V( ... ) printf ( "MSG:" __VA_ARGS__ )
 #else
 #define _LOG_V( ... ) 
