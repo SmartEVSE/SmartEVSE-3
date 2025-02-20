@@ -379,7 +379,7 @@ void Button::HandleSwitch(void) {
             ErrorFlags &= ~RCM_TRIPPED;
         }
         // Also light up the LCD backlight
-        // BacklightTimer = BACKLIGHT;                                 // Backlight ON
+        BacklightTimer = BACKLIGHT;                                 // Backlight ON
 
     } else {
         // Switch input released
@@ -762,7 +762,7 @@ void setState(uint8_t NewState) { //c
     lastMqttUpdate = 10;
 #endif
 
-    // BacklightTimer = BACKLIGHT;                                                 // Backlight ON
+    BacklightTimer = BACKLIGHT;                                                 // Backlight ON
 
 #endif //SMARTEVSE_VERSION
 }
