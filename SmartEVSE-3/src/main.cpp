@@ -2786,7 +2786,8 @@ void Timer10ms_singlerun(void) {
         ret = strstr(SerialBuf, token);
         if (ret != NULL) {
             ExtSwitch.Pressed = atoi(ret+strlen(token));
-            ExtSwitch.TimeOfPress = millis();
+            if (ExtSwitch.Pressed)
+                ExtSwitch.TimeOfPress = millis();
             ExtSwitch.HandleSwitch();
         }
         CALL_ON_RECEIVE_PARAM(Access@, setAccess)
