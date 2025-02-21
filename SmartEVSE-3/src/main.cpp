@@ -71,7 +71,7 @@ extern void CheckRS485Comm(void);
 #define CALL_ON_RECEIVE(X) \
     ret = strstr(SerialBuf, #X);\
     if (ret) {\
-/*        _LOG_A("DEBUG: calling %s().\n", #X); */ \
+        printf("DEBUG CALL_ON_RECEIVE: calling %s().\n", #X); \
         X();\
     }
 
@@ -79,14 +79,14 @@ extern void CheckRS485Comm(void);
 #define CALL_ON_RECEIVE_PARAM(X,Y) \
     ret = strstr(SerialBuf, #X);\
     if (ret) {\
-/*        _LOG_A("DEBUG: calling %s(%u).\n", #X, atoi(ret+strlen(#X))); */ \
+        printf("DEBUG CALL_ON_RECEIVE_PARAM: calling %s(%u).\n", #X, atoi(ret+strlen(#X))); \
         Y(atoi(ret+strlen(#X)));\
     }
 //SET_ON_RECEIVE(Pilot@, pilot) sets pilot=parm when Pilot:param is received
 #define SET_ON_RECEIVE(X,Y) \
     ret = strstr(SerialBuf, #X);\
     if (ret) {\
-/*        _LOG_A("DEBUG: setting %s to %u.\n", #Y, atoi(ret+strlen(#X))); */ \
+        printf("DEBUG SET_ON_RECEIVE: setting %s to %u.\n", #Y, atoi(ret+strlen(#X))); \
         Y = atoi(ret+strlen(#X));\
     }
 
