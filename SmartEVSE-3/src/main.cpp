@@ -2054,7 +2054,6 @@ void CheckSerialComm(void) {
     uint8_t tmp;
     SET_ON_RECEIVE(EMDataType@, tmp); EMConfig[EM_CUSTOM].DataType = (mb_datatype) tmp;
     SET_ON_RECEIVE(EMFunction@, EMConfig[EM_CUSTOM].Function)
-    SET_ON_RECEIVE(Initialized@, Initialized)
     SET_ON_RECEIVE(EnableC2@, tmp); EnableC2 = (EnableC2_t) tmp;
     SET_ON_RECEIVE(maxTemp@, maxTemp)
     SET_ON_RECEIVE(ChargeCurrent@, ChargeCurrent)
@@ -2063,8 +2062,11 @@ void CheckSerialComm(void) {
     SET_ON_RECEIVE(MainsMeterTimeout@, MainsMeter.Timeout)
     SET_ON_RECEIVE(EVMeterTimeout@, EVMeter.Timeout)
 
+    SET_ON_RECEIVE(Initialized@, Initialized)
     // Wait till initialized is set by ESP
-    if (Initialized) printf("Config@OK\n");
+    strncpy(token, "Initialized@", sizeof(token));
+    ret = strstr(SerialBuf, token);
+    if (ret != NULL && Initialized) printf("Config@OK\n"); //only print this on reception of string
 
     // Enable/disable modem power
     ModemPower(ModemPwr);
