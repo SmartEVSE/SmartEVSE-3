@@ -2819,17 +2819,79 @@ void Timer10ms_singlerun(void) {
 
             case COMM_CONFIG_SET:                       // Set mainboard configuration
                 CommTimeout = 10;
-
+static uint8_t batch = 0;
+                //Serial1.printf("Access@%u,Initialized@1\n", Access_bit);
+                //printf("DINGO: setting Access config to %u.\n", Access_bit);
                 // send configuration to WCH IC
-                Serial1.printf("Config@%u,Lock@%u,Mode@%u,CardOffset@%u,LoadBl@%u,MaxMains@%u,MaxSumMains@%u, MaxCurrent@%u, MinCurrent@%u, MaxCircuit@%u, Switch@%u, RCmon@%u, StartCurrent@%u\n", Config, Lock, Mode, CardOffset, LoadBl, MaxMains, MaxSumMains, MaxCurrent, MinCurrent, MaxCircuit, Switch, RCmon, StartCurrent);
-                delay(1000);
-                Serial1.printf("Mode@%u, StopTime@%u, ImportCurrent@%u, Grid@%u, RFIDReader@%u, MainsMeterType@%u, MainsMAddress@%u, EVMeterType@%u, EVMeterAddress@%u, Initialized@1, EnableC2@%u, maxTemp@%u, PwrPanic@%u, ModemPwr@%u\n", Mode, StopTime, ImportCurrent, Grid, RFIDReader, MainsMeter.Type, MainsMeter.Address, EVMeter.Type, EVMeter.Address, EnableC2, maxTemp, PwrPanic, ModemPwr); //Initialized is always set to 1 here
-                _LOG_D("Mode@%u, StopTime@%u, ImportCurrent@%u, Grid@%u, RFIDReader@%u, MainsMeterType@%u, MainsMAddress@%u, EVMeterType@%u, EVMeterAddress@%u, Initialized@1, EnableC2@%u, maxTemp@%u, PwrPanic@%u, ModemPwr@%u\n", Mode, StopTime, ImportCurrent, Grid, RFIDReader, MainsMeter.Type, MainsMeter.Address, EVMeter.Type, EVMeter.Address, EnableC2, maxTemp, PwrPanic, ModemPwr); //Initialized is always set to 1 here
-                //Serial1.printf("Config:%u,Lock:%u,Mode:%u,CardOffset:%u,LoadBl:%u,MaxMains:%u,MaxSumMains:%u, MaxCurrent:%u, MinCurrent:%u, MaxCircuit:%u, Switch:%u, RCmon:%u, StartCurrent:%u, StopTime:%u, ImportCurrent:%u, Grid:%u, RFIDReader:%u, MainsMeterType:%u, MainsMAddress:%u, EVMeterType:%u, EVMeterAddress:%u, Initialized:%u, EnableC2:%u, maxTemp:%u, PwrPanic:%u, ModemPwr:%u\n", Config, Lock, Mode, CardOffset, LoadBl, MaxMains, MaxSumMains, MaxCurrent, MinCurrent, MaxCircuit, Switch, RCmon, StartCurrent, StopTime, ImportCurrent, Grid, RFIDReader, MainsMeter.Type, MainsMeter.Address, EVMeter.Type, EVMeter.Address, Initialized, EnableC2, maxTemp, PwrPanic, ModemPwr);
+                //Serial1.printf("Config@%u,Lock@%u,Mode@%u,CardOffset@%u,LoadBl@%u,MaxMains@%u,MaxSumMains@%u, MaxCurrent@%u, MinCurrent@%u, MaxCircuit@%u, Switch@%u, RCmon@%u, StartCurrent@%u\n", Config, Lock, Mode, CardOffset, LoadBl, MaxMains, MaxSumMains, MaxCurrent, MinCurrent, MaxCircuit, Switch, RCmon, StartCurrent);
+                //_LOG_D("Config@%u,Lock@%u,Mode@%u,CardOffset@%u,LoadBl@%u,MaxMains@%u,MaxSumMains@%u, MaxCurrent@%u, MinCurrent@%u, MaxCircuit@%u, Switch@%u, RCmon@%u, StartCurrent@%u\n", Config, Lock, Mode, CardOffset, LoadBl, MaxMains, MaxSumMains, MaxCurrent, MinCurrent, MaxCircuit, Switch, RCmon, StartCurrent);
+                //delay(1000);
+///////////////////////////////////////
+                //by printing each variable separately we prevent the serial connection clogging up
+#define SEND_TO_CH32(X) Serial1.printf("%s@%u\n", #X, X);
+//#define SEND_TO_CH32(X) Serial1.printf(X@%u\n, #X);
+        switch (batch) {
+            case 0:
+                Serial1.printf("Access@%u\n", Access_bit);
+                Serial1.printf("MainsMeterType@%u\n", MainsMeter.Type);
+                Serial1.printf("MainsMeterAddress@%u\n", MainsMeter.Address);
+                Serial1.printf("EVMeterType@%u\n", EVMeter.Type);
+                Serial1.printf("EVMeterAddress@%u\n", EVMeter.Address);
+            //    SEND_TO_CH32(StopTime);
+                break;
+            case 1:
+                SEND_TO_CH32(StopTime)
+                SEND_TO_CH32(ImportCurrent)
+                SEND_TO_CH32(Grid)
+                SEND_TO_CH32(RFIDReader)
+                //SEND_TO_CH32(MainsMeterType)
+                //SEND_TO_CH32(MainsMAddress)
+                //SEND_TO_CH32(EVMeterType)
+                //SEND_TO_CH32(EVMeterAddress)
+                SEND_TO_CH32(EnableC2)
+                SEND_TO_CH32(maxTemp)
+                SEND_TO_CH32(PwrPanic)
+                break;
+            case 2:
+                SEND_TO_CH32(Lock)
+                SEND_TO_CH32(Mode)
+                SEND_TO_CH32(CardOffset)
+                SEND_TO_CH32(LoadBl)
+                SEND_TO_CH32(MaxMains)
+                SEND_TO_CH32(MaxSumMains)
+                SEND_TO_CH32(MaxCurrent)
+                SEND_TO_CH32(MinCurrent)
+                SEND_TO_CH32(MaxCircuit)
+                break;
+            case 3:
+                SEND_TO_CH32(Switch)
+                SEND_TO_CH32(RCmon)
+                SEND_TO_CH32(StartCurrent)
+                SEND_TO_CH32(StopTime)
+                SEND_TO_CH32(ImportCurrent)
+                SEND_TO_CH32(Grid)
+                SEND_TO_CH32(RFIDReader)
+                SEND_TO_CH32(ModemPwr)
+                break;
+        }
+        batch ++;
+           /*     , 
+ Access_bit, StopTime, ImportCurrent, Grid, RFIDReader, MainsMeter.Type, MainsMeter.Address, EVMeter.Type, EVMeter.Address, EnableC2, maxTemp, PwrPanic, ModemPwr); //Initialized is always set to 1 here
+ /////////////////////////
+     Config, Lock, Mode, CardOffset, LoadBl, MaxMains, MaxSumMains, MaxCurrent, MinCurrent, MaxCircuit, Switch, RCmon, StartCurrent, StopTime, ImportCurrent, Grid, RFIDReader, MainsMeter.Type, MainsMeter.Address, EVMeter.Type, EVMeter.Address, Initialized, EnableC2, maxTemp, PwrPanic, ModemPwr);
+ /////////////////////
+////////////////////////////////////////
+
+
+                ///////////////////////
+                //_LOG_D("Access@%u, StopTime@%u, ImportCurrent@%u, Grid@%u, RFIDReader@%u, MainsMeterType@%u, MainsMAddress@%u, EVMeterType@%u, EVMeterAddress@%u, Initialized@1, EnableC2@%u, maxTemp@%u, PwrPanic@%u, ModemPwr@%u\n", Access_bit, StopTime, ImportCurrent, Grid, RFIDReader, MainsMeter.Type, MainsMeter.Address, EVMeter.Type, EVMeter.Address, EnableC2, maxTemp, PwrPanic, ModemPwr); //Initialized is always set to 1 here
 
 //TODO ChargeCurrent?
 //FIXME  EMEndianness@%u, EMIRegister@%u, EMIDivisor@%u, EMURegister@%u, EMUDivisor@%u, EMPRegister@%u, EMPDivisor@%u, EMERegister@%u, EMEDivisor@%u, EMDataType@%u, EMFunction@%u,
 //  EMEndianness, EMIRegister, EMIDivisor, EMURegister, EMUDivisor, EMPRegister, EMPDivisor, EMERegister, EMEDivisor, EMDataType, EMFunction,
+*/
+                if (batch == 4)
+                    Serial1.printf("Initialized@1\n");      // this finalizes the Config setup phase
                 break;
 
             case COMM_STATUS_REQ:                       // Ready to receive status from mainboard
