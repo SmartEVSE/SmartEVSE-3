@@ -356,18 +356,29 @@ void Meter::UpdateEnergies() {
 #endif
 }
 
+void Meter::setTimeout(uint8_t NewTimeout) {
+    Timeout = NewTimeout;
+#if SMARTEVSE_VERSION >= 40 //v4 ESP32
+    if (Address == MainsMeter.Address) {
+        Serial1.printf("MainsMeterTimeout@%u\n", NewTimeout);
+    } else if (Address == EVMeter.Address) {
+        Serial1.printf("EVMeterTimeout@%u\n", NewTimeout);
+    }
+#endif
+}
+
 // Calls appropriate measurement from response
 void Meter::ResponseToMeasurement(ModBus MB) {
     if (MB.Type == MODBUS_RESPONSE) {
         if (MB.Register == EMConfig[Type].IRegister) {
             if (Address == MainsMeter.Address) {
                 if (receiveCurrentMeasurement(MB)) {
-                    Timeout = COMM_TIMEOUT;
+                    setTimeout(COMM_TIMEOUT);
                 }
                 CalcIsum();
             } else if (Address == EVMeter.Address) {
                 if (receiveCurrentMeasurement(MB)) {
-                    Timeout = COMM_EVTIMEOUT;
+                    setTimeout(COMM_EVTIMEOUT);
                 }
                 CalcImeasured();
             }

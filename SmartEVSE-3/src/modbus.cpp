@@ -676,7 +676,7 @@ void HandleModbusRequest(void) {
                     Balanced[0] = (MB.Data[(LoadBl - 1) * 2] <<8) | MB.Data[(LoadBl - 1) * 2 + 1];
                     if (Balanced[0] == 0 && State == STATE_C) setState(STATE_C1);               // tell EV to stop charging if charge current is zero
                     else if ((State == STATE_B) || (State == STATE_C)) SetCurrent(Balanced[0]); // Set charge current, and PWM output
-                    MainsMeter.Timeout = COMM_TIMEOUT;                          // reset 10 second timeout
+                    MainsMeter.setTimeout(COMM_TIMEOUT);                          // reset 10 second timeout
                     _LOG_V("Broadcast received, Node %.1f A, MainsMeter Irms ", (float) Balanced[0]/10);
 
                     //now decode registers 0x0028-0x002A

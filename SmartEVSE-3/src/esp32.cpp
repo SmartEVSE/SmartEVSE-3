@@ -634,7 +634,7 @@ void mqtt_receive_callback(const String topic, const String payload) {
         // MainsMeter can measure -200A to +200A per phase
         if (n == 3 && (L1 > -2000 && L1 < 2000) && (L2 > -2000 && L2 < 2000) && (L3 > -2000 && L3 < 2000)) {
             if (LoadBl < 2)
-                MainsMeter.Timeout = COMM_TIMEOUT;
+                MainsMeter.setTimeout(COMM_TIMEOUT);
             MainsMeter.Irms[0] = L1;
             MainsMeter.Irms[1] = L2;
             MainsMeter.Irms[2] = L3;
@@ -1003,8 +1003,8 @@ void validate_settings(void) {
         if (EVMeter.Type && EVMeter.Type != EM_API) MBserver.registerWorker(EVMeter.Address, ANY_FUNCTION_CODE, &MBEVMeterResponse);
     }
 #endif
-    MainsMeter.Timeout = COMM_TIMEOUT;
-    EVMeter.Timeout = COMM_TIMEOUT;                                             // Short Delay, to clear the error message for ~10 seconds.
+    MainsMeter.setTimeout(COMM_TIMEOUT);
+    EVMeter.setTimeout(COMM_TIMEOUT);                                             // Short Delay, to clear the error message for ~10 seconds.
 
 }
 
@@ -1825,7 +1825,7 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
                     }
                     doc["TOTAL"] = Isum;
 
-                    MainsMeter.Timeout = COMM_TIMEOUT;
+                    MainsMeter.setTimeout(COMM_TIMEOUT);
 
                 } else
                     doc["TOTAL"] = "not allowed on slave";
@@ -2858,7 +2858,7 @@ void homewizard_loop() {
         MainsMeter.Irms[1] = currents.second[1] * 10;
         MainsMeter.Irms[2] = currents.second[2] * 10;
         CalcIsum();
-        MainsMeter.Timeout = COMM_TIMEOUT;
+        MainsMeter.setTimeout(COMM_TIMEOUT);
     }
 }
 

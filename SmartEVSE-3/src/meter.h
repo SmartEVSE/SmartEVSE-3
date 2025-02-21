@@ -98,6 +98,7 @@ class Meter {
     void UpdateEnergies();
     void ResponseToMeasurement(struct ModBus MB);
     void CalcImeasured(void);
+    void setTimeout(uint8_t Timeout);
   private:
     uint8_t receiveCurrentMeasurement(ModBus MB);
     signed int receivePowerMeasurement(uint8_t *buf);

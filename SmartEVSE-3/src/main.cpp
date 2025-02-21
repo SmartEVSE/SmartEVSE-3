@@ -1512,7 +1512,7 @@ uint8_t ow = 0, x;
             if (MainsMeter.Timeout) MainsMeter.Timeout--;
         }
     } else
-        MainsMeter.Timeout = COMM_TIMEOUT;
+        MainsMeter.setTimeout(COMM_TIMEOUT);
 
     if (EVMeter.Type) {
         if ( EVMeter.Timeout == 0 && !(ErrorFlags & EV_NOCOMM) && Mode != MODE_NORMAL) {
@@ -1523,7 +1523,7 @@ uint8_t ow = 0, x;
             if (EVMeter.Timeout) EVMeter.Timeout--;
         }
     } else
-        EVMeter.Timeout = COMM_EVTIMEOUT;
+        EVMeter.setTimeout(COMM_EVTIMEOUT);
     
     // Clear communication error, if present
     if ((ErrorFlags & CT_NOCOMM) && MainsMeter.Timeout) ErrorFlags &= ~CT_NOCOMM;
@@ -2060,6 +2060,8 @@ void CheckSerialComm(void) {
     SET_ON_RECEIVE(ChargeCurrent@, ChargeCurrent)
     SET_ON_RECEIVE(PwrPanic@, PwrPanic)
     SET_ON_RECEIVE(ModemPwr@, ModemPwr)
+    SET_ON_RECEIVE(MainsMeterTimeout@, MainsMeter.Timeout)
+    SET_ON_RECEIVE(EVMeterTimeout@, EVMeter.Timeout)
 
     // Wait till initialized is set by ESP
     if (Initialized) printf("Config@OK\n");
@@ -2777,12 +2779,12 @@ void Timer10ms_singlerun(void) {
                 if (Address == MainsMeter.Address) {
                     for (int x = 0; x < 3; x++)
                         MainsMeter.Irms[x] = Irms[x];
-                    MainsMeter.Timeout = COMM_TIMEOUT;
+                    MainsMeter.setTimeout(COMM_TIMEOUT);
                     CalcIsum();
                 } else if (Address == EVMeter.Address) {
                     for (int x = 0; x < 3; x++)
                         EVMeter.Irms[x] = Irms[x];
-                    EVMeter.Timeout = COMM_EVTIMEOUT;
+                    EVMeter.setTimeout(COMM_EVTIMEOUT);
                     EVMeter.CalcImeasured();
                 }
             } else
@@ -3074,7 +3076,7 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
             break;
         case STATUS_CURRENT:
             OverrideCurrent = val;
-            if (LoadBl < 2) MainsMeter.Timeout = COMM_TIMEOUT;                  // reset timeout when register is written
+            if (LoadBl < 2) MainsMeter.setTimeout(COMM_TIMEOUT);                // reset timeout when register is written
             break;
         case STATUS_SOLAR_TIMER:
             SolarStopTimer = val;
