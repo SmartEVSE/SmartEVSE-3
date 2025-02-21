@@ -2819,50 +2819,35 @@ void Timer10ms_singlerun(void) {
 
             case COMM_CONFIG_SET:                       // Set mainboard configuration
                 CommTimeout = 10;
-                static uint8_t batch = 0;
+
                 // send configuration to WCH IC
-
 #define SEND_TO_CH32(X) Serial1.printf("%s@%u\n", #X, X);
-
-                switch (batch) {
-                    case 0:
-                        Serial1.printf("Access@%u\n", Access_bit);
-                        Serial1.printf("MainsMeterType@%u\n", MainsMeter.Type);
-                        Serial1.printf("MainsMAddress@%u\n", MainsMeter.Address);
-                        Serial1.printf("EVMeterType@%u\n", EVMeter.Type);
-                        Serial1.printf("EVMeterAddress@%u\n", EVMeter.Address);
-                        break;
-                    case 1:
-                        SEND_TO_CH32(CardOffset)
-                        SEND_TO_CH32(EnableC2)
-                        SEND_TO_CH32(Grid)
-                        SEND_TO_CH32(ImportCurrent)
-                        SEND_TO_CH32(LoadBl)
-                        SEND_TO_CH32(Lock)
-                        SEND_TO_CH32(MaxCircuit)
-                        break;
-                    case 2:
-                        SEND_TO_CH32(MaxCurrent)
-                        SEND_TO_CH32(MaxMains)
-                        SEND_TO_CH32(MaxSumMains)
-                        SEND_TO_CH32(maxTemp)
-                        SEND_TO_CH32(MinCurrent)
-                        SEND_TO_CH32(Mode)
-                        SEND_TO_CH32(ModemPwr)
-                        break;
-                    case 3:
-                        SEND_TO_CH32(PwrPanic)
-                        SEND_TO_CH32(RCmon)
-                        SEND_TO_CH32(RFIDReader)
-                        SEND_TO_CH32(StartCurrent)
-                        SEND_TO_CH32(StopTime)
-                        SEND_TO_CH32(Switch)
-                        break;
-                }
-                batch ++;
-                if (batch == 4)
-                    Serial1.printf("Initialized@1\n");      // this finalizes the Config setup phase
-
+                Serial1.printf("Access@%u\n", Access_bit);
+                Serial1.printf("MainsMeterType@%u\n", MainsMeter.Type);
+                Serial1.printf("MainsMAddress@%u\n", MainsMeter.Address);
+                Serial1.printf("EVMeterType@%u\n", EVMeter.Type);
+                Serial1.printf("EVMeterAddress@%u\n", EVMeter.Address);
+                SEND_TO_CH32(CardOffset)
+                SEND_TO_CH32(EnableC2)
+                SEND_TO_CH32(Grid)
+                SEND_TO_CH32(ImportCurrent)
+                SEND_TO_CH32(LoadBl)
+                SEND_TO_CH32(Lock)
+                SEND_TO_CH32(MaxCircuit)
+                SEND_TO_CH32(MaxCurrent)
+                SEND_TO_CH32(MaxMains)
+                SEND_TO_CH32(MaxSumMains)
+                SEND_TO_CH32(maxTemp)
+                SEND_TO_CH32(MinCurrent)
+                SEND_TO_CH32(Mode)
+                SEND_TO_CH32(ModemPwr)
+                SEND_TO_CH32(PwrPanic)
+                SEND_TO_CH32(RCmon)
+                SEND_TO_CH32(RFIDReader)
+                SEND_TO_CH32(StartCurrent)
+                SEND_TO_CH32(StopTime)
+                SEND_TO_CH32(Switch)
+                Serial1.printf("Initialized@1\n");      // this finalizes the Config setup phase
                 break;
 
             case COMM_STATUS_REQ:                       // Ready to receive status from mainboard
