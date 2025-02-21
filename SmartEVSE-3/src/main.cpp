@@ -2826,8 +2826,6 @@ void Timer10ms_singlerun(void) {
 
                 switch (batch) {
                     case 0:
-                        //Serial1.printf("Initialized@1\n");//Initialized is always set to 1 here
-                        Serial1.printf("ModemPwr@%u\n", ModemPwr); //Initialized is always set to 1 here
                         Serial1.printf("Access@%u\n", Access_bit);
                         Serial1.printf("MainsMeterType@%u\n", MainsMeter.Type);
                         Serial1.printf("MainsMAddress@%u\n", MainsMeter.Address);
