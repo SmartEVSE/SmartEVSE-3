@@ -1321,6 +1321,7 @@ void CalcBalancedCurrent(char mod) {
     }
 #ifndef SMARTEVSE_VERSION //CH32 only
     printf("Balanced0@%u\n", Balanced[0]);
+    printf("ChargeCurrent@%u\n", ChargeCurrent);
 #endif
 #else
     printf("CalcBalancedCurrent@%i\n", mod);
@@ -2056,7 +2057,6 @@ void CheckSerialComm(void) {
     SET_ON_RECEIVE(EMFunction@, EMConfig[EM_CUSTOM].Function)
     SET_ON_RECEIVE(EnableC2@, tmp); EnableC2 = (EnableC2_t) tmp;
     SET_ON_RECEIVE(maxTemp@, maxTemp)
-    SET_ON_RECEIVE(ChargeCurrent@, ChargeCurrent)
     SET_ON_RECEIVE(PwrPanic@, PwrPanic)
     SET_ON_RECEIVE(ModemPwr@, ModemPwr)
     SET_ON_RECEIVE(MainsMeterTimeout@, MainsMeter.Timeout)
@@ -2747,6 +2747,7 @@ void Timer10ms_singlerun(void) {
         SET_ON_RECEIVE(Temp@, TempEVSE)
         SET_ON_RECEIVE(State@, State)
         SET_ON_RECEIVE(Balanced0@, Balanced[0])
+        SET_ON_RECEIVE(ChargeCurrent@, ChargeCurrent)
         SET_ON_RECEIVE(IsCurrentAvailable@, Shadow_IsCurrentAvailable)
         SET_ON_RECEIVE(ErrorFlags@, ErrorFlags)
 
