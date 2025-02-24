@@ -2557,7 +2557,7 @@ void Timer10ms_singlerun(void) {
         {                                                                    // Allow to switch to state C directly if STATE_A_TO_C is set to PILOT_6V (see EVSE.h)
             DiodeCheck = 0;
 
-            ProximityPin();                                                 // Sample Proximity Pin
+            MaxCapacity = ProximityPin();                                   // Sample Proximity Pin
 
             _LOG_I("Cable limit: %uA  Max: %uA\n", MaxCapacity, MaxCurrent);
             if (MaxCurrent > MaxCapacity) ChargeCurrent = MaxCapacity * 10; // Do not modify Max Cable Capacity or MaxCurrent (fix 2.05)
