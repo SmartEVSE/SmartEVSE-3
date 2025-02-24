@@ -1948,6 +1948,7 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
     } else if (mg_http_match_uri(hm, "/automated_testing") && !memcmp("POST", hm->method.buf, hm->method.len)) {
         if(request->hasParam("current_max")) {
             MaxCurrent = strtol(request->getParam("current_max")->value().c_str(),NULL,0);
+            SEND_TO_CH32(MaxCurrent)
         }
         if(request->hasParam("current_main")) {
             MaxMains = strtol(request->getParam("current_main")->value().c_str(),NULL,0);

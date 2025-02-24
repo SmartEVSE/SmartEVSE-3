@@ -2847,7 +2847,6 @@ void Timer10ms_singlerun(void) {
                 CommTimeout = 10;
 
                 // send configuration to WCH IC
-#define SEND_TO_CH32(X) Serial1.printf("%s@%u\n", #X, X);
                 Serial1.printf("Access@%u\n", Access_bit);
                 Serial1.printf("MainsMeterType@%u\n", MainsMeter.Type);
                 Serial1.printf("MainsMAddress@%u\n", MainsMeter.Address);
@@ -3004,6 +3003,9 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
             break;
         case MENU_MAX:
             MaxCurrent = val;
+#if SMARTEVSE_VERSION >=40
+            SEND_TO_CH32(MaxCurrent)
+#endif
             break;
         case MENU_CIRCUIT:
             MaxCircuit = val;
