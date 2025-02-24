@@ -1952,18 +1952,23 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
         }
         if(request->hasParam("current_main")) {
             MaxMains = strtol(request->getParam("current_main")->value().c_str(),NULL,0);
+            SEND_TO_CH32(MaxMains)
         }
         if(request->hasParam("current_max_circuit")) {
             MaxCircuit = strtol(request->getParam("current_max_circuit")->value().c_str(),NULL,0);
+            SEND_TO_CH32(MaxCircuit)
         }
         if(request->hasParam("mainsmeter")) {
             MainsMeter.Type = strtol(request->getParam("mainsmeter")->value().c_str(),NULL,0);
+            Serial1.printf("MainsMeterType@%u\n", MainsMeter.Type);
         }
         if(request->hasParam("evmeter")) {
             EVMeter.Type = strtol(request->getParam("evmeter")->value().c_str(),NULL,0);
+            Serial1.printf("EVMeterType@%u\n", EVMeter.Type);
         }
         if(request->hasParam("config")) {
             Config = strtol(request->getParam("config")->value().c_str(),NULL,0);
+            SEND_TO_CH32(Config)
             setState(STATE_A);                                                  // so the new value will actually be read
         }
         if(request->hasParam("loadbl")) {
@@ -1972,6 +1977,7 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
             ConfigureModbusMode(LBL);
 #endif
             LoadBl = LBL;
+            SEND_TO_CH32(LoadBl)
         }
         mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", ""); //json request needs json response
         return true;
