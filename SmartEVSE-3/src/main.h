@@ -194,8 +194,13 @@
 #define ACTUATOR_OFF { digitalWrite(PIN_ACTB, HIGH); digitalWrite(PIN_ACTA, HIGH); }
 
 #define RCMFAULT digitalRead(PIN_RCM_FAULT) //TODO ok for v4?
+#if SMARTEVSE_VERSION >=40
 #define SEND_TO_CH32(X) Serial1.printf("%s@%u\n", #X, X);
+#else //v3
+#define SEND_TO_CH32(X) //dummy
+#endif
 #else //CH32
+#define SEND_TO_CH32(X) //dummy
 #define PILOT_CONNECTED funDigitalWrite(CPOFF, FUN_LOW);
 #define PILOT_DISCONNECTED funDigitalWrite(CPOFF, FUN_HIGH);
 

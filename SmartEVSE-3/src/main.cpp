@@ -2952,9 +2952,45 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
     }
 #endif
     switch (nav) {
-        case MENU_MAX_TEMP:
-            maxTemp = val;
+#define SETITEM(M, V) \
+        case M: \
+            V = val; \
+            SEND_TO_CH32(V) \
             break;
+        SETITEM(MENU_MAX_TEMP, maxTemp)
+        SETITEM(MENU_CONFIG, Config)
+        SETITEM(MENU_MODE, Mode)
+        SETITEM(MENU_START, StartCurrent)
+        SETITEM(MENU_STOP, StopTime)
+        SETITEM(MENU_IMPORT, ImportCurrent)
+        SETITEM(MENU_MAINS, MaxMains)
+        SETITEM(MENU_SUMMAINS, MaxSumMains)
+        SETITEM(MENU_SUMMAINSTIME, MaxSumMainsTime)
+        SETITEM(MENU_MIN, MinCurrent)
+        SETITEM(MENU_MAX, MaxCurrent)
+        SETITEM(MENU_CIRCUIT, MaxCircuit)
+        SETITEM(MENU_LOCK, Lock)
+        SETITEM(MENU_SWITCH, Switch)
+        SETITEM(MENU_GRID, Grid)
+        SETITEM(MENU_SB2_WIFI, SB2_WIFImode)
+        SETITEM(MENU_MAINSMETER, MainsMeter.Type)
+        SETITEM(MENU_MAINSMETERADDRESS, MainsMeter.Address)
+        SETITEM(MENU_EVMETER, EVMeter.Type)
+        SETITEM(MENU_EVMETERADDRESS, EVMeter.Address)
+        SETITEM(MENU_EMCUSTOM_ENDIANESS, EMConfig[EM_CUSTOM].Endianness)
+        SETITEM(MENU_EMCUSTOM_FUNCTION, EMConfig[EM_CUSTOM].Function)
+        SETITEM(MENU_EMCUSTOM_UREGISTER, EMConfig[EM_CUSTOM].URegister)
+        SETITEM(MENU_EMCUSTOM_UDIVISOR, EMConfig[EM_CUSTOM].UDivisor)
+        SETITEM(MENU_EMCUSTOM_IREGISTER, EMConfig[EM_CUSTOM].IRegister)
+        SETITEM(MENU_EMCUSTOM_IDIVISOR, EMConfig[EM_CUSTOM].IDivisor)
+        SETITEM(MENU_EMCUSTOM_PREGISTER, EMConfig[EM_CUSTOM].PRegister)
+        SETITEM(MENU_EMCUSTOM_PDIVISOR, EMConfig[EM_CUSTOM].PDivisor)
+        SETITEM(MENU_EMCUSTOM_EREGISTER, EMConfig[EM_CUSTOM].ERegister)
+        SETITEM(MENU_EMCUSTOM_EDIVISOR, EMConfig[EM_CUSTOM].EDivisor)
+        SETITEM(MENU_RFIDREADER, RFIDReader)
+        SETITEM(MENU_AUTOUPDATE, AutoUpdate)
+        SETITEM(STATUS_SOLAR_TIMER, SolarStopTimer)
+        SETITEM(STATUS_CONFIG_CHANGED, ConfigChanged)
         case MENU_C2:
             EnableC2 = (EnableC2_t) val;
 #ifdef SMARTEVSE_VERSION
@@ -2963,25 +2999,10 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
             printf("EnableC2@%u\n", EnableC2);
 #endif
             break;
-        case MENU_CONFIG:
-            Config = val;
-            break;
         case STATUS_MODE:
             if (Mode != val)                                                    // this prevents slave from waking up from OFF mode when Masters'
                                                                                 // solarstoptimer starts to count
                 setMode(val);
-            break;
-        case MENU_MODE:
-            Mode = val;
-            break;
-        case MENU_START:
-            StartCurrent = val;
-            break;
-        case MENU_STOP:
-            StopTime = val;
-            break;
-        case MENU_IMPORT:
-            ImportCurrent = val;
             break;
         case MENU_LOADBL:
 #if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
@@ -2989,102 +3010,20 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
 #endif
             LoadBl = val;
             break;
-        case MENU_MAINS:
-            MaxMains = val;
-            break;
-        case MENU_SUMMAINS:
-            MaxSumMains = val;
-            break;
-        case MENU_SUMMAINSTIME:
-            MaxSumMainsTime = val;
-            break;
-        case MENU_MIN:
-            MinCurrent = val;
-            break;
-        case MENU_MAX:
-            MaxCurrent = val;
-#if SMARTEVSE_VERSION >=40
-            SEND_TO_CH32(MaxCurrent)
-#endif
-            break;
-        case MENU_CIRCUIT:
-            MaxCircuit = val;
-            break;
-        case MENU_LOCK:
-            Lock = val;
-            break;
-        case MENU_SWITCH:
-            Switch = val;
-            break;
         case MENU_RCMON:
             RCmon = val;
 #if !defined(SMARTEVSE_VERSION) //CH32
             RCmonCtrl(RCmon);
 #endif
             break;
-        case MENU_GRID:
-            Grid = val;
-            break;
-        case MENU_SB2_WIFI:
-            SB2_WIFImode = val;
-            break;
-        case MENU_MAINSMETER:
-            MainsMeter.Type = val;
-            break;
-        case MENU_MAINSMETERADDRESS:
-            MainsMeter.Address = val;
-            break;
-        case MENU_EVMETER:
-            EVMeter.Type = val;
-            break;
-        case MENU_EVMETERADDRESS:
-            EVMeter.Address = val;
-            break;
-        case MENU_EMCUSTOM_ENDIANESS:
-            EMConfig[EM_CUSTOM].Endianness = val;
-            break;
         case MENU_EMCUSTOM_DATATYPE:
             EMConfig[EM_CUSTOM].DataType = (mb_datatype)val;
             break;
-        case MENU_EMCUSTOM_FUNCTION:
-            EMConfig[EM_CUSTOM].Function = val;
-            break;
-        case MENU_EMCUSTOM_UREGISTER:
-            EMConfig[EM_CUSTOM].URegister = val;
-            break;
-        case MENU_EMCUSTOM_UDIVISOR:
-            EMConfig[EM_CUSTOM].UDivisor = val;
-            break;
-        case MENU_EMCUSTOM_IREGISTER:
-            EMConfig[EM_CUSTOM].IRegister = val;
-            break;
-        case MENU_EMCUSTOM_IDIVISOR:
-            EMConfig[EM_CUSTOM].IDivisor = val;
-            break;
-        case MENU_EMCUSTOM_PREGISTER:
-            EMConfig[EM_CUSTOM].PRegister = val;
-            break;
-        case MENU_EMCUSTOM_PDIVISOR:
-            EMConfig[EM_CUSTOM].PDivisor = val;
-            break;
-        case MENU_EMCUSTOM_EREGISTER:
-            EMConfig[EM_CUSTOM].ERegister = val;
-            break;
-        case MENU_EMCUSTOM_EDIVISOR:
-            EMConfig[EM_CUSTOM].EDivisor = val;
-            break;
-        case MENU_RFIDREADER:
-            RFIDReader = val;
-            break;
-#ifdef SMARTEVSE_VERSION //TODO THIS SHOULD BE FIXED
+#ifdef SMARTEVSE_VERSION
         case MENU_WIFI:
             WIFImode = val;
             break;
 #endif
-        case MENU_AUTOUPDATE:
-            AutoUpdate = val;
-            break;
-
         // Status writeable
         case STATUS_STATE:
             if (val != State) setState(val);
@@ -3104,16 +3043,10 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
             setOverrideCurrent(val);
             if (LoadBl < 2) MainsMeter.setTimeout(COMM_TIMEOUT);                // reset timeout when register is written
             break;
-        case STATUS_SOLAR_TIMER:
-            SolarStopTimer = val;
-            break;
         case STATUS_ACCESS:
             if (val == 0 || val == 1) {
                 setAccess(val);
             }
-            break;
-        case STATUS_CONFIG_CHANGED:
-            ConfigChanged = val;
             break;
 
         default:
