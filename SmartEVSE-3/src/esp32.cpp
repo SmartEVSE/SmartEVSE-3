@@ -581,10 +581,10 @@ void mqtt_receive_callback(const String topic, const String payload) {
         } else if (payload == "Normal") {
             setMode(MODE_NORMAL);
         } else if (payload == "Solar") {
-            OverrideCurrent = 0;
+            setOverrideCurrent(0);
             setMode(MODE_SOLAR);
         } else if (payload == "Smart") {
-            OverrideCurrent = 0;
+            setOverrideCurrent(0);
             setMode(MODE_SMART);
         }
     } else if (topic == MQTTprefix + "/Set/CustomButton") {
@@ -596,10 +596,10 @@ void mqtt_receive_callback(const String topic, const String payload) {
     } else if (topic == MQTTprefix + "/Set/CurrentOverride") {
         uint16_t RequestedCurrent = payload.toInt();
         if (RequestedCurrent == 0) {
-            OverrideCurrent = 0;
+            setOverrideCurrent(0);
         } else if (LoadBl < 2 && (Mode == MODE_NORMAL || Mode == MODE_SMART)) { // OverrideCurrent not possible on Slave
             if (RequestedCurrent >= (MinCurrent * 10) && RequestedCurrent <= (MaxCurrent * 10)) {
-                OverrideCurrent = RequestedCurrent;
+                setOverrideCurrent(RequestedCurrent);
             }
         }
     } else if (topic == MQTTprefix + "/Set/CurrentMaxSumMains" && LoadBl < 2) {
@@ -1433,7 +1433,7 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
         }
 
         if(request->hasParam("disable_override_current")) {
-            OverrideCurrent = 0;
+            setOverrideCurrent(0);
             doc["disable_override_current"] = "OK";
         }
 
@@ -1543,7 +1543,7 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
             if(request->hasParam("override_current")) {
                 int current = request->getParam("override_current")->value().toInt();
                 if (LoadBl < 2 && (current == 0 || (current >= ( MinCurrent * 10 ) && current <= ( MaxCurrent * 10 )))) { //OverrideCurrent not possible on Slave
-                    OverrideCurrent = current;
+                    setOverrideCurrent(current);
                     doc["override_current"] = OverrideCurrent;
                 } else {
                     doc["override_current"] = "Value not allowed!";

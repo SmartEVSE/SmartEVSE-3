@@ -459,6 +459,25 @@ void Button::CheckSwitch(bool force) {
 
 Button ExtSwitch;
 
+//similar to setAccess; OverrideCurrent owned by ESP32
+void setOverrideCurrent(uint16_t Current) { //c
+#ifdef SMARTEVSE_VERSION //v3 and v4
+    OverrideCurrent = Current;
+#if SMARTEVSE_VERSION >= 40
+    Serial1.printf("OverrideCurrent@%u\n", OverrideCurrent); //d
+#endif
+
+    //write_settings TODO doesnt include OverrideCurrent
+#if MQTT
+    // Update MQTT faster
+    lastMqttUpdate = 10;
+#endif //MQTT
+#else //CH32
+    printf("OverrideCurrent@%u.\n", OverrideCurrent); //a
+#endif //SMARTEVSE_VERSION
+}
+
+
 /**
  * Set EVSE mode
  * 
@@ -478,7 +497,7 @@ void setMode(uint8_t NewMode) {
     setAccess(!DelayedStartTime.epoch2); //if DelayedStartTime not zero then we are Delayed Charging
     if (NewMode == MODE_SOLAR) {
         // Reset OverrideCurrent if mode is SOLAR
-        OverrideCurrent = 0;
+        setOverrideCurrent(0);
     }
 
     // when switching modes, we just keep charging at the phases we were charging at;
@@ -2025,6 +2044,7 @@ void CheckSerialComm(void) {
     SET_ON_RECEIVE(Lock@, Lock)
     SET_ON_RECEIVE(Mode@, Mode)
     SET_ON_RECEIVE(Access@, Access_bit)
+    SET_ON_RECEIVE(OverrideCurrent@, OverrideCurrent)
     SET_ON_RECEIVE(CardOffset@, CardOffset)
     SET_ON_RECEIVE(LoadBl@, LoadBl)
     SET_ON_RECEIVE(MaxMains@, MaxMains)
@@ -2740,6 +2760,7 @@ void Timer10ms_singlerun(void) {
             ExtSwitch.HandleSwitch();
         }
         CALL_ON_RECEIVE_PARAM(Access@, setAccess)
+        CALL_ON_RECEIVE_PARAM(OverrideCurrent@, setOverrideCurrent)
         CALL_ON_RECEIVE_PARAM(Mode@, setMode)
         CALL_ON_RECEIVE(write_settings)
         //these variables are owned by CH32 and copies are sent to ESP32:
@@ -3078,7 +3099,7 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
             }
             break;
         case STATUS_CURRENT:
-            OverrideCurrent = val;
+            setOverrideCurrent(val);
             if (LoadBl < 2) MainsMeter.setTimeout(COMM_TIMEOUT);                // reset timeout when register is written
             break;
         case STATUS_SOLAR_TIMER:
