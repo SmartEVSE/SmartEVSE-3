@@ -630,10 +630,10 @@ void setStatePowerUnavailable(void) {
 // is allowed to change the value of State on CH32
 // All other code has to use setState
 // so for v4 we need:
-// a. ESP32 setState sends message to CH32              in ESP32 src/common.cpp (this file)
+// a. ESP32 setState sends message to CH32              in ESP32 src/main.cpp (this file)
 // b. CH32 receiver that calls local setState           in CH32 src/evse.c
-// c. CH32 setState full functionality                  in ESP32 src/common.cpp (this file) to be copied to CH32
-// d. CH32 sends message to ESP32                       in ESP32 src/common.cpp (this file) to be copied to CH32
+// c. CH32 setState full functionality                  in ESP32 src/main.cpp (this file) to be copied to CH32
+// d. CH32 sends message to ESP32                       in ESP32 src/main.cpp (this file) to be copied to CH32
 // e. ESP32 receiver that sets local variable           in ESP32 src/main.cpp
 
 
@@ -779,10 +779,10 @@ void setState(uint8_t NewState) { //c
 // is allowed to change the value of Acces_bit on CH32
 // All other code has to use setAccess
 // so for v4 we need:
-// a. CH32 setAccess sends message to ESP32           in CH32 src/evse.c and/or in src/common.cpp (this file)
+// a. CH32 setAccess sends message to ESP32           in CH32 src/evse.c and/or in src/main.cpp (this file)
 // b. ESP32 receiver that calls local setAccess       in ESP32 src/main.cpp
-// c. ESP32 setAccess full functionality              in ESP32 src/common.cpp (this file)
-// d. ESP32 sends message to CH32                     in ESP32 src/common.cpp (this file)
+// c. ESP32 setAccess full functionality              in ESP32 src/main.cpp (this file)
+// d. ESP32 sends message to CH32                     in ESP32 src/main.cpp (this file)
 // e. CH32 receiver that sets local variable          in CH32 src/evse.c
 
 // same for Mode/setMode
