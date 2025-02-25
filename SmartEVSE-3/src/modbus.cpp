@@ -116,7 +116,7 @@ void ModbusSend(uint8_t address, uint8_t function, uint8_t byte, uint16_t *value
     Tbuffer[n++] = ((uint8_t)(cs));
     Tbuffer[n++] = ((uint8_t)(cs>>8));
 
-    printf("Sending response to master (len=%u) ", n);
+    printf(" address: 0x%02x, function: 0x%02x, len=%u.\n", address, function, n);
     for (i = 0; i < n; i++) printf("%02x ", Tbuffer[i]);
     printf("\n");
 
