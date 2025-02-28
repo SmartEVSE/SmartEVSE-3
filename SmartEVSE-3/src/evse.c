@@ -33,7 +33,6 @@ uint8_t PwrPanic = 0;                                                       // P
 uint8_t ModemPwr = 0;                                                       // Enable power to the Modem
 
 uint8_t LockCable = 0;
-uint8_t RFID[8] = {0, 0, 0, 0, 0, 0, 0, 0};                                 // Last RFID reading. First byte is always 01, last byte is CRC
 
 uint32_t elapsedtime, elapsedmax=0;
 

@@ -38,7 +38,6 @@ typedef struct {
 extern CircularBuffer ModbusTx;                 // USART2 Transmit buffer (modbus)
 
 
-extern uint8_t RFID[8];
 void setState(uint8_t NewState);
 uint8_t buffer_enqueue(CircularBuffer *cb, char data);
 uint8_t buffer_dequeue(CircularBuffer *cb, char *data);
