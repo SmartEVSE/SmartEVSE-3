@@ -61,7 +61,8 @@ unsigned char OneWireReadCardId(void) {
         return 0; //card is already read, no new card
 }
 
-#else
+#endif
+#if SMARTEVSE_VERSION >= 30 && SMARTEVSE_VERSION < 40 //ESP32v3
 unsigned char OneWireReadCardId(void) {
     uint8_t x;
 
@@ -254,8 +255,8 @@ void CheckRFID(void) {
     uint16_t x;
     // When RFID is enabled, a OneWire RFID reader is expected on the SW input
     uint8_t RFIDReader = getItemValue(MENU_RFIDREADER);
-    if (RFIDReader) {                                        // RFID Reader set to Enabled, Learn or Delete
-        if (OneWireReadCardId() ) {                                             // Read card ID
+#if SMARTEVSE_VERSION < 40                                                      // v3 has to read card ID; in v4, CheckRFID is called after reception of a valid RFID
+#endif
 #if ENABLE_OCPP
             if (OcppMode && RFIDReader == 6) {                                      // Remote authorization via OCPP?
                 // Use OCPP
@@ -334,8 +335,8 @@ void CheckRFID(void) {
                         break;
                 }
             }
-        } else RFIDstatus = 0;
-    }
+#if SMARTEVSE_VERSION < 40                                                      // v3 has to read card ID; in v4, CheckRFID is called after reception of a valid RFID
+#endif
 }
 #else //CH32
 
@@ -445,19 +446,19 @@ uint8_t OneWireReadCardId() {
     if (OneWireReset() == 1) {                                    // RFID card detected
         OneWireWrite(0x33);                                       // OneWire ReadRom Command
         for (x=0 ; x<8 ; x++) RFID[x] = OneWireRead();            // read Family code (0x01) RFID ID (6 bytes) and crc8
-        // Dump raw RFID data
-        for (x=0;  x<8 ; x++) printf("%02x",RFID[x]);
-        printf("\n");
 
         if (crc8(RFID,8)) {
             RFID[0] = 0;                                          // CRC incorrect, clear first byte of RFID buffer
+            printf("RFIDstatus@0\n");                             // signal RFIDstatus = 0
             return 0;
         } else {
-   //         for (x=1 ; x<7 ; x++) printf("%02x",RFID[x]);
-   //         printf("\n");
+            printf("RFID@");
+            for (x=0 ; x<8 ; x++) printf("%02x",RFID[x]);
+            printf("\n");
             return 1;
         }
     }
+    printf("RFIDstatus@0\n");                                    // signal RFIDstatus = 0
     return 0;
 }
 #endif
