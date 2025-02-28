@@ -1153,7 +1153,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
                             if (c == '\n' || pos == hm->body.len) {
                                 strncpy(RFIDtxtstring, hm->body.buf + beginpos, 19);         // in case of DOS the 0x0D is stripped off here
                                 RFIDtxtstring[19] = '\0';
-                                r = sscanf(RFIDtxtstring,"%02X%02x%02x%02x%02x%02x%02x", &RFID_UID[0], &RFID_UID[1], &RFID_UID[2], &RFID_UID[3], &RFID_UID[4], &RFID_UID[5], &RFID_UID[6]);
+                                r = sscanf(RFIDtxtstring,"%02x%02x%02x%02x%02x%02x%02x", &RFID_UID[0], &RFID_UID[1], &RFID_UID[2], &RFID_UID[3], &RFID_UID[4], &RFID_UID[5], &RFID_UID[6]);
                                 RFID_UID[7]=crc8((unsigned char *) RFID_UID,7);
                                 if (r == 7) {
                                     _LOG_A("Store RFID_UID %02x%02x%02x%02x%02x%02x%02x, crc=%02x.\n", RFID_UID[0], RFID_UID[1], RFID_UID[2], RFID_UID[3], RFID_UID[4], RFID_UID[5], RFID_UID[6], RFID_UID[7]);
