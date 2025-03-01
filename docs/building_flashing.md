@@ -46,7 +46,7 @@ this should generate a fresh src/packed_fs.c file.
    When flashing firmware older then v3.6.0, you must also flash spiffs.bin this way.
 2. Alternatively, you can connect your SmartEVSE with a USB-C cable to your computer:
    * Linux users: the device will present itself usually as /dev/ttyUSB0
-   * Windows users will have to install USB drivers https://www.silabs.com/de...o-uart-bridge-vcp-drivers
+   * Windows users will have to install [USB drivers](https://www.silabs.com/developer-tools/usb-to-uart-bridge-vcp-drivers)
 
    You can use the following flashing software:
 
