@@ -15,6 +15,7 @@ jobs:
       minor: ${{ steps.get_version.outputs.minor }}
       patch: ${{ steps.get_version.outputs.patch }}
       prerelease: ${{ steps.get_version.outputs.prerelease }}
+  
   build:
     needs: version
     uses: ./.github/workflows/pio-build.yaml
@@ -24,6 +25,7 @@ jobs:
       patch: ${{ needs.version.outputs.patch }}
       prerelease: ${{ needs.version.outputs.prerelease }}
     secrets: inherit
+  
   release:
     permissions: write-all
     needs: build
@@ -33,53 +35,44 @@ jobs:
       - name: Get current tag
         id: tag
         run: echo "tag=${GITHUB_REF##*/}" >> $GITHUB_OUTPUT
+      
       - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v3
+      
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
         id: download
         with:
+          name: ${{ needs.build.outputs.artifact }}
           path: dist
+      
       - name: Create Release
         id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
           draft: false
           prerelease: true
-      - name: Zip
-        run: zip -j ${{ steps.tag.outputs.tag }}-dist.zip ./dist/${{ needs.build.outputs.artifact }}/*
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Zip artifacts
+        run: zip -j ${{ steps.tag.outputs.tag }}-dist.zip ./dist/*
+      
       - name: Upload Release Asset
-        id: upload-release-asset 
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v1
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./${{ steps.tag.outputs.tag }}-dist.zip
-          asset_name: ${{ steps.tag.outputs.tag }}-dist.zip
-          asset_content_type: application/zip
-
-      - name: Install AWS CLI
+          token: ${{ secrets.GITHUB_TOKEN }}
+          files: ${{ steps.tag.outputs.tag }}-dist.zip
+          tag_name: ${{ github.ref_name }}
+      
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-2
+      
+      - name: Upload files to S3
         run: |
-          sudo apt-get update
-          sudo apt-get install -y awscli
-
-      - name: Configure AWS credentials
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        run: |
-          aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
-          aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
-          aws configure set default.region eu-west-2
-
-      - name: Upload file to S3
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        run: |
-          aws s3 cp ./dist/${{ needs.build.outputs.artifact }}/firmware.debug.signed.bin s3://smartevse-3/${{ github.repository_owner }}_firmware.debug.signed.bin
-          aws s3 cp ./dist/${{ needs.build.outputs.artifact }}/firmware.signed.bin s3://smartevse-3/${{ github.repository_owner }}_firmware.signed.bin
-
+          aws s3 cp ./dist/firmware.debug.signed.bin s3://smartevse-3/${{ github.repository_owner }}_firmware.debug.signed.bin
+          aws s3 cp ./dist/firmware.signed.bin s3://smartevse-3/${{ github.repository_owner }}_firmware.signed.bin
