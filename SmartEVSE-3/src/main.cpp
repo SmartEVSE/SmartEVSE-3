@@ -2798,7 +2798,7 @@ void Timer10ms_singlerun(void) {
         if (ret != NULL) {
             short unsigned int Address;
             int16_t Irms[3];
-            int n = sscanf(SerialBuf,"Irms@%03hu,%hi,%hi,%hi", &Address, &Irms[0], &Irms[1], &Irms[2]);
+            int n = sscanf(ret,"Irms@%03hu,%hi,%hi,%hi", &Address, &Irms[0], &Irms[1], &Irms[2]);
             if (n == 4) {   //success
                 if (Address == MainsMeter.Address) {
                     for (int x = 0; x < 3; x++)
@@ -2821,7 +2821,7 @@ void Timer10ms_singlerun(void) {
         if (ret != NULL) {
             short unsigned int Address;
             int16_t PowerMeasured;
-            int n = sscanf(SerialBuf,"PowerMeasured@%03hu,%hi", &Address, &PowerMeasured);
+            int n = sscanf(ret,"PowerMeasured@%03hu,%hi", &Address, &PowerMeasured);
             if (n == 2) {   //success
                 if (Address == MainsMeter.Address) {
                     MainsMeter.PowerMeasured = PowerMeasured;
