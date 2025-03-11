@@ -836,11 +836,13 @@ std::pair<bool, std::array<std::int8_t, 3> > getMainsFromHomeWizardP1() {
     // Get the response stream
     WiFiClient *stream = httpClient.getStreamPtr();
 
-    // Create a filter to parse only specific fields
+    const char* currentKeys[] = {"active_current_l1_a", "active_current_l2_a", "active_current_l3_a"};
+    const char* powerKeys[] = {"active_power_l1_w", "active_power_l2_w", "active_power_l3_w"};
+
+    // Create a filter to parse only specific fields.
     StaticJsonDocument<96> filter;
-    filter["active_current_l1_a"] = true;
-    filter["active_current_l2_a"] = true;
-    filter["active_current_l3_a"] = true;
+    for (const auto* key : currentKeys) filter[key] = true;
+    for (const auto* key : powerKeys) filter[key] = true;
 
     // Create a filtered JSON document to hold the parsed data.
     DynamicJsonDocument doc(256);
@@ -849,23 +851,33 @@ std::pair<bool, std::array<std::int8_t, 3> > getMainsFromHomeWizardP1() {
 
     // Handle JSON parsing errors.
     if (error) {
-        _LOG_A("getMainsFromHWP1(): JSON deserialization failed: %s\n", error.c_str());
+        _LOG_A("getMainsFromHomeWizardP1(): JSON deserialization failed: %s\n", error.c_str());
         return {false, {0, 0, 0}};
     }
 
-    // Extract specific fields.
-    if (doc.containsKey("active_current_l1_a") &&
-        doc.containsKey("active_current_l2_a") &&
-        doc.containsKey("active_current_l3_a")) {
-        const int8_t L1 = doc["active_current_l1_a"];
-        const int8_t L2 = doc["active_current_l2_a"];
-        const int8_t L3 = doc["active_current_l3_a"];
-        return {true, {L1, L2, L3}};
+    // Verify all required keys exist.
+    for (const auto* key : currentKeys) {
+        if (!doc.containsKey(key)) {
+            // Early return on missing data.
+            _LOG_A("getMainsFromHomeWizardP1(): required JSON fields 'active_current_l[1..3]_a' not found\n");
+            return {false, {0, 0, 0}};
+        }
     }
 
-    // Fields not found.
-    _LOG_A("getMainsFromHWP1(): JSON fields 'active_current_l[1..3]_a' not found\n");
-    return {false, {0, 0, 0}};
+    // Determine grid direction based on power: negative indicates feed-in, positive indicates usage.
+    auto getCorrection = [&doc](const char* powerKey) -> int8_t {
+        return doc[powerKey].as<int>() < 0 ? -1 : 1;
+    };
+
+    // Process all three phases.
+    std::array<int8_t, 3> currents;
+    for (size_t i = 0; i < 3; ++i) {
+        int rawCurrent = doc[currentKeys[i]].as<int>();
+        int8_t correction = getCorrection(powerKeys[i]);
+        currents[i] = std::abs(rawCurrent) * correction;
+    }
+
+    return {true, currents};
 }
 
 
