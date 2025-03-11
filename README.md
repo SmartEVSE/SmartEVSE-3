@@ -35,7 +35,7 @@ Communication between the SmartEVSE(s) / Sensorbox or kWh meters is done over RS
 - Rudimentary support for home batteries
 - Supporting delayed charging
 
-# Connecting the SmartESVE to WiFi
+# Connecting the SmartEVSE to WiFi
 
 For connecting your device to your WiFi, follow the detailed instructions
 on the [Configuration page](docs/configuration.md#all-menu-options-on-the-lcd-screen) page, WIFI section.
