@@ -120,13 +120,6 @@ void st7565_data(unsigned char data) {
     LCD_SPI2.transfer(data);
     digitalWrite(LCD_CS, HIGH);
 }
-
-void st7565_data_buf(unsigned char *data, unsigned char len) {
-    _A0_1;
-    digitalWrite(LCD_CS, LOW);
-    LCD_SPI2.transfer(data, len);
-    digitalWrite(LCD_CS, HIGH);
-}
 #endif //SMARTEVSE_VERSION
 
 void goto_row(unsigned char y) {
@@ -184,7 +177,6 @@ void GLCD_buffer_clr(void) {
     } while (x != 0);
 }
 
-//#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
 void GLCD_sendbuf(unsigned char RowAdr, unsigned char Rows) {
     unsigned char i, y = 0;
     unsigned int x = 0;
@@ -198,22 +190,7 @@ void GLCD_sendbuf(unsigned char RowAdr, unsigned char Rows) {
             GLCDbuf2[i + activeRow * 128] = data;                           // Also update buffer copy
         }
     } while (++y < Rows);
-}/*
-#else
-void GLCD_sendbuf(unsigned char RowAdr, unsigned char Rows) {
-    unsigned char i, y = 0;
-    unsigned int x = 0;
-
-    do {
-        goto_xy(0, RowAdr + y);
-        st7565_data_buf(GLCDbuf + x, 128);                                  // put data on data port
-        for (i = 0; i < 128; i++) {
-            GLCDbuf2[i + activeRow * 128] = GLCDbuf[x+i];                   // Also update buffer copy
-        }
-        x += 128;
-    } while (++y < Rows);
 }
-#endif //SMARTEVSE_VERSION */
 
 void GLCD_font_condense(unsigned char c, unsigned char *start, unsigned char *end, unsigned char space) {
     if(c >= '0' && c <= '9') return;
@@ -372,12 +349,6 @@ void GLCD_write_buf_str2(const char *str, unsigned char Options) {
     }
 }
 
-void GLCD_print_buf(unsigned char y, const char *str) {
-    GLCD_buffer_clr();                                                          // Clear buffer
-    GLCD_write_buf_str(0, y, str, GLCD_ALIGN_LEFT);
-    GLCD_sendbuf(y, 1);                                                         // copy buffer to LCD
-}
-
 // uses buffer
 void GLCD_print_buf2_left(const char *data) {
     GLCD_buffer_clr();                                                          // Clear buffer
@@ -478,11 +449,11 @@ void GLCD(void) {
         GLCD_buffer_clr();
         // top line
         if (LCDNav == MENU_RFIDREADER && SubMenu) {
-            if (RFIDstatus == 2) GLCD_print_buf(0, (const char*) "Card Stored");
-            else if (RFIDstatus == 3) GLCD_print_buf(0, (const char*) "Card Deleted");
-            else if (RFIDstatus == 4) GLCD_print_buf(0, (const char*) "Card already stored!");
-            else if (RFIDstatus == 5) GLCD_print_buf(0, (const char*) "Card not in storage!");
-            else if (RFIDstatus == 6) GLCD_print_buf(0, (const char*) "Card storage full!");
+            if (RFIDstatus == 2) GLCD_write_buf_str(0, 0, "Card Stored", GLCD_ALIGN_LEFT);
+            else if (RFIDstatus == 3) GLCD_write_buf_str(0, 0, "Card Deleted", GLCD_ALIGN_LEFT);
+            else if (RFIDstatus == 4) GLCD_write_buf_str(0, 0, "Card already stored!", GLCD_ALIGN_LEFT);
+            else if (RFIDstatus == 5) GLCD_write_buf_str(0, 0, "Card not in storage!", GLCD_ALIGN_LEFT);
+            else if (RFIDstatus == 6) GLCD_write_buf_str(0, 0, "Card storage full!", GLCD_ALIGN_LEFT);
             else glcd_clrln(0, 0x00);                                           // Clear line
             LCDTimer = 0;                                                       // reset timer, so it will not exit the menu when learning/deleting cards
         // Sensorbox 2 WiFi settings
