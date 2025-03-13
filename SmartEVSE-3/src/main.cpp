@@ -1470,7 +1470,6 @@ uint8_t x;
             CheckRFID();
         } else {
             RFIDstatus = 0;
-            _LOG_A("DINGO: setting RFIDstatus to %u.checkpoint B.\n", RFIDstatus);
         }
     }
 #endif
@@ -2833,7 +2832,6 @@ void Timer10ms_singlerun(void) {
         if (ret != NULL) {
             int n = sscanf(ret,"RFID@%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx", &RFID[0], &RFID[1], &RFID[2], &RFID[3], &RFID[4], &RFID[5], &RFID[6], &RFID[7]);
             if (n == 8) {   //success
-_LOG_A("DINGO RFID %02x%02x%02x%02x%02x%02x%02x, crc=%02x.\n", RFID[0], RFID[1], RFID[2], RFID[3], RFID[4], RFID[5], RFID[6], RFID[7]);
                 CheckRFID();
             } else
                 _LOG_A("Received corrupt %s, n=%d, message from WCH:%s.\n", token, n, SerialBuf);
