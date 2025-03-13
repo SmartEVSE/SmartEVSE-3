@@ -1034,6 +1034,10 @@
                     function toggleEnableOcppAutoAuth() {
                       var autoAuthCheckbox = document.getElementById("ocpp_auto_auth");
                       $.post( "/settings?ocpp_update=1&ocpp_auto_auth=" + (autoAuthCheckbox.checked == true ? 1 : 0));
+                      //show idTag box immediately if Auto auth checkbox is checked
+                      if (autoAuthCheckbox.checked) {
+                        loadData();
+                      }
                     }
                     function toggleOcppEdit() {
                         ocppEditMode = !ocppEditMode;
