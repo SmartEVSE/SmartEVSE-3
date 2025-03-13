@@ -134,6 +134,9 @@ extern uint8_t LCDTimer;
 extern uint16_t BacklightTimer;                                                 // remaining seconds the LCD backlight is active
 extern uint8_t ButtonState;                                                     // Holds latest push Buttons state (LSB 2:0)
 extern uint8_t OldButtonState;                                                  // Holds previous push Buttons state (LSB 2:0)
+extern SemaphoreHandle_t buttonMutex;
+extern uint8_t ButtonStateOverride;                                             // Override the state via API
+extern uint32_t LastBtnOverrideTime;                                            // Prevent hanging buttons
 extern uint32_t ScrollTimer;
 extern uint8_t ChargeDelay;                                                     // Delays charging in seconds.
 extern uint8_t TestState;

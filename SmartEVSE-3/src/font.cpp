@@ -1,5 +1,3 @@
-#include "glcd.h"
-
 #ifdef GLCD_FULL_CHARSET
 const unsigned char font[0x100][5] = {
 #else

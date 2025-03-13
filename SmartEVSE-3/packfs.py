@@ -13,7 +13,7 @@ try:
     # now gzip the stuff except zones.csv since this file is not served by mongoose but directly accessed:
     for file in os.listdir("data"):
         filename = os.fsdecode(file)
-        if filename == "cert.pem" or filename == "key.pem" or filename == "CH32V203.bin":
+        if filename == "cert.pem" or filename == "key.pem" or filename == "CH32V203.bin" or filename == "SmartEVSE.webp":
             shutil.copy('data/' + filename, 'pack.tmp/data/' + filename)
             filelist.append('data/' + filename)
             continue

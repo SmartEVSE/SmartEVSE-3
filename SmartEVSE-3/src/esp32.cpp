@@ -1,3 +1,4 @@
+#include <unordered_map>
 #ifdef SMARTEVSE_VERSION //ESP32
 
 #include <ArduinoJson.h>
@@ -14,6 +15,7 @@
 #include <HTTPClient.h>
 #include <ESPmDNS.h>
 #include <Update.h>
+#include <glcd.h>
 
 #include <Logging.h>
 #include <ModbusServerRTU.h>        // Slave/node
@@ -206,6 +208,8 @@ extern uint8_t AccessTimer;
 extern int8_t TempEVSE;
 extern uint8_t ButtonState;
 extern uint8_t OldButtonState;
+extern uint8_t ButtonStateOverride;
+extern uint32_t LastBtnOverrideTime;
 extern uint8_t ChargeDelay;
 extern uint8_t C1Timer;
 extern uint8_t ModemStage;
@@ -545,9 +549,10 @@ void getButtonState() {
     // As the buttons are shared with the SPI lines going to the LCD,
     // we have to make sure that this does not interfere by write actions to the LCD.
     // Therefore updating the LCD is also done in this task.
-/*    if (ButtonStateOverride != 7)
+    xSemaphoreTake(buttonMutex, portMAX_DELAY);
+    if (ButtonStateOverride != 7 && millis() - LastBtnOverrideTime < 4000)
         ButtonState = ButtonStateOverride;
-    else {*/
+    else {
 #if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
         pinMatrixOutDetach(PIN_LCD_SDO_B3, false, false);       // disconnect MOSI pin
         pinMode(PIN_LCD_SDO_B3, INPUT);
@@ -567,7 +572,8 @@ void getButtonState() {
                       (digitalRead(BUTTON1)        ? 1 : 0);   // < (left)
 #endif
         pinMode(PIN_LCD_A0_B2, OUTPUT);                        // switch pin back to output
-//    }
+    }
+    xSemaphoreGive(buttonMutex);
 }
 
 
@@ -1872,6 +1878,70 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
         serializeJson(doc, json);
         mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", json.c_str());    // Yes. Respond JSON
         return true;
+
+    } else if (mg_http_match_uri(hm, "/lcd")) {
+        if (strncmp("POST", hm->method.buf, hm->method.len) == 0) {
+            const String btnName = request->getParam("button")->value();
+            const bool btnDown = request->getParam("state")->value() == "1";
+
+            // Button state bitmasks.
+    		static constexpr uint8_t RIGHT_MASK = 0b100;
+    		static constexpr uint8_t MIDDLE_MASK = 0b010;
+    		static constexpr uint8_t LEFT_MASK = 0b001;
+    		static constexpr uint8_t ALL_BUTTONS_UP = 0b111;
+    		static const std::unordered_map<std::string, uint8_t> btnMasks = {
+        		{"right", RIGHT_MASK},
+        		{"middle", MIDDLE_MASK},
+        		{"left", LEFT_MASK}
+    		};
+
+            xSemaphoreTake(buttonMutex, portMAX_DELAY);
+            auto it = btnMasks.find(btnName.c_str());
+            if (it != btnMasks.end()) {
+                // Clear bits if button is pressed, set bits if up.
+                const uint8_t mask = it->second;
+                if (btnDown) {
+                    ButtonStateOverride = ALL_BUTTONS_UP & ~mask;
+                } else {
+                    ButtonStateOverride = ALL_BUTTONS_UP | mask;
+                }
+                // Prevent stuck button in case we forget to reset to a 'down' button state. 
+                LastBtnOverrideTime = millis();
+            }
+            xSemaphoreGive(buttonMutex);
+
+            // Create JSON response
+            DynamicJsonDocument doc(200);
+            doc["button"]["right"] = ButtonStateOverride & 4 ? "up" : "down";
+            doc["button"]["middle"] = ButtonStateOverride & 2 ? "up" : "down";
+            doc["button"]["left"] = ButtonStateOverride & 1 ? "up" : "down";
+
+            // Serialize and send response
+            String json;
+            serializeJson(doc, json);
+            mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", json.c_str());
+        } else {
+            // Generate BMP image from LCD buffer.
+    		const std::vector<uint8_t> bmpImage = createImageFromGLCDBuffer();
+		    const size_t bmpImageSize = bmpImage.size();
+
+            // Start the HTTP response with chunked encoding
+            mg_printf(c,
+                      "HTTP/1.1 200 OK\r\n"
+                      "Content-Type: image/bmp\r\n"
+                      "Connection: keep-alive\r\n"
+                      "Cache-Control: no-cache\r\n"
+                      "Transfer-Encoding: chunked\r\n"
+                      "\r\n");
+
+            // Using chunked transfer encoding to get rid of content-len + keep-alive problems.
+            mg_http_write_chunk(c, reinterpret_cast<const char *>(bmpImage.data()), bmpImageSize);
+
+            // Send an empty chunk to signal the end of the response.
+            mg_http_write_chunk(c, "", 0);
+        }
+        return true;
+
 #if MODEM
     } else if (mg_http_match_uri(hm, "/ev_state") && !memcmp("POST", hm->method.buf, hm->method.len)) {
         DynamicJsonDocument doc(200);

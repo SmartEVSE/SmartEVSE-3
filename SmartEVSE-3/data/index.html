@@ -334,7 +334,7 @@
                   <div class="row">
 
                     <!-- Earnings (Monthly) Card Example -->
-                    <div style="margin-bottom: 20px;">
+                    <div class="col-md-6" style="margin-bottom: 20px;">
                         <div class="card border-left-primary shadow h-100 py-2">
                             <div class="card-body">
                                 <div class="row no-gutters align-items-center">
@@ -470,6 +470,112 @@
                             </div>
                         </div>
                     </div>
+                      <div class="col-md-6" style="margin-bottom: 20px;">
+                          <div class="card border-left-primary shadow h-100 py-2">
+                              <div class="card-body">
+                                  <div class="row no-gutters align-items-center">
+                                      <div class="lcd" id="lcd">
+                                          <img class="lcd-device" src="SmartEVSE.webp" width="401" height="600" alt=""/>
+                                          <img class="lcd-screen" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAmMBgX1lyz4AAAAASUVORK5CYII=" width="256" height="128" alt=""/>
+                                          <div class="lcd-activate">Click to activate</div>
+                                          <div class="lcd-buttons">
+                                              <button type="button" data-name="left">Left</button>
+                                              <button type="button" data-name="middle">Middle</button>
+                                              <button type="button" data-name="right">Right</button>
+                                          </div>
+                                      </div>
+<script>
+    (() => {
+        const ONE_SECOND_MS = 1000;
+        const LCD = document.querySelector('#lcd');
+        const LCD_SCREEN = document.querySelector('#lcd .lcd-screen');
+        const LCD_BUTTONS = document.querySelector('#lcd .lcd-buttons');
+        let LCD_ACTIVATE = document.querySelector('#lcd .lcd-activate');
+        
+        function updateLcdImage() {
+            let signal;
+            if (typeof AbortController !== 'undefined') {
+                // Abort any previous request.
+                if (updateLcdImage.controller) {
+                    updateLcdImage.controller.abort('timeout');
+                }
+                updateLcdImage.controller = new AbortController();
+                signal = updateLcdImage.controller.signal;
+            }
+
+            fetch('lcd', {signal})
+                .then(response => {
+                    if (!response.ok) return;
+                    response.blob()
+                        .then(blob => LCD_SCREEN.src = URL.createObjectURL(blob));
+                });
+        }
+
+        function createImageUpdater(updateFunc, minDelay) {
+            let lastExecuted = 0;
+            let timer;
+
+            return function (immediate = false) {
+                const now = Date.now();
+                clearTimeout(timer);
+
+                if (immediate || now - lastExecuted >= minDelay) {
+                    updateFunc();
+                    lastExecuted = now;
+                    timer = setTimeout(() => {
+                        lastExecuted = Date.now();
+                        updateFunc();
+                    }, minDelay);
+                    return;
+                }
+                timer = setTimeout(() => {
+                    lastExecuted = Date.now();
+                    updateFunc();
+                }, minDelay - (now - lastExecuted));
+            };
+        }
+
+        const updateLCD = createImageUpdater(updateLcdImage, ONE_SECOND_MS);
+        
+        function sendButtonState(btnName, stateDown) {
+            fetch(`lcd?button=${btnName}&state=${stateDown ? '1' : '0'}`, {method: 'POST'})
+                .then(() => {
+                    // Immediate LCD screen refresh on button up.
+                    !stateDown && updateLCD(true);
+                });
+        }
+
+        function activateLCD() {
+            if (!LCD_ACTIVATE) {
+                // Already activated, return.
+                return;
+            }
+            LCD_ACTIVATE.remove();
+            setInterval(updateLCD, ONE_SECOND_MS);
+            LCD_ACTIVATE = null;
+        }
+
+        // Register click listeners on the device buttons. 
+        ['mousedown', 'mouseup'].forEach(eventName => {
+            LCD_BUTTONS.addEventListener(eventName, event => {
+                activateLCD();
+                const btnName = event.target.dataset.name;
+                const stateDown = event.type === 'mousedown';
+                btnName && sendButtonState(btnName, stateDown);
+            });
+        });
+
+        // Click to activate auto-update of the LCD.
+        LCD.addEventListener('mousedown', activateLCD, {once: true});
+
+        // Initial load of the LCD image.
+        updateLcdImage();
+    })();
+</script>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
 
 
 

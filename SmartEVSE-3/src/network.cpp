@@ -1248,9 +1248,20 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
             serializeJson(doc, json);
             mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", json.c_str());    // Yes. Respond JSON
         } else {                                                                    // if everything else fails, serve static page
-            struct mg_http_serve_opts opts = {.root_dir = "/data", .ssi_pattern = NULL, .extra_headers = NULL, .mime_types = NULL, .page404 = NULL, .fs = &mg_fs_packed };
-            //opts.fs = NULL;
-            mg_http_serve_dir(c, hm, &opts);
+            // Cache ".webp" or ".ico" image files for one year without revalidation or server checks.
+            if (mg_match(hm->uri, mg_str("#.webp"), NULL) ||
+                mg_match(hm->uri, mg_str("#.ico"), NULL)) {
+                struct mg_http_serve_opts opts = {
+                    .root_dir = "/data", .ssi_pattern = NULL,
+                    .extra_headers = "Cache-Control: public, max-age=31536000\r\n",
+                    .mime_types = NULL, .page404 = NULL, .fs = &mg_fs_packed
+                };
+                mg_http_serve_dir(c, hm, &opts);
+            } else {
+                struct mg_http_serve_opts opts = {.root_dir = "/data", .ssi_pattern = NULL, .extra_headers = NULL, .mime_types = NULL, .page404 = NULL, .fs = &mg_fs_packed };
+                //opts.fs = NULL;
+                mg_http_serve_dir(c, hm, &opts);
+            }
         }
     } // handle_URI
     delete request;
