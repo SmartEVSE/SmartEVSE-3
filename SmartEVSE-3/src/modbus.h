@@ -60,5 +60,5 @@ void ModbusException(uint8_t address, uint8_t function, uint8_t exception);
 
 void requestMeasurement(uint8_t Meter, uint8_t Address, uint16_t Register, uint8_t Count);
 void requestCurrentMeasurement(uint8_t Meter, uint8_t Address);
-
+void BroadcastSettings(void);
 #endif

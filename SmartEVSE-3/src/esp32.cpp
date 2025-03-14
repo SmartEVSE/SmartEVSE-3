@@ -1154,12 +1154,8 @@ void write_settings(void) {
 
 
     if (LoadBl == 1) {                                                          // Master mode
-        uint16_t i, values[MODBUS_SYS_CONFIG_COUNT];
-        for (i = 0; i < MODBUS_SYS_CONFIG_COUNT; i++) {
-            values[i] = getItemValue(MENU_MODE + i);
-        }
         // Broadcast settings to other controllers
-        ModbusWriteMultipleRequest(BROADCAST_ADR, MODBUS_SYS_CONFIG_START, values, MODBUS_SYS_CONFIG_COUNT);
+        BroadcastSettings();
     }
 
     ConfigChanged = 1;

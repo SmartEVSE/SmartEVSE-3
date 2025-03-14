@@ -2050,6 +2050,7 @@ void CheckSerialComm(void) {
     CALL_ON_RECEIVE(OneWireReadCardId)
     CALL_ON_RECEIVE_PARAM(setErrorFlags@, setErrorFlags)
     CALL_ON_RECEIVE_PARAM(clearErrorFlags@, clearErrorFlags)
+    CALL_ON_RECEIVE(BroadcastSettings)
     // these veriables are owned by ESP32 and copies are kept in CH32:
 // Configuration items array
 //ConfigItem configItems[] = {

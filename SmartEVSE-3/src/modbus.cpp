@@ -52,7 +52,7 @@ extern void receiveNodeStatus(uint8_t *buf, uint8_t NodeNr); //TODO move to modb
 extern void receiveNodeConfig(uint8_t *buf, uint8_t NodeNr); //TODO move to modbus.cpp?
 #endif
 
-#ifdef SMARTEVSE_VERSION //ESP32
+#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
 extern ModbusMessage response;
 
 // ########################## Modbus helper functions ##########################
@@ -72,19 +72,16 @@ void ModbusSend8(uint8_t address, uint8_t function, uint16_t reg, uint16_t data)
     token = reg;
     token += address << 24;
     token += function << 16;
-#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
     Error err = MBclient.addRequest(token, address, function, reg, data);
     if (err!=SUCCESS) {
         ModbusError e(err);
         _LOG_A("Error creating request: 0x%02x - %s\n", (int)e, (const char *)e);
     }
-    else {
-        _LOG_V("Sent packet");
-    }
-#endif //SMARTEVSE_VERSION
+    _LOG_V("Sent packet");
     _LOG_V_NO_FUNC(" address: 0x%02x, function: 0x%02x, reg: 0x%04x, token:0x%08x, data: 0x%04x.\n", address, function, reg, token, data);
 }
-#else //CH32
+#endif //SMARTEVSE_VERSION
+#ifndef SMARTEVSE_VERSION //CH32
 // ########################## Modbus helper functions ##########################
 
 /**
@@ -181,7 +178,7 @@ void ModbusWriteSingleRequest(uint8_t address, uint16_t reg, uint16_t value) {
 }
 #endif
 
-#ifdef SMARTEVSE_VERSION //ESP32
+#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
 
 /**
  * Request write multiple register (FC=16) to a device over modbus
@@ -202,7 +199,6 @@ void ModbusWriteMultipleRequest(uint8_t address, uint16_t reg, uint16_t *values,
     token = reg;
     token += address << 24;
     token += 0x10 << 16;
-#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
     Error err = MBclient.addRequest(token, address, 0x10, reg, (uint16_t) count, count * 2u, values);
     if (err!=SUCCESS) {
       ModbusError e(err);
@@ -212,7 +208,6 @@ void ModbusWriteMultipleRequest(uint8_t address, uint16_t reg, uint16_t *values,
     for (uint16_t i = 0; i < count; i++) {
         _LOG_V_NO_FUNC(" %04x", values[i]);
     }
-#endif
     _LOG_V_NO_FUNC("\n");
 }
 
@@ -226,11 +221,24 @@ void ModbusWriteMultipleRequest(uint8_t address, uint16_t reg, uint16_t *values,
 void ModbusException(uint8_t address, uint8_t function, uint8_t exception) {
     response.setError(address, function, (Modbus::Error) exception);
 }
+#endif
 
-#else //CH32
+#if SMARTEVSE_VERSION >=40 //ESP32 v4
+void BroadcastSettings(void) {
+    printf("BroadcastSettings\n");
+}
+#endif
+#ifndef SMARTEVSE_VERSION //CH32
 
 
 // ########################### Modbus main functions ###########################
+void BroadcastSettings(void) {
+    uint16_t i,values[MODBUS_SYS_CONFIG_COUNT];
+    for (i = 0; i < MODBUS_SYS_CONFIG_COUNT; i++) {
+        values[i] = getItemValue(MENU_MODE + i);
+    }
+    ModbusWriteMultipleRequest(BROADCAST_ADR, MODBUS_SYS_CONFIG_START, values, MODBUS_SYS_CONFIG_COUNT);
+}
 
 
 /**
