@@ -24,6 +24,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#if SMARTEVSE_VERSION >=40 //ESP32 v4
+void BroadcastSettings(void) {
+    printf("BroadcastSettings\n");
+}
+#else //ESP32 and CH32
+
 #ifdef SMARTEVSE_VERSION //ESP32
 #include "driver/uart.h"
 #else
@@ -43,14 +49,12 @@ extern struct EMstruct EMConfig[EM_CUSTOM + 1];
 #include "modbus.h"
 struct ModBus MB; //TODO do not define for ESP32v4
 
-#if !defined(SMARTEVSE_VERSION) || (SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40) //CH32 and v3 ESP32
 extern uint16_t Balanced[NR_EVSES];
 extern uint8_t State;
 extern int16_t Isum;
 extern void setState(uint8_t NewState);
 extern void receiveNodeStatus(uint8_t *buf, uint8_t NodeNr); //TODO move to modbus.cpp?
 extern void receiveNodeConfig(uint8_t *buf, uint8_t NodeNr); //TODO move to modbus.cpp?
-#endif
 
 #if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
 extern ModbusMessage response;
@@ -145,7 +149,6 @@ void ModbusSend8(uint8_t address, uint8_t function, uint16_t reg, uint16_t data)
 
 // ########################### Modbus main functions ###########################
 
-#if !defined(SMARTEVSE_VERSION) || (SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40) //CH32 and v3 ESP32
 
 /**
  * Request read holding (FC=3) or read input register (FC=04) to a device over modbus
@@ -176,7 +179,6 @@ void ModbusWriteSingleRequest(uint8_t address, uint16_t reg, uint16_t value) {
     MB.RequestRegister = reg;
     ModbusSend8(address, 0x06, reg, value);  
 }
-#endif
 
 #if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
 
@@ -223,12 +225,6 @@ void ModbusException(uint8_t address, uint8_t function, uint8_t exception) {
 }
 #endif
 
-#if SMARTEVSE_VERSION >=40 //ESP32 v4
-void BroadcastSettings(void) {
-    printf("BroadcastSettings\n");
-}
-#endif
-#ifndef SMARTEVSE_VERSION //CH32
 
 
 // ########################### Modbus main functions ###########################
@@ -240,6 +236,7 @@ void BroadcastSettings(void) {
     ModbusWriteMultipleRequest(BROADCAST_ADR, MODBUS_SYS_CONFIG_START, values, MODBUS_SYS_CONFIG_COUNT);
 }
 
+#ifndef SMARTEVSE_VERSION //CH32
 
 /**
  * Request write multiple register (FC=16) to a device over modbus
@@ -525,7 +522,6 @@ void requestCurrentMeasurement(uint8_t Meter, uint8_t Address) {
 }
 
 
-#if !defined(SMARTEVSE_VERSION) || (SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40) //CH32 and v3 ESP32
 /**
  * Map a Modbus register to an item ID (MENU_xxx or STATUS_xxx)
  * 
@@ -660,9 +656,7 @@ void WriteMultipleItemValueResponse(void) {
         }
     }
 }
-#endif
 
-#if !defined(SMARTEVSE_VERSION) || (SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40) //CH32 and v3 ESP32
 void HandleModbusRequest(void) {
         // Broadcast or addressed to this device
         switch (MB.Function) {
@@ -737,7 +731,7 @@ void HandleModbusResponse(void) {
             break;
     }
 }
-#endif
+
 
 #if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
 ModbusMessage response;     // response message to be sent back
@@ -908,5 +902,7 @@ void CheckRS485Comm(void) { //looks like MBhandleData
     ModbusRxLen = 0;
 
 }
+
+#endif
 
 #endif
