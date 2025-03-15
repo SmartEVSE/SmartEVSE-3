@@ -491,10 +491,6 @@ void setOverrideCurrent(uint16_t Current) { //c
  */
 void setMode(uint8_t NewMode) {
 #ifdef SMARTEVSE_VERSION //v3 and v4
-#if SMARTEVSE_VERSION >= 40
-    Serial1.printf("Mode@%u\n", NewMode); //d
-    _LOG_V("[->] Mode:%u\n", NewMode);
-#endif
     // If mainsmeter disabled we can only run in Normal Mode
     if (!MainsMeter.Type && NewMode != MODE_NORMAL)
         return;
@@ -534,6 +530,10 @@ void setMode(uint8_t NewMode) {
     BacklightTimer = BACKLIGHT;                                                 // Backlight ON
     if (Mode != NewMode) NodeNewMode = NewMode + 1;
     Mode = NewMode;    
+#if SMARTEVSE_VERSION >= 40
+    Serial1.printf("Mode@%u\n", NewMode); //d
+    _LOG_V("[->] Mode:%u\n", NewMode);
+#endif
 
     if (switchOnLater)
         setAccess(1);
