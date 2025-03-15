@@ -212,7 +212,9 @@ uint8_t ConfigChanged = 0;
 uint8_t GridActive = 0;                                                     // When the CT's are used on Sensorbox2, it enables the GRID menu option.
 
 uint16_t SolarStopTimer = 0;
+#ifdef SMARTEVSE_VERSION //v3 and v4
 uint8_t RFIDstatus = 0;
+#endif
 bool PilotDisconnected = false;
 uint8_t PilotDisconnectTime = 0;                                            // Time the Control Pilot line should be disconnected (Sec)
 
@@ -1829,6 +1831,9 @@ void receiveNodeStatus(uint8_t *buf, uint8_t NodeNr) {
 
     if ((Node[NodeNr].Mode != Mode) && Switch != 4 && !LCDNav && !NodeNewMode) {
         NodeNewMode = Node[NodeNr].Mode + 1;        // Store the new Mode in NodeNewMode, we'll update Mode in 'ProcessAllNodeStates'
+#ifndef SMARTEVSE_VERSION //CH32
+        printf("NodeNewMode@%1u.\n", Node[NodeNr].Mode + 1); //CH32 sends new value to ESP32
+#endif
     }
     Node[NodeNr].SolarTimer = (buf[8] * 256) + buf[9];
     Node[NodeNr].ConfigChanged = buf[13] | Node[NodeNr].ConfigChanged;
@@ -1989,6 +1994,9 @@ uint8_t processAllNodeStates(uint8_t NodeNr) {
     if (NodeNewMode) {
         setMode(NodeNewMode -1);
         NodeNewMode = 0;
+#ifndef SMARTEVSE_VERSION //CH32
+        printf("NodeNewMode@%1u.\n", 0); //CH32 sends new value to ESP32
+#endif
     }    
 
     // Error Flags
@@ -2773,11 +2781,18 @@ void Timer10ms_singlerun(void) {
                 ExtSwitch.TimeOfPress = millis();
             ExtSwitch.HandleSwitch();
         }
+        //these variables are owned by ESP32, so if CH32 changes it it has to send copies:
+        SET_ON_RECEIVE(NodeNewMode@, NodeNewMode)
+
         CALL_ON_RECEIVE_PARAM(Access@, setAccess)
         CALL_ON_RECEIVE_PARAM(OverrideCurrent@, setOverrideCurrent)
         CALL_ON_RECEIVE_PARAM(Mode@, setMode)
         CALL_ON_RECEIVE(write_settings)
+
+        //these variables do not exist in CH32 so values are sent to ESP32
         SET_ON_RECEIVE(RFIDstatus@, RFIDstatus)
+
+
         //these variables are owned by CH32 and copies are sent to ESP32:
         SET_ON_RECEIVE(Pilot@, pilot)
         SET_ON_RECEIVE(Temp@, TempEVSE)

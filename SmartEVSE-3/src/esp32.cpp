@@ -220,7 +220,6 @@ extern uint8_t LeaveModemDoneStateTimer;
 extern uint8_t LeaveModemDeniedStateTimer;
 extern uint8_t NoCurrent;
 extern uint8_t ModbusRequest;
-extern uint8_t NodeNewMode;
 extern uint16_t CardOffset;
 
 extern uint8_t ConfigChanged;
