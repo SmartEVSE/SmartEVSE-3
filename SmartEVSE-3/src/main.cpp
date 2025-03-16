@@ -3026,10 +3026,12 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
     }
 #endif
     switch (nav) {
+//TODO not sure if we have receivers for all ESP32 senders?
 #define SETITEM(M, V) \
         case M: \
             V = val; \
             SEND_TO_CH32(V) \
+            SEND_TO_ESP32(V) \
             break;
         SETITEM(MENU_MAX_TEMP, maxTemp)
         SETITEM(MENU_CONFIG, Config)
