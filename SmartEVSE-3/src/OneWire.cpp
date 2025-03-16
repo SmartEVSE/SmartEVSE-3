@@ -255,8 +255,6 @@ void CheckRFID(void) {
     uint16_t x;
     // When RFID is enabled, a OneWire RFID reader is expected on the SW input
     uint8_t RFIDReader = getItemValue(MENU_RFIDREADER);
-#if SMARTEVSE_VERSION < 40                                                      // v3 has to read card ID; in v4, CheckRFID is called after reception of a valid RFID
-#endif
 #if ENABLE_OCPP
             if (OcppMode && RFIDReader == 6) {                                      // Remote authorization via OCPP?
                 // Use OCPP
@@ -335,8 +333,6 @@ void CheckRFID(void) {
                         break;
                 }
             }
-#if SMARTEVSE_VERSION < 40                                                      // v3 has to read card ID; in v4, CheckRFID is called after reception of a valid RFID
-#endif
 }
 #else //CH32
 
