@@ -178,7 +178,6 @@ Node_t Node[NR_EVSES] = {                                                       
     {      0,       1,     0,       0,       0,      0,      0,      0,     0,    0 }            
 };
 #endif
-uint8_t lock1 = 0, lock2 = 1;
 uint8_t AccessTimer = 0; //FIXME ESP32 vs CH32
 int8_t TempEVSE = 0;                                                        // Temperature EVSE in deg C (-50 to +125)
 uint8_t ButtonState = 0x0f;                                                 // Holds latest push Buttons state (LSB 3:0)
@@ -2162,6 +2161,7 @@ static uint8_t PollEVNode = NR_EVSES, updated = 0;
 #define PIN_LOCK_IN LOCK_IN
 #endif
 
+#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
     // Check if the cable lock is used
     if (Lock) {                                                 // Cable lock enabled?
         // UnlockCable takes precedence over LockCable
@@ -2176,7 +2176,7 @@ static uint8_t PollEVNode = NR_EVSES, updated = 0;
                 ACTUATOR_OFF;
             }
             if (unlocktimer++ > 7) {
-                if (digitalRead(PIN_LOCK_IN) == lock1 )         // still locked...
+                if (digitalRead(PIN_LOCK_IN) == (Lock == 2 ? 1:0 ))         // still locked...
                 {
                     if (unlocktimer > 50) unlocktimer = 0;      // try to unlock again in 5 seconds
                 } else unlocktimer = 7;
@@ -2194,7 +2194,7 @@ static uint8_t PollEVNode = NR_EVSES, updated = 0;
                 ACTUATOR_OFF;
             }
             if (locktimer++ > 7) {
-                if (digitalRead(PIN_LOCK_IN) == lock2 )         // still unlocked...
+                if (digitalRead(PIN_LOCK_IN) == (Lock == 2 ? 0:1 ))         // still unlocked...
                 {
                     if (locktimer > 50) locktimer = 0;          // try to lock again in 5 seconds
                 } else locktimer = 7;
@@ -2203,7 +2203,6 @@ static uint8_t PollEVNode = NR_EVSES, updated = 0;
         }
     }
 
-#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
     // Every 2 seconds, request measurements from modbus meters
     if (ModbusRequest) {                                                    // Slaves all have ModbusRequest at 0 so they never enter here
         switch (ModbusRequest) {                                            // State

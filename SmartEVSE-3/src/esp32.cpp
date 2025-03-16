@@ -201,7 +201,6 @@ extern uint8_t BalancedState[NR_EVSES];
 extern uint16_t BalancedError[NR_EVSES];
 
 extern Node_t Node[NR_EVSES];
-extern uint8_t lock1, lock2;
 extern uint16_t BacklightTimer;
 extern uint8_t BacklightSet;
 extern int8_t TempEVSE;
@@ -972,8 +971,8 @@ void validate_settings(void) {
     // Sensorbox v2 has always address 0x0A
     if (MainsMeter.Type == EM_SENSORBOX) MainsMeter.Address = 0x0A;
     // set Lock variables for Solenoid or Motor
-    if (Lock == 1) { lock1 = LOW; lock2 = HIGH; }                               // Solenoid
-    else if (Lock == 2) { lock1 = HIGH; lock2 = LOW; }                          // Motor
+    //if (Lock == 1) { lock1 = LOW; lock2 = HIGH; }                               // Solenoid
+    //else if (Lock == 2) { lock1 = HIGH; lock2 = LOW; }                          // Motor
     // Erase all RFID cards from ram + eeprom if set to EraseAll
     if (RFIDReader == 5) {
         DeleteAllRFID();
@@ -2230,7 +2229,7 @@ void ocppInit() {
     setOnUnlockConnectorInOut([] () -> UnlockConnectorResult {
         // MO also stops transaction which should toggle OcppForcesLock false
         OcppLockingTx.reset();
-        if (Lock == 0 || digitalRead(PIN_LOCK_IN) == lock2) {
+        if (Lock == 0 || digitalRead(PIN_LOCK_IN) == (Lock == 2 ? 0:1 )) {
             // Success
             return UnlockConnectorResult_Unlocked;
         }
@@ -2393,7 +2392,7 @@ void ocppLoop() {
         } else if (transaction && transaction != OcppLockingTx) {
             // Another Tx has already started
             OcppLockingTx.reset();
-        } else if (digitalRead(PIN_LOCK_IN) == lock2 && !OcppLockingTx->isActive()) {
+        } else if (digitalRead(PIN_LOCK_IN) == (Lock == 2 ? 0:1 ) && !OcppLockingTx->isActive()) {
             // Connector is has been unlocked and LockingTx has already run
             OcppLockingTx.reset();
         } // There may be further edge cases
