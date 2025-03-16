@@ -445,7 +445,11 @@ void GLCD(void) {
     static unsigned char energy_mains = 20; // X position
     static unsigned char energy_ev = 74; // X position
     char Str[26];
-
+#if SMARTEVSE_VERSION < 40 //v3
+    uint16_t Balanced0 = Balanced[0];
+#else
+extern uint16_t Balanced0;
+#endif
     LCDTimer++;
     
     if (LCDNav) {
@@ -666,7 +670,7 @@ void GLCD(void) {
                 GLCD_print_buf2(2, (const char *) "LIMITED");
             else
                 GLCD_print_buf2(2, (const char *) "CHARGING");
-            sprintf(Str, "%u.%uA",Balanced[0] / 10, Balanced[0] % 10);
+            sprintf(Str, "%u.%uA",Balanced0 / 10, Balanced0 % 10);
             GLCD_print_buf2(4, Str);
         } else {                                                                // STATE A and STATE B
             if (Access_bit) {
@@ -839,7 +843,7 @@ void GLCD(void) {
                     sprintfl(Str, "%dkW", EVMeter.PowerMeasured, 3, 0);
                 }
             } else {
-                sprintfl(Str, "%uA", Balanced[0], 1, 0);
+                sprintfl(Str, "%uA", Balanced0, 1, 0);
             }
             GLCD_write_buf_str(85, 2, Str, GLCD_ALIGN_CENTER);
         } else if (State == STATE_A) {
@@ -926,7 +930,7 @@ void GLCD(void) {
                     } else LCDText++;
                     // fall through
                 case 5:
-                    sprintf(Str, "%u.%u A", Balanced[0] / 10, Balanced[0] % 10);
+                    sprintf(Str, "%u.%u A", Balanced0 / 10, Balanced0 % 10);
                     GLCD_print_buf2(5, Str);
                     break;
             }

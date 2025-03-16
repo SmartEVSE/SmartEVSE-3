@@ -195,10 +195,13 @@ extern uint16_t OverrideCurrent;
 
 // Load Balance variables
 extern int16_t IsetBalanced;
+extern uint16_t Balanced0;
+#if SMARTEVSE_VERSION < 40
 extern uint16_t Balanced[NR_EVSES];
 extern uint16_t BalancedMax[NR_EVSES];
 extern uint8_t BalancedState[NR_EVSES];
 extern uint16_t BalancedError[NR_EVSES];
+#endif
 
 extern Node_t Node[NR_EVSES];
 extern uint16_t BacklightTimer;
@@ -903,7 +906,7 @@ void mqttPublishData() {
         MQTTclient.publish(MQTTprefix + "/Mode", Access_bit == 0 ? "Off" : Mode > 3 ? "N/A" : StrMode[Mode], true, 0);
         MQTTclient.publish(MQTTprefix + "/MaxCurrent", MaxCurrent * 10, true, 0);
         MQTTclient.publish(MQTTprefix + "/CustomButton", CustomButton ? "On" : "Off", false, 0);
-        MQTTclient.publish(MQTTprefix + "/ChargeCurrent", Balanced[0], true, 0);
+        MQTTclient.publish(MQTTprefix + "/ChargeCurrent", Balanced0, true, 0);
         MQTTclient.publish(MQTTprefix + "/ChargeCurrentOverride", OverrideCurrent, true, 0);
         MQTTclient.publish(MQTTprefix + "/Access", StrAccessBit[Access_bit], true, 0);
         MQTTclient.publish(MQTTprefix + "/RFID", !RFIDReader ? "Not Installed" : RFIDstatus >= 8 ? "NOSTATUS" : StrRFIDStatusWeb[RFIDstatus], true, 0);
@@ -1267,7 +1270,7 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
             doc["evse"]["rfid_lastread"] = buf;
         }
 
-        doc["settings"]["charge_current"] = Balanced[0];
+        doc["settings"]["charge_current"] = Balanced0;
         doc["settings"]["override_current"] = OverrideCurrent;
         doc["settings"]["current_min"] = MinCurrent;
         doc["settings"]["current_max"] = MaxCurrent;

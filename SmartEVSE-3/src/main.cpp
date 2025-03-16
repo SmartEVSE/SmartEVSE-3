@@ -159,12 +159,13 @@ int16_t Isum = 0;                                                           // S
 
 // Load Balance variables
 int16_t IsetBalanced = 0;                                                   // Max calculated current (Amps *10) available for all EVSE's
+uint16_t Balanced0 = 0;                                                     // Amps value per EVSE, substitutes Balanced[0]
+#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
 uint16_t Balanced[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};                     // Amps value per EVSE
 uint16_t BalancedMax[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};                  // Max Amps value per EVSE
 uint8_t BalancedState[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};                 // State of all EVSE's 0=not active (state A), 1=charge request (State B), 2= Charging (State C)
 uint16_t BalancedError[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};                // Error state of EVSE
 
-#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
 Node_t Node[NR_EVSES] = {                                                        // 0: Master / 1: Node 1 ...
    /*         Config   EV     EV       Min      Used    Charge Interval Solar *          // Interval Time   : last Charge time, reset when not charging
     * Online, Changed, Meter, Address, Current, Phases,  Timer,  Timer, Timer, Mode */   // Min Current     : minimal measured current per phase the EV consumes when starting to charge @ 6A (can be lower then 6A)
@@ -853,7 +854,7 @@ int Set_Nr_of_Phases_Charging(void) {
     Nr_Of_Phases_Charging = 0;
 #define THRESHOLD 40
 #define BOTTOM_THRESHOLD 25
-    _LOG_D("Detected Charging Phases: ChargeCurrent=%u, Balanced[0]=%u.%u A, IsetBalanced=%u.%u A.\n", ChargeCurrent, Balanced[0]/10, Balanced[0]%10, IsetBalanced/10, IsetBalanced%10);
+    _LOG_D("Detected Charging Phases: ChargeCurrent=%u, Balanced0=%u.%u A, IsetBalanced=%u.%u A.\n", ChargeCurrent, Balanced0/10, Balanced0%10, IsetBalanced/10, IsetBalanced%10);
     for (int i=0; i<3; i++) {
         if (EVMeter.Type) {
             Charging_Prob = 10 * (abs(EVMeter.Irms[i] - IsetBalanced)) / IsetBalanced;  //100% means this phase is charging, 0% mwans not charging
@@ -1346,6 +1347,7 @@ void CalcBalancedCurrent(char mod) {
         }
         _LOG_D_NO_FUNC("\n");
     }
+    Balanced0 = Balanced[0];
 #ifndef SMARTEVSE_VERSION //CH32 only
     printf("Balanced0@%u\n", Balanced[0]);
     printf("ChargeCurrent@%u\n", ChargeCurrent);
@@ -2345,7 +2347,7 @@ static uint8_t PollEVNode = NR_EVSES, updated = 0;
                 }
                 if (LoadBl == 1 && !(ErrorFlags & CT_NOCOMM) ) BroadcastCurrent();               // When there is no Comm Error, Master sends current to all connected EVSE's
 
-                if ((State == STATE_B || State == STATE_C) && !CPDutyOverride) SetCurrent(Balanced[0]); // set PWM output for Master //mind you, the !CPDutyOverride was not checked in Smart/Solar mode, but I think this was a bug!
+                if ((State == STATE_B || State == STATE_C) && !CPDutyOverride) SetCurrent(Balanced0); // set PWM output for Master //mind you, the !CPDutyOverride was not checked in Smart/Solar mode, but I think this was a bug!
 #ifdef SMARTEVSE_VERSION //ESP32
                 printStatus();  //for debug purposes
 #endif
@@ -2653,6 +2655,7 @@ void Timer10ms_singlerun(void) {
             } else if (IsCurrentAvailable()) {
                 BalancedMax[0] = MaxCapacity * 10;
                 Balanced[0] = ChargeCurrent;                                // Set pilot duty cycle to ChargeCurrent (v2.15)
+                Balanced0 = Balanced[0];
 #if MODEM
                 if (ModemStage == 0)
                     setState(STATE_MODEM_REQUEST);
@@ -2700,6 +2703,7 @@ void Timer10ms_singlerun(void) {
                     if (IsCurrentAvailable()) {
 
                         Balanced[0] = 0;                                    // For correct baseload calculation set current to zero
+                        Balanced0 = Balanced[0];
                         CalcBalancedCurrent(1);                             // Calculate charge current for all connected EVSE's
                         DiodeCheck = 0;                                     // (local variable)
                         setState(STATE_C);                                  // switch to STATE_C
@@ -2860,7 +2864,7 @@ void Timer10ms_singlerun(void) {
         SET_ON_RECEIVE(Pilot@, pilot)
         SET_ON_RECEIVE(Temp@, TempEVSE)
         SET_ON_RECEIVE(State@, State)
-        SET_ON_RECEIVE(Balanced0@, Balanced[0])
+        SET_ON_RECEIVE(Balanced0@, Balanced0)
         SET_ON_RECEIVE(ChargeCurrent@, ChargeCurrent)
         SET_ON_RECEIVE(IsCurrentAvailable@, Shadow_IsCurrentAvailable)
         SET_ON_RECEIVE(ErrorFlags@, ErrorFlags)
@@ -3227,7 +3231,7 @@ uint16_t getItemValue(uint8_t nav) {
         case STATUS_ERROR:
             return ErrorFlags;
         case STATUS_CURRENT:
-            return Balanced[0];
+            return Balanced0;
         case STATUS_SOLAR_TIMER:
             return SolarStopTimer;
         case STATUS_ACCESS:
