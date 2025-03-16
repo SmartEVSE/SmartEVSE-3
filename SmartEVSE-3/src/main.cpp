@@ -150,7 +150,6 @@ uint8_t State = STATE_A;
 ErrorFl_t Error2;
 uint8_t NextState;
 uint8_t pilot;
-uint8_t prev_pilot;
 
 uint16_t MaxCapacity;                                                       // Cable limit (A) (limited by the wire in the charge cable, set automatically, or manually if Config=Fixed Cable)
 uint16_t ChargeCurrent;                                                     // Calculated Charge Current (Amps *10)
