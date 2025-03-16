@@ -204,7 +204,6 @@ extern Node_t Node[NR_EVSES];
 extern uint8_t lock1, lock2;
 extern uint16_t BacklightTimer;
 extern uint8_t BacklightSet;
-extern uint8_t AccessTimer;
 extern int8_t TempEVSE;
 SemaphoreHandle_t buttonMutex = xSemaphoreCreateMutex();
 uint8_t ButtonStateOverride = 0x07;                                         // Possibility to override the buttons via API
