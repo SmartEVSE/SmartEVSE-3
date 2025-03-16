@@ -179,12 +179,7 @@ Node_t Node[NR_EVSES] = {                                                       
 };
 #endif
 uint8_t lock1 = 0, lock2 = 1;
-#ifdef SMARTEVSE_VERSION //ESP32
-uint16_t BacklightTimer = 0;                                                // Backlight timer (sec)
-uint8_t BacklightSet = 0;
-uint8_t LCDTimer = 0;
-#endif
-uint8_t AccessTimer = 0;
+uint8_t AccessTimer = 0; //FIXME ESP32 vs CH32
 int8_t TempEVSE = 0;                                                        // Temperature EVSE in deg C (-50 to +125)
 uint8_t ButtonState = 0x0f;                                                 // Holds latest push Buttons state (LSB 3:0)
 uint8_t OldButtonState = 0x0f;                                              // Holds previous push Buttons state (LSB 3:0)
@@ -210,6 +205,9 @@ uint8_t ConfigChanged = 0;
 
 uint16_t SolarStopTimer = 0;
 #ifdef SMARTEVSE_VERSION //ESP32 v3 and v4
+uint16_t BacklightTimer = 0;                                                // Backlight timer (sec)
+uint8_t BacklightSet = 0;
+uint8_t LCDTimer = 0;
 uint16_t CardOffset = CARD_OFFSET;                                          // RFID card used in Enable One mode
 uint8_t RFIDstatus = 0;
 #endif
