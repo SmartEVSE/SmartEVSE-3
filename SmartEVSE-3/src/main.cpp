@@ -179,9 +179,9 @@ Node_t Node[NR_EVSES] = {                                                       
 };
 #endif
 uint8_t lock1 = 0, lock2 = 1;
+#ifdef SMARTEVSE_VERSION //ESP32
 uint16_t BacklightTimer = 0;                                                // Backlight timer (sec)
 uint8_t BacklightSet = 0;
-#ifdef SMARTEVSE_VERSION //ESP32
 uint8_t LCDTimer = 0;
 #endif
 uint8_t AccessTimer = 0;
@@ -788,7 +788,11 @@ void setState(uint8_t NewState) { //c
     lastMqttUpdate = 10;
 #endif
 
+#ifdef SMARTEVSE_VERSION //v3
     BacklightTimer = BACKLIGHT;                                                 // Backlight ON
+#else //CH32
+    printf("BacklightTimer@%u\n", BACKLIGHT);
+#endif
 
 #endif //SMARTEVSE_VERSION
 }
@@ -2853,6 +2857,7 @@ void Timer10ms_singlerun(void) {
         SET_ON_RECEIVE(RFIDstatus@, RFIDstatus)
         SET_ON_RECEIVE(GridActive@, GridActive)
         SET_ON_RECEIVE(LCDTimer@, LCDTimer)
+        SET_ON_RECEIVE(BacklightTimer@, BacklightTimer)
 
         //these variables are owned by CH32 and copies are sent to ESP32:
         SET_ON_RECEIVE(Pilot@, pilot)
