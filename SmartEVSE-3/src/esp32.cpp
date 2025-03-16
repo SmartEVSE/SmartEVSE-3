@@ -1157,6 +1157,7 @@ void write_settings(void) {
     }
 
     ConfigChanged = 1;                                                          // FIXME this variable never reset to 0?
+    SEND_TO_CH32(ConfigChanged);
 }
 
 

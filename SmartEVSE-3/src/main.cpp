@@ -2111,6 +2111,7 @@ void CheckSerialComm(void) {
     SET_ON_RECEIVE(ModemPwr@, ModemPwr)
     SET_ON_RECEIVE(MainsMeterTimeout@, MainsMeter.Timeout)
     SET_ON_RECEIVE(EVMeterTimeout@, EVMeter.Timeout)
+    SET_ON_RECEIVE(ConfigChanged@, ConfigChanged)
 
     SET_ON_RECEIVE(Initialized@, Initialized)
 
@@ -2840,6 +2841,7 @@ void Timer10ms_singlerun(void) {
         }
         //these variables are owned by ESP32, so if CH32 changes it it has to send copies:
         SET_ON_RECEIVE(NodeNewMode@, NodeNewMode)
+        SET_ON_RECEIVE(ConfigChanged@, ConfigChanged)
 
         CALL_ON_RECEIVE_PARAM(Access@, setAccess)
         CALL_ON_RECEIVE_PARAM(OverrideCurrent@, setOverrideCurrent)
