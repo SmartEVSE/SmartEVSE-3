@@ -235,7 +235,7 @@ void ConfigureModbusMode(uint8_t newmode);
 
 void setMode(uint8_t NewMode) ;
 
-#if ENABLE_OCPP
+#if ENABLE_OCPP && defined(SMARTEVSE_VERSION) //run OCPP only on ESP32
 void ocppUpdateRfidReading(const unsigned char *uuid, size_t uuidLen);
 bool ocppIsConnectorPlugged();
 

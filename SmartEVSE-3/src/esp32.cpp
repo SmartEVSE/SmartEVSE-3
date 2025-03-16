@@ -37,7 +37,7 @@
 #include "meter.h"
 
 //OCPP includes
-#if ENABLE_OCPP
+#if ENABLE_OCPP && defined(SMARTEVSE_VERSION) //run OCPP only on ESP32
 #include <MicroOcpp.h>
 #include <MicroOcppMongooseClient.h>
 #include <MicroOcpp/Core/Configuration.h>
@@ -250,7 +250,7 @@ extern uint16_t firmwareUpdateTimer;
                                                                                 // FW_UPDATE_DELAY <= timer <= 0xffff means we are in countdown for checking
                                                                                 //                                              whether an update is necessary
 
-#if ENABLE_OCPP
+#if ENABLE_OCPP && defined(SMARTEVSE_VERSION) //run OCPP only on ESP32
 extern unsigned char OcppRfidUuid [7];
 extern size_t OcppRfidUuidLen;
 extern unsigned long OcppLastRfidUpdate;
@@ -348,7 +348,7 @@ void IRAM_ATTR onTimerA() {
 
 // --------------------------- END of ISR's -----------------------------------------------------
 
-#if ENABLE_OCPP
+#if ENABLE_OCPP && defined(SMARTEVSE_VERSION) //run OCPP only on ESP32
 // Inverse function of SetCurrent (for monitoring and debugging purposes)
 uint16_t GetCurrent() {
     uint32_t DutyCycle = CurrentPWM;
@@ -832,7 +832,7 @@ void SetupMQTTClient() {
     announce("RFID", "sensor");
     announce("RFIDLastRead", "sensor");
 
-#if ENABLE_OCPP
+#if ENABLE_OCPP && defined(SMARTEVSE_VERSION) //run OCPP only on ESP32
     announce("OCPP", "sensor");
     announce("OCPPConnection", "sensor");
 #endif //ENABLE_OCPP
@@ -937,7 +937,7 @@ void mqttPublishData() {
         }
         if (homeBatteryLastUpdate)
             MQTTclient.publish(MQTTprefix + "/HomeBatteryCurrent", homeBatteryCurrent, false, 0);
-#if ENABLE_OCPP
+#if ENABLE_OCPP && defined(SMARTEVSE_VERSION) //run OCPP only on ESP32
         MQTTclient.publish(MQTTprefix + "/OCPP", OcppMode ? "Enabled" : "Disabled", true, 0);
         MQTTclient.publish(MQTTprefix + "/OCPPConnection", (OcppWsClient && OcppWsClient->isConnected()) ? "Connected" : "Disconnected", false, 0);
 #endif //ENABLE_OCPP
@@ -1069,7 +1069,7 @@ void read_settings() {
         strncpy(RequiredEVCCID, preferences.getString("RequiredEVCCID", "").c_str(), sizeof(RequiredEVCCID));
         maxTemp = preferences.getUShort("maxTemp", MAX_TEMPERATURE);
 
-#if ENABLE_OCPP
+#if ENABLE_OCPP && defined(SMARTEVSE_VERSION) //run OCPP only on ESP32
         OcppMode = preferences.getUChar("OcppMode", OCPP_MODE);
 #endif //ENABLE_OCPP
 
@@ -1132,7 +1132,7 @@ void write_settings(void) {
     preferences.putUChar("AutoUpdate", AutoUpdate);
     preferences.putUChar("LCDlock", LCDlock);
 
-#if ENABLE_OCPP
+#if ENABLE_OCPP && defined(SMARTEVSE_VERSION) //run OCPP only on ESP32
     preferences.putUChar("OcppMode", OcppMode);
 #endif //ENABLE_OCPP
 
@@ -1312,7 +1312,7 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
         }
 #endif
 
-#if ENABLE_OCPP
+#if ENABLE_OCPP && defined(SMARTEVSE_VERSION) //run OCPP only on ESP32
         doc["ocpp"]["mode"] = OcppMode ? "Enabled" : "Disabled";
         doc["ocpp"]["backend_url"] = OcppWsClient ? OcppWsClient->getBackendUrl() : "";
         doc["ocpp"]["cb_id"] = OcppWsClient ? OcppWsClient->getChargeBoxId() : "";
@@ -1612,7 +1612,7 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
             }
         }
 
-#if ENABLE_OCPP
+#if ENABLE_OCPP && defined(SMARTEVSE_VERSION) //run OCPP only on ESP32
         if(request->hasParam("ocpp_update")) {
             if (request->getParam("ocpp_update")->value().toInt() == 1) {
 
@@ -2053,7 +2053,7 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
 /*
  * OCPP-related function definitions
  */
-#if ENABLE_OCPP
+#if ENABLE_OCPP && defined(SMARTEVSE_VERSION) //run OCPP only on ESP32
 
 void ocppUpdateRfidReading(const unsigned char *uuid, size_t uuidLen) {
     if (!uuid || uuidLen > sizeof(OcppRfidUuid)) {
@@ -3020,7 +3020,7 @@ void loop() {
     }
 
     //OCPP lifecycle management
-#if ENABLE_OCPP
+#if ENABLE_OCPP && defined(SMARTEVSE_VERSION) //run OCPP only on ESP32
     if (OcppMode && !getOcppContext()) {
         ocppInit();
     } else if (!OcppMode && getOcppContext()) {

@@ -34,7 +34,7 @@
 #include "font.cpp"
 #include "font2.cpp"
 
-#if ENABLE_OCPP
+#if ENABLE_OCPP && defined(SMARTEVSE_VERSION) //run OCPP only on ESP32
 #include <MicroOcpp.h>
 #endif
 
@@ -595,7 +595,7 @@ void GLCD(void) {
         glcd_clrln(6, 0x10);                                                    // horizontal line
         glcd_clrln(7, 0x00);
 
-#if ENABLE_OCPP
+#if ENABLE_OCPP && defined(SMARTEVSE_VERSION) //run OCPP only on ESP32
         if (OcppMode &&                                          // OCPP enabled
                 (getItemValue(MENU_RFIDREADER) == 6 || getItemValue(MENU_RFIDREADER) == 0) && // RFID in OCPP mode or disabled
                 ocppHasTxNotification()) {                                      // There is an OCPP event to display
@@ -677,7 +677,7 @@ void GLCD(void) {
                 } else Str[6] = '\0';
                 GLCD_print_buf2(4, Str);
             } else {
-#if ENABLE_OCPP
+#if ENABLE_OCPP && defined(SMARTEVSE_VERSION) //run OCPP only on ESP32
                 if (OcppMode &&                                  // OCPP enabled
                         (getItemValue(MENU_RFIDREADER) == 6 || getItemValue(MENU_RFIDREADER) == 0)) { // RFID in OCPP mode or disabled
                     switch (getChargePointStatus()) {

@@ -255,7 +255,7 @@ void CheckRFID(void) {
     uint16_t x;
     // When RFID is enabled, a OneWire RFID reader is expected on the SW input
     uint8_t RFIDReader = getItemValue(MENU_RFIDREADER);
-#if ENABLE_OCPP
+#if ENABLE_OCPP && defined(SMARTEVSE_VERSION) //run OCPP only on ESP32
             if (OcppMode && RFIDReader == 6) {                                      // Remote authorization via OCPP?
                 // Use OCPP
                 if (!RFIDstatus) {

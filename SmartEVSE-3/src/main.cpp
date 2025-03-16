@@ -43,7 +43,7 @@
 #include <soc/rtc_io_struct.h>
 
 //OCPP includes
-#if ENABLE_OCPP
+#if ENABLE_OCPP && defined(SMARTEVSE_VERSION) //run OCPP only on ESP32
 #include <MicroOcpp.h>
 #include <MicroOcppMongooseClient.h>
 #include <MicroOcpp/Core/Configuration.h>
@@ -239,7 +239,7 @@ uint16_t firmwareUpdateTimer = 0;                                               
                                                                                 // 0 < timer < FW_UPDATE_DELAY means we are in countdown for an actual update
                                                                                 // FW_UPDATE_DELAY <= timer <= 0xffff means we are in countdown for checking
                                                                                 //                                              whether an update is necessary
-#if ENABLE_OCPP
+#if ENABLE_OCPP && defined(SMARTEVSE_VERSION) //run OCPP only on ESP32
 uint8_t OcppMode = OCPP_MODE; //OCPP Client mode. 0:Disable / 1:Enable
 
 unsigned char OcppRfidUuid [7];
@@ -1029,7 +1029,7 @@ char IsCurrentAvailable(void) {
     }
 
 // Use OCPP Smart Charging if Load Balancing is turned off
-#if ENABLE_OCPP
+#if ENABLE_OCPP && defined(SMARTEVSE_VERSION) //run OCPP only on ESP32
     if (OcppMode &&                            // OCPP enabled
             !LoadBl &&                         // Internal LB disabled
             OcppCurrentLimit >= 0.f &&         // OCPP limit defined
@@ -1070,7 +1070,7 @@ void CalcBalancedCurrent(char mod) {
         ChargeCurrent = MaxCurrent * 10;                                        // Instead use new variable ChargeCurrent.
 
 // Use OCPP Smart Charging if Load Balancing is turned off
-#if ENABLE_OCPP
+#if ENABLE_OCPP && defined(SMARTEVSE_VERSION) //run OCPP only on ESP32
     if (OcppMode &&                      // OCPP enabled
             !LoadBl &&                   // Internal LB disabled
             OcppCurrentLimit >= 0.f) {   // OCPP limit defined
@@ -2147,8 +2147,8 @@ void CheckSerialComm(void) {
 // called every 100ms
 //
 void Timer100ms_singlerun(void) {
-static unsigned int locktimer = 0, unlocktimer = 0;
 #if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
+static unsigned int locktimer = 0, unlocktimer = 0;
 static unsigned int energytimer = 0;
 static uint8_t PollEVNode = NR_EVSES, updated = 0;
 #endif
@@ -2166,7 +2166,7 @@ static uint8_t PollEVNode = NR_EVSES, updated = 0;
     if (Lock) {                                                 // Cable lock enabled?
         // UnlockCable takes precedence over LockCable
         if ((RFIDReader == 2 && Access_bit == 0) ||             // One RFID card can Lock/Unlock the charging socket (like a public charging station)
-#if ENABLE_OCPP
+#if ENABLE_OCPP && defined(SMARTEVSE_VERSION) //run OCPP only on ESP32
         (OcppMode &&!OcppForcesLock) ||
 #endif
             State == STATE_A) {                                 // The charging socket is unlocked when unplugged from the EV
@@ -2184,7 +2184,7 @@ static uint8_t PollEVNode = NR_EVSES, updated = 0;
             locktimer = 0;
         // Lock Cable    
         } else if (State != STATE_A                            // Lock cable when connected to the EV
-#if ENABLE_OCPP
+#if ENABLE_OCPP && defined(SMARTEVSE_VERSION) //run OCPP only on ESP32
         || (OcppMode && OcppForcesLock)
 #endif
         ) {
@@ -2409,7 +2409,7 @@ static unsigned int LedPwm = 0;                                                /
             }    
         }
 
-#if ENABLE_OCPP
+#if ENABLE_OCPP && defined(SMARTEVSE_VERSION) //run OCPP only on ESP32
     } else if (OcppMode && (RFIDReader == 6 || RFIDReader == 0) &&
                 millis() - OcppLastRfidUpdate < 200) {
         RedPwm = 128;
