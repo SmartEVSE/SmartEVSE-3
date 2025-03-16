@@ -204,7 +204,9 @@ uint8_t LeaveModemDoneStateTimer = 0;                                       // T
 uint8_t LeaveModemDeniedStateTimer = 0;                                     // Timer used from STATE_MODEM_DENIED to STATE_B to re-try authentication
 uint8_t NoCurrent = 0;                                                      // counts overcurrent situations.
 uint8_t TestState = 0;
+#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
 uint8_t ModbusRequest = 0;                                                  // Flag to request Modbus information
+#endif
 uint8_t NodeNewMode = 0;
 uint8_t Access_bit = 0;                                                     // 0:No Access 1:Access to SmartEVSE
 
@@ -1586,7 +1588,9 @@ uint8_t x;
     // Every two seconds request measurement data from sensorbox/kwh meters.
     // and send broadcast to Node controllers.
     if (LoadBl < 2 && !Broadcast--) {                                   // Load Balancing mode: Master or Disabled
+#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
         if (!ModbusRequest) ModbusRequest = 1;                          // Start with state 1, also in Normal mode we want MainsMeter and EVmeter updated 
+#endif
         //timeout = COMM_TIMEOUT; not sure if necessary, statement was missing in original code    // reset timeout counter (not checked for Master)
         Broadcast = 1;                                                  // repeat every two seconds
     }
