@@ -137,7 +137,6 @@ extern uint8_t OldButtonState;                                                  
 extern SemaphoreHandle_t buttonMutex;
 extern uint8_t ButtonStateOverride;                                             // Override the state via API
 extern uint32_t LastBtnOverrideTime;                                            // Prevent hanging buttons
-extern uint32_t ScrollTimer;
 extern uint8_t ChargeDelay;                                                     // Delays charging in seconds.
 extern uint8_t TestState;
 extern uint8_t Access_bit;

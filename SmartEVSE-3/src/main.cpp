@@ -193,7 +193,6 @@ uint8_t ButtonStateOverride = 0x07;                                         // P
 uint32_t LastBtnOverrideTime = 0;                                           // Avoid UI buttons getting stuck
 uint8_t LCDNav = 0;
 uint8_t SubMenu = 0;
-uint32_t ScrollTimer = 0;
 uint8_t ChargeDelay = 0;                                                    // Delays charging at least 60 seconds in case of not enough current available. //TODO CH32 vs ESP32
 uint8_t C1Timer = 0;
 uint8_t ModemStage = 0;                                                     // 0: Modem states will be executed when Modem is enabled 1: Modem stages will be skipped, as SoC is already extracted
@@ -2597,7 +2596,7 @@ void Timer10ms_singlerun(void) {
     if (((ButtonState != 0x07) || (ButtonState != OldButtonState)) && !LCDlock) GLCDMenu(ButtonState);
 
     // Update/Show Helpmenu
-    if (LCDNav > MENU_ENTER && LCDNav < MENU_EXIT && (ScrollTimer + 5000 < millis() ) && (!SubMenu)) GLCDHelp();
+    if (LCDNav > MENU_ENTER && LCDNav < MENU_EXIT && (!SubMenu)) GLCDHelp();
 
     if (timeinfo.tm_sec != old_sec) {
         old_sec = timeinfo.tm_sec;

@@ -87,6 +87,7 @@ tm DelayedStartTimeTM;
 time_t DelayedStartTime_Old;
 uint8_t MenuItems[MENU_EXIT];
 uint8_t GridActive = 0;                                                         // When the CT's are used on Sensorbox2, it enables the GRID menu option.
+uint32_t ScrollTimer = 0;
 
 extern void CheckSwitch(bool force = false);
 extern void handleWIFImode(void *s  = &Serial);
@@ -424,9 +425,8 @@ unsigned char MenuNavCharArray(unsigned char Buttons, unsigned char Value, unsig
 // uses buffer
 void GLCDHelp(void)                                                             // Display/Scroll helptext on LCD 
 {
-    unsigned int x;
-
-    x = strlen(MenuStr[LCDNav].Desc);
+  if (ScrollTimer + 5000 < millis()) {
+    unsigned int x = strlen(MenuStr[LCDNav].Desc);
     GLCD_print_buf2_left(MenuStr[LCDNav].Desc + LCDpos);
 
     if (LCDpos++ == 0) ScrollTimer = millis() - 4000;
@@ -434,6 +434,7 @@ void GLCDHelp(void)                                                             
         ScrollTimer = millis() - 3000;
         LCDpos = 0;
     } else ScrollTimer = millis() - 4700;
+  }
 }
 
 
