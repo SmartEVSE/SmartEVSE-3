@@ -1158,7 +1158,7 @@ void write_settings(void) {
         BroadcastSettings();
     }
 
-    ConfigChanged = 1;
+    ConfigChanged = 1;                                                          // FIXME this variable never reset to 0?
 }
 
 
