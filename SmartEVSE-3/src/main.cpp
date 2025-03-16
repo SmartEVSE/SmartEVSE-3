@@ -1358,11 +1358,7 @@ void CalcBalancedCurrent(char mod) {
 void Timer1S_singlerun(void) {
 static uint8_t Broadcast = 1;
 #ifdef SMARTEVSE_VERSION //ESP32
-static uint8_t x;
-
     if (BacklightTimer) BacklightTimer--;                               // Decrease backlight counter every second.
-#else //CH32
-uint8_t x;
 #endif
     // wait for Activation mode to start
     if (ActivationMode && ActivationMode != 255) {
@@ -1530,7 +1526,7 @@ uint8_t x;
 
 #if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
     // Charge timer
-    for (x = 0; x < NR_EVSES; x++) {
+    for (uint8_t x = 0; x < NR_EVSES; x++) {
         if (BalancedState[x] == STATE_C) {
             Node[x].IntTimer++;
             Node[x].Timer++;
