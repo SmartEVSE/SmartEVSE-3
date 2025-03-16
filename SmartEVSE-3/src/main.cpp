@@ -181,7 +181,9 @@ Node_t Node[NR_EVSES] = {                                                       
 uint8_t lock1 = 0, lock2 = 1;
 uint16_t BacklightTimer = 0;                                                // Backlight timer (sec)
 uint8_t BacklightSet = 0;
+#ifdef SMARTEVSE_VERSION //ESP32
 uint8_t LCDTimer = 0;
+#endif
 uint8_t AccessTimer = 0;
 int8_t TempEVSE = 0;                                                        // Temperature EVSE in deg C (-50 to +125)
 uint8_t ButtonState = 0x0f;                                                 // Holds latest push Buttons state (LSB 3:0)
@@ -758,7 +760,11 @@ void setState(uint8_t NewState) { //c
             if (!Force_Single_Phase_Charging() && Switching_To_Single_Phase != AFTER_SWITCH) {                               // in AUTO mode we start with 3phases
                 CONTACTOR2_ON;                                                  // Contactor2 ON
             }
+#ifdef SMARTEVSE_VERSION //v3
             LCDTimer = 0;
+#else //CH32
+            printf("LCDTimer@0\n");
+#endif
             break;
         case STATE_C1:
 #ifdef SMARTEVSE_VERSION //v3
@@ -2846,7 +2852,7 @@ void Timer10ms_singlerun(void) {
         //these variables do not exist in CH32 so values are sent to ESP32
         SET_ON_RECEIVE(RFIDstatus@, RFIDstatus)
         SET_ON_RECEIVE(GridActive@, GridActive)
-
+        SET_ON_RECEIVE(LCDTimer@, LCDTimer)
 
         //these variables are owned by CH32 and copies are sent to ESP32:
         SET_ON_RECEIVE(Pilot@, pilot)
