@@ -1348,10 +1348,9 @@ void CalcBalancedCurrent(char mod) {
         _LOG_D_NO_FUNC("\n");
     }
     Balanced0 = Balanced[0];
-#ifndef SMARTEVSE_VERSION //CH32 only
-    printf("Balanced0@%u\n", Balanced[0]);
-    printf("ChargeCurrent@%u\n", ChargeCurrent);
-#endif
+    SEND_TO_ESP32(ChargeCurrent)
+    SEND_TO_ESP32(Balanced0)
+    SEND_TO_ESP32(IsetBalanced)
 #else //ESP32v4
     printf("CalcBalancedCurrent@%i\n", mod);
 #endif
@@ -2865,6 +2864,7 @@ void Timer10ms_singlerun(void) {
         SET_ON_RECEIVE(Temp@, TempEVSE)
         SET_ON_RECEIVE(State@, State)
         SET_ON_RECEIVE(Balanced0@, Balanced0)
+        SET_ON_RECEIVE(IsetBalanced@, IsetBalanced)
         SET_ON_RECEIVE(ChargeCurrent@, ChargeCurrent)
         SET_ON_RECEIVE(IsCurrentAvailable@, Shadow_IsCurrentAvailable)
         SET_ON_RECEIVE(ErrorFlags@, ErrorFlags)
