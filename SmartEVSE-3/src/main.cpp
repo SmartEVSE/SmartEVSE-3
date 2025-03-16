@@ -470,7 +470,7 @@ void setOverrideCurrent(uint16_t Current) { //c
     SEND_TO_CH32(OverrideCurrent)
 
     //write_settings TODO doesnt include OverrideCurrent
-#if MQTT
+#if MQTT && defined(SMARTEVSE_VERSION) // ESP32 only
     // Update MQTT faster
     lastMqttUpdate = 10;
 #endif //MQTT
@@ -512,7 +512,7 @@ void setMode(uint8_t NewMode) {
         }
     }
 
-#if MQTT
+#if MQTT && defined(SMARTEVSE_VERSION) // ESP32 only
     // Update MQTT faster
     lastMqttUpdate = 10;
 #endif
@@ -557,7 +557,7 @@ void setSolarStopTimer(uint16_t Timer) {
     SolarStopTimer = Timer;
     SEND_TO_ESP32(SolarStopTimer);
     SEND_TO_CH32(SolarStopTimer);
-#if MQTT
+#if MQTT && defined(SMARTEVSE_VERSION) // ESP32 only
     MQTTclient.publish(MQTTprefix + "/SolarStopTimer", SolarStopTimer, false, 0);
 #endif
 }
@@ -781,7 +781,7 @@ void setState(uint8_t NewState) { //c
     BalancedState[0] = NewState;
     State = NewState;
 
-#if MQTT
+#if MQTT && defined(SMARTEVSE_VERSION) // ESP32 only
     // Update MQTT faster
     lastMqttUpdate = 10;
 #endif
@@ -834,7 +834,7 @@ void setAccess(bool Access) { //c
         preferences.end();
     }
 
-#if MQTT
+#if MQTT && defined(SMARTEVSE_VERSION) // ESP32 only
     // Update MQTT faster
     lastMqttUpdate = 10;
 #endif //MQTT
@@ -1488,7 +1488,7 @@ void Timer1S_singlerun(void) {
     if (SolarStopTimer) {
         SolarStopTimer--;
         SEND_TO_ESP32(SolarStopTimer)
-#if MQTT
+#if MQTT && defined(SMARTEVSE_VERSION) // ESP32 only
         MQTTclient.publish(MQTTprefix + "/SolarStopTimer", SolarStopTimer, false, 0);
 #endif
         if (SolarStopTimer == 0) {
@@ -1604,7 +1604,7 @@ void Timer1S_singlerun(void) {
     //_LOG_A("Timer1S task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
 
 
-#if MQTT
+#if MQTT && defined(SMARTEVSE_VERSION) // ESP32 only
     if (lastMqttUpdate++ >= 10) {
         // Publish latest data, every 10 seconds
         // We will try to publish data faster if something has changed
