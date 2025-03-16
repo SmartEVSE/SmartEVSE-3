@@ -564,6 +564,8 @@ void setSolarStopTimer(uint16_t Timer) {
     if (SolarStopTimer == Timer)
         return;                                                             // prevent unnecessary publishing of SolarStopTimer
     SolarStopTimer = Timer;
+    SEND_TO_ESP32(SolarStopTimer);
+    SEND_TO_CH32(SolarStopTimer);
 #if MQTT
     MQTTclient.publish(MQTTprefix + "/SolarStopTimer", SolarStopTimer, false, 0);
 #endif
@@ -1484,8 +1486,10 @@ uint8_t x;
     // Charging is stopped when the timer reaches the time set in 'StopTime' (in minutes)
     // Except when Stoptime =0, then charging will continue.
 
+#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
     if (SolarStopTimer) {
         SolarStopTimer--;
+        SEND_TO_ESP32(SolarStopTimer)
 #if MQTT
         MQTTclient.publish(MQTTprefix + "/SolarStopTimer", SolarStopTimer, false, 0);
 #endif
@@ -1494,6 +1498,7 @@ uint8_t x;
             setErrorFlags(NO_SUN);                                      // Set error: NO_SUN
         }
     }
+#endif
 
     // When Smart or Solar Charging, once MaxSumMains is exceeded, a timer is started
     // Charging is stopped when the timer reaches the time set in 'MaxSumMainsTime' (in minutes)
@@ -2105,6 +2110,10 @@ void CheckSerialComm(void) {
     SET_ON_RECEIVE(EVMeterTimeout@, EVMeter.Timeout)
 
     SET_ON_RECEIVE(Initialized@, Initialized)
+
+    //these variables are owned by CH32 and copies are sent to ESP32:
+    SET_ON_RECEIVE(SolarStopTimer@, SolarStopTimer)
+
     // Wait till initialized is set by ESP
     strncpy(token, "Initialized@", sizeof(token));
     ret = strstr(SerialBuf, token);
@@ -2801,6 +2810,7 @@ void Timer10ms_singlerun(void) {
         SET_ON_RECEIVE(ChargeCurrent@, ChargeCurrent)
         SET_ON_RECEIVE(IsCurrentAvailable@, Shadow_IsCurrentAvailable)
         SET_ON_RECEIVE(ErrorFlags@, ErrorFlags)
+        SET_ON_RECEIVE(SolarStopTimer@, SolarStopTimer)
 
         strncpy(token, "version@", sizeof(token));
         ret = strstr(SerialBuf, token);
