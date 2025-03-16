@@ -207,12 +207,12 @@ uint8_t TestState = 0;
 uint8_t ModbusRequest = 0;                                                  // Flag to request Modbus information
 uint8_t NodeNewMode = 0;
 uint8_t Access_bit = 0;                                                     // 0:No Access 1:Access to SmartEVSE
-uint16_t CardOffset = CARD_OFFSET;                                          // RFID card used in Enable One mode
 
 uint8_t ConfigChanged = 0;
 
 uint16_t SolarStopTimer = 0;
-#ifdef SMARTEVSE_VERSION //v3 and v4
+#ifdef SMARTEVSE_VERSION //ESP32 v3 and v4
+uint16_t CardOffset = CARD_OFFSET;                                          // RFID card used in Enable One mode
 uint8_t RFIDstatus = 0;
 #endif
 bool PilotDisconnected = false;
@@ -2069,7 +2069,6 @@ void CheckSerialComm(void) {
     SET_ON_RECEIVE(Mode@, Mode)
     SET_ON_RECEIVE(Access@, Access_bit)
     SET_ON_RECEIVE(OverrideCurrent@, OverrideCurrent)
-    SET_ON_RECEIVE(CardOffset@, CardOffset)
     SET_ON_RECEIVE(LoadBl@, LoadBl)
     SET_ON_RECEIVE(MaxMains@, MaxMains)
     SET_ON_RECEIVE(MaxSumMains@, MaxSumMains)
