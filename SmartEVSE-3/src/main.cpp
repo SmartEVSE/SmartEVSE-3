@@ -186,11 +186,6 @@ uint8_t AccessTimer = 0;
 int8_t TempEVSE = 0;                                                        // Temperature EVSE in deg C (-50 to +125)
 uint8_t ButtonState = 0x0f;                                                 // Holds latest push Buttons state (LSB 3:0)
 uint8_t OldButtonState = 0x0f;                                              // Holds previous push Buttons state (LSB 3:0)
-#ifdef SMARTEVSE_VERSION //ESP32
-SemaphoreHandle_t buttonMutex = xSemaphoreCreateMutex();
-#endif
-uint8_t ButtonStateOverride = 0x07;                                         // Possibility to override the buttons via API
-uint32_t LastBtnOverrideTime = 0;                                           // Avoid UI buttons getting stuck
 uint8_t LCDNav = 0;
 uint8_t SubMenu = 0;
 uint8_t ChargeDelay = 0;                                                    // Delays charging at least 60 seconds in case of not enough current available. //TODO CH32 vs ESP32

@@ -206,10 +206,9 @@ extern uint16_t BacklightTimer;
 extern uint8_t BacklightSet;
 extern uint8_t AccessTimer;
 extern int8_t TempEVSE;
-extern uint8_t ButtonState;
-extern uint8_t OldButtonState;
-extern uint8_t ButtonStateOverride;
-extern uint32_t LastBtnOverrideTime;
+SemaphoreHandle_t buttonMutex = xSemaphoreCreateMutex();
+uint8_t ButtonStateOverride = 0x07;                                         // Possibility to override the buttons via API
+uint32_t LastBtnOverrideTime = 0;                                           // Avoid UI buttons getting stuck
 extern uint8_t ChargeDelay;
 extern uint8_t C1Timer;
 extern uint8_t ModemStage;
