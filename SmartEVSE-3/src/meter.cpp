@@ -55,6 +55,7 @@ Meter::Meter(uint8_t type, uint8_t address, uint8_t timeout) {
                                                                         // cleared when charging, reset to 1 when disconnected (state A)
 }
 
+#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40 //not on ESP32 v4
 /**
  * Combine Bytes received over modbus
  *
@@ -345,6 +346,7 @@ signed int Meter::receivePowerMeasurement(uint8_t *buf) {
             return decodeMeasurement(buf, 0, EMConfig[Type].PDivisor);
     }
 }
+#endif
 
 
 void Meter::UpdateEnergies() {
