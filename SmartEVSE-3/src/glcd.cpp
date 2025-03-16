@@ -86,6 +86,8 @@ uint8_t GLCDbuf2[1024];                                                         
 tm DelayedStartTimeTM;
 time_t DelayedStartTime_Old;
 uint8_t MenuItems[MENU_EXIT];
+uint8_t GridActive = 0;                                                         // When the CT's are used on Sensorbox2, it enables the GRID menu option.
+
 extern void CheckSwitch(bool force = false);
 extern void handleWIFImode(void *s  = &Serial);
 extern char SmartConfigKey[16];

@@ -209,7 +209,6 @@ uint8_t Access_bit = 0;                                                     // 0
 uint16_t CardOffset = CARD_OFFSET;                                          // RFID card used in Enable One mode
 
 uint8_t ConfigChanged = 0;
-uint8_t GridActive = 0;                                                     // When the CT's are used on Sensorbox2, it enables the GRID menu option.
 
 uint16_t SolarStopTimer = 0;
 #ifdef SMARTEVSE_VERSION //v3 and v4
@@ -2840,6 +2839,7 @@ void Timer10ms_singlerun(void) {
 
         //these variables do not exist in CH32 so values are sent to ESP32
         SET_ON_RECEIVE(RFIDstatus@, RFIDstatus)
+        SET_ON_RECEIVE(GridActive@, GridActive)
 
 
         //these variables are owned by CH32 and copies are sent to ESP32:

@@ -143,7 +143,6 @@ extern uint8_t TestState;
 extern uint8_t Access_bit;
 extern uint16_t CardOffset;
 
-extern uint8_t GridActive;                                                      // When the CT's are used on Sensorbox2, it enables the GRID menu option.
 extern uint16_t SolarStopTimer;
 extern int32_t EnergyCapacity;
 extern uint8_t RFIDstatus;

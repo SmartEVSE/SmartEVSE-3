@@ -223,7 +223,6 @@ extern uint8_t ModbusRequest;
 extern uint16_t CardOffset;
 
 extern uint8_t ConfigChanged;
-extern uint8_t GridActive;
 
 extern uint16_t SolarStopTimer;
 extern bool PilotDisconnected;

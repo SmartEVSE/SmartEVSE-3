@@ -168,6 +168,7 @@ uint8_t Meter::receiveCurrentMeasurement(ModBus MB) {
         case EM_API:
             break;
         case EM_SENSORBOX:
+        {
             // return immediately if the data contains no new P1 or CT measurement
             if (buf[3] == 0) return 0;  // error!!
             // determine if there is P1 data present, otherwise use CT data
@@ -220,11 +221,15 @@ uint8_t Meter::receiveCurrentMeasurement(ModBus MB) {
             }
 
             // Set Sensorbox 2 to 3/4 Wire configuration (and phase Rotation) (v2.16)
-            if (buf[1] >= 0x10 && offset == 7) {
-                GridActive = 1;                                                 // Enable the GRID menu option
-                if ((buf[1] & 0x3) != (Grid << 1) && (LoadBl < 2)) ModbusWriteSingleRequest(0x0A, 0x800, Grid << 1);
-            } else GridActive = 0;
+            bool localGridActive = (buf[1] >= 0x10 && offset == 7);
+#ifdef SMARTEVSE_VERSION // ESP32 v3
+            GridActive = localGridActive;                                       // Enable the GRID menu option
+#else //CH32
+            printf("GridActive@%u\n", localGridActive);
+#endif
+            if (localGridActive && (buf[1] & 0x3) != (Grid << 1) && (LoadBl < 2)) ModbusWriteSingleRequest(0x0A, 0x800, Grid << 1);
             break;
+        }
         case EM_SOLAREDGE:
         {
             // Need to handle the extra scaling factor
