@@ -1623,7 +1623,7 @@ uint8_t x;
     // this section sends outcomes of functions and variables to ESP32 to fill Shadow variables
     // FIXME this section preferably should be empty
     printf("IsCurrentAvailable@%u", IsCurrentAvailable());
-    printf("ErrorFlags@%u", ErrorFlags);
+    printf("ErrorFlags@%u\n", ErrorFlags);
     elapsedmax = 0;
 #endif
 }
