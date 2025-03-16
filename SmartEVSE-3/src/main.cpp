@@ -2494,6 +2494,51 @@ static unsigned int LedPwm = 0;                                                /
 }
 #endif
 
+#if SMARTEVSE_VERSION >=40
+void SendConfigToCH32() {
+    // send configuration to WCH IC
+    Serial1.printf("Access@%u\n", Access_bit);
+    Serial1.printf("MainsMeterType@%u\n", MainsMeter.Type);
+    Serial1.printf("MainsMAddress@%u\n", MainsMeter.Address);
+    Serial1.printf("EVMeterType@%u\n", EVMeter.Type);
+    Serial1.printf("EVMeterAddress@%u\n", EVMeter.Address);
+    Serial1.printf("EMEndianness@%u\n", EMConfig[EM_CUSTOM].Endianness);
+    Serial1.printf("EMIRegister@%u\n", EMConfig[EM_CUSTOM].IRegister);
+    Serial1.printf("EMIDivisor@%u\n", EMConfig[EM_CUSTOM].IDivisor);
+    Serial1.printf("EMURegister@%u\n", EMConfig[EM_CUSTOM].URegister);
+    Serial1.printf("EMUDivisor@%u\n", EMConfig[EM_CUSTOM].UDivisor);
+    Serial1.printf("EMPRegister@%u\n", EMConfig[EM_CUSTOM].PRegister);
+    Serial1.printf("EMPDivisor@%u\n", EMConfig[EM_CUSTOM].PDivisor);
+    Serial1.printf("EMERegister@%u\n", EMConfig[EM_CUSTOM].ERegister);
+    Serial1.printf("EMEDivisor@%u\n", EMConfig[EM_CUSTOM].EDivisor);
+/*    uint8_t tmp;
+    Serial1.printf("EMDataType@%u\n", tmp); EMConfig[EM_CUSTOM].DataType = (mb_datatype) tmp;
+    */Serial1.printf("EMDataType@%u\n", EMConfig[EM_CUSTOM].DataType);
+    Serial1.printf("EMFunction@%u\n", EMConfig[EM_CUSTOM].Function);
+    SEND_TO_CH32(CardOffset)
+    SEND_TO_CH32(Config)
+    SEND_TO_CH32(EnableC2)
+    SEND_TO_CH32(Grid)
+    SEND_TO_CH32(ImportCurrent)
+    SEND_TO_CH32(LoadBl)
+    SEND_TO_CH32(Lock)
+    SEND_TO_CH32(MaxCircuit)
+    SEND_TO_CH32(MaxCurrent)
+    SEND_TO_CH32(MaxMains)
+    SEND_TO_CH32(MaxSumMains)
+    SEND_TO_CH32(MaxSumMainsTime)
+    SEND_TO_CH32(maxTemp)
+    SEND_TO_CH32(MinCurrent)
+    SEND_TO_CH32(Mode)
+    SEND_TO_CH32(ModemPwr)
+    SEND_TO_CH32(PwrPanic)
+    SEND_TO_CH32(RCmon)
+    SEND_TO_CH32(RFIDReader)
+    SEND_TO_CH32(StartCurrent)
+    SEND_TO_CH32(StopTime)
+    SEND_TO_CH32(Switch)
+}
+#endif
 
 void Timer10ms_singlerun(void) {
 #if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
@@ -2891,32 +2936,7 @@ void Timer10ms_singlerun(void) {
             case COMM_CONFIG_SET:                       // Set mainboard configuration
                 CommTimeout = 10;
 
-                // send configuration to WCH IC
-                Serial1.printf("Access@%u\n", Access_bit);
-                Serial1.printf("MainsMeterType@%u\n", MainsMeter.Type);
-                Serial1.printf("MainsMAddress@%u\n", MainsMeter.Address);
-                Serial1.printf("EVMeterType@%u\n", EVMeter.Type);
-                Serial1.printf("EVMeterAddress@%u\n", EVMeter.Address);
-                SEND_TO_CH32(CardOffset)
-                SEND_TO_CH32(EnableC2)
-                SEND_TO_CH32(Grid)
-                SEND_TO_CH32(ImportCurrent)
-                SEND_TO_CH32(LoadBl)
-                SEND_TO_CH32(Lock)
-                SEND_TO_CH32(MaxCircuit)
-                SEND_TO_CH32(MaxCurrent)
-                SEND_TO_CH32(MaxMains)
-                SEND_TO_CH32(MaxSumMains)
-                SEND_TO_CH32(maxTemp)
-                SEND_TO_CH32(MinCurrent)
-                SEND_TO_CH32(Mode)
-                SEND_TO_CH32(ModemPwr)
-                SEND_TO_CH32(PwrPanic)
-                SEND_TO_CH32(RCmon)
-                SEND_TO_CH32(RFIDReader)
-                SEND_TO_CH32(StartCurrent)
-                SEND_TO_CH32(StopTime)
-                SEND_TO_CH32(Switch)
+                SendConfigToCH32();
                 Serial1.printf("Initialized@1\n");      // this finalizes the Config setup phase
                 break;
 

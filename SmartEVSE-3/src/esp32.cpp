@@ -106,7 +106,7 @@ void PowerPanicESP() {
     ledcWrite(LCD_CHANNEL, 50);                 // LCD Backlight on
 }
 
-
+extern void SendConfigToCH32(void);
 #endif //SMARTEVSE_VERSION
 
 #if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
@@ -1133,7 +1133,6 @@ void write_settings(void) {
     preferences.putUChar("EMFunction", EMConfig[EM_CUSTOM].Function);
     preferences.putUChar("WIFImode", WIFImode);
     preferences.putUShort("EnableC2", EnableC2);
-    SEND_TO_CH32(EnableC2) //TODO do a full ConfigItems write
     preferences.putString("RequiredEVCCID", String(RequiredEVCCID));
     preferences.putUShort("maxTemp", maxTemp);
     preferences.putUChar("AutoUpdate", AutoUpdate);
@@ -1146,6 +1145,9 @@ void write_settings(void) {
     preferences.end();
 
     _LOG_I("settings saved\n");
+#if SMARTEVSE_VERSION >= 40
+    SendConfigToCH32();
+#endif
 
  } else {
      _LOG_A("Can not open preferences!\n");
