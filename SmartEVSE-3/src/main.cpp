@@ -164,6 +164,7 @@ uint16_t BalancedMax[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};                  // M
 uint8_t BalancedState[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};                 // State of all EVSE's 0=not active (state A), 1=charge request (State B), 2= Charging (State C)
 uint16_t BalancedError[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};                // Error state of EVSE
 
+#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
 Node_t Node[NR_EVSES] = {                                                        // 0: Master / 1: Node 1 ...
    /*         Config   EV     EV       Min      Used    Charge Interval Solar *          // Interval Time   : last Charge time, reset when not charging
     * Online, Changed, Meter, Address, Current, Phases,  Timer,  Timer, Timer, Mode */   // Min Current     : minimal measured current per phase the EV consumes when starting to charge @ 6A (can be lower then 6A)
@@ -176,7 +177,7 @@ Node_t Node[NR_EVSES] = {                                                       
     {      0,       1,     0,       0,       0,      0,      0,      0,     0,    0 },
     {      0,       1,     0,       0,       0,      0,      0,      0,     0,    0 }            
 };
-
+#endif
 uint8_t lock1 = 0, lock2 = 1;
 uint16_t BacklightTimer = 0;                                                // Backlight timer (sec)
 uint8_t BacklightSet = 0;
@@ -1346,7 +1347,7 @@ void CalcBalancedCurrent(char mod) {
     printf("Balanced0@%u\n", Balanced[0]);
     printf("ChargeCurrent@%u\n", ChargeCurrent);
 #endif
-#else
+#else //ESP32v4
     printf("CalcBalancedCurrent@%i\n", mod);
 #endif
 } //CalcBalancedCurrent
@@ -1525,6 +1526,7 @@ uint8_t x;
     }
 
 
+#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
     // Charge timer
     for (x = 0; x < NR_EVSES; x++) {
         if (BalancedState[x] == STATE_C) {
@@ -1532,6 +1534,7 @@ uint8_t x;
             Node[x].Timer++;
          } else Node[x].IntTimer = 0;                                    // Reset IntervalTime when not charging
     }
+#endif
 
     if (MainsMeter.Type) {
         if ( MainsMeter.Timeout == 0 && !(ErrorFlags & CT_NOCOMM) && Mode != MODE_NORMAL) { // timeout if current measurement takes > 10 secs
@@ -2084,6 +2087,12 @@ void CheckSerialComm(void) {
     SET_ON_RECEIVE(MainsMAddress@, MainsMeter.Address)
     SET_ON_RECEIVE(EVMeterType@, EVMeter.Type)
     SET_ON_RECEIVE(EVMeterAddress@, EVMeter.Address)
+    //code from validate_settings for v4:
+    if (LoadBl < 2) {
+        Node[0].EVMeter = EVMeter.Type;
+        Node[0].EVAddress = EVMeter.Address;
+    }
+
     SET_ON_RECEIVE(EMEndianness@, EMConfig[EM_CUSTOM].Endianness)
     SET_ON_RECEIVE(EMIRegister@, EMConfig[EM_CUSTOM].IRegister)
     SET_ON_RECEIVE(EMIDivisor@, EMConfig[EM_CUSTOM].IDivisor)

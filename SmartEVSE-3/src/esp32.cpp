@@ -981,13 +981,13 @@ void validate_settings(void) {
         DeleteAllRFID();
         setItemValue(MENU_RFIDREADER, 0);                                       // RFID Reader Disabled
     }
-
-    // Update master node config
+#if SMARTEVSE_VERSION < 40 //v3
+    // Update master node config; for v4 this is taken care of when receiving the EVMeterType/Address
     if (LoadBl < 2) {
         Node[0].EVMeter = EVMeter.Type;
         Node[0].EVAddress = EVMeter.Address;
     }
-          
+#endif
     // Default to modbus input registers
     if (EMConfig[EM_CUSTOM].Function != 3) EMConfig[EM_CUSTOM].Function = 4;
 
