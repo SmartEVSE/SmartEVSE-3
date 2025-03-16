@@ -148,7 +148,6 @@ Single_Phase_t Switching_To_Single_Phase = FALSE;
 
 uint8_t State = STATE_A;
 ErrorFl_t Error2;
-uint8_t NextState;
 uint8_t pilot;
 
 uint16_t MaxCapacity;                                                       // Cable limit (A) (limited by the wire in the charge cable, set automatically, or manually if Config=Fixed Cable)

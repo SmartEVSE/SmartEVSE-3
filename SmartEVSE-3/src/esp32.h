@@ -125,7 +125,6 @@ extern uint8_t Show_RFID;
 #endif
 
 extern uint8_t State;
-extern uint8_t NextState;
 
 extern int16_t Isum;
 extern uint16_t Balanced[NR_EVSES];                                             // Amps value per EVSE
