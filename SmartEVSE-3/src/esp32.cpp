@@ -421,9 +421,7 @@ uint8_t ProximityPin() {
     return MaxCap;
 }
 #endif
-#ifndef SMARTEVSE_VERSION //CH32
-extern int8_t TemperatureSensor();
-#endif
+
 
 /**
  * Get name of a state
