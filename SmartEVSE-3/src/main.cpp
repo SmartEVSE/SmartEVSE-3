@@ -1356,7 +1356,9 @@ void CalcBalancedCurrent(char mod) {
 
 
 void Timer1S_singlerun(void) {
-static uint8_t Broadcast = 1;
+#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40 //not on ESP32 v4
+    static uint8_t Broadcast = 1;
+#endif
 #ifdef SMARTEVSE_VERSION //ESP32
     if (BacklightTimer) BacklightTimer--;                               // Decrease backlight counter every second.
 #endif
@@ -1581,15 +1583,15 @@ static uint8_t Broadcast = 1;
         ChargeDelay = CHARGEDELAY;                                      // Set Chargedelay
     }
 
+#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
     // Every two seconds request measurement data from sensorbox/kwh meters.
     // and send broadcast to Node controllers.
     if (LoadBl < 2 && !Broadcast--) {                                   // Load Balancing mode: Master or Disabled
-#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
         if (!ModbusRequest) ModbusRequest = 1;                          // Start with state 1, also in Normal mode we want MainsMeter and EVmeter updated 
-#endif
         //timeout = COMM_TIMEOUT; not sure if necessary, statement was missing in original code    // reset timeout counter (not checked for Master)
         Broadcast = 1;                                                  // repeat every two seconds
     }
+#endif
 
 #ifdef SMARTEVSE_VERSION //ESP32
     // for Slave modbusrequest loop is never called, so we have to show debug info here...
