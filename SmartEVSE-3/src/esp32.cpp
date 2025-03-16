@@ -1133,7 +1133,7 @@ void write_settings(void) {
     preferences.putUChar("EMFunction", EMConfig[EM_CUSTOM].Function);
     preferences.putUChar("WIFImode", WIFImode);
     preferences.putUShort("EnableC2", EnableC2);
-    Serial1.printf("EnableC2@%u\n", EnableC2); //TODO do a full ConfigItems write
+    SEND_TO_CH32(EnableC2) //TODO do a full ConfigItems write
     preferences.putString("RequiredEVCCID", String(RequiredEVCCID));
     preferences.putUShort("maxTemp", maxTemp);
     preferences.putUChar("AutoUpdate", AutoUpdate);

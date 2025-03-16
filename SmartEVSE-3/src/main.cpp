@@ -471,9 +471,7 @@ Button ExtSwitch;
 void setOverrideCurrent(uint16_t Current) { //c
 #ifdef SMARTEVSE_VERSION //v3 and v4
     OverrideCurrent = Current;
-#if SMARTEVSE_VERSION >= 40
-    Serial1.printf("OverrideCurrent@%u\n", OverrideCurrent); //d
-#endif
+    SEND_TO_CH32(OverrideCurrent)
 
     //write_settings TODO doesnt include OverrideCurrent
 #if MQTT
@@ -481,7 +479,7 @@ void setOverrideCurrent(uint16_t Current) { //c
     lastMqttUpdate = 10;
 #endif //MQTT
 #else //CH32
-    printf("OverrideCurrent@%u.\n", OverrideCurrent); //a
+    SEND_TO_ESP32(OverrideCurrent)
 #endif //SMARTEVSE_VERSION
 }
 
@@ -532,10 +530,7 @@ void setMode(uint8_t NewMode) {
     BacklightTimer = BACKLIGHT;                                                 // Backlight ON
     if (Mode != NewMode) NodeNewMode = NewMode + 1;
     Mode = NewMode;    
-#if SMARTEVSE_VERSION >= 40
-    Serial1.printf("Mode@%u\n", NewMode); //d
-    _LOG_V("[->] Mode:%u\n", NewMode);
-#endif
+    SEND_TO_CH32(Mode); //d
 
     if (switchOnLater)
         setAccess(1);
@@ -3043,11 +3038,8 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
         SETITEM(STATUS_CONFIG_CHANGED, ConfigChanged)
         case MENU_C2:
             EnableC2 = (EnableC2_t) val;
-#ifdef SMARTEVSE_VERSION
-            Serial1.printf("EnableC2@%u\n", EnableC2);
-#else
-            printf("EnableC2@%u\n", EnableC2);
-#endif
+            SEND_TO_CH32(EnableC2)
+            SEND_TO_ESP32(EnableC2)
             break;
         case STATUS_MODE:
             if (Mode != val)                                                    // this prevents slave from waking up from OFF mode when Masters'
