@@ -315,7 +315,7 @@ void ModbusDecode(uint8_t * buf, uint8_t len) {
     MB.Type = MODBUS_INVALID;
     MB.Exception = 0;
 
-    _LOG_V("Received packet (%i bytes)", len);
+    _LOG_V("Received packet (%d bytes)", len);
     for (uint8_t x=0; x<len; x++) {
         _LOG_V_NO_FUNC(" %02x", buf[x]);
     }
@@ -688,7 +688,7 @@ void HandleModbusRequest(void) {
                             int16_t combined = (MB.Data[(i * 2) + 16] <<8) + MB.Data[(i * 2) + 17]; 
                             Isum = Isum + combined;
                             MainsMeter.Irms[i] = combined;
-                            _LOG_V_NO_FUNC("L%i=%.1fA,", i+1, (float)MainsMeter.Irms[i]/10);
+                            _LOG_V_NO_FUNC("L%d=%.1fA,", i+1, (float)MainsMeter.Irms[i]/10);
                         }
 #ifndef SMARTEVSE_VERSION //CH32
                         printf("Irms@%03u,%d,%d,%d\n", MainsMeter.Address, MainsMeter.Irms[0], MainsMeter.Irms[1], MainsMeter.Irms[2]); //Irms@011,312,123,124 means: the meter on address 11(dec) has MainsMeter.Irms[0] 312 dA, MainsMeter.Irms[1] of 123 dA, MainsMeter.Irms[2] of 124 dA.
