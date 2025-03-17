@@ -2029,8 +2029,8 @@ uint8_t processAllNodeStates(uint8_t NodeNr) {
 
 // CH32 receives info from ESP32
 void CheckSerialComm(void) {
-    char SerialBuf[256];
-    uint8_t len;
+    static char SerialBuf[512];
+    uint16_t len;
     char *ret;
 
     len = ReadESPdata(SerialBuf);
