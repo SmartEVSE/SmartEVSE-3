@@ -280,7 +280,6 @@ EXT void PowerPanicCtrl(uint8_t enable);
 EXT void ModemPower(uint8_t enable);
 EXT uint8_t ReadESPdata(char *buf);
 
-extern void printStatus(void);
 extern void requestEnergyMeasurement(uint8_t Meter, uint8_t Address, bool Export);
 extern void requestNodeConfig(uint8_t NodeNr);
 extern void requestPowerMeasurement(uint8_t Meter, uint8_t Address, uint16_t PRegister);
@@ -1587,11 +1586,6 @@ void Timer1S_singlerun(void) {
         ChargeDelay = CHARGEDELAY;                                      // Set Chargedelay
     }
 
-#ifdef SMARTEVSE_VERSION //ESP32
-    // for Slave modbusrequest loop is never called, so we have to show debug info here...
-    if (LoadBl > 1)
-        printStatus();  //for debug purposes
-#endif
     //_LOG_A("Timer1S task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
 
 
@@ -2339,9 +2333,6 @@ static uint8_t PollEVNode = NR_EVSES, updated = 0;
                 if (LoadBl == 1 && !(ErrorFlags & CT_NOCOMM) ) BroadcastCurrent();               // When there is no Comm Error, Master sends current to all connected EVSE's
 
                 if ((State == STATE_B || State == STATE_C) && !CPDutyOverride) SetCurrent(Balanced0); // set PWM output for Master //mind you, the !CPDutyOverride was not checked in Smart/Solar mode, but I think this was a bug!
-#ifdef SMARTEVSE_VERSION //ESP32
-                printStatus();  //for debug purposes
-#endif
                 ModbusRequest = 0;
                 //_LOG_A("Timer100ms task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
                 break;

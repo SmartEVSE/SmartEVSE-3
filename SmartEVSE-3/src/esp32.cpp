@@ -460,12 +460,6 @@ const char * getErrorNameWeb(uint8_t ErrorCode) {
 }
 
 
-void printStatus(void)
-{
-    _LOG_I ("STATE: %s Error: %u StartCurrent: -%i ChargeDelay: %u SolarStopTimer: %u NoCurrent: %u Imeasured: %.1f A IsetBalanced: %.1f A, MainsMeter.Timeout=%u, EVMeter.Timeout=%u.\n", getStateName(State), ErrorFlags, StartCurrent, ChargeDelay, SolarStopTimer,  NoCurrent, (float)MainsMeter.Imeasured/10, (float)IsetBalanced/10, MainsMeter.Timeout, EVMeter.Timeout);
-    _LOG_I("L1: %.1f A L2: %.1f A L3: %.1f A Isum: %.1f A\n", (float)MainsMeter.Irms[0]/10, (float)MainsMeter.Irms[1]/10, (float)MainsMeter.Irms[2]/10, (float)Isum/10);
-}
-
 #if MODEM
 // Recompute State of Charge, in case we have a known initial state of charge
 // This function is called by kWh logic and after an EV state update through API, Serial or MQTT
@@ -2946,6 +2940,10 @@ void loop() {
     if (millis() - lastCheck >= 1000) {
         lastCheck = millis();
         //this block is for non-time critical stuff that needs to run approx 1 / second
+
+        //printStatus:
+        _LOG_I ("STATE: %s Error: %u StartCurrent: -%i ChargeDelay: %u SolarStopTimer: %u NoCurrent: %u Imeasured: %.1f A IsetBalanced: %.1f A, MainsMeter.Timeout=%u, EVMeter.Timeout=%u.\n", getStateName(State), ErrorFlags, StartCurrent, ChargeDelay, SolarStopTimer,  NoCurrent, (float)MainsMeter.Imeasured/10, (float)IsetBalanced/10, MainsMeter.Timeout, EVMeter.Timeout);
+        _LOG_I("L1: %.1f A L2: %.1f A L3: %.1f A Isum: %.1f A\n", (float)MainsMeter.Irms[0]/10, (float)MainsMeter.Irms[1]/10, (float)MainsMeter.Irms[2]/10, (float)Isum/10);
 
         // a reboot is requested, but we kindly wait until no EV connected
 #if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40 //TODO
