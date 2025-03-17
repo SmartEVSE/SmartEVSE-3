@@ -2550,8 +2550,8 @@ void Timer10ms_singlerun(void) {
     static uint16_t StateTimer = 0;                                                 // When switching from State B to C, make sure pilot is at 6v for 100ms
     BlinkLed_singlerun();
 #else //v4
-    static uint8_t RXbyte, idx = 0;
-    static char SerialBuf[256];
+    static uint16_t RXbyte, idx = 0;
+    static char SerialBuf[512];
     static uint8_t CommState = COMM_VER_REQ;
     static uint8_t CommTimeout = 0;
     static char *ret;
