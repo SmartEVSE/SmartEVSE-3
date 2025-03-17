@@ -1264,7 +1264,7 @@ void CalcBalancedCurrent(char mod) {
         } else {                                                                // we have enough current
             // ############### no shortage of power  #################
 
-            _LOG_D("Checkpoint b: Resetting SolarStopTimer, MaxSumMainsTimer, IsetBalanced=%d.%dA, ActiveEVSE=%u.\n", IsetBalanced/10, IsetBalanced%10,  ActiveEVSE);
+            _LOG_D("Checkpoint b: Resetting SolarStopTimer, MaxSumMainsTimer, IsetBalanced=%d.%dA, ActiveEVSE=%u.\n", IsetBalanced/10, abs(IsetBalanced%10),  ActiveEVSE);
             setSolarStopTimer(0);
             MaxSumMainsTimer = 0;
             NoCurrent = 0;
@@ -1326,7 +1326,7 @@ void CalcBalancedCurrent(char mod) {
     } //ActiveEVSE && phasesLastUpdateFlag
 
     if (!saveActiveEVSE) { // no ActiveEVSEs so reset all timers
-        _LOG_D("Checkpoint c: Resetting SolarStopTimer, MaxSumMainsTimer, IsetBalanced=%d.%dA, saveActiveEVSE=%u.\n", IsetBalanced/10, IsetBalanced%10, saveActiveEVSE);
+        _LOG_D("Checkpoint c: Resetting SolarStopTimer, MaxSumMainsTimer, IsetBalanced=%d.%dA, saveActiveEVSE=%u.\n", IsetBalanced/10, abs(IsetBalanced%10), saveActiveEVSE);
         setSolarStopTimer(0);
         MaxSumMainsTimer = 0;
         NoCurrent = 0;
@@ -1337,7 +1337,7 @@ void CalcBalancedCurrent(char mod) {
 
     // ############### print all the distributed currents #################
 
-    _LOG_V("Checkpoint 5 Isetbalanced=%d.%d A.\n", IsetBalanced/10, IsetBalanced%10);
+    _LOG_V("Checkpoint 5 Isetbalanced=%d.%d A.\n", IsetBalanced/10, abs(IsetBalanced%10));
     if (LoadBl == 1) {
         _LOG_D("Balance: ");
         for (n = 0; n < NR_EVSES; n++) {
