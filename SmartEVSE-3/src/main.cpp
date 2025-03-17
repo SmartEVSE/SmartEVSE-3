@@ -193,6 +193,8 @@ uint8_t NoCurrent = 0;                                                      // c
 uint8_t TestState = 0;
 #if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
 uint8_t ModbusRequest = 0;                                                  // Flag to request Modbus information
+bool PilotDisconnected = false;
+uint8_t PilotDisconnectTime = 0;                                            // Time the Control Pilot line should be disconnected (Sec)
 #endif
 uint8_t NodeNewMode = 0;
 uint8_t Access_bit = 0;                                                     // 0:No Access 1:Access to SmartEVSE
@@ -209,8 +211,6 @@ uint8_t LCDTimer = 0;
 uint16_t CardOffset = CARD_OFFSET;                                          // RFID card used in Enable One mode
 uint8_t RFIDstatus = 0;
 #endif
-bool PilotDisconnected = false;
-uint8_t PilotDisconnectTime = 0;                                            // Time the Control Pilot line should be disconnected (Sec)
 
 uint8_t ActivationMode = 0, ActivationTimer = 0;
 volatile uint16_t adcsample = 0;
@@ -1458,12 +1458,6 @@ void Timer1S_singlerun(void) {
     }
 #endif
 
-#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
-    // once a second, measure temperature
-    // range -40 .. +125C
-    TempEVSE = TemperatureSensor();                                                             
-#endif
-
 #if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40 //ESP32 v3
     // Check if there is a RFID card in front of the reader
     if (RFIDReader) {
@@ -1482,6 +1476,10 @@ void Timer1S_singlerun(void) {
     // Except when Stoptime =0, then charging will continue.
 
 #if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
+    // once a second, measure temperature
+    // range -40 .. +125C
+    TempEVSE = TemperatureSensor();
+
     if (SolarStopTimer) {
         SolarStopTimer--;
         SEND_TO_ESP32(SolarStopTimer)
@@ -1492,6 +1490,24 @@ void Timer1S_singlerun(void) {
             if (State == STATE_C) setState(STATE_C1);                   // tell EV to stop charging
             setErrorFlags(NO_SUN);                                      // Set error: NO_SUN
         }
+    }
+
+    if (PilotDisconnectTime) PilotDisconnectTime--;                     // Decrease PilotDisconnectTimer
+
+    // Charge timer
+    for (uint8_t x = 0; x < NR_EVSES; x++) {
+        if (BalancedState[x] == STATE_C) {
+            Node[x].IntTimer++;
+            Node[x].Timer++;
+         } else Node[x].IntTimer = 0;                                    // Reset IntervalTime when not charging
+    }
+
+    // Every two seconds request measurement data from sensorbox/kwh meters.
+    // and send broadcast to Node controllers.
+    if (LoadBl < 2 && !Broadcast--) {                                   // Load Balancing mode: Master or Disabled
+        if (!ModbusRequest) ModbusRequest = 1;                          // Start with state 1, also in Normal mode we want MainsMeter and EVmeter updated 
+        //timeout = COMM_TIMEOUT; not sure if necessary, statement was missing in original code    // reset timeout counter (not checked for Master)
+        Broadcast = 1;                                                  // repeat every two seconds
     }
 #endif
 
@@ -1507,7 +1523,6 @@ void Timer1S_singlerun(void) {
     }
 
     if (ChargeDelay) ChargeDelay--;                                     // Decrease Charge Delay counter
-    if (PilotDisconnectTime) PilotDisconnectTime--;                     // Decrease PilotDisconnectTimer
 
     if (AccessTimer && State == STATE_A) {
         if (--AccessTimer == 0) {
@@ -1524,17 +1539,6 @@ void Timer1S_singlerun(void) {
         ErrorFlags &= ~NO_SUN;
         _LOG_I("No sun/current Errors Cleared.\n");
     }
-
-
-#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
-    // Charge timer
-    for (uint8_t x = 0; x < NR_EVSES; x++) {
-        if (BalancedState[x] == STATE_C) {
-            Node[x].IntTimer++;
-            Node[x].Timer++;
-         } else Node[x].IntTimer = 0;                                    // Reset IntervalTime when not charging
-    }
-#endif
 
     if (MainsMeter.Type) {
         if ( MainsMeter.Timeout == 0 && !(ErrorFlags & CT_NOCOMM) && Mode != MODE_NORMAL) { // timeout if current measurement takes > 10 secs
@@ -1582,16 +1586,6 @@ void Timer1S_singlerun(void) {
         setStatePowerUnavailable();
         ChargeDelay = CHARGEDELAY;                                      // Set Chargedelay
     }
-
-#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
-    // Every two seconds request measurement data from sensorbox/kwh meters.
-    // and send broadcast to Node controllers.
-    if (LoadBl < 2 && !Broadcast--) {                                   // Load Balancing mode: Master or Disabled
-        if (!ModbusRequest) ModbusRequest = 1;                          // Start with state 1, also in Normal mode we want MainsMeter and EVmeter updated 
-        //timeout = COMM_TIMEOUT; not sure if necessary, statement was missing in original code    // reset timeout counter (not checked for Master)
-        Broadcast = 1;                                                  // repeat every two seconds
-    }
-#endif
 
 #ifdef SMARTEVSE_VERSION //ESP32
     // for Slave modbusrequest loop is never called, so we have to show debug info here...
