@@ -2759,9 +2759,9 @@ void setup() {
     // After powerup request WCH version (version?)
     // then send Configuration to WCH
     static unsigned long FlashTimeout = millis();
-    uint8_t RXbyte, idx = 0;
+    uint16_t RXbyte, idx = 0;
     static char *ret;
-    static char SerialBuf[256];
+    static char SerialBuf[512];
     bool gotVersion = false;
     do {
         Serial1.print("version?\n");            // send command to WCH ic
