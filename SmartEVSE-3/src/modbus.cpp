@@ -56,7 +56,7 @@ extern void setState(uint8_t NewState);
 extern void receiveNodeStatus(uint8_t *buf, uint8_t NodeNr); //TODO move to modbus.cpp?
 extern void receiveNodeConfig(uint8_t *buf, uint8_t NodeNr); //TODO move to modbus.cpp?
 
-#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
+#ifdef SMARTEVSE_VERSION //ESP32v3
 extern ModbusMessage response;
 
 // ########################## Modbus helper functions ##########################
@@ -84,8 +84,7 @@ void ModbusSend8(uint8_t address, uint8_t function, uint16_t reg, uint16_t data)
     _LOG_V("Sent packet");
     _LOG_V_NO_FUNC(" address: 0x%02x, function: 0x%02x, reg: 0x%04x, token:0x%08x, data: 0x%04x.\n", address, function, reg, token, data);
 }
-#endif //SMARTEVSE_VERSION
-#ifndef SMARTEVSE_VERSION //CH32
+#else //CH32
 // ########################## Modbus helper functions ##########################
 
 /**
@@ -180,7 +179,7 @@ void ModbusWriteSingleRequest(uint8_t address, uint16_t reg, uint16_t value) {
     ModbusSend8(address, 0x06, reg, value);  
 }
 
-#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
+#ifdef SMARTEVSE_VERSION //ESP32v3
 
 /**
  * Request write multiple register (FC=16) to a device over modbus
@@ -223,20 +222,8 @@ void ModbusWriteMultipleRequest(uint8_t address, uint16_t reg, uint16_t *values,
 void ModbusException(uint8_t address, uint8_t function, uint8_t exception) {
     response.setError(address, function, (Modbus::Error) exception);
 }
-#endif
 
-
-
-// ########################### Modbus main functions ###########################
-void BroadcastSettings(void) {
-    uint16_t i,values[MODBUS_SYS_CONFIG_COUNT];
-    for (i = 0; i < MODBUS_SYS_CONFIG_COUNT; i++) {
-        values[i] = getItemValue(MENU_MODE + i);
-    }
-    ModbusWriteMultipleRequest(BROADCAST_ADR, MODBUS_SYS_CONFIG_START, values, MODBUS_SYS_CONFIG_COUNT);
-}
-
-#ifndef SMARTEVSE_VERSION //CH32
+#else //CH32
 
 /**
  * Request write multiple register (FC=16) to a device over modbus
@@ -294,9 +281,17 @@ void ModbusException(uint8_t address, uint8_t function, uint8_t exception) {
     uint16_t temp[1];
     ModbusSend(address, function, exception, temp, 0);
 }
-
-
 #endif
+
+
+void BroadcastSettings(void) {
+    uint16_t i,values[MODBUS_SYS_CONFIG_COUNT];
+    for (i = 0; i < MODBUS_SYS_CONFIG_COUNT; i++) {
+        values[i] = getItemValue(MENU_MODE + i);
+    }
+    ModbusWriteMultipleRequest(BROADCAST_ADR, MODBUS_SYS_CONFIG_START, values, MODBUS_SYS_CONFIG_COUNT);
+}
+
 
 /**
  * Decode received modbus packet
@@ -574,7 +569,7 @@ void ReadItemValueResponse(void) {
             values[i] = getItemValue(ItemID + i);
         }
         // ModbusReadInputResponse:
-#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
+#ifdef SMARTEVSE_VERSION //ESP32 v3
         response.add(MB.Address, MB.Function, (uint8_t)(MB.RegisterCount * 2));
         for (int i = 0; i < MB.RegisterCount; i++) {
             response.add(values[i]);
@@ -733,7 +728,7 @@ void HandleModbusResponse(void) {
 }
 
 
-#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
+#ifdef SMARTEVSE_VERSION //ESP32 v3
 ModbusMessage response;     // response message to be sent back
 // Request handler for modbus messages addressed to -this- Node/Slave EVSE.
 // Sends response back to Master
@@ -858,10 +853,7 @@ void ConfigureModbusMode(uint8_t newmode) {
 
 }
 
-#endif
-
-
-#ifndef SMARTEVSE_VERSION //CH32
+#else //CH32
 // printf can be slow.
 // By measuring the time the 10ms loop actually takes to execute we found that:
 // it takes ~625uS to execute when using printf (and tx interrrupts)
