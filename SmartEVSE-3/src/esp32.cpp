@@ -2624,6 +2624,7 @@ void setup() {
     Serial.begin();                                                     // Debug output on USB
     Serial.setTxTimeoutMs(1);                                           // Workaround for Serial.print while unplugged USB.
                                                                         // log_d does not have this issue?
+    Serial.setTxBufferSize(1024);                                       // prevent error message: [HWCDC.cpp:467] write(): write failed due to waiting USB Host - timeout
     Serial1.begin(115200, SERIAL_8N1, USART_RX, USART_TX, false);       // Serial connection to main board microcontroller
     //Serial2.begin(115200, SERIAL_8N1, USART_TX, -1, false);
     Serial.printf("\nSmartEVSE v4 powerup\n");
