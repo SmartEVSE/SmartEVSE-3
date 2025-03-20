@@ -2657,7 +2657,7 @@ uint8_t PollEVNode = NR_EVSES, updated = 0;
     while(1)  // infinite loop
     {
         // Check if the cable lock is used
-        if (Lock) {                                                 // Cable lock enabled?
+        if (!Config && Lock) {                                      // Socket used and Cable lock enabled?
             // UnlockCable takes precedence over LockCable
             if ((RFIDReader == 2 && Access_bit == 0) ||             // One RFID card can Lock/Unlock the charging socket (like a public charging station)
 #if ENABLE_OCPP
@@ -3423,10 +3423,11 @@ void Timer1S(void * parameter) {
              } else Node[x].IntTimer = 0;                                    // Reset IntervalTime when not charging
         }
 
-        if (MainsMeter.Type) {
+        // Mainsmeter defined, and power sharing set to Disabled or Master
+        if (MainsMeter.Type && LoadBl < 2) {
             if ( MainsMeter.Timeout == 0 && !(ErrorFlags & CT_NOCOMM) && Mode != MODE_NORMAL) { // timeout if current measurement takes > 10 secs
-                // In Normal mode do not timeout; there might be MainsMeter/EVMeter configured that can be retrieved through the API,
-                // but in Normal mode we just want to charge ChargeCurrent, irrespective of communication problems.
+                // When power sharing is set to Disabled/Master, and in Normal mode, do not timeout;
+                // there might be MainsMeter/EVMeter configured that can be retrieved through the API.
                 ErrorFlags |= CT_NOCOMM;
                 setStatePowerUnavailable();
                 SB2.SoftwareVer = 0;
@@ -3434,6 +3435,16 @@ void Timer1S(void * parameter) {
             } else {
                 if (MainsMeter.Timeout) MainsMeter.Timeout--;
             }
+        // We are a Node, we will timeout if there is no communication with the Master controller.   
+        } else if (LoadBl > 1) {
+            if (MainsMeter.Timeout == 0 && !(ErrorFlags & CT_NOCOMM)) {
+                ErrorFlags |= CT_NOCOMM;
+                setStatePowerUnavailable();
+                SB2.SoftwareVer = 0;
+                _LOG_W("Error, Master communication error!\n");
+            } else {
+                if (MainsMeter.Timeout) MainsMeter.Timeout--;
+            }    
         } else
             MainsMeter.Timeout = COMM_TIMEOUT;
 
