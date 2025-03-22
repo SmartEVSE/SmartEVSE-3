@@ -2644,15 +2644,12 @@ void requestPowerMeasurement(uint8_t Meter, uint8_t Address, uint16_t PRegister)
 }
 
 
-// Task that handles the Cable Lock and modbus
+// Task that handles the Cable Lock
 // 
 // called every 100ms
 //
 void Timer100ms(void * parameter) {
-
-unsigned int locktimer = 0, unlocktimer = 0, energytimer = 0;
-uint8_t PollEVNode = NR_EVSES, updated = 0;
-
+    unsigned int locktimer = 0, unlocktimer = 0;
 
     while(1)  // infinite loop
     {
@@ -2697,10 +2694,25 @@ uint8_t PollEVNode = NR_EVSES, updated = 0;
             }
         }
 
-       
+        // Pause the task for 100ms
+        vTaskDelay(100 / portTICK_PERIOD_MS);
 
+    } //while(1) loop
+
+}
+
+// Sequentially call the Mains/EVmeters, and polls Nodes
+// Called by MBHandleError, and MBHandleData response functions.
+// Once every two seconds started by Timer1s()
+//
+void ModbusRequestLoop() {
+
+    static uint8_t PollEVNode = NR_EVSES;
+    static uint16_t energytimer = 0;
+    uint8_t updated = 0;
+    
         // Every 2 seconds, request measurements from modbus meters
-        if (ModbusRequest) {                                                    // Slaves all have ModbusRequest at 0 so they never enter here
+        // Slaves all have ModbusRequest at 0 so they never enter here
             switch (ModbusRequest) {                                            // State
                 case 1:                                                         // PV kwh meter
                     ModbusRequest++;
@@ -2746,6 +2758,7 @@ uint8_t PollEVNode = NR_EVSES, updated = 0;
                 case 5:                                                         // EV kWh meter, Power measurement (momentary power in Watt)
                     // Request Power if EV meter is configured
                     if (Node[PollEVNode].EVMeter && Node[PollEVNode].EVMeter != EM_API) {
+                        updated = 1;
                         switch(EVMeter.Type) {
                             //these meters all have their power measured via receiveCurrentMeasurement already
                             case EM_EASTRON1P:
@@ -2753,12 +2766,13 @@ uint8_t PollEVNode = NR_EVSES, updated = 0;
                             case EM_EASTRON3P_INV:
                             case EM_ABB:
                             case EM_FINDER_7M:
+                                updated = 0;
                                 break;
                             default:
                                 requestPowerMeasurement(Node[PollEVNode].EVMeter, Node[PollEVNode].EVAddress,EMConfig[Node[PollEVNode].EVMeter].PRegister);
                                 break;
                         }
-                        break;
+                        if (updated) break;  // do not break when EVmeter is one of the above types
                     }
                     ModbusRequest++;
                     // fall through
@@ -2824,8 +2838,6 @@ uint8_t PollEVNode = NR_EVSES, updated = 0;
                     }
                     ModbusRequest++;
                     // fall through
-                    break;  // TODO: remove break; read modbus registers more evenly. 
-                    //  For now this gives the next modbus broadcast some room.
                 default:
                     // slave never gets here
                     // what about normal mode with no meters attached?
@@ -2848,15 +2860,8 @@ uint8_t PollEVNode = NR_EVSES, updated = 0;
                     break;
             } //switch
             if (ModbusRequest) ModbusRequest++;
-        }
-
-
-        // Pause the task for 100ms
-        vTaskDelay(100 / portTICK_PERIOD_MS);
-
-    } //while(1) loop
-
 }
+
 
 #if MQTT
 void mqtt_receive_callback(const String topic, const String payload) {
@@ -3484,7 +3489,8 @@ void Timer1S(void * parameter) {
         // Every two seconds request measurement data from sensorbox/kwh meters.
         // and send broadcast to Node controllers.
         if (LoadBl < 2 && !Broadcast--) {                                   // Load Balancing mode: Master or Disabled
-            if (!ModbusRequest) ModbusRequest = 1;                          // Start with state 1, also in Normal mode we want MainsMeter and EVmeter updated 
+            ModbusRequest = 1;                                              // Start with state 1, also in Normal mode we want MainsMeter and EVmeter updated 
+            ModbusRequestLoop();
             //timeout = COMM_TIMEOUT; not sure if necessary, statement was missing in original code    // reset timeout counter (not checked for Master)
             Broadcast = 1;                                                  // repeat every two seconds
         }
@@ -3727,10 +3733,11 @@ void MBhandleData(ModbusMessage msg, uint32_t token)
                 // Node EV meter settings
             //    _LOG_A("Node EV Meter settings received\n");
                 receiveNodeConfig(MB.Data, MB.Address - 1u);
+                return; // Do not call ModbusRequestLoop(), we still expect an Ack from the Node
             }
         }
     }
-
+    ModbusRequestLoop();   // continue with the next request.
 }
 
 
@@ -3752,6 +3759,7 @@ void MBhandleError(Error error, uint32_t token)
   else {
     _LOG_A("Error response: %02X - %s, address: %02x, function: %02x, reg: %04x.\n", error, (const char *)me,  address, function, reg);
   }
+  if (ModbusRequest) ModbusRequestLoop();  // continue with the next request.
 }
 
 
@@ -3794,7 +3802,7 @@ void ConfigureModbusMode(uint8_t newmode) {
             MBclient.onDataHandler(&MBhandleData);
             MBclient.onErrorHandler(&MBhandleError);
             // Start ModbusRTU Master background task
-            MBclient.begin(Serial1, 1);                                         //pinning it to core1 reduces modbus problems
+            MBclient.begin(Serial1, 1, (uint32_t)50000U);   // pinning it to core1 reduces modbus problems. Make sure there is 50ms quiet time between messages
         } 
     } else if (newmode > 1) {
         // Register worker. at serverID 'LoadBl', all function codes
