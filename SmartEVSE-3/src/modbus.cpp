@@ -55,6 +55,9 @@ extern int16_t Isum;
 extern void setState(uint8_t NewState);
 extern void receiveNodeStatus(uint8_t *buf, uint8_t NodeNr); //TODO move to modbus.cpp?
 extern void receiveNodeConfig(uint8_t *buf, uint8_t NodeNr); //TODO move to modbus.cpp?
+extern void ModbusRequestLoop();
+extern uint8_t ModbusRequest;
+
 
 #ifdef SMARTEVSE_VERSION //ESP32v3
 extern ModbusMessage response;
@@ -719,12 +722,14 @@ void HandleModbusResponse(void) {
                 }  else if (MB.Register == 0x0108) {
                     // Node configuration
                     receiveNodeConfig(MB.Data, MB.Address - 1u);
+                    return; // Do not call ModbusRequestLoop(), we still expect an Ack from the Node
                 }
             }
             break;
         default:
             break;
     }
+    ModbusRequestLoop();   // continue with the next request.
 }
 
 
@@ -801,6 +806,7 @@ void MBhandleError(Error error, uint32_t token)
   else {
     _LOG_A("Error response: %02X - %s, address: %02x, function: %02x, reg: %04x.\n", error, (const char *)me,  address, function, reg);
   }
+  if (ModbusRequest) ModbusRequestLoop();  // continue with the next request.
 }
 
 
@@ -842,7 +848,7 @@ void ConfigureModbusMode(uint8_t newmode) {
             MBclient.onDataHandler(&MBhandleData);
             MBclient.onErrorHandler(&MBhandleError);
             // Start ModbusRTU Master background task
-            MBclient.begin(Serial1, 1);                                         //pinning it to core1 reduces modbus problems
+            MBclient.begin(Serial1, 1, (uint32_t)50000U);   // pinning it to core1 reduces modbus problems. Make sure there is 50ms quiet time between messages //TODO howto ensure this in v4?
         }
     } else if (newmode > 1) {
         // Register worker. at serverID 'LoadBl', all function codes

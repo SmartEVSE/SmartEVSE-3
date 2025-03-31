@@ -174,6 +174,7 @@ Node_t Node[NR_EVSES] = {                                                       
     {      0,       1,     0,       0,       0,      0,      0,      0,     0,    0 },
     {      0,       1,     0,       0,       0,      0,      0,      0,     0,    0 }            
 };
+void ModbusRequestLoop(void);
 #endif
 uint8_t AccessTimer = 0; //FIXME ESP32 vs CH32
 int8_t TempEVSE = 0;                                                        // Temperature EVSE in deg C (-50 to +125)
@@ -1504,7 +1505,8 @@ void Timer1S_singlerun(void) {
     // Every two seconds request measurement data from sensorbox/kwh meters.
     // and send broadcast to Node controllers.
     if (LoadBl < 2 && !Broadcast--) {                                   // Load Balancing mode: Master or Disabled
-        if (!ModbusRequest) ModbusRequest = 1;                          // Start with state 1, also in Normal mode we want MainsMeter and EVmeter updated 
+        ModbusRequest = 1;                                              // Start with state 1, also in Normal mode we want MainsMeter and EVmeter updated
+        ModbusRequestLoop();
         //timeout = COMM_TIMEOUT; not sure if necessary, statement was missing in original code    // reset timeout counter (not checked for Master)
         Broadcast = 1;                                                  // repeat every two seconds
     }
@@ -2147,8 +2149,6 @@ void CheckSerialComm(void) {
 void Timer100ms_singlerun(void) {
 #if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
 static unsigned int locktimer = 0, unlocktimer = 0;
-static unsigned int energytimer = 0;
-static uint8_t PollEVNode = NR_EVSES, updated = 0;
 #endif
 
 #ifndef SMARTEVSE_VERSION //CH32
@@ -2200,9 +2200,20 @@ static uint8_t PollEVNode = NR_EVSES, updated = 0;
             unlocktimer = 0;
         }
     }
+}
+
+// Sequentially call the Mains/EVmeters, and polls Nodes
+// Called by MBHandleError, and MBHandleData response functions.
+// Once every two seconds started by Timer1s()
+//
+void ModbusRequestLoop() {
+
+    static uint8_t PollEVNode = NR_EVSES;
+    static uint16_t energytimer = 0;
+    uint8_t updated = 0;
 
     // Every 2 seconds, request measurements from modbus meters
-    if (ModbusRequest) {                                                    // Slaves all have ModbusRequest at 0 so they never enter here
+        // Slaves all have ModbusRequest at 0 so they never enter here
         switch (ModbusRequest) {                                            // State
             case 1:                                                         // PV kwh meter
                 ModbusRequest++;
@@ -2248,6 +2259,7 @@ static uint8_t PollEVNode = NR_EVSES, updated = 0;
             case 5:                                                         // EV kWh meter, Power measurement (momentary power in Watt)
                 // Request Power if EV meter is configured
                 if (Node[PollEVNode].EVMeter && Node[PollEVNode].EVMeter != EM_API) {
+                    updated = 1;
                     switch(EVMeter.Type) {
                         //these meters all have their power measured via receiveCurrentMeasurement already
                         case EM_EASTRON1P:
@@ -2255,12 +2267,13 @@ static uint8_t PollEVNode = NR_EVSES, updated = 0;
                         case EM_EASTRON3P_INV:
                         case EM_ABB:
                         case EM_FINDER_7M:
+                            updated = 0;
                             break;
                         default:
                             requestPowerMeasurement(Node[PollEVNode].EVMeter, Node[PollEVNode].EVAddress,EMConfig[Node[PollEVNode].EVMeter].PRegister);
                             break;
                     }
-                    break;
+                    if (updated) break;  // do not break when EVmeter is one of the above types
                 }
                 ModbusRequest++;
                 // fall through
@@ -2326,8 +2339,6 @@ static uint8_t PollEVNode = NR_EVSES, updated = 0;
                 }
                 ModbusRequest++;
                 // fall through
-                break;  // TODO: remove break; read modbus registers more evenly. 
-                //  For now this gives the next modbus broadcast some room.
             default:
                 // slave never gets here
                 // what about normal mode with no meters attached?
@@ -2349,7 +2360,6 @@ static uint8_t PollEVNode = NR_EVSES, updated = 0;
                 break;
         } //switch
         if (ModbusRequest) ModbusRequest++;
-    }
 #endif
 
 #ifndef SMARTEVSE_VERSION //CH32
