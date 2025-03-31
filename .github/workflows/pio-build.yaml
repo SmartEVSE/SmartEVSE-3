@@ -84,6 +84,11 @@ jobs:
           openssl dgst -sign "$secret_file" -keyform PEM -sha256 -out firmware.sign -binary ./SmartEVSE-3/.pio/build/release/firmware.bin
           # throw it all in one file
           cat firmware.sign ./SmartEVSE-3/.pio/build/release/firmware.bin > ./SmartEVSE-3/.pio/build/release/firmware.signed.bin
+
+          # save .bin files to directory because v4 upload-artifact@v4 can no longer add files to an existing artifact; so much for efficiency :-(
+          mkdir ./SmartEVSE-3/distribution
+          mv ./SmartEVSE-3/.pio/build/release/*.bin ./SmartEVSE-3/distribution
+
           # Remove the temporary file
           rm -f "$secret_file"
       - name: Build debug version
@@ -101,8 +106,10 @@ jobs:
           cat firmware.sign ./SmartEVSE-3/.pio/build/release/firmware.bin > ./SmartEVSE-3/.pio/build/release/firmware.signed.bin
           # Remove the temporary file
           rm -f "$secret_file"
-          mv ./SmartEVSE-3/.pio/build/release/firmware.bin ./SmartEVSE-3/.pio/build/release/firmware.debug.bin
-          mv ./SmartEVSE-3/.pio/build/release/firmware.signed.bin ./SmartEVSE-3/.pio/build/release/firmware.debug.signed.bin
+          mv ./SmartEVSE-3/.pio/build/release/firmware.bin ./SmartEVSE-3/distribution/firmware.debug.bin
+          mv ./SmartEVSE-3/.pio/build/release/firmware.signed.bin ./SmartEVSE-3/distribution/firmware.debug.signed.bin
+          # prevent the .bin files are gathered in .pio directory in the dists-zip file:
+          cp -a ./SmartEVSE-3/HowToFlash.txt ./SmartEVSE-3/distribution
       
       # Combined upload for all artifacts using v4
       - name: Upload all artifacts
@@ -110,8 +117,7 @@ jobs:
         with:
           name: dists_zip
           path: |
-            ./SmartEVSE-3/.pio/build/release/*.bin
-            ./SmartEVSE-3/HowToFlash.txt
+            ./SmartEVSE-3/distribution/*
           retention-days: 10
           compression-level: 6
           overwrite: true
