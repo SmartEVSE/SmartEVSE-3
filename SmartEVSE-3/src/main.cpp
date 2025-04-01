@@ -40,8 +40,6 @@
 #include <driver/adc.h>
 #include <esp_adc_cal.h>
 
-#include <soc/rtc_io_struct.h>
-
 //OCPP includes
 #if ENABLE_OCPP && defined(SMARTEVSE_VERSION) //run OCPP only on ESP32
 #include <MicroOcpp.h>

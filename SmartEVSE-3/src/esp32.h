@@ -260,10 +260,6 @@ bool ocppLockingTxDefined();
 //#define BUTTON2 1                   // renamed from prototype!
 #define BUTTON3 2
 
-#define RTC_SDA 6                   // RTC interface
-#define RTC_SCL 7
-#define RTC_INT 16
-
 // New top board
 #define WCH_NRST 8                  // microcontroller program interface
 #define WCH_SWDIO 17                // unconnected!!! pin on 16pin connector is used for LCD power
@@ -280,14 +276,6 @@ bool ocppLockingTxDefined();
 #define LCD_CS 1
 
 #define LCD_CHANNEL 5               // PWM channel
-
-
-// RTC power sources
-#define BATTERY 0x0C                // Trickle charger (TCE) disabled, Level Switching Mode (LSM) enabled.
-#define SUPERCAP 0x24               // Trickle charger (TCE) enabled, Direct Switching Mode (DSM) enabled.
-
-
-
 
 // ESP-WCH Communication States
 #define COMM_OFF 0
@@ -396,16 +384,6 @@ bool ocppLockingTxDefined();
 
 /* V2GTP */
 #define V2GTP_HEADER_SIZE 8 /* header has 8 bytes */
-
-struct rtcTime {
-    uint8_t Status;
-    uint8_t Hour;
-    uint8_t Minute;
-    uint8_t Second;
-    uint8_t Date;
-    uint8_t Month;
-    uint16_t Year;
-} ;
 
 #endif //SMARTEVSE_VERSION
 

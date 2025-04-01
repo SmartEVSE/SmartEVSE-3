@@ -26,7 +26,6 @@
 #include <soc/sens_struct.h>
 #include <driver/adc.h>
 #include <esp_adc_cal.h>
-
 #include <soc/rtc_io_struct.h>
 
 #include "esp32.h"
@@ -49,13 +48,10 @@
 #include <driver/uart.h>
 
 #include "wchisp.h"
-#include "Melopero_RV3028.h"
 #include "qca.h"
 
 SPIClass QCA_SPI1(FSPI);  // The ESP32-S3 has two usable SPI busses FSPI and HSPI
 SPIClass LCD_SPI2(HSPI);
-
-Melopero_RV3028 rtc;
 
 /*    Commands send from ESP32 to CH32V203 over Uart
 /    cmd        Name           Answer/data        Comments
@@ -73,9 +69,6 @@ Melopero_RV3028 rtc;
 
 */
 
-struct rtcTime rtcTS;
-
-uint8_t RTCBackupSource = BATTERY;
 uint8_t PwrPanic = 1;           // enabled
 uint8_t CommState = COMM_OFF;
 uint8_t ModemPwr = 1;           // Enable the power to the Modem
@@ -2555,9 +2548,6 @@ void setup() {
     
 
 #else //SMARTEVSE_VERSION v4
-    uint8_t writeValue;
-    uint8_t readValue;
-    uint16_t reg16;
 
     //lower the CPU frequency to 160, 80, 40 MHz
     setCpuFrequencyMhz(160);
@@ -2568,10 +2558,6 @@ void setup() {
     pinMode(SPI_MISO, INPUT);
     pinMode(SPI_MOSI, OUTPUT);
     pinMode(PIN_QCA700X_RESETN, OUTPUT);
-
-    pinMode(RTC_SCL, INPUT);                  // set to input for now...
-    pinMode(RTC_SDA, INPUT);
-    pinMode(RTC_INT, INPUT);
 
     pinMode(BUTTON1, INPUT_PULLUP);
     pinMode(BUTTON3, INPUT_PULLUP);
@@ -2641,83 +2627,6 @@ void setup() {
     ledcSetup(LCD_CHANNEL, 5000, 8);            // LCD channel 5, 5kHz, 8 bit
     ledcAttachPin(LCD_LED, LCD_CHANNEL);
     ledcWrite(LCD_CHANNEL, 255);                // Set LCD backlight brightness 0-255
-
-
-    //delay(3000);
-
-    // Initialize and create the RTC device
-    Wire.setPins(RTC_SDA, RTC_SCL);
-    Wire.begin();
-    rtc.initI2C();
-
-    // Read powerdown timestamp values from RTC
-    rtcTS = {
-        rtc.readFromRegister(STATUS_REGISTER_ADDRESS),
-        rtc.getTSHour(),
-        rtc.getTSMinute(),
-        rtc.getTSSecond(),
-        rtc.getTSDate(),
-        rtc.getTSMonth(),
-        rtc.getTSYear() };
-
-    // First power on, or backup power < 0.8V
-    if (rtcTS.Status & 0x01) _LOG_D("rtc power on Reset, data unitialized!\n");
-    // Event Flag set?
-    if (rtcTS.Status & 0x02) {
-        _LOG_D("Powerdown Timestamp %2u:%02u:%02u %u-%u-%u \n",rtcTS.Hour, rtcTS.Minute, rtcTS.Second, rtcTS.Date, rtcTS.Month, rtcTS.Year);
-    }
-
-    // Setup the device to use the EEPROM memory
-    rtc.useEEPROM(true);                                      // disable 24H EEprom refresh before modifying EEprom
-
-    rtc.writeToRegister(STATUS_REGISTER_ADDRESS, 0);          // reset Status register
-    rtc.writeToRegister(CONTROL2_REGISTER_ADDRESS, 0);        // TSE bit 0, EIE = 0, 24H clock
-    rtc.writeToRegister(0x13, 5);                             // Set TSR bit, to reset all Time Stamp registers to 00h.
-                                                              // TSS bit 1, Automatic Backup Switchover is selected as Time Stamp source.
-    rtc.writeToRegister(CONTROL2_REGISTER_ADDRESS, 0x80);     // TSE bit 1, enable the Time Stamp function
-
-    readValue = rtc.readFromRegister(0x37);                   // preserve MSB as it's part of the crystal calibration
-    writeValue = (readValue & 0x80) | RTCBackupSource;        // Level Switching Mode (LSM) is used when operating from Battery as Vbat > Vdd (Idd=115nA)
-                                                              // Direct Switching Mode (DSM) is used with the supercap
-                                                              // Trickle charge is only enabled when Supercap is used as backup source. (Idd=95nA)
-    if (writeValue != readValue) {
-
-        rtc.writeToRegister(0x37, writeValue);                // Write settings
-        //readValue = rtc.readFromRegister(0x37) & 0x7f;        // ignore msb
-
-        rtc.waitforEEPROM();                                  // wait for EEprom to be ready.
-
-        rtc.writeToRegister(EEPROM_COMMAND_ADDRESS, 0x00);    // Refresh Ram -> EEprom
-        rtc.writeToRegister(EEPROM_COMMAND_ADDRESS, 0x11);    // Refresh Ram -> EEprom
-    }
-    readValue = readValue & 0x7f;
-
-    if (readValue == SUPERCAP) {
-        _LOG_D("RTC: Charging capacitor.\n");
-    } else {
-        if (readValue == BATTERY) {
-            _LOG_D("RTC: Battery configured.\n");
-        } else {
-            _LOG_A("RTC: capacitor not Charging!\n");
-        }
-    }
-
-    rtc.andOrRegister(CONTROL1_REGISTER_ADDRESS, 0xf7, 0x00); // re-activate 24H EEprom refresh
-
-    // RTC time valid?
-    if ((rtcTS.Status & 0x01) == 0) {
-        _LOG_D("Powerup at %2u:%02u:%02u %u-%u-%u \n",rtc.getHour(), rtc.getMinute(), rtc.getSecond(), rtc.getDate(), rtc.getMonth(), rtc.getYear());
-
-        // read rtc, and update timeinfo struct
-        timeinfo.tm_year = rtc.getYear() -1900;
-        timeinfo.tm_mon = rtc.getMonth() -1;
-        timeinfo.tm_wday = rtc.getWeekday();
-        timeinfo.tm_mday = rtc.getDate();
-        timeinfo.tm_hour = rtc.getHour();
-        timeinfo.tm_min = rtc.getMinute();
-        timeinfo.tm_sec = rtc.getSecond();
-
-    }
 
     Config = 0;         // Configuration (0:Socket / 1:Fixed Cable)
     Mode = 1;           // EVSE mode (0:Normal / 1:Smart / 2:Solar)
@@ -2830,6 +2739,7 @@ void setup() {
 #else //SMARTEVSE_VERSION
     // Search for QCA modem
     //
+    uint16_t reg16;
     digitalWrite(PIN_QCA700X_RESETN, HIGH);         // get modem out of reset
     _LOG_D("Searching for modem.. \n");
 
