@@ -630,7 +630,7 @@ void FirmwareUpdate(void *parameter) {
     //_LOG_A("DINGO: url=%s.\n", downloadUrl);
     if (forceUpdate(downloadUrl, 1)) {
 #ifndef SENSORBOX_VERSION
-        _LOG_A("Firmware update succesfull; rebooting as soon as no EV is connected.\n");
+        _LOG_A("Firmware update succesfull; rebooting as soon as no EV is charging.\n");
 #else
         _LOG_A("Firmware update succesfull; rebooting.\n");
 #endif
@@ -1186,7 +1186,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
 #ifndef SMARTEVSE_VERSION //sensorbox
             mg_http_reply(c, 200, "", "Rebooting after 5s....");
 #else
-            mg_http_reply(c, 200, "", "Rebooting 5s after EV disconnect....");
+            mg_http_reply(c, 200, "", "Rebooting 5s after EV stops charging....");
 #endif
         } else if (mg_http_match_uri(hm, "/settings") && !memcmp("POST", hm->method.buf, hm->method.len)) {
             DynamicJsonDocument doc(64);

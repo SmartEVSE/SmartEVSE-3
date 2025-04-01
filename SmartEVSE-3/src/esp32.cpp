@@ -2945,13 +2945,13 @@ void loop() {
         _LOG_I ("STATE: %s Error: %u StartCurrent: -%i ChargeDelay: %u SolarStopTimer: %u NoCurrent: %u Imeasured: %.1f A IsetBalanced: %.1f A, MainsMeter.Timeout=%u, EVMeter.Timeout=%u.\n", getStateName(State), ErrorFlags, StartCurrent, ChargeDelay, SolarStopTimer,  NoCurrent, (float)MainsMeter.Imeasured/10, (float)IsetBalanced/10, MainsMeter.Timeout, EVMeter.Timeout);
         _LOG_I("L1: %.1f A L2: %.1f A L3: %.1f A Isum: %.1f A\n", (float)MainsMeter.Irms[0]/10, (float)MainsMeter.Irms[1]/10, (float)MainsMeter.Irms[2]/10, (float)Isum/10);
 
-        // a reboot is requested, but we kindly wait until no EV connected
-#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40 //TODO
-        if (shouldReboot && State == STATE_A) {                                 //slaves in STATE_C continue charging when Master reboots
-#else  //SMARTEVSE_VERSION
+#if AUTOMATED_TESTING
         if (shouldReboot) {
-#endif //SMARTEVSE_VERSION
+#else
+        // a reboot is requested, but we kindly wait until EV is not charging
+        if (shouldReboot && State != STATE_C) {                                 //slaves in STATE_C continue charging when Master reboots
             delay(5000);                                                        //give user some time to read any message on the webserver
+#endif
             ESP.restart();
         }
 
