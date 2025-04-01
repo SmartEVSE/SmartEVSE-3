@@ -178,8 +178,8 @@ void ModbusRequestLoop(void);
 #endif
 uint8_t AccessTimer = 0; //FIXME ESP32 vs CH32
 int8_t TempEVSE = 0;                                                        // Temperature EVSE in deg C (-50 to +125)
-uint8_t ButtonState = 0x0f;                                                 // Holds latest push Buttons state (LSB 3:0)
-uint8_t OldButtonState = 0x0f;                                              // Holds previous push Buttons state (LSB 3:0)
+uint8_t ButtonState = 0x07;                                                 // Holds latest push Buttons state (LSB 2:0)
+uint8_t OldButtonState = 0x07;                                              // Holds previous push Buttons state (LSB 2:0)
 uint8_t LCDNav = 0;
 uint8_t SubMenu = 0;
 uint8_t ChargeDelay = 0;                                                    // Delays charging at least 60 seconds in case of not enough current available. //TODO CH32 vs ESP32
@@ -2600,7 +2600,13 @@ void Timer10ms_singlerun(void) {
     getButtonState();
 
     // When one or more button(s) are pressed, we call GLCDMenu
-    if (((ButtonState != 0x07) || (ButtonState != OldButtonState)) && !LCDlock) GLCDMenu(ButtonState);
+    if (((ButtonState != 0x07) || (ButtonState != OldButtonState)) ) {
+        // RCM was tripped, but RCM level is back to normal
+        if (getItemValue(MENU_RCMON) == 1 && (ErrorFlags & RCM_TRIPPED) && RCMFAULT == LOW) {
+            ErrorFlags &= ~RCM_TRIPPED;         // Clear RCM error bit
+        }
+        if (!LCDlock) GLCDMenu(ButtonState);    // LCD is unlocked, enter menu
+    }
 
     // Update/Show Helpmenu
     if (LCDNav > MENU_ENTER && LCDNav < MENU_EXIT && (!SubMenu)) GLCDHelp();
