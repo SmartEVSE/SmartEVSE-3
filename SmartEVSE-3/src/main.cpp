@@ -790,6 +790,10 @@ void setState(uint8_t NewState) { //c
 #endif //SMARTEVSE_VERSION
 }
 
+// make it possible to call setAccess with an int parameter
+void setAccess(uint8_t Access) { //c
+    setAccess((AccessStatus_t) Access);
+}
 
 // the Access_bit is owned by the ESP32
 // because it is highly subject to human interaction
@@ -2052,6 +2056,7 @@ void CheckSerialComm(void) {
     ret = strstr(SerialBuf, token);
     if (ret != NULL) printf("version@%lu\n", (unsigned long) WCH_VERSION);          // Send WCH software version
 
+    uint8_t tmp;
     CALL_ON_RECEIVE_PARAM(State@, setState)
     CALL_ON_RECEIVE_PARAM(SetCPDuty@, SetCPDuty)
     CALL_ON_RECEIVE_PARAM(SetCurrent@, SetCurrent)
@@ -2067,7 +2072,7 @@ void CheckSerialComm(void) {
     SET_ON_RECEIVE(Config@, Config)
     SET_ON_RECEIVE(Lock@, Lock)
     SET_ON_RECEIVE(Mode@, Mode)
-    SET_ON_RECEIVE(Access@, AccessStatus)
+    SET_ON_RECEIVE(Access@, tmp); if (ret) AccessStatus = (AccessStatus_t) tmp;
     SET_ON_RECEIVE(OverrideCurrent@, OverrideCurrent)
     SET_ON_RECEIVE(LoadBl@, LoadBl)
     SET_ON_RECEIVE(MaxMains@, MaxMains)
@@ -2101,10 +2106,9 @@ void CheckSerialComm(void) {
     SET_ON_RECEIVE(EMPDivisor@, EMConfig[EM_CUSTOM].PDivisor)
     SET_ON_RECEIVE(EMERegister@, EMConfig[EM_CUSTOM].ERegister)
     SET_ON_RECEIVE(EMEDivisor@, EMConfig[EM_CUSTOM].EDivisor)
-    uint8_t tmp;
-    SET_ON_RECEIVE(EMDataType@, tmp); EMConfig[EM_CUSTOM].DataType = (mb_datatype) tmp;
+    SET_ON_RECEIVE(EMDataType@, tmp); if (ret) EMConfig[EM_CUSTOM].DataType = (mb_datatype) tmp;
     SET_ON_RECEIVE(EMFunction@, EMConfig[EM_CUSTOM].Function)
-    SET_ON_RECEIVE(EnableC2@, tmp); EnableC2 = (EnableC2_t) tmp;
+    SET_ON_RECEIVE(EnableC2@, tmp); if (ret) EnableC2 = (EnableC2_t) tmp;
     SET_ON_RECEIVE(maxTemp@, maxTemp)
     SET_ON_RECEIVE(PwrPanic@, PwrPanic)
     SET_ON_RECEIVE(ModemPwr@, ModemPwr)
