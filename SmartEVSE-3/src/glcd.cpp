@@ -586,7 +586,7 @@ extern uint16_t Balanced0;
     }
 
                                                                                 // MODE NORMAL
-    if (Mode == MODE_NORMAL || !Access_bit) {
+    if (Mode == MODE_NORMAL || AccessStatus == OFF) {
 
         glcd_clrln(0, 0x00);
         glcd_clrln(1, 0x04);                                                    // horizontal line
@@ -667,13 +667,15 @@ extern uint16_t Balanced0;
             sprintf(Str, "%u.%uA",Balanced0 / 10, Balanced0 % 10);
             GLCD_print_buf2(4, Str);
         } else {                                                                // STATE A and STATE B
-            if (Access_bit) {
+            if (AccessStatus == ON) {
                 GLCD_print_buf2(2, (const char *) "READY TO");
                 sprintf(Str, "CHARGE %u", ChargeDelay);
                 if (ChargeDelay) {
                     // BacklightTimer = BACKLIGHT;
                 } else Str[6] = '\0';
                 GLCD_print_buf2(4, Str);
+            } else if (AccessStatus == PAUSE) {
+                GLCD_print_buf2(2, (const char *) "PAUSE");
             } else {
 #if ENABLE_OCPP && defined(SMARTEVSE_VERSION) //run OCPP only on ESP32
                 if (OcppMode &&                                  // OCPP enabled
@@ -873,6 +875,8 @@ extern uint16_t Balanced0;
         } else if (State == STATE_MODEM_REQUEST || State == STATE_MODEM_WAIT || State == STATE_MODEM_DONE) {                                          // Modem states
             GLCD_print_buf2(5, (const char *) "MODEM");
 #endif
+        } else if (AccessStatus == PAUSE) {
+                    GLCD_print_buf2(5, "PAUSE");
         } else if (State != STATE_C) {
                 switch (Switching_To_Single_Phase) {
                     case FALSE:
@@ -1181,7 +1185,7 @@ void GLCDMenu(uint8_t Buttons) {
         ButtonTimer = millis();
     } else if (LCDNav == MENU_OFF && ((ButtonTimer + 2000) < millis() )) {
         LCDNav = 0;                                                             // Charging canceled
-        setAccess(false);
+        setAccess(OFF);
         ButtonRelease = 1;
     } else if ((LCDNav == MENU_OFF) && (Buttons == 0x7)) {                      // Button 1 released before entering menu?
         //if < button is pressed shorter then 2 seconds we are switching from Smart mode to Solar mode and vice versa
@@ -1191,12 +1195,12 @@ void GLCDMenu(uint8_t Buttons) {
         ButtonRelease = 0;
         GLCD();
     // start charging if > button is pressed longer then 2 seconds
-    } else if ((Access_bit == 0) && (LCDNav == 0) && (Buttons == 0x3) && (ButtonRelease == 0)) {     // Button 3 pressed ?
+    } else if ((AccessStatus == OFF) && (LCDNav == 0) && (Buttons == 0x3) && (ButtonRelease == 0)) {     // Button 3 pressed ?
         LCDNav = MENU_ON;                                                       // about to start charging
         ButtonTimer = millis();
     } else if (LCDNav == MENU_ON && ((ButtonTimer + 2000) < millis() )) {
         LCDNav = 0;                                                             // Charging canceled
-        setAccess(true);
+        setAccess(ON);
         ButtonRelease = 1;
     } else if ((LCDNav == MENU_ON) && (Buttons == 0x7)) {                      // Button 1 released before entering menu?
         LCDNav = 0;

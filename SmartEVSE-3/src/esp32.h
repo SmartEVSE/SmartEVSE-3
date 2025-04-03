@@ -135,7 +135,7 @@ extern uint8_t ButtonState;                                                     
 extern uint8_t OldButtonState;                                                  // Holds previous push Buttons state (LSB 2:0)
 extern uint8_t ChargeDelay;                                                     // Delays charging in seconds.
 extern uint8_t TestState;
-extern uint8_t Access_bit;
+extern AccessStatus_t AccessStatus;
 extern uint16_t CardOffset;
 
 extern uint16_t SolarStopTimer;
@@ -225,7 +225,7 @@ void read_settings();
 void write_settings(void);
 void setSolarStopTimer(uint16_t Timer);
 void setState(uint8_t NewState);
-void setAccess(bool Access);
+void setAccess(AccessStatus_t Access);
 void setOverrideCurrent(uint16_t Current);
 void SetCPDuty(uint32_t DutyCycle);
 uint8_t setItemValue(uint8_t nav, uint16_t val);

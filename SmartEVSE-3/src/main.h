@@ -115,7 +115,6 @@
 #define EMCUSTOM_EREGISTER 0
 #define EMCUSTOM_EDIVISOR 8
 #define RFID_READER 0
-#define ACCESS_BIT 1
 #define WIFI_MODE 0
 #define CARD_OFFSET 0
 #define ENABLE_C2 ALWAYS_ON
@@ -325,6 +324,7 @@ extern void PowerPanicESP();
 
 extern uint8_t LCDlock;
 enum Single_Phase_t { FALSE, GOING_TO_SWITCH, AFTER_SWITCH };
+enum AccessStatus_t { OFF, ON, PAUSE };
 extern void CalcBalancedCurrent(char mod);
 extern void write_settings(void);
 extern void CalcIsum(void);

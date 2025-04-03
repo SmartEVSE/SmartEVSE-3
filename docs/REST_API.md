@@ -46,6 +46,7 @@ to your curl POST command. -d ''
 <br>&emsp;&emsp;1: NORMAL
 <br>&emsp;&emsp;2: SOLAR
 <br>&emsp;&emsp;3: SMART
+<br>&emsp;&emsp;4: PAUSE
 
 * stop_timer
 

@@ -134,7 +134,6 @@ extern const char StrStateName[15][13];
 const char StrStateNameWeb[15][17] = {"Ready to Charge", "Connected to EV", "Charging", "D", "Request State B", "State B OK", "Request State C", "State C OK", "Activate", "Charging Stopped", "Stop Charging", "Modem Setup", "Modem Request", "Modem Done", "Modem Denied"};
 const char StrErrorNameWeb[9][20] = {"None", "No Power Available", "Communication Error", "Temperature High", "EV Meter Comm Error", "RCM Tripped", "Waiting for Solar", "Test IO", "Flash Error"};
 const char StrMode[3][8] = {"Normal", "Smart", "Solar"};
-const char StrAccessBit[2][6] = {"Deny", "Allow"};
 const char StrRFIDStatusWeb[8][20] = {"Ready to read card","Present", "Card Stored", "Card Deleted", "Card already stored", "Card not in storage", "Card Storage full", "Invalid" };
 
 // Global data
@@ -567,7 +566,7 @@ void mqtt_receive_callback(const String topic, const String payload) {
             ToModemWaitStateTimer = 0;
             ToModemDoneStateTimer = 0;
             LeaveModemDoneStateTimer = 0;
-            setAccess(0);
+            setAccess(OFF);
         } else if (payload == "Normal") {
             setMode(MODE_NORMAL);
         } else if (payload == "Solar") {
@@ -576,6 +575,8 @@ void mqtt_receive_callback(const String topic, const String payload) {
         } else if (payload == "Smart") {
             setOverrideCurrent(0);
             setMode(MODE_SMART);
+        } else if (payload == "Pause") {
+            setAccess(PAUSE);
         }
     } else if (topic == MQTTprefix + "/Set/CustomButton") {
         if (payload == "On") {
@@ -890,12 +891,12 @@ void mqttPublishData() {
             MQTTclient.publish(MQTTprefix + "/EVCurrentL3", EVMeter.Irms[2], false, 0);
         }
         MQTTclient.publish(MQTTprefix + "/ESPTemp", TempEVSE, false, 0);
-        MQTTclient.publish(MQTTprefix + "/Mode", Access_bit == 0 ? "Off" : Mode > 3 ? "N/A" : StrMode[Mode], true, 0);
+        MQTTclient.publish(MQTTprefix + "/Mode", AccessStatus == OFF ? "Off" : AccessStatus == PAUSE ? "Pause" : Mode > 3 ? "N/A" : StrMode[Mode], true, 0);
         MQTTclient.publish(MQTTprefix + "/MaxCurrent", MaxCurrent * 10, true, 0);
         MQTTclient.publish(MQTTprefix + "/CustomButton", CustomButton ? "On" : "Off", false, 0);
         MQTTclient.publish(MQTTprefix + "/ChargeCurrent", Balanced0, true, 0);
         MQTTclient.publish(MQTTprefix + "/ChargeCurrentOverride", OverrideCurrent, true, 0);
-        MQTTclient.publish(MQTTprefix + "/Access", StrAccessBit[Access_bit], true, 0);
+        MQTTclient.publish(MQTTprefix + "/Access", AccessStatus == OFF ? "Deny" : AccessStatus == ON ? "Allow" : AccessStatus == PAUSE ? "Pause" : "N/A", true, 0);
         MQTTclient.publish(MQTTprefix + "/RFID", !RFIDReader ? "Not Installed" : RFIDstatus >= 8 ? "NOSTATUS" : StrRFIDStatusWeb[RFIDstatus], true, 0);
         if (RFIDReader && RFIDReader != 6) { //RFIDLastRead not updated in Remote/OCPP mode
             char buf[13];
@@ -1007,7 +1008,7 @@ void read_settings() {
         Config = preferences.getUChar("Config", CONFIG); 
         Lock = preferences.getUChar("Lock", LOCK); 
         Mode = preferences.getUChar("Mode", MODE); 
-        Access_bit = preferences.getUChar("Access", ACCESS_BIT);
+        AccessStatus = (AccessStatus_t) preferences.getUChar("Access", ON);
         if (preferences.isKey("CardOffset")) {
             CardOffset = preferences.getUChar("CardOffset", CARD_OFFSET);
             //write the old 8 bits value to the new 16 bits value
@@ -1082,7 +1083,7 @@ void write_settings(void) {
     preferences.putUChar("Config", Config); 
     preferences.putUChar("Lock", Lock); 
     preferences.putUChar("Mode", Mode); 
-    preferences.putUChar("Access", Access_bit);
+    preferences.putUChar("Access", AccessStatus);
     preferences.putUShort("CardOffs16", CardOffset);
     preferences.putUChar("LoadBl", LoadBl); 
     preferences.putUShort("MaxMains", MaxMains); 
@@ -1180,9 +1181,12 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
       if (!memcmp("GET", hm->method.buf, hm->method.len)) {                     // if GET
         String mode = "N/A";
         int modeId = -1;
-        if(Access_bit == 0)  {
+        if(AccessStatus == OFF)  {
             mode = "OFF";
             modeId=0;
+        } else if(AccessStatus == PAUSE)  {
+            mode = "PAUSE";
+            modeId=4;
         } else {
             switch(Mode) {
                 case MODE_NORMAL: mode = "NORMAL"; modeId=1; break;
@@ -1236,7 +1240,7 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
         doc["evse"]["temp"] = TempEVSE;
         doc["evse"]["temp_max"] = maxTemp;
         doc["evse"]["connected"] = evConnected;
-        doc["evse"]["access"] = Access_bit == 1;
+        doc["evse"]["access"] = AccessStatus;
         doc["evse"]["mode"] = Mode;
         doc["evse"]["loadbl"] = LoadBl;
         doc["evse"]["pwm"] = CurrentPWM;
@@ -1441,7 +1445,7 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
                 if (!StoreTimeString(DelayedStartTimeStr, &DelayedStartTime)) {
                     //parse OK
                     if (DelayedStartTime.diff > 0)
-                        setAccess(0);                         //switch to OFF, we are Delayed Charging
+                        setAccess(OFF);                         //switch to OFF, we are Delayed Charging
                     else {//we are in the past so no delayed charging
                         DelayedStartTime.epoch2 = DELAYEDSTARTTIME;
                         DelayedStopTime.epoch2 = DELAYEDSTOPTIME;
@@ -1492,7 +1496,7 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
                     ToModemDoneStateTimer = 0;
                     LeaveModemDoneStateTimer = 0;
                     LeaveModemDeniedStateTimer = 0;
-                    setAccess(0);
+                    setAccess(OFF);
                     break;
                 case 1:
                     setMode(MODE_NORMAL);
@@ -1502,6 +1506,9 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
                     break;
                 case 3:
                     setMode(MODE_SMART);
+                    break;
+                case 4: // PAUSE
+                    setAccess(PAUSE);
                     break;
                 default:
                     mode = "Value not allowed!";
@@ -2268,7 +2275,7 @@ void ocppDeinit() {
 
     if (OcppTrackPermitsCharge) {
         _LOG_A("OCPP unset Access_bit\n");
-        setAccess(false);
+        setAccess(OFF);
     }
 
     OcppTrackPermitsCharge = false;
@@ -2326,21 +2333,21 @@ void ocppLoop() {
         // RFID reader in OCPP mode or RFID fully disabled - OCPP controls Access_bit
         if (!OcppTrackPermitsCharge && ocppPermitsCharge()) {
             _LOG_A("OCPP set Access_bit\n");
-            setAccess(true);
-        } else if (Access_bit && !ocppPermitsCharge()) {
+            setAccess(ON);
+        } else if (AccessStatus == OFF && !ocppPermitsCharge()) {
             _LOG_A("OCPP unset Access_bit\n");
-            setAccess(false);
+            setAccess(OFF);
         }
         OcppTrackPermitsCharge = ocppPermitsCharge();
 
         // Check if OCPP charge permission has been revoked by other module
         if (OcppTrackPermitsCharge && // OCPP has set Acess_bit and still allows charge
-                !Access_bit) { // Access_bit is not active anymore
+                AccessStatus == OFF) { // Access_bit is not active anymore
             endTransaction(nullptr, "Other");
         }
     } else {
         // Built-in RFID store enabled - OCPP does not control Access_bit, but starts transactions when Access_bit is set
-        if (Access_bit && !OcppTrackAccessBit && !getTransaction() && isOperative()) {
+        if ((AccessStatus == ON || AccessStatus == PAUSE ) && !OcppTrackAccessBit && !getTransaction() && isOperative()) {
             // Access_bit has been set
             OcppTrackAccessBit = true;
             _LOG_A("OCPP detected Access_bit set\n");
@@ -2351,7 +2358,7 @@ void ocppLoop() {
                 sprintf(buf, "%02X%02X%02X%02X%02X%02X%02X", RFID[0], RFID[1], RFID[2], RFID[3], RFID[4], RFID[5], RFID[6]);
             }
             beginTransaction_authorized(buf);
-        } else if (!Access_bit && (OcppTrackAccessBit || (getTransaction() && getTransaction()->isActive()))) {
+        } else if (AccessStatus == OFF && (OcppTrackAccessBit || (getTransaction() && getTransaction()->isActive()))) {
             OcppTrackAccessBit = false;
             _LOG_A("OCPP detected Access_bit unset\n");
             char buf[15];
@@ -2872,8 +2879,8 @@ void loop() {
             time_t now = time(nullptr);             //get current local time
             DelayedStartTime.diff = DelayedStartTime.epoch2 - (mktime(localtime(&now)) - EPOCH2_OFFSET);
             if (DelayedStartTime.diff > 0) {
-                if (Access_bit != 0 && (DelayedStopTime.epoch2 == 0 || DelayedStopTime.epoch2 > DelayedStartTime.epoch2))
-                    setAccess(0);                         //switch to OFF, we are Delayed Charging
+                if (AccessStatus != OFF && (DelayedStopTime.epoch2 == 0 || DelayedStopTime.epoch2 > DelayedStartTime.epoch2))
+                    setAccess(OFF);                         //switch to OFF, we are Delayed Charging
             }
             else {
                 //starttime is in the past so we are NOT Delayed Charging, or we are Delayed Charging but the starttime has passed!
@@ -2881,7 +2888,7 @@ void loop() {
                     DelayedStartTime.epoch2 += 24 * 3600;                           //add 24 hours so we now have a new starttime
                 else
                     DelayedStartTime.epoch2 = DELAYEDSTARTTIME;
-                setAccess(1);
+                setAccess(ON);
             }
         }
         //only update StopTime.diff if starttime has already passed
@@ -2895,7 +2902,7 @@ void loop() {
                     DelayedStopTime.epoch2 += 24 * 3600;                        //add 24 hours so we now have a new starttime
                 else
                     DelayedStopTime.epoch2 = DELAYEDSTOPTIME;
-                setAccess(0);                         //switch to OFF
+                setAccess(OFF);                         //switch to OFF
             }
         }
         //_LOG_A("DINGO: firmwareUpdateTimer just before decrement=%i.\n", firmwareUpdateTimer);

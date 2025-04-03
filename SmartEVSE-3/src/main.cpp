@@ -196,8 +196,7 @@ bool PilotDisconnected = false;
 uint8_t PilotDisconnectTime = 0;                                            // Time the Control Pilot line should be disconnected (Sec)
 #endif
 uint8_t NodeNewMode = 0;
-uint8_t Access_bit = 0;                                                     // 0:No Access 1:Access to SmartEVSE
-
+AccessStatus_t AccessStatus = OFF;                                          // 0: OFF, 1: ON, 2: PAUSE
 uint8_t ConfigChanged = 0;
 
 uint16_t SolarStopTimer = 0;
@@ -342,11 +341,11 @@ void Button::HandleSwitch(void) {
         // Switch input pulled low
         switch (Switch) {
             case 1: // Access Button
-                setAccess(!Access_bit);                             // Toggle Access bit on/off
-                _LOG_I("Access: %d\n", Access_bit);
+                setAccess(AccessStatus == ON ? OFF : ON);           // Toggle AccessStatus OFF->ON->OFF (old behaviour) or PAUSE->ON
+                _LOG_I("Access: %d\n", AccessStatus);
                 break;
             case 2: // Access Switch
-                setAccess(true);
+                setAccess(ON);
                 break;
             case 3: // Smart-Solar Button
                 break;
@@ -385,7 +384,7 @@ void Button::HandleSwitch(void) {
         // Switch input released
         switch (Switch) {
             case 2: // Access Switch
-                setAccess(false);
+                setAccess(OFF);
                 break;
             case 3: // Smart-Solar Button
                 if (millis() < TimeOfPress + 1500) {                            // short press
@@ -488,7 +487,7 @@ void setMode(uint8_t NewMode) {
         return;
 
     // Take care of extra conditionals/checks for custom features
-    setAccess(!DelayedStartTime.epoch2); //if DelayedStartTime not zero then we are Delayed Charging
+    setAccess(DelayedStartTime.epoch2 ? OFF : ON); //if DelayedStartTime not zero then we are Delayed Charging
     if (NewMode == MODE_SOLAR) {
         // Reset OverrideCurrent if mode is SOLAR
         setOverrideCurrent(0);
@@ -503,7 +502,7 @@ void setMode(uint8_t NewMode) {
         if ((Mode != MODE_SOLAR && NewMode == MODE_SOLAR) || (Mode == MODE_SOLAR && NewMode != MODE_SOLAR)) {
             //we are switching from non-solar to solar
             //since we EnableC2 == SOLAR_OFF C2 is turned On now, and should be turned off
-            setAccess(0);                                                       //switch to OFF
+            setAccess(OFF);                                                     //switch to OFF
             switchOnLater = true;
         }
     }
@@ -525,7 +524,7 @@ void setMode(uint8_t NewMode) {
     SEND_TO_CH32(Mode); //d
 
     if (switchOnLater)
-        setAccess(1);
+        setAccess(ON);
 
     //make mode and start/stoptimes persistent on reboot
     if (preferences.begin("settings", false) ) {                        //false = write mode
@@ -811,13 +810,13 @@ void setState(uint8_t NewState) { //c
 
 // same for Mode/setMode
 
-void setAccess(bool Access) { //c
+void setAccess(AccessStatus_t Access) { //c
 #ifdef SMARTEVSE_VERSION //v3 and v4
-    Access_bit = Access;
+    AccessStatus = Access;
 #if SMARTEVSE_VERSION >= 40
-    Serial1.printf("Access@%u\n", Access_bit); //d
+    Serial1.printf("Access@%u\n", AccessStatus); //d
 #endif
-    if (Access == 0) {
+    if (Access == OFF || Access == PAUSE) {
         //TODO:setStatePowerUnavailable() ?
         if (State == STATE_C) setState(STATE_C1);                               // Determine where to switch to.
         else if (State != STATE_C1 && (State == STATE_B || State == STATE_MODEM_REQUEST || State == STATE_MODEM_WAIT || State == STATE_MODEM_DONE || State == STATE_MODEM_DENIED)) setState(STATE_B1);
@@ -825,7 +824,7 @@ void setAccess(bool Access) { //c
 
     //make mode and start/stoptimes persistent on reboot
     if (preferences.begin("settings", false) ) {                        //false = write mode
-        preferences.putUChar("Access", Access_bit);
+        preferences.putUChar("Access", AccessStatus);
         preferences.putUShort("CardOffs16", CardOffset);
         preferences.end();
     }
@@ -1525,7 +1524,7 @@ void Timer1S_singlerun(void) {
 
     if (AccessTimer && State == STATE_A) {
         if (--AccessTimer == 0) {
-            setAccess(false);                                           // re-lock EVSE
+            setAccess(OFF);                                             // re-lock EVSE
         }
     } else AccessTimer = 0;                                             // Not in state A, then disable timer
 
@@ -2068,7 +2067,7 @@ void CheckSerialComm(void) {
     SET_ON_RECEIVE(Config@, Config)
     SET_ON_RECEIVE(Lock@, Lock)
     SET_ON_RECEIVE(Mode@, Mode)
-    SET_ON_RECEIVE(Access@, Access_bit)
+    SET_ON_RECEIVE(Access@, AccessStatus)
     SET_ON_RECEIVE(OverrideCurrent@, OverrideCurrent)
     SET_ON_RECEIVE(LoadBl@, LoadBl)
     SET_ON_RECEIVE(MaxMains@, MaxMains)
@@ -2161,7 +2160,7 @@ static unsigned int locktimer = 0, unlocktimer = 0;
     // Check if the cable lock is used
     if (!Config && Lock) {                                      // Socket used and Cable lock enabled?
         // UnlockCable takes precedence over LockCable
-        if ((RFIDReader == 2 && Access_bit == 0) ||             // One RFID card can Lock/Unlock the charging socket (like a public charging station)
+        if ((RFIDReader == 2 && AccessStatus == OFF) ||        // One RFID card can Lock/Unlock the charging socket (like a public charging station)
 #if ENABLE_OCPP && defined(SMARTEVSE_VERSION) //run OCPP only on ESP32
         (OcppMode &&!OcppForcesLock) ||
 #endif
@@ -2448,11 +2447,11 @@ static unsigned int LedPwm = 0;                                                /
         GreenPwm = 0;
         BluePwm = 0;
 #endif //ENABLE_OCPP
-    } else if (Access_bit == 0 && CustomButton) {
+    } else if (AccessStatus == OFF && CustomButton) {
         RedPwm = ColorCustom[0];
         GreenPwm = ColorCustom[1];
         BluePwm = ColorCustom[2];
-    } else if (Access_bit == 0 || State == STATE_MODEM_DENIED) {
+    } else if (AccessStatus == OFF || State == STATE_MODEM_DENIED) {
         RedPwm = ColorOff[0];
         GreenPwm = ColorOff[1];
         BluePwm = ColorOff[2];
@@ -2511,7 +2510,7 @@ static unsigned int LedPwm = 0;                                                /
 #if SMARTEVSE_VERSION >=40
 void SendConfigToCH32() {
     // send configuration to WCH IC
-    Serial1.printf("Access@%u\n", Access_bit);
+    Serial1.printf("Access@%u\n", AccessStatus);
     Serial1.printf("MainsMeterType@%u\n", MainsMeter.Type);
     Serial1.printf("MainsMAddress@%u\n", MainsMeter.Address);
     Serial1.printf("EVMeterType@%u\n", EVMeter.Type);
@@ -2634,13 +2633,13 @@ void Timer10ms_singlerun(void) {
         } else if (pilot == PILOT_12V) {                                    // Check if we are disconnected, or forced to State A, but still connected to the EV
             // If the RFID reader is set to EnableOne or EnableAll mode, and the Charging cable is disconnected
             // We start a timer to re-lock the EVSE (and unlock the cable) after 60 seconds.
-            if ((RFIDReader == 2 || RFIDReader == 1) && AccessTimer == 0 && Access_bit == 1) AccessTimer = RFIDLOCKTIME;
+            if ((RFIDReader == 2 || RFIDReader == 1) && AccessTimer == 0 && AccessStatus == ON) AccessTimer = RFIDLOCKTIME;
 
             if (State != STATE_A) setState(STATE_A);                        // reset state, incase we were stuck in STATE_COMM_B
             ChargeDelay = 0;                                                // Clear ChargeDelay when disconnected.
             if (!EVMeter.ResetKwh) EVMeter.ResetKwh = 1;                    // when set, reset EV kWh meter on state B->C change.
         } else if ( pilot == PILOT_9V && ErrorFlags == NO_ERROR
-            && ChargeDelay == 0 && Access_bit && State != STATE_COMM_B
+            && ChargeDelay == 0 && AccessStatus == ON && State != STATE_COMM_B
 #if MODEM
             && State != STATE_MODEM_REQUEST && State != STATE_MODEM_WAIT && State != STATE_MODEM_DONE   // switch to State B ?
 #endif
@@ -2674,7 +2673,7 @@ void Timer10ms_singlerun(void) {
             } else if (Mode == MODE_SOLAR) {                                // Not enough power:
                 ErrorFlags |= NO_SUN;                                       // Not enough solar power
             } else ErrorFlags |= LESS_6A;                                   // Not enough power available
-        } else if (pilot == PILOT_9V && State != STATE_B1 && State != STATE_COMM_B && Access_bit) {
+        } else if (pilot == PILOT_9V && State != STATE_B1 && State != STATE_COMM_B && AccessStatus == ON) {
             setState(STATE_B1);
         }
     } // State == STATE_A || State == STATE_COMM_B || State == STATE_B1
@@ -3134,9 +3133,7 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
             if (LoadBl < 2) MainsMeter.setTimeout(COMM_TIMEOUT);                // reset timeout when register is written
             break;
         case STATUS_ACCESS:
-            if (val == 0 || val == 1) {
-                setAccess(val);
-            }
+            setAccess((AccessStatus_t) val);
             break;
 
         default:
@@ -3243,7 +3240,7 @@ uint16_t getItemValue(uint8_t nav) {
         case STATUS_SOLAR_TIMER:
             return SolarStopTimer;
         case STATUS_ACCESS:
-            return Access_bit;
+            return AccessStatus;
         case STATUS_CONFIG_CHANGED:
             return ConfigChanged;
 

@@ -59,7 +59,7 @@
               }
               $('#required_evccid').val(data.settings.required_evccid || "");
             }
-            for(let x=0; x<=3; x++) {
+            for(let x=0; x<=4; x++) {
               if(x == data.mode_id) {
                 $('#mode_' + x).css("background-color", "#1CC88A");
               } else {
@@ -1129,6 +1129,7 @@
                                         <div class="col">
                                           <form class="form-inline" id="form_mode">
                                             <button id="mode_0" onclick="activate('0')" style="width: 100px; display:inline-block;">OFF</button>
+                                            <button id="mode_4" onclick="activate('4')" style="width: 100px; display:inline-block;">PAUSE</button>
                                             <button id="mode_1" onclick="activate('1')" style="width: 120px; display:inline-block;">NORMAL</button>
                                             <div id="with_mainsmeter" style="display: inline">
                                               <button id="mode_2" onclick="activate('2')" style="width: 100px; display:inline-block;">SOLAR</button>
