@@ -1397,7 +1397,6 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
             if(current >= MIN_CURRENT && current <= 16 && LoadBl < 2) {
                 MinCurrent = current;
                 doc["current_min"] = MinCurrent;
-                write_settings();
             } else {
                 doc["current_min"] = "Value not allowed!";
             }
@@ -1408,7 +1407,6 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
             if((current == 0 || (current >= 10 && current <= 600)) && LoadBl < 2) {
                 MaxSumMains = current;
                 doc["current_max_sum_mains"] = MaxSumMains;
-                write_settings();
             } else {
                 doc["current_max_sum_mains"] = "Value not allowed!";
             }
@@ -1419,7 +1417,6 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
             if(time >= 0 && time <= 60 && LoadBl < 2) {
                 MaxSumMainsTime = time;
                 doc["max_sum_mains_time"] = MaxSumMainsTime;
-                write_settings();
             } else {
                 doc["max_sum_mains_time"] = "Value not allowed!";
             }
@@ -1518,7 +1515,6 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
 
         if(request->hasParam("enable_C2")) {
             EnableC2 = (EnableC2_t) request->getParam("enable_C2")->value().toInt();
-            write_settings();
             doc["settings"]["enable_C2"] = StrEnableC2[EnableC2];
         }
 
@@ -1528,7 +1524,6 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
             if(stop_timer >= 0 && stop_timer <= 60) {
                 StopTime = stop_timer;
                 doc["stop_timer"] = true;
-                write_settings();
             } else {
                 doc["stop_timer"] = false;
             }
@@ -1552,7 +1547,6 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
             if(current >= 0 && current <= 48) {
                 StartCurrent = current;
                 doc["solar_start_current"] = StartCurrent;
-                write_settings();
             } else {
                 doc["solar_start_current"] = "Value not allowed!";
             }
@@ -1563,7 +1557,6 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
             if(current >= 0 && current <= 48) {
                 ImportCurrent = current;
                 doc["solar_max_import"] = ImportCurrent;
-                write_settings();
             } else {
                 doc["solar_max_import"] = "Value not allowed!";
             }
@@ -1594,7 +1587,6 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
             if (request->getParam("required_evccid")->value().length() <= 32) {
                 strncpy(RequiredEVCCID, request->getParam("required_evccid")->value().c_str(), sizeof(RequiredEVCCID));
                 doc["required_evccid"] = RequiredEVCCID;
-                write_settings();
             } else {
                 doc["required_evccid"] = "EVCCID too long (max 32 char)";
             }
@@ -1605,7 +1597,6 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
             if (lock >= 0 && lock <= 1) {                                   //boundary check
                 LCDlock = lock;
                 doc["lcdlock"] = lock;
-                write_settings();
             }
         }
 
@@ -1670,7 +1661,6 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
                     OcppWsClient->reloadConfigs();
                 }
                 MicroOcpp::configuration_save();
-                write_settings();
             }
         }
 #endif //ENABLE_OCPP
@@ -1678,6 +1668,7 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
         String json;
         serializeJson(doc, json);
         mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\n", json.c_str());    // Yes. Respond JSON
+        write_settings();
         return true;
       }
     } else if (mg_http_match_uri(hm, "/color_off") && !memcmp("POST", hm->method.buf, hm->method.len)) {
