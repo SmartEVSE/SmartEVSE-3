@@ -38,8 +38,8 @@ SLAVE_SOCKET_HARDWIRED=130
 MASTER_MAC_ID=$1
 SLAVE_MAC_ID=$2
 
-MASTER="smartevse-"$1".local"
-SLAVE="smartevse-"$2".local"
+MASTER="http://smartevse-"$1".local"
+SLAVE="http://smartevse-"$2".local"
 
 control_c()
 # run if user hits control-c
@@ -75,11 +75,15 @@ ABORT=0
 
 init_devices () {
 for device in $SLAVE $MASTER; do
+    printf "Rebooting $device\n"
     #go to Normal Mode for init
     $CURLPOST $device/reboot
+    printf "Setting $device loadbl and mainsmeter\n"
     sleep 1
     $CURLPOST "$device/automated_testing?loadbl=0&mainsmeter=1"
+    printf "Setting $device to NORMAL mode\n"
     $CURLPOST $device/settings?mode=1
+    printf "Done $device\n"
 done
 read -p "Make sure all EVSE's are set to NOT CHARGING, then press <ENTER>" dummy
 sleep 5
