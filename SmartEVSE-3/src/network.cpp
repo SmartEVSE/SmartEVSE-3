@@ -802,10 +802,10 @@ String discoverHomeWizardP1() {
  * in JSON format, parses the JSON response, and retrieves specific fields for current.
  *
  * @return A pair containing:
- *     - A boolean flag indicating success or failure
+ *     - A int flag indicating: 0: failure, 1: single phase current, 3: 3 phase current
  *     - An array of 3 values representing the active current in amps for L1, L2, and L3
  */
-std::pair<bool, std::array<std::int8_t, 3> > getMainsFromHomeWizardP1() {
+std::pair<int8_t, std::array<std::int8_t, 3> > getMainsFromHomeWizardP1() {
 
     _LOG_A("getMainsFromHWP1(): invocation\n");
     const String hostname = discoverHomeWizardP1();
@@ -855,13 +855,17 @@ std::pair<bool, std::array<std::int8_t, 3> > getMainsFromHomeWizardP1() {
         return {false, {0, 0, 0}};
     }
 
+    uint8_t phases = 0;
     // Verify all required keys exist.
     for (const auto* key : currentKeys) {
-        if (!doc.containsKey(key)) {
-            // Early return on missing data.
-            _LOG_A("getMainsFromHomeWizardP1(): required JSON fields 'active_current_l[1..3]_a' not found\n");
-            return {false, {0, 0, 0}};
-        }
+        if (doc.containsKey(key))
+            phases++;
+    }
+
+    if (!phases) {
+        // Early return on missing data.
+        _LOG_A("getMainsFromHomeWizardP1(): required JSON fields 'active_current_l1_a' not found\n");
+        return {phases, {0, 0, 0}};
     }
 
     // Determine grid direction based on power: negative indicates feed-in, positive indicates usage.
@@ -871,13 +875,13 @@ std::pair<bool, std::array<std::int8_t, 3> > getMainsFromHomeWizardP1() {
 
     // Process all three phases.
     std::array<int8_t, 3> currents;
-    for (size_t i = 0; i < 3; ++i) {
+    for (size_t i = 0; i < phases; ++i) {
         int rawCurrent = doc[currentKeys[i]].as<int>();
         int8_t correction = getCorrection(powerKeys[i]);
         currents[i] = std::abs(rawCurrent) * correction;
     }
 
-    return {true, currents};
+    return {phases, currents};
 }
 
 

@@ -2828,10 +2828,9 @@ void homewizard_loop() {
     lastCheck_homewizard = currentTime;
 
     const auto currents = getMainsFromHomeWizardP1();
+    for (int i = 0; i < currents.first; i++)
+        MainsMeter.Irms[i] = currents.second[i] * 10;
     if (currents.first) {
-        MainsMeter.Irms[0] = currents.second[0] * 10;
-        MainsMeter.Irms[1] = currents.second[1] * 10;
-        MainsMeter.Irms[2] = currents.second[2] * 10;
         CalcIsum();
         MainsMeter.setTimeout(COMM_TIMEOUT);
     }
