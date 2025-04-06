@@ -751,6 +751,7 @@ void setTimeZone(void * parameter) {
     vTaskDelete(NULL);                                                          //end this task so it will not take up resources
 }
 
+#ifndef SENSORBOX_VERSION
 String homeWizardHost;
 
 /**
@@ -883,6 +884,7 @@ std::pair<int8_t, std::array<std::int8_t, 3> > getMainsFromHomeWizardP1() {
 
     return {phases, currents};
 }
+#endif
 
 
 void webServerRequest::setMessage(struct mg_http_message *hm) {
