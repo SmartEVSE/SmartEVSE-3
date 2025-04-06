@@ -804,7 +804,7 @@ String discoverHomeWizardP1() {
  *
  * @return A pair containing:
  *     - A int flag indicating: 0: failure, 1: single phase current, 3: 3 phase current
- *     - An array of 3 values representing the active current in amps for L1, L2, and L3
+ *     - An array of 3 values representing the active current in deci-amps for L1, L2, and L3
  */
 std::pair<int8_t, std::array<std::int8_t, 3> > getMainsFromHomeWizardP1() {
 
@@ -845,6 +845,9 @@ std::pair<int8_t, std::array<std::int8_t, 3> > getMainsFromHomeWizardP1() {
     for (const auto* key : currentKeys) filter[key] = true;
     for (const auto* key : powerKeys) filter[key] = true;
 
+    /////test homewizard connected to single phase mainsmeter
+    //const char stream[] = "{\"wifi_ssid\":\"Imaginous\",\"wifi_strength\":86,\"smr_version\":50,\"meter_model\":\"Kaifa AIFA-METER\",\"unique_id\":\"0000000000000000000000000000000000\",\"active_tariff\":1,\"total_power_import_kwh\":7412.085,\"total_power_import_t1_kwh\":4283.482,\"total_power_import_t2_kwh\":3128.603,\"total_power_export_kwh\":6551.330,\"total_power_export_t1_kwh\":1930.678,\"total_power_export_t2_kwh\":4620.652,\"active_power_w\":-2725.000,\"active_power_l1_w\":-2725.000,\"active_voltage_l1_v\":238.400,\"active_current_a\":11.430,\"active_current_l1_a\":-11.430,\"voltage_sag_l1_count\":8.000,\"voltage_swell_l1_count\":0.000,\"any_power_fail_count\":0.000,\"long_power_fail_count\":0.000,\"total_gas_m3\":1795.627,\"gas_timestamp\":250405135009,\"gas_unique_id\":\"0000000000000000000000000000000000\",\"external\":[{\"unique_id\":\"0000000000000000000000000000000000\",\"type\":\"gas_meter\",\"timestamp\":250405135009,\"value\":1795.627,\"unit\":\"m3\"}]}";
+
     // Create a filtered JSON document to hold the parsed data.
     DynamicJsonDocument doc(256);
     const DeserializationError error = deserializeJson(doc, *stream, DeserializationOption::Filter(filter));
@@ -877,9 +880,8 @@ std::pair<int8_t, std::array<std::int8_t, 3> > getMainsFromHomeWizardP1() {
     // Process all three phases.
     std::array<int8_t, 3> currents;
     for (size_t i = 0; i < phases; ++i) {
-        int rawCurrent = doc[currentKeys[i]].as<int>();
-        int8_t correction = getCorrection(powerKeys[i]);
-        currents[i] = std::abs(rawCurrent) * correction;
+        int rawCurrent = doc[currentKeys[i]].as<float>() * 10;
+        currents[i] = std::abs(rawCurrent) * getCorrection(powerKeys[i]);
     }
 
     return {phases, currents};

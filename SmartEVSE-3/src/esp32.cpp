@@ -2829,7 +2829,7 @@ void homewizard_loop() {
 
     const auto currents = getMainsFromHomeWizardP1();
     for (int i = 0; i < currents.first; i++)
-        MainsMeter.Irms[i] = currents.second[i] * 10;
+        MainsMeter.Irms[i] = currents.second[i];
     if (currents.first) {
         CalcIsum();
         MainsMeter.setTimeout(COMM_TIMEOUT);
