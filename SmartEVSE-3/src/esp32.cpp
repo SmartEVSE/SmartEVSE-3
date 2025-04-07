@@ -123,6 +123,7 @@ int32_t EnergyCapacity = -1;                                                // C
 int32_t EnergyRequest = -1;                                                 // Requested amount of energy by car
 char EVCCID[32];                                                            // Car's EVCCID (EV Communication Controller Identifer)
 char RequiredEVCCID[32];                                                    // Required EVCCID before allowing charging
+uint16_t LCDPin = 0;                                                        // PIN to operate LCD keys from web-interface
 
 extern esp_adc_cal_characteristics_t * adc_chars_CP;
 extern void setStatePowerUnavailable(void);
@@ -1053,6 +1054,7 @@ void read_settings() {
         DelayedStopTime.epoch2 = preferences.getULong("DelayedStopTime", DELAYEDSTOPTIME);    //epoch2 is 4 bytes long on arduino
         DelayedRepeat = preferences.getUShort("DelayedRepeat", 0);
         LCDlock = preferences.getUChar("LCDlock", LCD_LOCK);
+        LCDPin = preferences.getUShort("LCDPin", 0);
         AutoUpdate = preferences.getUChar("AutoUpdate", AUTOUPDATE);
 
 
@@ -1122,6 +1124,7 @@ void write_settings(void) {
     preferences.putUShort("maxTemp", maxTemp);
     preferences.putUChar("AutoUpdate", AutoUpdate);
     preferences.putUChar("LCDlock", LCDlock);
+    preferences.putUShort("LCDPin", LCDPin);
 
 #if ENABLE_OCPP && defined(SMARTEVSE_VERSION) //run OCPP only on ESP32
     preferences.putUChar("OcppMode", OcppMode);
@@ -1171,8 +1174,6 @@ int StoreTimeString(String DelayedTimeStr, DelayedTimeStruct *DelayedTime) {
     return 1;
 }
 
-// Define the correct password //TODO
-const std::string correctPassword = "snotje"; // Replace with the actual password
 
 //make mongoose 7.14 compatible with 7.13
 #define mg_http_match_uri(X,Y) mg_match(X->uri, mg_str(Y), NULL)
@@ -1937,7 +1938,7 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
         mg_http_get_var(&hm->body, "password", password, sizeof(password));
         DynamicJsonDocument doc(256);
 
-        LCDPasswordOK = (password == correctPassword);
+        LCDPasswordOK = (atoi(password) == LCDPin);
         if (LCDPasswordOK) {
             doc["success"] = true;
         } else {

@@ -1019,6 +1019,9 @@ const char * getMenuItemOption(uint8_t nav) {
             return (const char*)EMConfig[value].Desc;
         case MENU_GRID:
             return StrGrid[value];
+        case MENU_LCDPIN:
+            sprintf(Str, "%04u", value);
+            return Str;
         case MENU_MAINSMETERADDRESS:
         case MENU_EVMETERADDRESS:
         case MENU_EMCUSTOM_UREGISTER:
@@ -1144,6 +1147,7 @@ uint8_t getMenuItems (void) {
         if (getItemValue(MENU_SUMMAINS) != 0)
             MenuItems[m++] = MENU_SUMMAINSTIME;
     }
+    MenuItems[m++] = MENU_LCDPIN;
     MenuItems[m++] = MENU_EXIT;
 
     return m;

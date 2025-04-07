@@ -52,6 +52,7 @@ extern Preferences preferences;
 struct DelayedTimeStruct DelayedStartTime;
 struct DelayedTimeStruct DelayedStopTime;
 extern unsigned char RFID[8];
+extern uint16_t LCDPin;
 #else //CH32
 #define EXT extern "C"
 #include "ch32.h"
@@ -3116,6 +3117,9 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
         case MENU_WIFI:
             WIFImode = val;
             break;
+        case MENU_LCDPIN:
+            LCDPin = val;
+            break;
 #endif
         // Status writeable
         case STATUS_STATE:
@@ -3230,6 +3234,8 @@ uint16_t getItemValue(uint8_t nav) {
 #ifdef SMARTEVSE_VERSION //not on CH32
         case MENU_WIFI:
             return WIFImode;    
+        case MENU_LCDPIN:
+            return LCDPin;
 #endif
         case MENU_AUTOUPDATE:
             return AutoUpdate;
