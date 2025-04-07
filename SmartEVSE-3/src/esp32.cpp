@@ -1171,11 +1171,15 @@ int StoreTimeString(String DelayedTimeStr, DelayedTimeStruct *DelayedTime) {
     return 1;
 }
 
+// Define the correct password //TODO
+const std::string correctPassword = "snotje"; // Replace with the actual password
+
 //make mongoose 7.14 compatible with 7.13
 #define mg_http_match_uri(X,Y) mg_match(X->uri, mg_str(Y), NULL)
 
 // handles URI, returns true if handled, false if not
 bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerRequest* request) {
+    static bool LCDPasswordOK = false;
 //    if (mg_match(hm->uri, mg_str("/settings"), NULL)) {               // REST API call?
     if (mg_http_match_uri(hm, "/settings")) {                            // REST API call?
       if (!memcmp("GET", hm->method.buf, hm->method.len)) {                     // if GET
@@ -1861,41 +1865,47 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
 
     } else if (mg_http_match_uri(hm, "/lcd")) {
         if (strncmp("POST", hm->method.buf, hm->method.len) == 0) {
-            const String btnName = request->getParam("button")->value();
-            const bool btnDown = request->getParam("state")->value() == "1";
+            DynamicJsonDocument doc(100);
+            if (LCDPasswordOK) {
+                const String btnName = request->getParam("button")->value();
+                const bool btnDown = request->getParam("state")->value() == "1";
 
-            // Button state bitmasks.
-    		static constexpr uint8_t RIGHT_MASK = 0b100;
-    		static constexpr uint8_t MIDDLE_MASK = 0b010;
-    		static constexpr uint8_t LEFT_MASK = 0b001;
-    		static constexpr uint8_t ALL_BUTTONS_UP = 0b111;
-    		static const std::unordered_map<std::string, uint8_t> btnMasks = {
-        		{"right", RIGHT_MASK},
-        		{"middle", MIDDLE_MASK},
-        		{"left", LEFT_MASK}
-    		};
+                // Button state bitmasks.
+                static constexpr uint8_t RIGHT_MASK = 0b100;
+                static constexpr uint8_t MIDDLE_MASK = 0b010;
+                static constexpr uint8_t LEFT_MASK = 0b001;
+                static constexpr uint8_t ALL_BUTTONS_UP = 0b111;
+                static const std::unordered_map<std::string, uint8_t> btnMasks = {
+                    {"right", RIGHT_MASK},
+                    {"middle", MIDDLE_MASK},
+                    {"left", LEFT_MASK}
+                };
 
-            xSemaphoreTake(buttonMutex, portMAX_DELAY);
-            auto it = btnMasks.find(btnName.c_str());
-            if (it != btnMasks.end()) {
-                // Clear bits if button is pressed, set bits if up.
-                const uint8_t mask = it->second;
-                if (btnDown) {
-                    ButtonStateOverride = ALL_BUTTONS_UP & ~mask;
-                } else {
-                    ButtonStateOverride = ALL_BUTTONS_UP | mask;
+                xSemaphoreTake(buttonMutex, portMAX_DELAY);
+                auto it = btnMasks.find(btnName.c_str());
+                if (it != btnMasks.end()) {
+                    // Clear bits if button is pressed, set bits if up.
+                    const uint8_t mask = it->second;
+                    if (btnDown) {
+                        ButtonStateOverride = ALL_BUTTONS_UP & ~mask;
+                    } else {
+                        ButtonStateOverride = ALL_BUTTONS_UP | mask;
+                    }
+                    // Prevent stuck button in case we forget to reset to a 'down' button state.
+                    LastBtnOverrideTime = millis();
                 }
-                // Prevent stuck button in case we forget to reset to a 'down' button state. 
-                LastBtnOverrideTime = millis();
+                xSemaphoreGive(buttonMutex);
+
+                // Create JSON response
+                doc["button"]["right"] = ButtonStateOverride & 4 ? "up" : "down";
+                doc["button"]["middle"] = ButtonStateOverride & 2 ? "up" : "down";
+                doc["button"]["left"] = ButtonStateOverride & 1 ? "up" : "down";
+            } else { //LCDPasswordOK is false
+                // Create JSON response; buttons are not pressed if we don't have the right password!
+                doc["button"]["right"] = "down";
+                doc["button"]["middle"] = "down";
+                doc["button"]["left"] = "down";
             }
-            xSemaphoreGive(buttonMutex);
-
-            // Create JSON response
-            DynamicJsonDocument doc(200);
-            doc["button"]["right"] = ButtonStateOverride & 4 ? "up" : "down";
-            doc["button"]["middle"] = ButtonStateOverride & 2 ? "up" : "down";
-            doc["button"]["left"] = ButtonStateOverride & 1 ? "up" : "down";
-
             // Serialize and send response
             String json;
             serializeJson(doc, json);
@@ -1920,6 +1930,23 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
             // Send an empty chunk to signal the end of the response.
             mg_http_write_chunk(c, "", 0);
         }
+        return true;
+
+    } else if (mg_http_match_uri(hm, "/lcd-verify-password") && !memcmp("POST", hm->method.buf, hm->method.len)) {
+        char password[32];
+        mg_http_get_var(&hm->body, "password", password, sizeof(password));
+        DynamicJsonDocument doc(256);
+
+        LCDPasswordOK = (password == correctPassword);
+        if (LCDPasswordOK) {
+            doc["success"] = true;
+        } else {
+            doc["success"] = false;
+        }
+
+        String json;
+        serializeJson(doc, json);
+        mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", json.c_str());
         return true;
 
 #if MODEM
