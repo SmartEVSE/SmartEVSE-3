@@ -181,6 +181,10 @@ Only appears when a [MAINSMET](#mainsmet) is configured. Maximum allowed mains c
 Only appears when [CAPACITY](#capacity) is configured. Timer in minutes. If CAPACITY is exceeded, charging will not immediately stop but will wait until the timer expires.  
 - If set to **Disabled**, charging stops immediately when CAPACITY is exceeded.
 
+## LCD PIN
+Pin code so that you can use the buttons on the LCD menu on the web-interface.
+Left button increases the digit by one, Right button goes to next digit, Middle button ends entry.
+
 ## CONTACT2
 Use a second contactor (C2) to switch phases L2 and L3. 
 

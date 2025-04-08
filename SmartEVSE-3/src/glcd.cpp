@@ -1253,6 +1253,22 @@ void GLCDMenu(uint8_t Buttons) {
                         //on Toggle switches we want to read the existing switch position, so we re-call the constructor:
                         ExtSwitch = Button();                                   //this recreates ExtSwitch object, thus calling the constructor
                         break;
+                    case MENU_LCDPIN: //left button changes digit, middle button goes out of menu, right button moves to next digit
+                        static int8_t digit = 3;
+                        static uint8_t digits[4]; //numbered 3,2,
+                        /// pin 0478 is digit 3210 so digit[3]=0, digit[2]=4 etc
+                        if (Buttons == 0x3) digit--;                            //right button pressed
+                        if (digit < 0) digit = 3;
+                        digits[digit]= (uint16_t)(value/pow_10[digit]) % 10;
+                        value -= digits[digit]*pow_10[digit];                   //we subtract the old digit's value
+                        //FIXME show underscore?
+                        if (Buttons == 0x6) {                                   //left button pressed
+                            digits[digit]++;
+                            if (digits[digit]>9) digits[digit]=0;
+                        }
+                        value += digits[digit]*pow_10[digit];                   //we add the new digit's value
+                        setItemValue(LCDNav, value);
+                      break;
                     default:
                         value = MenuNavInt(Buttons, value, MenuStr[LCDNav].Min, MenuStr[LCDNav].Max);
                         setItemValue(LCDNav, value);
