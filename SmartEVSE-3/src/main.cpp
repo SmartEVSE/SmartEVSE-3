@@ -2771,6 +2771,7 @@ void ModbusRequestLoop() {
                             case EM_EASTRON3P_INV:
                             case EM_ABB:
                             case EM_FINDER_7M:
+                            case EM_SCHNEIDER:
                                 updated = 0;
                                 break;
                             default:

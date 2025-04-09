@@ -11,6 +11,7 @@ The following meters are directly supported as Mains or EV meter:
 - ABB B23 212-100
 - Sinotimer DTS6619
 - WAGO 879-30x0
+- Schneider iEM3x5x
 
 If your meter is not listed, you might be able to use the Custom option in the menu, that let's you enter each register manually.<br>
 Connect the A and B of your meter to the A and B terminals of the SmartEVSE.<br>
