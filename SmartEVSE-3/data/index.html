@@ -541,11 +541,15 @@
         const updateLCD = createImageUpdater(updateLcdImage, ONE_SECOND_MS);
 
         function sendButtonState(btnName, stateDown) {
-            fetch(`lcd?button=${btnName}&state=${stateDown ? '1' : '0'}`, {method: 'POST'})
-                .then(() => {
-                    // Immediate LCD screen refresh on button up.
-                    !stateDown && updateLCD(true);
-                });
+            if (!passwordVerified) {
+                alert("Please enter PIN code first")
+            } else {
+                fetch(`lcd?button=${btnName}&state=${stateDown ? '1' : '0'}`, {method: 'POST'})
+                    .then(() => {
+                        // Immediate LCD screen refresh on button up.
+                        !stateDown && updateLCD(true);
+                    });
+            }
         }
 
         function activateLCD() {
