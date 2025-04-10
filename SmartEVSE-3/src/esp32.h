@@ -149,6 +149,8 @@ extern const char StrEnableC2[5][12];
 extern Single_Phase_t Switching_To_Single_Phase;
 extern uint8_t Nr_Of_Phases_Charging;
 
+extern uint16_t EMConfigSize;
+
 const struct {
     char LCD[10];
     char Desc[52];
@@ -169,7 +171,7 @@ const struct {
     {"SWITCH",  "Switch function control on pin SW",                  0, 7, SWITCH},
     {"RCMON",   "Residual Current Monitor on pin RCM",                0, 1, RC_MON},
     {"RFID",    "RFID reader, learn/remove cards",                    0, 5 + (ENABLE_OCPP ? 1 : 0), RFID_READER},
-    {"EV METER","Type of EV electric meter",                          0, EM_CUSTOM, EV_METER},
+    {"EV METER","Type of EV electric meter",                          0, (uint16_t) (EMConfigSize / sizeof(EMConfig[0])-1), EV_METER},
     {"EV ADDR", "Address of EV electric meter",                       MIN_METER_ADDRESS, MAX_METER_ADDRESS, EV_METER_ADDRESS},
 
     // System configuration
@@ -182,7 +184,7 @@ const struct {
     {"START",   "Surplus energy start Current (sum of phases)",       0, 48, START_CURRENT},
     {"STOP",    "Stop solar charging at 6A after this time",          0, 60, STOP_TIME},
     {"IMPORT",  "Allow grid power when solar charging (sum of phase)",0, 48, IMPORT_CURRENT},
-    {"MAINS MET","Type of mains electric meter",                       0, EM_CUSTOM, MAINS_METER},
+    {"MAINS MET","Type of mains electric meter",                       0, (uint16_t) (EMConfigSize / sizeof(EMConfig[0])-1), MAINS_METER},
     {"MAINS ADR","Address of mains electric meter",                    MIN_METER_ADDRESS, MAX_METER_ADDRESS, MAINS_METER_ADDRESS},
     {"BYTE ORD","Byte order of custom electric meter",                0, 3, EMCUSTOM_ENDIANESS},
     {"DATA TYPE","Data type of custom electric meter",                 0, MB_DATATYPE_MAX - 1, EMCUSTOM_DATATYPE},

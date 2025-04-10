@@ -43,7 +43,7 @@ extern "C" {
     #include "evse.h"
 }
 extern struct Sensorbox SB2;
-extern struct EMstruct EMConfig[EM_CUSTOM + 1];
+extern struct EMstruct EMConfig[];
 #endif
 
 #include "modbus.h"

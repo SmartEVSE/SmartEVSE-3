@@ -74,7 +74,7 @@ struct EMstruct {
     int8_t EDivisor_Exp;    // 10^x
 };
 
-extern struct EMstruct EMConfig[EM_CUSTOM + 1];
+extern struct EMstruct EMConfig[];
 extern struct Sensorbox SB2;
 
 class Meter {
