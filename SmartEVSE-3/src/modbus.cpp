@@ -512,6 +512,11 @@ void requestCurrentMeasurement(uint8_t Meter, uint8_t Address) {
             // Phase 1-3 power:   Register 2530 - 2535 (signed)
             ModbusReadInputRequest(Address, 4, 2516, 20);
             break;
+        case EM_SCHNEIDER:
+            // Phase 1-3 current: Register 0x0BB7 - 0x0BBC (unsigned)
+            // Phase 1-3 power:   Register 0x0BED - 0x0BF2 (signed)
+            ModbusReadInputRequest(Address, 3, 0x0BB7, 60);
+            break;
         default:
             // Read 3 Current values
             requestMeasurement(Meter, Address, EMConfig[Meter].IRegister, 3);

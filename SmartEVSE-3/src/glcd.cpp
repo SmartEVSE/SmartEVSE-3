@@ -1227,13 +1227,13 @@ void GLCDMenu(uint8_t Buttons) {
                     case MENU_MAINSMETER:
                         do {
                             value = MenuNavInt(Buttons, value, MenuStr[LCDNav].Min, MenuStr[LCDNav].Max);
-                        } while (value >= EM_UNUSED_SLOT2 && value <= EM_UNUSED_SLOT4);
+                        } while (value >= EM_UNUSED_SLOT3 && value <= EM_UNUSED_SLOT4);
                         setItemValue(LCDNav, value);
                         break;
                     case MENU_EVMETER:                                          // do not display the Sensorbox, HomeWizard P1 or unused slots here
                         do {
                             value = MenuNavInt(Buttons, value, MenuStr[LCDNav].Min, MenuStr[LCDNav].Max);
-                        } while (value == EM_SENSORBOX || value == EM_HOMEWIZARD_P1 || (value >= EM_UNUSED_SLOT2 && value <= EM_UNUSED_SLOT4));
+                        } while (value == EM_SENSORBOX || value == EM_HOMEWIZARD_P1 || (value >= EM_UNUSED_SLOT3 && value <= EM_UNUSED_SLOT4));
                         setItemValue(LCDNav, value);
                         break;
                     case MENU_WIFI:
