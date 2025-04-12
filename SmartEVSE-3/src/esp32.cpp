@@ -2845,7 +2845,7 @@ bool fwNeedsUpdate(char * version) {
 void homewizard_loop() {
     static unsigned long lastCheck_homewizard = 0;
 
-    constexpr unsigned long interval = 5000; // 5 seconds
+    constexpr unsigned long interval = 4000; // 4 seconds
     const unsigned long currentTime = millis();
 
     if (currentTime - lastCheck_homewizard < interval) {

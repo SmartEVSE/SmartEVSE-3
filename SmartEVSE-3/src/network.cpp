@@ -753,6 +753,8 @@ void setTimeZone(void * parameter) {
 
 #ifndef SENSORBOX_VERSION
 String homeWizardHost;
+HTTPClient* homeWizardHttpClient=nullptr;
+bool homeWizardHttpClientInitialized = false;
 
 /**
  * @brief Discovers a HomeWizard P1 meter service on the local network.
@@ -817,25 +819,30 @@ std::pair<int8_t, std::array<std::int8_t, 3> > getMainsFromHomeWizardP1() {
     const String url = "http://" + hostname + "/api/v1/data";
     _LOG_A("getMainsFromHWP1(): connect to URL %s\n", url.c_str());
 
-    HTTPClient httpClient;
-    httpClient.begin(url);
 
-    // Add headers
-    httpClient.addHeader("User-Agent", "SmartEVSE-v3");
-    httpClient.addHeader("Accept", "application/json");
-    // The HTTPClient library already sets Connection: keep-alive by default.
-    httpClient.setTimeout(4000);
+    if (!homeWizardHttpClientInitialized) {
+        homeWizardHttpClient = new HTTPClient();
+        homeWizardHttpClient->setTimeout(3500);
+        homeWizardHttpClient->addHeader("User-Agent", "SmartEVSE-v3");
+        homeWizardHttpClient->addHeader("Accept", "application/json");
+        homeWizardHttpClientInitialized = true;
+    }
+
+    homeWizardHttpClient->begin(url);
 
     // Handle HTTP errors or timeout.
-    const int httpCode = httpClient.GET();
+    const int httpCode = homeWizardHttpClient->GET();
     if (httpCode != HTTP_CODE_OK) {
         _LOG_A("getMainsFromHWP1(): Error on HTTP request (httpCode=%i), url=%s.\n", httpCode, url.c_str());
-        httpClient.end(); // Always cleanup
+        homeWizardHttpClient->end(); // Always cleanup
+        delete homeWizardHttpClient;
+        homeWizardHttpClient = nullptr;
+        homeWizardHttpClientInitialized = false;
         return {false, {0, 0, 0}};
     }
 
     // Get the response stream
-    WiFiClient *stream = httpClient.getStreamPtr();
+    WiFiClient *stream = homeWizardHttpClient->getStreamPtr();
 
     const char* currentKeys[] = {"active_current_l1_a", "active_current_l2_a", "active_current_l3_a"};
     const char* powerKeys[] = {"active_power_l1_w", "active_power_l2_w", "active_power_l3_w"};
@@ -851,7 +858,7 @@ std::pair<int8_t, std::array<std::int8_t, 3> > getMainsFromHomeWizardP1() {
     // Create a filtered JSON document to hold the parsed data.
     DynamicJsonDocument doc(256);
     const DeserializationError error = deserializeJson(doc, *stream, DeserializationOption::Filter(filter));
-    httpClient.end();
+    homeWizardHttpClient->end();
 
     // Handle JSON parsing errors.
     if (error) {
