@@ -1,0 +1,283 @@
+#
+# SlimmeLezer WT32-ETH01 configuration with SmartEVSE REST support.
+# Extended from github://zuidwijk/slimmelezer-wt32-eth01/wt32.yaml@main
+#
+# Added:
+#   - SmartEVSE Integration switch (available in HA)
+#   - SmartEVSE API connectivity status sensor (available in HA)
+#   - Electricity tariff sensor (available in HA, useful for automations)
+#   - Send data to SmartEVSE using http post REST interface
+#
+# Please update 'smartevse_host' below to match your SmartEVSE
+#
+
+substitutions:
+  device_name: sl32
+  smartevse_host: x.x.x.x  # <== YOUR SMARTEVSE IP ADDRESS HERE
+
+esphome:
+  name: ${device_name}
+  name_add_mac_suffix: false
+  comment: SlimmeLezer WT32-ETH01 / SmartEVSE
+  project:
+    name: zuidwijk.slimmelezer-ethernet
+    version: "2.0"
+  on_boot:
+    then:
+      - if:
+          condition:
+            lambda: return id(has_key);
+          then:
+            - lambda: |-
+                std::string key(id(stored_decryption_key), 32);
+                id(dsmr_instance).set_decryption_key(key);
+          else:
+            - logger.log:
+                level: info
+                format: "Not using decryption key. If you need to set a key use Home Assistant service 'ESPHome:  ${device_name}_set_dsmr_key'"
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+  baud_rate: 115200
+  logs: 
+    component: ERROR
+
+# Enable Home Assistant API
+api:
+  services:
+    service: set_dsmr_key
+    variables:
+      private_key: string
+    then:
+      - logger.log:
+          format: Setting private key %s. Set to empty string to disable
+          args: [private_key.c_str()]
+      - globals.set:
+          id: has_key
+          value: !lambda "return private_key.length() == 32;"
+      - lambda: |-
+          if (private_key.length() == 32)
+            private_key.copy(id(stored_decryption_key), 32);
+          id(dsmr_instance).set_decryption_key(private_key);
+
+ota:
+  platform: esphome
+
+dashboard_import:
+  package_import_url: github://zuidwijk/slimmelezer-wt32-eth01/wt32.yaml@main
+  import_full_config: true
+
+uart:
+  id: uart_dsmr
+  baud_rate: 115200
+  rx_pin: GPIO5
+  rx_buffer_size: 1700
+  
+web_server:
+  port: 80
+
+ethernet:
+  type: LAN8720
+  mdc_pin: GPIO23
+  mdio_pin: GPIO18
+  clk_mode: GPIO0_IN
+  phy_addr: 1
+  power_pin: GPIO16
+  
+globals:
+  - id: has_key
+    type: bool
+    restore_value: yes
+    initial_value: "false"
+  - id: stored_decryption_key
+    type: char[32]
+    restore_value: yes
+  - id: smartevse_integration  # SmartEVSE addition
+    type: bool
+  - id: smartevse_error  # SmartEVSE addition
+    type: int
+
+dsmr:
+  uart_id: uart_dsmr
+  id: dsmr_instance
+  max_telegram_length: 1700
+  # For Luxembourg users set here your decryption key
+  #decryption_key: !secret decryption_key // enable this when using decryption for Luxembourg; key like '00112233445566778899AABBCCDDEEFF'
+
+sensor:
+  - platform: dsmr
+    energy_delivered_lux:
+      name: "Energy Consumed Luxembourg"
+    energy_delivered_tariff1:
+      name: "Energy Consumed Tariff 1"
+    energy_delivered_tariff2:
+      name: "Energy Consumed Tariff 2"
+    energy_returned_lux:
+      name: "Energy Produced Luxembourg"
+    energy_returned_tariff1:
+      name: "Energy Produced Tariff 1"
+    energy_returned_tariff2:
+      name: "Energy Produced Tariff 2"
+    power_delivered:
+      name: "Power Consumed"
+      accuracy_decimals: 3
+    power_returned:
+      name: "Power Produced"
+      accuracy_decimals: 3
+    electricity_failures:
+      name: "Electricity Failures"
+      icon: mdi:alert
+    electricity_long_failures:
+      name: "Long Electricity Failures"
+      icon: mdi:alert
+    voltage_l1:
+      name: "Voltage Phase 1"
+    voltage_l2:
+      name: "Voltage Phase 2"
+    voltage_l3:
+      name: "Voltage Phase 3"
+    current_l1:
+      id: current_l1  # SmartEVSE addition
+      name: "Current Phase 1"
+    current_l2:
+      id: current_l2  # SmartEVSE addition
+      name: "Current Phase 2"
+    current_l3:
+      id: current_l3  # SmartEVSE addition
+      name: "Current Phase 3"
+    power_delivered_l1:
+      name: "Power Consumed Phase 1"
+      accuracy_decimals: 3
+    power_delivered_l2:
+      name: "Power Consumed Phase 2"
+      accuracy_decimals: 3
+    power_delivered_l3:
+      name: "Power Consumed Phase 3"
+      accuracy_decimals: 3
+    power_returned_l1:
+      id: power_returned_l1  # SmartEVSE addition
+      name: "Power Produced Phase 1"
+      accuracy_decimals: 3
+    power_returned_l2:
+      id: power_returned_l2  # SmartEVSE addition
+      name: "Power Produced Phase 2"
+      accuracy_decimals: 3
+    power_returned_l3:
+      id: power_returned_l3  # SmartEVSE addition
+      name: "Power Produced Phase 3"
+      accuracy_decimals: 3
+    gas_delivered:
+      name: "Gas Consumed"
+    gas_delivered_be:
+      name: "Gas Consumed Belgium"
+  - platform: uptime
+    name: "SlimmeLezer Uptime"
+  - platform: template  # SmartEVSE addition
+    name: "Signed Current Phase 1"
+    id: signed_current_l1
+    unit_of_measurement: "A"
+    update_interval: 1s
+    internal: true
+    lambda: |-
+      return id(power_returned_l1).state > 0 ? -id(current_l1).state : id(current_l1).state;
+  - platform: template  # SmartEVSE addition
+    name: "Signed Current Phase 2"
+    id: signed_current_l2
+    unit_of_measurement: "A"
+    update_interval: 1s
+    internal: true
+    lambda: |-
+      return id(power_returned_l2).state > 0 ? -id(current_l2).state : id(current_l2).state;
+  - platform: template  # SmartEVSE addition
+    name: "Signed Current Phase 3"
+    id: signed_current_l3
+    unit_of_measurement: "A"
+    update_interval: 1s
+    internal: true
+    lambda: |-
+      return id(power_returned_l3).state > 0 ? -id(current_l3).state : id(current_l3).state;
+
+text_sensor:
+  - platform: dsmr
+    identification:
+      name: "DSMR Identification"
+    p1_version:
+      name: "DSMR Version"
+    p1_version_be:
+      name: "DSMR Version Belgium"
+    electricity_tariff:  # SmartEVSE addition
+      name: "Electricity tariff"
+  - platform: version 
+    name: "ESPHome Version"
+    hide_timestamp: true
+
+# SmartEVSE additions
+
+binary_sensor:
+  - platform: template
+    name: "SmartEVSE API"
+    device_class: connectivity
+    lambda: "return id(smartevse_error) < 5;"
+
+switch:
+  - platform: template
+    name: "SmartEVSE Integration"
+    optimistic: true
+    turn_on_action:
+      - globals.set:
+          id: smartevse_integration
+          value: "true"
+      - globals.set:
+          id: smartevse_error
+          value: "5"
+    turn_off_action:
+      - globals.set:
+          id: smartevse_integration
+          value: "false"
+      - globals.set:
+          id: smartevse_error
+          value: "5"
+    icon: "mdi:ev-station"
+    restore_mode: RESTORE_DEFAULT_ON
+
+http_request:
+  timeout: 1500ms
+  verify_ssl: false
+
+interval:
+  - interval: 2sec
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return (id(smartevse_integration) &&
+                      !isnan(id(signed_current_l1).state) &&
+                      !isnan(id(signed_current_l2).state) &&
+                      !isnan(id(signed_current_l3).state));
+          then:
+            - http_request.post:
+                url: !lambda |-
+                  static char url[128];
+                  snprintf(url, sizeof(url),
+                          "http://${smartevse_host}/currents?L1=%.0f&L2=%.0f&L3=%.0f",
+                          id(signed_current_l1).state * 10,
+                          id(signed_current_l2).state * 10,
+                          id(signed_current_l3).state * 10);
+                  return url;
+                headers:
+                  Content-Length: 0
+                on_response:
+                  then:
+                    lambda: |-
+                      if (id(smartevse_error) != 0) {
+                        id(smartevse_error) = 0;
+                      }
+                on_error:
+                  then:
+                    lambda: |-
+                      id(smartevse_error) += 1;
