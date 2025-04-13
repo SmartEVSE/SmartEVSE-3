@@ -280,4 +280,6 @@ interval:
                 on_error:
                   then:
                     lambda: |-
-                      id(smartevse_error) += 1;
+                      if (id(smartevse_error) < 5) {
+                        id(smartevse_error) += 1;
+                      }
