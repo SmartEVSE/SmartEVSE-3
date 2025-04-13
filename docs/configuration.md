@@ -136,13 +136,14 @@ Enable Wifi connection to your network.
   The SmartEVSE presents itself as a Wifi Acces Point with SSID "smartevse-xxxx". Connect with your phone to that access point, go to [http://192.168.4.1/](http://192.168.4.1/) and configure your Wifi SSID and key (password).
   - v.3.6.4 and newer:
     - Connect your smartphone to the wifi network you want your SmartEVSE connected to.
+Note: If you have a multi AP setup, with the same SSID, you need to be connected to the desired AP, as the configuration is based on the BSSID, so it will choos the specific AP your phone is connected to.
     - Download and run the ESPTouch app from your favorite app store [Android](https://play.google.com/store/apps/details?id=com.fyent.esptouch.android&hl=en_US:) (please ignore the strange Author name) or [Apple](https://apps.apple.com/us/app/espressif-esptouch/id1071176700) or  [Github](https://github.com/EspressifApp/EsptouchForAndroid) (for source code).
     - Choose EspTouch V2.
     - Fill in the key (password) of the wifi network.
     - Fill in **1** in device count for provisioning.
     - On the SmartEVSE LCD screen, select **Wifi**, select **SetupWifi**
     - Press the middle button to start the configuration procedure.
-    - Once pressed, the bottom line shows you a 16 character key, first 8 zeros. note that from this point on, you have 120s TO FINISH this procedure!
+    - Once pressed, the bottom line shows you a 16 character key, first 8 are 01234567. note that from this point on, you have 120s TO FINISH this procedure!
     - Fill in that key in the ESPTouch app, in the AES Key field
     - Leave Custom Data empty
     - Press **Confirm**, within 30 seconds the app will confirm a MAC address and an IP address.
