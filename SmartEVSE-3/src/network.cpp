@@ -822,7 +822,7 @@ std::pair<int8_t, std::array<std::int8_t, 3> > getMainsFromHomeWizardP1() {
 
     if (!homeWizardHttpClientInitialized) {
         homeWizardHttpClient = new HTTPClient();
-        homeWizardHttpClient->setTimeout(3500);
+        homeWizardHttpClient->setTimeout(1500);
         homeWizardHttpClient->addHeader("User-Agent", "SmartEVSE-v3");
         homeWizardHttpClient->addHeader("Accept", "application/json");
         homeWizardHttpClientInitialized = true;

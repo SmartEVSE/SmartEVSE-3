@@ -2840,12 +2840,12 @@ bool fwNeedsUpdate(char * version) {
   * Periodically retrieves current measurements from the HomeWizard P1 energy meter
   * and updates the main meter's currents.
   *
-  * This function ensures a delay of at least 5 seconds between consecutive data retrieval attempts.
+  * This function ensures a delay of at least 1.95 seconds between consecutive data retrieval attempts.
   */
-void homewizard_loop() {
+ void homewizard_loop() {
     static unsigned long lastCheck_homewizard = 0;
 
-    constexpr unsigned long interval = 4000; // 4 seconds
+    constexpr unsigned long interval = 1950; // 1.95 seconds - With this setting there can be 5 attempts for updating the data before the 10 second Mains Meter timeout.
     const unsigned long currentTime = millis();
 
     if (currentTime - lastCheck_homewizard < interval) {
