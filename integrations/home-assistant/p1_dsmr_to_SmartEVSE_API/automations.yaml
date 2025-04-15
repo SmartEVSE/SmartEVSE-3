@@ -6,6 +6,6 @@
     seconds: /1
   condition: []
   action:
-  - service: shell_command.dsmrtosmartevse
+  - service: rest_command.dsmrtosmartevse
     data: {}
   mode: single
