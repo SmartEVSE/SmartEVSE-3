@@ -3020,17 +3020,6 @@ void Timer1S(void * parameter) {
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     } // while(1) loop
 }
-
-#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40 //does not run on v4
-void BlinkLed(void * parameter) {
-    // infinite loop
-    while(1) {
-        BlinkLed_singlerun();
-        // Pause the task for 10ms
-        vTaskDelay(10 / portTICK_PERIOD_MS);
-    } // while(1) loop
-}
-#endif
 #endif //SMARTEVSE_VERSION
 
 

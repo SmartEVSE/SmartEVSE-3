@@ -2744,16 +2744,6 @@ void setup() {
     );
 
 #if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
-    // Create Task BlinkLed (10ms)
-    xTaskCreate(
-        BlinkLed,       // Function that should be called
-        "BlinkLed",     // Name of the task (for debugging)
-        2048,           // Stack size (bytes)                              // printf needs atleast 1kb
-        NULL,           // Parameter to pass
-        1,              // Task priority - low
-        NULL            // Task handle
-    );
-
     // Create Task 100ms Timer
     xTaskCreate(
         Timer100ms,     // Function that should be called
