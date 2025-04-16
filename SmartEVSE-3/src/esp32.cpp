@@ -2353,7 +2353,7 @@ void ocppLoop() {
         if (!OcppTrackPermitsCharge && ocppPermitsCharge()) {
             _LOG_A("OCPP set Access_bit\n");
             setAccess(ON);
-        } else if (AccessStatus == OFF && !ocppPermitsCharge()) {
+        } else if (AccessStatus == ON && !ocppPermitsCharge()) {
             _LOG_A("OCPP unset Access_bit\n");
             setAccess(OFF);
         }
