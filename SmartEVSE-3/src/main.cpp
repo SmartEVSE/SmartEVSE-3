@@ -75,14 +75,14 @@ extern void CheckRS485Comm(void);
         X();\
     }
 
-//CALL_ON_RECEIVE_PARAM(State@, setState) calls setState(param) when State:param is received
+//CALL_ON_RECEIVE_PARAM(State@, setState) calls setState(param) when State@param is received
 #define CALL_ON_RECEIVE_PARAM(X,Y) \
     ret = strstr(SerialBuf, #X);\
     if (ret) {\
 /*        printf("DEBUG CALL_ON_RECEIVE_PARAM: calling %s(%u).\n", #X, atoi(ret+strlen(#X))); */ \
         Y(atoi(ret+strlen(#X)));\
     }
-//SET_ON_RECEIVE(Pilot@, pilot) sets pilot=parm when Pilot:param is received
+//SET_ON_RECEIVE(Pilot@, pilot) sets pilot=parm when Pilot@param is received
 #define SET_ON_RECEIVE(X,Y) \
     ret = strstr(SerialBuf, #X);\
     if (ret) {\
