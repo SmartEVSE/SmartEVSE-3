@@ -2754,19 +2754,6 @@ void setup() {
         NULL            // Task handle
     );
 #else //SMARTEVSE_VERSION
-    // Search for QCA modem
-    //
-    uint16_t reg16;
-    digitalWrite(PIN_QCA700X_RESETN, HIGH);         // get modem out of reset
-    _LOG_D("Searching for modem.. \n");
-
-    do {
-        reg16 = qcaspi_read_register16(SPI_REG_SIGNATURE);
-        if (reg16 == QCASPI_GOOD_SIGNATURE) {
-            _LOG_D("QCA700X modem found\n");
-        } else delay(500);
-    } while (reg16 != QCASPI_GOOD_SIGNATURE);
-
 #endif //SMARTEVSE_VERSION
 
     // Create Task Second Timer (1000ms)
@@ -2867,6 +2854,17 @@ void loop() {
         lastCheck = millis();
         //this block is for non-time critical stuff that needs to run approx 1 / second
 
+#if SMARTEVSE_VERSION >=40 //v4
+        static bool Modem = false;
+        if (!Modem) {
+            // Search for QCA modem
+            digitalWrite(PIN_QCA700X_RESETN, HIGH);         // get modem out of reset
+            _LOG_D("Searching for modem.. \n");
+            Modem = (qcaspi_read_register16(SPI_REG_SIGNATURE) == QCASPI_GOOD_SIGNATURE);
+            if (Modem)
+                _LOG_D("QCA700X modem found\n");
+        }
+#endif
         //printStatus:
         _LOG_I ("STATE: %s Error: %u StartCurrent: -%i ChargeDelay: %u SolarStopTimer: %u NoCurrent: %u Imeasured: %.1f A IsetBalanced: %.1f A, MainsMeter.Timeout=%u, EVMeter.Timeout=%u.\n", getStateName(State), ErrorFlags, StartCurrent, ChargeDelay, SolarStopTimer,  NoCurrent, (float)MainsMeter.Imeasured/10, (float)IsetBalanced/10, MainsMeter.Timeout, EVMeter.Timeout);
         _LOG_I("L1: %.1f A L2: %.1f A L3: %.1f A Isum: %.1f A\n", (float)MainsMeter.Irms[0]/10, (float)MainsMeter.Irms[1]/10, (float)MainsMeter.Irms[2]/10, (float)Isum/10);
