@@ -791,10 +791,7 @@ ModbusMessage MBbroadcast(ModbusMessage request) {
 void MBhandleData(ModbusMessage msg, uint32_t token)
 {
     ModbusDecode( (uint8_t*)msg.data(), msg.size());
-    if (MB.Function > 4) {
-        _LOG_A("WARNING: response NOT HANDLED: address: %02x, function: %02x, reg: %04x.\n", MB.Address, MB.Function, MB.Register);
-    }
-    HandleModbusResponse(); //now responses from functions other then 3 or 4 are not handled?!?
+    HandleModbusResponse();
 }
 
 
