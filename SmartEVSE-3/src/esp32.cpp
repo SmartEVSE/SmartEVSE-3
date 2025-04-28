@@ -2773,10 +2773,6 @@ void setup() {
     // Set eModbus LogLevel to 1, to suppress possible E5 errors
     MBUlogLvl = LOG_LEVEL_CRITICAL;
     ConfigureModbusMode(255);
-#endif
-
-
-#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
     CP_ON;           // CP signal ACTIVE
 #endif
 
@@ -2879,7 +2875,6 @@ void loop() {
             ESP.restart();
         }
 
-#if SMARTEVSE_VERSION >=30
         // TODO move this to a once a minute loop?
         if (DelayedStartTime.epoch2 && LocalTimeSet) {
             // Compare the times
@@ -2940,7 +2935,6 @@ void loop() {
                 }
             }
         } // AutoUpdate
-#endif //SMARTEVSE_VERSION
         /////end of non-time critical stuff
     }
 
