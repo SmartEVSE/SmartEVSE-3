@@ -2078,6 +2078,8 @@ void CheckSerialComm(void) {
 //    PLATFORMIO_BUILD_FLAGS='-DWCH_VERSION='"`date +%s`" pio run -e v4 -t upload
 //the current time (in epoch) is compiled via WCH_VERSION in the CH32 firmware
 //which will prevent it to be reflashed every reboot
+//if you compile with -DWCH_VERSION=0 it will be reflashed every reboot (handy for dev's!)
+//if you compile with -DWCH_VERSION=2000000000 if will be reflashed somewhere after 2033
 #endif
     // Is it a request?
     char token[64];
