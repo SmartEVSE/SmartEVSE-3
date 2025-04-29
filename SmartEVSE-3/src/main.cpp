@@ -93,6 +93,32 @@ char *ret2;
         Y = atoi(ret+strlen(#X));\
     }
 
+//CALL_ON_RECEIVE(setStatePowerUnavailable) setStatePowerUnavailable() when setStatePowerUnavailable is received
+#define CALL_ON_RECEIVE2(X) \
+    ret = strstr(SerialBuf, #X);\
+    if (ret) {\
+/*        printf("DEBUG CALL_ON_RECEIVE: calling %s().\n", #X); */ \
+        X();\
+        return;\
+    }
+
+//CALL_ON_RECEIVE_PARAM(State@, setState) calls setState(param) when State@param is received
+#define CALL_ON_RECEIVE_PARAM2(X,Y) \
+    ret = strstr(SerialBuf, #X);\
+    if (ret) {\
+/*        printf("DEBUG CALL_ON_RECEIVE_PARAM: calling %s(%u).\n", #X, atoi(ret+strlen(#X))); */ \
+        Y(atoi(ret+strlen(#X)));\
+        return;\
+    }
+//SET_ON_RECEIVE(Pilot@, pilot) sets pilot=parm when Pilot@param is received
+#define SET_ON_RECEIVE2(X,Y) \
+    ret = strstr(SerialBuf, #X);\
+    if (ret) {\
+/*        printf("DEBUG SET_ON_RECEIVE: setting %s to %u.\n", #Y, atoi(ret+strlen(#X))); */ \
+        Y = atoi(ret+strlen(#X));\
+        return;\
+    }
+
 #ifndef SMARTEVSE_VERSION //CH32 version
 uint8_t Initialized = INITIALIZED;                                          // When first powered on, the settings need to be initialized.
 #endif
@@ -2585,30 +2611,30 @@ void Handle_ESP32_Message(char *SerialBuf, uint8_t *CommState) {
         return;
     }
     //these variables are owned by ESP32, so if CH32 changes it it has to send copies:
-    SET_ON_RECEIVE(NodeNewMode:, NodeNewMode)
-    SET_ON_RECEIVE(ConfigChanged:, ConfigChanged)
+    SET_ON_RECEIVE2(NodeNewMode:, NodeNewMode)
+    SET_ON_RECEIVE2(ConfigChanged:, ConfigChanged)
 
-    CALL_ON_RECEIVE_PARAM(Access:, setAccess)
-    CALL_ON_RECEIVE_PARAM(OverrideCurrent:, setOverrideCurrent)
-    CALL_ON_RECEIVE_PARAM(Mode:, setMode)
-    CALL_ON_RECEIVE(write_settings)
+    CALL_ON_RECEIVE_PARAM2(Access:, setAccess)
+    CALL_ON_RECEIVE_PARAM2(OverrideCurrent:, setOverrideCurrent)
+    CALL_ON_RECEIVE_PARAM2(Mode:, setMode)
+    CALL_ON_RECEIVE2(write_settings)
 
     //these variables do not exist in CH32 so values are sent to ESP32
-    SET_ON_RECEIVE(RFIDstatus:, RFIDstatus)
-    SET_ON_RECEIVE(GridActive:, GridActive)
-    SET_ON_RECEIVE(LCDTimer:, LCDTimer)
-    SET_ON_RECEIVE(BacklightTimer:, BacklightTimer)
+    SET_ON_RECEIVE2(RFIDstatus:, RFIDstatus)
+    SET_ON_RECEIVE2(GridActive:, GridActive)
+    SET_ON_RECEIVE2(LCDTimer:, LCDTimer)
+    SET_ON_RECEIVE2(BacklightTimer:, BacklightTimer)
 
     //these variables are owned by CH32 and copies are sent to ESP32:
-    SET_ON_RECEIVE(Pilot:, pilot)
-    SET_ON_RECEIVE(Temp:, TempEVSE)
-    SET_ON_RECEIVE(State:, State)
-    SET_ON_RECEIVE(Balanced0:, Balanced0)
-    SET_ON_RECEIVE(IsetBalanced:, IsetBalanced)
-    SET_ON_RECEIVE(ChargeCurrent:, ChargeCurrent)
-    SET_ON_RECEIVE(IsCurrentAvailable:, Shadow_IsCurrentAvailable)
-    SET_ON_RECEIVE(ErrorFlags:, ErrorFlags)
-    SET_ON_RECEIVE(SolarStopTimer:, SolarStopTimer)
+    SET_ON_RECEIVE2(Pilot:, pilot)
+    SET_ON_RECEIVE2(Temp:, TempEVSE)
+    SET_ON_RECEIVE2(State:, State)
+    SET_ON_RECEIVE2(Balanced0:, Balanced0)
+    SET_ON_RECEIVE2(IsetBalanced:, IsetBalanced)
+    SET_ON_RECEIVE2(ChargeCurrent:, ChargeCurrent)
+    SET_ON_RECEIVE2(IsCurrentAvailable:, Shadow_IsCurrentAvailable)
+    SET_ON_RECEIVE2(ErrorFlags:, ErrorFlags)
+    SET_ON_RECEIVE2(SolarStopTimer:, SolarStopTimer)
 
     strncpy(token, "version:", sizeof(token));
     ret = strstr(SerialBuf, token);
@@ -2616,6 +2642,7 @@ void Handle_ESP32_Message(char *SerialBuf, uint8_t *CommState) {
         unsigned long WCHRunningVersion = atoi(ret+strlen(token));
         _LOG_V("version %lu received\n", WCHRunningVersion);
         *CommState = COMM_CONFIG_SET;
+        return;
     }
 
     ret = strstr(SerialBuf, "Config:OK");
