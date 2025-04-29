@@ -2567,7 +2567,7 @@ void Timer10ms_singlerun(void) {
     static uint16_t StateTimer = 0;                                                 // When switching from State B to C, make sure pilot is at 6v for 100ms
     BlinkLed_singlerun();
 #else //v4
-    static uint16_t RXbyte, idx = 0;
+    static uint16_t idx = 0;
     static char SerialBuf[512];
     static uint8_t CommState = COMM_VER_REQ;
     static uint8_t CommTimeout = 0;
@@ -2837,15 +2837,9 @@ void Timer10ms_singlerun(void) {
     //ESP32 receives info from CH32
     //each message starts with @, : separates variable name from value, ends with \n
     //so @State:2\n would be a valid message
-    if (Serial1.available()) {
-        //Serial.printf("[<-] ");        // Data available from mainboard?
-        while (Serial1.available()) {
-            RXbyte = Serial1.read();
-            //Serial.printf("%c",RXbyte);
-            SerialBuf[idx] = RXbyte;
-            idx++;
-        }
-        //SerialBuf[idx] = '\0'; //null terminate
+    int av = Serial1.available();
+    if (av > 5) {
+        idx = idx + Serial1.readBytesUntil('@', SerialBuf+idx, av);
         _LOG_D("[(%u)<-] %.*s.\n", idx, idx, SerialBuf);
     }
     // process data from mainboard
