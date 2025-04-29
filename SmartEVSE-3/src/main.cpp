@@ -82,9 +82,12 @@ extern void CheckRS485Comm(void);
 /*        printf("DEBUG CALL_ON_RECEIVE_PARAM: calling %s(%u).\n", #X, atoi(ret+strlen(#X))); */ \
         Y(atoi(ret+strlen(#X)));\
     }
+char *ret2;
 //SET_ON_RECEIVE(Pilot@, pilot) sets pilot=parm when Pilot@param is received
 #define SET_ON_RECEIVE(X,Y) \
     ret = strstr(SerialBuf, #X);\
+    if (ret) { ret2 = strstr(ret+1, #X);\
+                if (ret2) ret=ret2; }\
     if (ret) {\
 /*        printf("DEBUG SET_ON_RECEIVE: setting %s to %u.\n", #Y, atoi(ret+strlen(#X))); */ \
         Y = atoi(ret+strlen(#X));\
