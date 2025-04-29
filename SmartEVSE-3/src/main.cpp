@@ -842,7 +842,7 @@ void setAccess(AccessStatus_t Access) { //c
     lastMqttUpdate = 10;
 #endif //MQTT
 #else //CH32
-    printf("Access@%1u.\n", Access); //a
+    SEND_TO_ESP32(Access) //a
 #endif //SMARTEVSE_VERSION
 }
 
@@ -1634,7 +1634,7 @@ void Timer1S_singlerun(void) {
     // this section sends outcomes of functions and variables to ESP32 to fill Shadow variables
     // FIXME this section preferably should be empty
     printf("IsCurrentAvailable@%u", IsCurrentAvailable());
-    printf("ErrorFlags@%u\n", ErrorFlags);
+    SEND_TO_ESP32(ErrorFlags)
     elapsedmax = 0;
 #endif
 }
