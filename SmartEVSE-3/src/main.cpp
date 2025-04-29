@@ -483,8 +483,8 @@ void setOverrideCurrent(uint16_t Current) { //c
  */
 void setMode(uint8_t NewMode) {
 #ifdef SMARTEVSE_VERSION //v3 and v4
-    // If mainsmeter disabled we can only run in Normal Mode
-    if (!MainsMeter.Type && NewMode != MODE_NORMAL)
+    // If mainsmeter disabled we can only run in Normal Mode, unless we are a Node
+    if (LoadBl <2 && !MainsMeter.Type && NewMode != MODE_NORMAL)
         return;
 
     // Take care of extra conditionals/checks for custom features
