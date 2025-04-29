@@ -202,7 +202,7 @@
 #endif
 #else //CH32
 #define SEND_TO_CH32(X) //dummy
-#define SEND_TO_ESP32(X) printf("%s@%u\n", #X, X);
+#define SEND_TO_ESP32(X) printf("@%s:%u\n", #X, X);
 #define PILOT_CONNECTED funDigitalWrite(CPOFF, FUN_LOW);
 #define PILOT_DISCONNECTED funDigitalWrite(CPOFF, FUN_HIGH);
 

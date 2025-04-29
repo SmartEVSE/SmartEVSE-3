@@ -72,7 +72,7 @@ void PowerPanic(void) {
     MainsCycleTime = 0;
 
     // Signal the ESP32 that it has to sleep
-    printf("!Panic\n");
+    printf("@!Panic\n");
 
     // Unlock cable if used, and cable locked
     if (Lock && LockCable) {
@@ -88,7 +88,7 @@ void PowerPanic(void) {
     while (MainsCycleTime < 15000) {
        delay(100);
     }
-    printf("Power restored\n");
+    printf("@MSG: Power restored\n");
 
     // Toggle SWDIO to signal the ESP32 that power is back
     // First reconfigure the SWDIO pin for I/O

@@ -72,7 +72,7 @@ void ADC1_2_IRQHandler()
         ADC_Temp[ADCidx++] = ADC1->IDATAR3;
         if (ADCidx == NUM_ADC_SAMPLES) ADCidx = 0;
 
-        //printf("ADC ISR! in=%d\r\n", ADC_CP[0]);
+        //printf("@MSG: ADC ISR! in=%d\r\n", ADC_CP[0]);
     }
 }
 
@@ -142,7 +142,7 @@ void TIM4_IRQHandler()
 void EXTI9_5_IRQHandler(void) __attribute__((interrupt));
 void EXTI9_5_IRQHandler()
 {
-    printf("EXTI 9 Interrupt\n");
+    printf("@MSG: EXTI 9 Interrupt\n");
     delay(1);
     // check again, to prevent voltage spikes from tripping the RCM detection
     if (funDigitalRead(RCMFAULT) == FUN_HIGH ) {
@@ -603,7 +603,7 @@ int8_t TemperatureSensor() {
     // Subtract 500mV offset, and finally divide by 100 to convert to C.
     Temperature = (int16_t)((TempAvg *8)- 5000)/100;
     if (Temperature != Old_Temperature) {
-        printf("Temp@%u\n", Temperature); //send data to ESP32
+        printf("@Temp:%u\n", Temperature); //send data to ESP32
         Old_Temperature = Temperature;
     }
     return Temperature;
@@ -620,7 +620,7 @@ uint8_t ProximityPin() {
     PPAvg = PPAvg / NUM_ADC_SAMPLES ;
 
 
-    printf("PP pin: %u \n", (uint16_t)PPAvg);
+    printf("@MSG: PP pin: %u \n", (uint16_t)PPAvg);
     MaxCap = 13;                                                   // No resistor, Max cable current = 13A
     if ((PPAvg > 1300) && (PPAvg < 1800)) MaxCap = 16;             // Max cable current = 16A  680R -> should be around 1.3V
     if ((PPAvg > 600) && (PPAvg < 900)) MaxCap = 32;               // Max cable current = 32A  220R -> should be around 0.6V
@@ -716,10 +716,10 @@ void setup(void) {
 	// Note that printf will only actually send data to the uart, when it detects a newline, or after a timeout
 	//
 
-	printf("\nSmartEVSE mainboard startup\n");
-	printf("SystemClk:%d\n",FUNCONF_SYSTEM_CORE_CLOCK);
-	//printf("ChipID:%08x\n", DBGMCU_GetCHIPID() );
-	//printf("UID:%08x%04x\n", *( uint32_t * )0x1FFFF7E8 , (*( uint32_t * )0x1FFFF7EC)>>16 );
+	printf("@MSG: \nSmartEVSE mainboard startup\n");
+	printf("@MSG: SystemClk:%d\n",FUNCONF_SYSTEM_CORE_CLOCK);
+	//printf("@MSG: ChipID:%08x\n", DBGMCU_GetCHIPID() );
+	//printf("@MSG: UID:%08x%04x\n", *( uint32_t * )0x1FFFF7E8 , (*( uint32_t * )0x1FFFF7EC)>>16 );
 
     EXTInit();                                      // Interrupt on RCMFAULT pin
 	ADCInit();                                      // CP, PP and Temp inputs

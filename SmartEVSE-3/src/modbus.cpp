@@ -26,7 +26,7 @@
 
 #if SMARTEVSE_VERSION >=40 //ESP32 v4
 void BroadcastSettings(void) {
-    printf("BroadcastSettings\n");
+    printf("@BroadcastSettings\n");
 }
 #else //ESP32 and CH32
 
@@ -119,9 +119,9 @@ void ModbusSend(uint8_t address, uint8_t function, uint8_t byte, uint16_t *value
     Tbuffer[n++] = ((uint8_t)(cs));
     Tbuffer[n++] = ((uint8_t)(cs>>8));
 
-    printf(" address: 0x%02x, function: 0x%02x, len=%u.\n", address, function, n);
-    for (i = 0; i < n; i++) printf("%02x ", Tbuffer[i]);
-    printf("\n");
+    _LOG_V("Sent packet address: 0x%02x, function: 0x%02x, len=%u.\n", address, function, n);
+    for (i = 0; i < n; i++) _LOG_V_NO_FUNC("%02x ", Tbuffer[i]);
+    _LOG_V_NO_FUNC("\n");
 
     // Send buffer to RS485 port
     buffer_write(&ModbusTx, (char *) &Tbuffer, n);
@@ -606,7 +606,7 @@ void WriteItemValueResponse(void) {
 
     if (OK && ItemID < STATUS_STATE) {
 #if !defined(SMARTEVSE_VERSION) //CH32
-        printf("write_settings\n");
+        printf("@write_settings\n");
 #else
         write_settings();
 #endif
@@ -642,7 +642,7 @@ void WriteMultipleItemValueResponse(void) {
 
     if (OK && ItemID < STATUS_STATE) {
 #if !defined(SMARTEVSE_VERSION) //CH32
-        printf("write_settings\n");
+        printf("@write_settings\n");
 #else
         write_settings();
 #endif
@@ -699,7 +699,7 @@ void HandleModbusRequest(void) {
                             _LOG_V_NO_FUNC("L%d=%.1fA,", i+1, (float)MainsMeter.Irms[i]/10);
                         }
 #ifndef SMARTEVSE_VERSION //CH32
-                        printf("Irms@%03u,%d,%d,%d\n", MainsMeter.Address, MainsMeter.Irms[0], MainsMeter.Irms[1], MainsMeter.Irms[2]); //Irms@011,312,123,124 means: the meter on address 11(dec) has MainsMeter.Irms[0] 312 dA, MainsMeter.Irms[1] of 123 dA, MainsMeter.Irms[2] of 124 dA.
+                        printf("@Irms:%03u,%d,%d,%d\n", MainsMeter.Address, MainsMeter.Irms[0], MainsMeter.Irms[1], MainsMeter.Irms[2]); //@Irms:011,312,123,124 means: the meter on address 11(dec) has MainsMeter.Irms[0] 312 dA, MainsMeter.Irms[1] of 123 dA, MainsMeter.Irms[2] of 124 dA.
 #endif
                         _LOG_V_NO_FUNC("\n");
                     }
@@ -716,7 +716,7 @@ void HandleModbusRequest(void) {
 
 
 void HandleModbusResponse(void) {
-    //printf("MSG: Modbus Response Address %u / Function %02x / Register %02x\n",MB.Address,MB.Function,MB.Register);
+    //printf("@MSG: Modbus Response Address %u / Function %02x / Register %02x\n",MB.Address,MB.Function,MB.Register);
     switch (MB.Function) {
         case 0x03: // (Read holding register)
         case 0x04: // (Read input register)
@@ -885,7 +885,7 @@ void CheckRS485Comm(void) { //looks like MBhandleData
         HandleModbusResponse();
     // Data received is a request from the master to a device on the bus.
     } else if (MB.Type == MODBUS_REQUEST) { //looks like MBBroadcast
-        //printf("Modbus Request Address %u / Function %02x / Register %02x\n",MB.Address,MB.Function,MB.Register);
+        //printf("@MSG: Modbus Request Address %u / Function %02x / Register %02x\n",MB.Address,MB.Function,MB.Register);
 
         // Broadcast or addressed to this device
         if (MB.Address == BROADCAST_ADR || (LoadBl > 0 && MB.Address == LoadBl)) {
@@ -902,7 +902,7 @@ void CheckRS485Comm(void) { //looks like MBhandleData
 
 //    char buf[256];
 //    for (uint8_t x=0; x<ModbusRxLen; x++) snprintf(buf+(x*3), 4, "%02X ", ModbusRx[x]);
-//    printf("MB:%s\n", buf);
+//    printf("@MSG: MB:%s\n", buf);
 
     ModbusRxLen = 0;
 

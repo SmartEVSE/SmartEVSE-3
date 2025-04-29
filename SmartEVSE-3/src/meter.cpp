@@ -214,7 +214,7 @@ uint8_t Meter::receiveCurrentMeasurement(ModBus MB) {
 #ifdef SMARTEVSE_VERSION //ESP32
                     write_settings();
 #else //CH32
-                    printf("write_settings\n");
+                    printf("@write_settings\n");
 #endif
                     LCDNav = 0;
                 }
@@ -232,7 +232,7 @@ uint8_t Meter::receiveCurrentMeasurement(ModBus MB) {
 #ifdef SMARTEVSE_VERSION // ESP32 v3
             GridActive = localGridActive;                                       // Enable the GRID menu option
 #else //CH32
-            printf("GridActive@%u\n", localGridActive);
+            printf("@GridActive:%u\n", localGridActive);
 #endif
             if (localGridActive && (buf[1] & 0x3) != (Grid << 1) && (LoadBl < 2)) ModbusWriteSingleRequest(0x0A, 0x800, Grid << 1);
             break;
@@ -285,7 +285,7 @@ uint8_t Meter::receiveCurrentMeasurement(ModBus MB) {
             if (Power[x] < 0) var[x] = -var[x];
         }
 #ifndef SMARTEVSE_VERSION //CH32
-        printf("PowerMeasured@%03u,%d\n", Address, PowerMeasured);
+        printf("@PowerMeasured:%03u,%d\n", Address, PowerMeasured);
 #endif
     }
 
@@ -294,7 +294,7 @@ uint8_t Meter::receiveCurrentMeasurement(ModBus MB) {
         Irms[x] = (var[x] / 100);            // Convert to AMPERE * 10
     }
 #ifndef SMARTEVSE_VERSION //CH32
-    printf("Irms@%03u,%d,%d,%d\n", Address, Irms[0], Irms[1], Irms[2]); //Irms:011,312,123,124 means: the meter on address 11(dec) has Irms[0] 312 dA, Irms[1] of 123 dA, Irms[2] of 124 dA.
+    printf("@Irms:%03u,%d,%d,%d\n", Address, Irms[0], Irms[1], Irms[2]); //Irms:011,312,123,124 means: the meter on address 11(dec) has Irms[0] 312 dA, Irms[1] of 123 dA, Irms[2] of 124 dA.
 #endif
     // all OK
     return 1;
@@ -402,7 +402,7 @@ void Meter::ResponseToMeasurement(ModBus MB) {
         } else if (MB.Register == EMConfig[Type].PRegister) {
             PowerMeasured = receivePowerMeasurement(MB.Data);
 #ifndef SMARTEVSE_VERSION //CH32
-            printf("PowerMeasured@%03u,%d\n", Address, PowerMeasured);
+            printf("@PowerMeasured:%03u,%d\n", Address, PowerMeasured);
 #endif
         } else if (MB.Register == EMConfig[Type].ERegister) {
             //import active energy

@@ -2713,7 +2713,7 @@ void setup() {
         // process data from mainboard
         if (idx > 5) {
             char token[64];
-            strncpy(token, "version@", sizeof(token));
+            strncpy(token, "version:", sizeof(token));
             ret = strstr(SerialBuf, token);
             if (ret != NULL) {
                 unsigned long WCHRunningVersion = atoi(ret+strlen(token));

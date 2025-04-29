@@ -445,16 +445,16 @@ uint8_t OneWireReadCardId() {
 
         if (crc8(RFID,8)) {
             RFID[0] = 0;                                          // CRC incorrect, clear first byte of RFID buffer
-            printf("RFIDstatus@0\n");                             // signal RFIDstatus = 0
+            printf("@RFIDstatus:0\n");                             // signal RFIDstatus = 0
             return 0;
         } else {
-            printf("RFID@");
+            printf("@RFID:");
             for (x=0 ; x<8 ; x++) printf("%02x",RFID[x]);
             printf("\n");
             return 1;
         }
     }
-    printf("RFIDstatus@0\n");                                    // signal RFIDstatus = 0
+    printf("@RFIDstatus:0\n");                                    // signal RFIDstatus = 0
     return 0;
 }
 #endif
