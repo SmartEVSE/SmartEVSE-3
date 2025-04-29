@@ -2559,7 +2559,121 @@ void SendConfigToCH32() {
     SEND_TO_CH32(StopTime)
     SEND_TO_CH32(Switch)
 }
+
+
+void Handle_ESP32_Message(char *SerialBuf, uint8_t *CommState) {
+    static char *ret;
+        if (memcmp(SerialBuf, "!Panic", 6) == 0) PowerPanicESP();
+
+        char token[64];
+        strncpy(token, "ExtSwitch:", sizeof(token));
+        ret = strstr(SerialBuf, token);
+        if (ret != NULL) {
+            ExtSwitch.Pressed = atoi(ret+strlen(token));
+            if (ExtSwitch.Pressed)
+                ExtSwitch.TimeOfPress = millis();
+            ExtSwitch.HandleSwitch();
+        }
+        //these variables are owned by ESP32, so if CH32 changes it it has to send copies:
+        SET_ON_RECEIVE(NodeNewMode:, NodeNewMode)
+        SET_ON_RECEIVE(ConfigChanged:, ConfigChanged)
+
+        CALL_ON_RECEIVE_PARAM(Access:, setAccess)
+        CALL_ON_RECEIVE_PARAM(OverrideCurrent:, setOverrideCurrent)
+        CALL_ON_RECEIVE_PARAM(Mode:, setMode)
+        CALL_ON_RECEIVE(write_settings)
+
+        //these variables do not exist in CH32 so values are sent to ESP32
+        SET_ON_RECEIVE(RFIDstatus:, RFIDstatus)
+        SET_ON_RECEIVE(GridActive:, GridActive)
+        SET_ON_RECEIVE(LCDTimer:, LCDTimer)
+        SET_ON_RECEIVE(BacklightTimer:, BacklightTimer)
+
+        //these variables are owned by CH32 and copies are sent to ESP32:
+        SET_ON_RECEIVE(Pilot:, pilot)
+        SET_ON_RECEIVE(Temp:, TempEVSE)
+        SET_ON_RECEIVE(State:, State)
+        SET_ON_RECEIVE(Balanced0:, Balanced0)
+        SET_ON_RECEIVE(IsetBalanced:, IsetBalanced)
+        SET_ON_RECEIVE(ChargeCurrent:, ChargeCurrent)
+        SET_ON_RECEIVE(IsCurrentAvailable:, Shadow_IsCurrentAvailable)
+        SET_ON_RECEIVE(ErrorFlags:, ErrorFlags)
+        SET_ON_RECEIVE(SolarStopTimer:, SolarStopTimer)
+
+        strncpy(token, "version:", sizeof(token));
+        ret = strstr(SerialBuf, token);
+        if (ret != NULL) {
+            unsigned long WCHRunningVersion = atoi(ret+strlen(token));
+            _LOG_V("version %lu received\n", WCHRunningVersion);
+            *CommState = COMM_CONFIG_SET;
+        }
+
+        ret = strstr(SerialBuf, "Config:OK");
+        if (ret != NULL) {
+            _LOG_V("Config set\n");
+            *CommState = COMM_STATUS_REQ;
+        }
+
+        strncpy(token, "EnableC2:", sizeof(token));
+        ret = strstr(SerialBuf, token);
+        if (ret != NULL) {
+            EnableC2 = (EnableC2_t) atoi(ret+strlen(token)); //e
+        }
+
+        strncpy(token, "Irms:", sizeof(token));
+        //Irms:011,312,123,124 means: the meter on address 11(dec) has Irms[0] 312 dA, Irms[1] of 123 dA, Irms[2] of 124 dA.
+        ret = strstr(SerialBuf, token);
+        if (ret != NULL) {
+            short unsigned int Address;
+            int16_t Irms[3];
+            int n = sscanf(ret,"Irms:%03hu,%hi,%hi,%hi", &Address, &Irms[0], &Irms[1], &Irms[2]);
+            if (n == 4) {   //success
+                if (Address == MainsMeter.Address) {
+                    for (int x = 0; x < 3; x++)
+                        MainsMeter.Irms[x] = Irms[x];
+                    MainsMeter.setTimeout(COMM_TIMEOUT);
+                    CalcIsum();
+                } else if (Address == EVMeter.Address) {
+                    for (int x = 0; x < 3; x++)
+                        EVMeter.Irms[x] = Irms[x];
+                    EVMeter.setTimeout(COMM_EVTIMEOUT);
+                    EVMeter.CalcImeasured();
+                }
+            } else
+                _LOG_A("Received corrupt %s, n=%d, message from WCH:%s.\n", token, n, SerialBuf);
+        }
+
+        strncpy(token, "RFID:", sizeof(token));
+        ret = strstr(SerialBuf, token);
+        if (ret != NULL) {
+            int n = sscanf(ret,"RFID:%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx", &RFID[0], &RFID[1], &RFID[2], &RFID[3], &RFID[4], &RFID[5], &RFID[6], &RFID[7]);
+            if (n == 8) {   //success
+                CheckRFID();
+            } else
+                _LOG_A("Received corrupt %s, n=%d, message from WCH:%s.\n", token, n, SerialBuf);
+        }
+
+        strncpy(token, "PowerMeasured:", sizeof(token));
+        //printf("@PowerMeasured:%03u,%d\n", Address, PowerMeasured);
+        ret = strstr(SerialBuf, token);
+        if (ret != NULL) {
+            short unsigned int Address;
+            int16_t PowerMeasured;
+            int n = sscanf(ret,"PowerMeasured:%03hu,%hi", &Address, &PowerMeasured);
+            if (n == 2) {   //success
+                if (Address == MainsMeter.Address) {
+                    MainsMeter.PowerMeasured = PowerMeasured;
+                } else if (Address == EVMeter.Address) {
+                    EVMeter.PowerMeasured = PowerMeasured;
+                }
+            } else
+                _LOG_A("Received corrupt %s, n=%d, message from WCH:%s.\n", token, n, SerialBuf);
+        }
+}
 #endif
+
+
+
 
 void Timer10ms_singlerun(void) {
 #if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
@@ -2571,7 +2685,6 @@ void Timer10ms_singlerun(void) {
     static char SerialBuf[512];
     static uint8_t CommState = COMM_VER_REQ;
     static uint8_t CommTimeout = 0;
-    static char *ret;
 #endif
 
 #ifndef SMARTEVSE_VERSION //CH32
@@ -2841,118 +2954,11 @@ void Timer10ms_singlerun(void) {
     if (av > 5) {
         idx = idx + Serial1.readBytesUntil('@', SerialBuf+idx, av);
         _LOG_D("[(%u)<-] %.*s.\n", idx, idx, SerialBuf);
-    }
-    // process data from mainboard
-    if (idx > 5) {
-        if (memcmp(SerialBuf, "!Panic", 6) == 0) PowerPanicESP();
-
-        char token[64];
-        strncpy(token, "ExtSwitch:", sizeof(token));
-        ret = strstr(SerialBuf, token);
-        if (ret != NULL) {
-            ExtSwitch.Pressed = atoi(ret+strlen(token));
-            if (ExtSwitch.Pressed)
-                ExtSwitch.TimeOfPress = millis();
-            ExtSwitch.HandleSwitch();
-        }
-        //these variables are owned by ESP32, so if CH32 changes it it has to send copies:
-        SET_ON_RECEIVE(NodeNewMode:, NodeNewMode)
-        SET_ON_RECEIVE(ConfigChanged:, ConfigChanged)
-
-        CALL_ON_RECEIVE_PARAM(Access:, setAccess)
-        CALL_ON_RECEIVE_PARAM(OverrideCurrent:, setOverrideCurrent)
-        CALL_ON_RECEIVE_PARAM(Mode:, setMode)
-        CALL_ON_RECEIVE(write_settings)
-
-        //these variables do not exist in CH32 so values are sent to ESP32
-        SET_ON_RECEIVE(RFIDstatus:, RFIDstatus)
-        SET_ON_RECEIVE(GridActive:, GridActive)
-        SET_ON_RECEIVE(LCDTimer:, LCDTimer)
-        SET_ON_RECEIVE(BacklightTimer:, BacklightTimer)
-
-        //these variables are owned by CH32 and copies are sent to ESP32:
-        SET_ON_RECEIVE(Pilot:, pilot)
-        SET_ON_RECEIVE(Temp:, TempEVSE)
-        SET_ON_RECEIVE(State:, State)
-        SET_ON_RECEIVE(Balanced0:, Balanced0)
-        SET_ON_RECEIVE(IsetBalanced:, IsetBalanced)
-        SET_ON_RECEIVE(ChargeCurrent:, ChargeCurrent)
-        SET_ON_RECEIVE(IsCurrentAvailable:, Shadow_IsCurrentAvailable)
-        SET_ON_RECEIVE(ErrorFlags:, ErrorFlags)
-        SET_ON_RECEIVE(SolarStopTimer:, SolarStopTimer)
-
-        strncpy(token, "version:", sizeof(token));
-        ret = strstr(SerialBuf, token);
-        if (ret != NULL) {
-            unsigned long WCHRunningVersion = atoi(ret+strlen(token));
-            _LOG_V("version %lu received\n", WCHRunningVersion);
-            CommState = COMM_CONFIG_SET;
-        }
-
-        ret = strstr(SerialBuf, "Config:OK");
-        if (ret != NULL) {
-            _LOG_V("Config set\n");
-            CommState = COMM_STATUS_REQ;
-        }
-
-        strncpy(token, "EnableC2:", sizeof(token));
-        ret = strstr(SerialBuf, token);
-        if (ret != NULL) {
-            EnableC2 = (EnableC2_t) atoi(ret+strlen(token)); //e
-        }
-
-        strncpy(token, "Irms:", sizeof(token));
-        //Irms:011,312,123,124 means: the meter on address 11(dec) has Irms[0] 312 dA, Irms[1] of 123 dA, Irms[2] of 124 dA.
-        ret = strstr(SerialBuf, token);
-        if (ret != NULL) {
-            short unsigned int Address;
-            int16_t Irms[3];
-            int n = sscanf(ret,"Irms:%03hu,%hi,%hi,%hi", &Address, &Irms[0], &Irms[1], &Irms[2]);
-            if (n == 4) {   //success
-                if (Address == MainsMeter.Address) {
-                    for (int x = 0; x < 3; x++)
-                        MainsMeter.Irms[x] = Irms[x];
-                    MainsMeter.setTimeout(COMM_TIMEOUT);
-                    CalcIsum();
-                } else if (Address == EVMeter.Address) {
-                    for (int x = 0; x < 3; x++)
-                        EVMeter.Irms[x] = Irms[x];
-                    EVMeter.setTimeout(COMM_EVTIMEOUT);
-                    EVMeter.CalcImeasured();
-                }
-            } else
-                _LOG_A("Received corrupt %s, n=%d, message from WCH:%s.\n", token, n, SerialBuf);
-        }
-
-        strncpy(token, "RFID:", sizeof(token));
-        ret = strstr(SerialBuf, token);
-        if (ret != NULL) {
-            int n = sscanf(ret,"RFID:%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx", &RFID[0], &RFID[1], &RFID[2], &RFID[3], &RFID[4], &RFID[5], &RFID[6], &RFID[7]);
-            if (n == 8) {   //success
-                CheckRFID();
-            } else
-                _LOG_A("Received corrupt %s, n=%d, message from WCH:%s.\n", token, n, SerialBuf);
-        }
-
-        strncpy(token, "PowerMeasured:", sizeof(token));
-        //printf("@PowerMeasured:%03u,%d\n", Address, PowerMeasured);
-        ret = strstr(SerialBuf, token);
-        if (ret != NULL) {
-            short unsigned int Address;
-            int16_t PowerMeasured;
-            int n = sscanf(ret,"PowerMeasured:%03hu,%hi", &Address, &PowerMeasured);
-            if (n == 2) {   //success
-                if (Address == MainsMeter.Address) {
-                    MainsMeter.PowerMeasured = PowerMeasured;
-                } else if (Address == EVMeter.Address) {
-                    EVMeter.PowerMeasured = PowerMeasured;
-                }
-            } else
-                _LOG_A("Received corrupt %s, n=%d, message from WCH:%s.\n", token, n, SerialBuf);
-        }
+        Handle_ESP32_Message(SerialBuf, &CommState);
         memset(SerialBuf,0,idx);        // Clear buffer
         idx = 0;
     }
+    // process data from mainboard
     if (CommTimeout == 0) {
         switch (CommState) {
 
