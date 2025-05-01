@@ -453,65 +453,6 @@ const char * getErrorNameWeb(uint8_t ErrorCode) {
 }
 
 
-#if MODEM
-// Recompute State of Charge, in case we have a known initial state of charge
-// This function is called by kWh logic and after an EV state update through API, Serial or MQTT
-void RecomputeSoC(void) {
-    if (InitialSoC > 0 && FullSoC > 0 && EnergyCapacity > 0) {
-        if (InitialSoC == FullSoC) {
-            // We're already at full SoC
-            ComputedSoC = FullSoC;
-            RemainingSoC = 0;
-            TimeUntilFull = -1;
-        } else {
-            int EnergyRemaining = -1;
-            int TargetEnergyCapacity = (FullSoC / 100.f) * EnergyCapacity;
-
-            if (EnergyRequest > 0) {
-                // Attempt to use EnergyRequest to determine SoC with greater accuracy
-                EnergyRemaining = EVMeter.EnergyCharged > 0 ? (EnergyRequest - EVMeter.EnergyCharged) : EnergyRequest;
-            } else {
-                // We use a rough estimation based on FullSoC and EnergyCapacity
-                EnergyRemaining = TargetEnergyCapacity - (EVMeter.EnergyCharged + (InitialSoC / 100.f) * EnergyCapacity);
-            }
-
-            RemainingSoC = ((FullSoC * EnergyRemaining) / TargetEnergyCapacity);
-            ComputedSoC = RemainingSoC > 1 ? (FullSoC - RemainingSoC) : FullSoC;
-
-            // Only attempt to compute the SoC and TimeUntilFull if we have a EnergyRemaining and PowerMeasured
-            if (EnergyRemaining > -1) {
-                int TimeToGo = -1;
-                // Do a very simple estimation in seconds until car would reach FullSoC according to current charging power
-                if (EVMeter.PowerMeasured > 0) {
-                    // Use real-time PowerMeasured data if available
-                    TimeToGo = (3600 * EnergyRemaining) / EVMeter.PowerMeasured;
-                } else if (Nr_Of_Phases_Charging > 0) {
-                    // Else, fall back on the theoretical maximum of the cable + nr of phases
-                    TimeToGo = (3600 * EnergyRemaining) / (MaxCapacity * (Nr_Of_Phases_Charging * 230));
-                }
-
-                // Wait until we have a somewhat sensible estimation while still respecting granny chargers
-                if (TimeToGo < 100000) {
-                    TimeUntilFull = TimeToGo;
-                }
-            }
-
-            // We can't possibly charge to over 100% SoC
-            if (ComputedSoC > FullSoC) {
-                ComputedSoC = FullSoC;
-                RemainingSoC = 0;
-                TimeUntilFull = -1;
-            }
-
-            _LOG_I("SoC: EnergyRemaining %i RemaningSoC %i EnergyRequest %i EnergyCharged %i EnergyCapacity %i ComputedSoC %i FullSoC %i TimeUntilFull %i TargetEnergyCapacity %i\n", EnergyRemaining, RemainingSoC, EnergyRequest, EVMeter.EnergyCharged, EnergyCapacity, ComputedSoC, FullSoC, TimeUntilFull, TargetEnergyCapacity);
-        }
-    } else {
-        if (TimeUntilFull != -1) TimeUntilFull = -1;
-    }
-    // There's also the possibility an external API/app is used for SoC info. In such case, we allow setting ComputedSoC directly.
-}
-#endif
-
 // EV disconnected from charger. Triggered after 60 seconds of disconnect
 // This is done so we can "re-plug" the car in the Modem process without triggering disconnect events
 void DisconnectEvent(void){
@@ -2953,3 +2894,67 @@ void loop() {
 
 }
 #endif //ESP32
+
+#if MODEM
+// Recompute State of Charge, in case we have a known initial state of charge
+// This function is called by kWh logic and after an EV state update through API, Serial or MQTT
+void RecomputeSoC(void) {
+#ifndef SMARTEVSE_VERSION //CH32
+    printf("@RecomputeSoC\n");
+#else
+    if (InitialSoC > 0 && FullSoC > 0 && EnergyCapacity > 0) {
+        if (InitialSoC == FullSoC) {
+            // We're already at full SoC
+            ComputedSoC = FullSoC;
+            RemainingSoC = 0;
+            TimeUntilFull = -1;
+        } else {
+            int EnergyRemaining = -1;
+            int TargetEnergyCapacity = (FullSoC / 100.f) * EnergyCapacity;
+
+            if (EnergyRequest > 0) {
+                // Attempt to use EnergyRequest to determine SoC with greater accuracy
+                EnergyRemaining = EVMeter.EnergyCharged > 0 ? (EnergyRequest - EVMeter.EnergyCharged) : EnergyRequest;
+            } else {
+                // We use a rough estimation based on FullSoC and EnergyCapacity
+                EnergyRemaining = TargetEnergyCapacity - (EVMeter.EnergyCharged + (InitialSoC / 100.f) * EnergyCapacity);
+            }
+
+            RemainingSoC = ((FullSoC * EnergyRemaining) / TargetEnergyCapacity);
+            ComputedSoC = RemainingSoC > 1 ? (FullSoC - RemainingSoC) : FullSoC;
+
+            // Only attempt to compute the SoC and TimeUntilFull if we have a EnergyRemaining and PowerMeasured
+            if (EnergyRemaining > -1) {
+                int TimeToGo = -1;
+                // Do a very simple estimation in seconds until car would reach FullSoC according to current charging power
+                if (EVMeter.PowerMeasured > 0) {
+                    // Use real-time PowerMeasured data if available
+                    TimeToGo = (3600 * EnergyRemaining) / EVMeter.PowerMeasured;
+                } else if (Nr_Of_Phases_Charging > 0) {
+                    // Else, fall back on the theoretical maximum of the cable + nr of phases
+                    TimeToGo = (3600 * EnergyRemaining) / (MaxCapacity * (Nr_Of_Phases_Charging * 230));
+                }
+
+                // Wait until we have a somewhat sensible estimation while still respecting granny chargers
+                if (TimeToGo < 100000) {
+                    TimeUntilFull = TimeToGo;
+                }
+            }
+
+            // We can't possibly charge to over 100% SoC
+            if (ComputedSoC > FullSoC) {
+                ComputedSoC = FullSoC;
+                RemainingSoC = 0;
+                TimeUntilFull = -1;
+            }
+
+            _LOG_I("SoC: EnergyRemaining %i RemaningSoC %i EnergyRequest %i EnergyCharged %i EnergyCapacity %i ComputedSoC %i FullSoC %i TimeUntilFull %i TargetEnergyCapacity %i\n", EnergyRemaining, RemainingSoC, EnergyRequest, EVMeter.EnergyCharged, EnergyCapacity, ComputedSoC, FullSoC, TimeUntilFull, TargetEnergyCapacity);
+        }
+    } else {
+        if (TimeUntilFull != -1) TimeUntilFull = -1;
+    }
+    // There's also the possibility an external API/app is used for SoC info. In such case, we allow setting ComputedSoC directly.
+#endif //SMARTEVSE_VERSION
+}
+#endif //MODEM
+
