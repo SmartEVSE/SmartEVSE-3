@@ -2606,6 +2606,7 @@ void Handle_ESP32_Message(char *SerialBuf, uint8_t *CommState) {
     CALL_ON_RECEIVE_PARAM(Mode:, setMode)
     CALL_ON_RECEIVE(write_settings)
     CALL_ON_RECEIVE(RecomputeSoC)
+    CALL_ON_RECEIVE(DisconnectEvent)
 
     //these variables do not exist in CH32 so values are sent to ESP32
     SET_ON_RECEIVE(RFIDstatus:, RFIDstatus)

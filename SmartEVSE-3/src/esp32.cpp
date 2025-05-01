@@ -453,21 +453,6 @@ const char * getErrorNameWeb(uint8_t ErrorCode) {
 }
 
 
-// EV disconnected from charger. Triggered after 60 seconds of disconnect
-// This is done so we can "re-plug" the car in the Modem process without triggering disconnect events
-void DisconnectEvent(void){
-    _LOG_A("EV disconnected for a while. Resetting SoC states");
-    ModemStage = 0; // Enable Modem states again
-    InitialSoC = -1;
-    FullSoC = -1;
-    RemainingSoC = -1;
-    ComputedSoC = -1;
-    EnergyCapacity = -1;
-    EnergyRequest = -1;
-    TimeUntilFull = -1;
-    strncpy(EVCCID, "", sizeof(EVCCID));
-}
-
 void getButtonState() {
     // Sample the three < o > buttons.
     // As the buttons are shared with the SPI lines going to the LCD,
@@ -2956,5 +2941,26 @@ void RecomputeSoC(void) {
     // There's also the possibility an external API/app is used for SoC info. In such case, we allow setting ComputedSoC directly.
 #endif //SMARTEVSE_VERSION
 }
+
+
+// EV disconnected from charger. Triggered after 60 seconds of disconnect
+// This is done so we can "re-plug" the car in the Modem process without triggering disconnect events
+void DisconnectEvent(void){
+#ifndef SMARTEVSE_VERSION //CH32
+    printf("@DisconnectEvent\n");
+#else
+    _LOG_A("EV disconnected for a while. Resetting SoC states");
+    ModemStage = 0; // Enable Modem states again
+    InitialSoC = -1;
+    FullSoC = -1;
+    RemainingSoC = -1;
+    ComputedSoC = -1;
+    EnergyCapacity = -1;
+    EnergyRequest = -1;
+    TimeUntilFull = -1;
+    strncpy(EVCCID, "", sizeof(EVCCID));
+#endif //SMARTEVSE_VERSION
+}
+
 #endif //MODEM
 
