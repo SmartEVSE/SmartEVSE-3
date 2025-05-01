@@ -1,4 +1,17 @@
 #include <unordered_map>
+#if MODEM
+int8_t InitialSoC = -1;                                                     // State of charge of car
+int8_t FullSoC = -1;                                                        // SoC car considers itself fully charged
+int8_t ComputedSoC = -1;                                                    // Estimated SoC, based on charged kWh
+int8_t RemainingSoC = -1;                                                   // Remaining SoC, based on ComputedSoC
+int32_t TimeUntilFull = -1;                                                 // Remaining time until car reaches FullSoC, in seconds
+int32_t EnergyCapacity = -1;                                                // Car's total battery capacity
+int32_t EnergyRequest = -1;                                                 // Requested amount of energy by car
+char EVCCID[32];                                                            // Car's EVCCID (EV Communication Controller Identifer)
+char RequiredEVCCID[32];                                                    // Required EVCCID before allowing charging
+void RecomputeSoC(void);
+#endif
+
 #ifdef SMARTEVSE_VERSION //ESP32
 
 #include <ArduinoJson.h>
@@ -114,15 +127,6 @@ extern ModbusMessage MBEVMeterResponse(ModbusMessage request);
 hw_timer_t * timerA = NULL;
 Preferences preferences;
 
-int8_t InitialSoC = -1;                                                     // State of charge of car
-int8_t FullSoC = -1;                                                        // SoC car considers itself fully charged
-int8_t ComputedSoC = -1;                                                    // Estimated SoC, based on charged kWh
-int8_t RemainingSoC = -1;                                                   // Remaining SoC, based on ComputedSoC
-int32_t TimeUntilFull = -1;                                                 // Remaining time until car reaches FullSoC, in seconds
-int32_t EnergyCapacity = -1;                                                // Car's total battery capacity
-int32_t EnergyRequest = -1;                                                 // Requested amount of energy by car
-char EVCCID[32];                                                            // Car's EVCCID (EV Communication Controller Identifer)
-char RequiredEVCCID[32];                                                    // Required EVCCID before allowing charging
 uint16_t LCDPin = 0;                                                        // PIN to operate LCD keys from web-interface
 
 extern esp_adc_cal_characteristics_t * adc_chars_CP;
@@ -593,12 +597,12 @@ void mqtt_receive_callback(const String topic, const String payload) {
             return;
         homeBatteryCurrent = payload.toInt();
         homeBatteryLastUpdate = time(NULL);
+#if MODEM
     } else if (topic == MQTTprefix + "/Set/RequiredEVCCID") {
         strncpy(RequiredEVCCID, payload.c_str(), sizeof(RequiredEVCCID));
-        if (preferences.begin("settings", false) ) {                        //false = write mode
-            preferences.putString("RequiredEVCCID", String(RequiredEVCCID));
-            preferences.end();
-        }
+        Serial1.printf("RequiredEVCCID@%s\n", RequiredEVCCID);
+        write_settings();
+#endif
     } else if (topic == MQTTprefix + "/Set/ColorOff") {
         int32_t R, G, B;
         int n = sscanf(payload.c_str(), "%d,%d,%d", &R, &G, &B);
@@ -985,7 +989,9 @@ void read_settings() {
 
 
         EnableC2 = (EnableC2_t) preferences.getUShort("EnableC2", ENABLE_C2);
+#if MODEM
         strncpy(RequiredEVCCID, preferences.getString("RequiredEVCCID", "").c_str(), sizeof(RequiredEVCCID));
+#endif
         maxTemp = preferences.getUShort("maxTemp", MAX_TEMPERATURE);
 
 #if ENABLE_OCPP && defined(SMARTEVSE_VERSION) //run OCPP only on ESP32
@@ -1046,7 +1052,9 @@ void write_settings(void) {
     preferences.putUChar("EMFunction", EMConfig[EM_CUSTOM].Function);
     preferences.putUChar("WIFImode", WIFImode);
     preferences.putUShort("EnableC2", EnableC2);
+#if MODEM
     preferences.putString("RequiredEVCCID", String(RequiredEVCCID));
+#endif
     preferences.putUShort("maxTemp", maxTemp);
     preferences.putUChar("AutoUpdate", AutoUpdate);
     preferences.putUChar("LCDlock", LCDlock);
@@ -1511,18 +1519,19 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
             SetCPDuty(pwm);
             doc["override_pwm"] = pwm;
         }
-
+#if MODEM
         //allow basic plug 'n charge based on evccid
         //if required_evccid is set to a value, SmartEVSE will only allow charging requests from said EVCCID
         if(request->hasParam("required_evccid")) {
             if (request->getParam("required_evccid")->value().length() <= 32) {
                 strncpy(RequiredEVCCID, request->getParam("required_evccid")->value().c_str(), sizeof(RequiredEVCCID));
                 doc["required_evccid"] = RequiredEVCCID;
+                Serial1.printf("RequiredEVCCID@%s\n", RequiredEVCCID);
             } else {
                 doc["required_evccid"] = "EVCCID too long (max 32 char)";
             }
         }
-
+#endif
         if(request->hasParam("lcdlock")) {
             int lock = request->getParam("lcdlock")->value().toInt();
             if (lock >= 0 && lock <= 1) {                                   //boundary check

@@ -72,6 +72,7 @@ extern void CheckRS485Comm(void);
 #if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=40   //CH32 and v4 ESP32
 #if SMARTEVSE_VERSION >= 40 //v4 ESP32
 #define RETURN return;
+extern void RecomputeSoC(void);
 #else
 #define RETURN
 #endif
@@ -2142,6 +2143,12 @@ void CheckSerialComm(void) {
     ret = strstr(SerialBuf, token);
     if (ret != NULL && Initialized) printf("@Config:OK\n"); //only print this on reception of string
 
+    strncpy(token, "RequiredEVCCID@", sizeof(token));
+    ret = strstr(SerialBuf, token);
+    if (ret) {
+        strncpy(RequiredEVCCID, ret+strlen(token), sizeof(RequiredEVCCID));
+    }
+
     // Enable/disable modem power
     ModemPower(ModemPwr);
 
@@ -2549,6 +2556,9 @@ void SendConfigToCH32() {
     Serial1.printf("EMDataType@%u\n", tmp); EMConfig[EM_CUSTOM].DataType = (mb_datatype) tmp;
     */Serial1.printf("EMDataType@%u\n", EMConfig[EM_CUSTOM].DataType);
     Serial1.printf("EMFunction@%u\n", EMConfig[EM_CUSTOM].Function);
+#if MODEM
+    Serial1.printf("RequiredEVCCID@%s\n", RequiredEVCCID);
+#endif
     SEND_TO_CH32(CardOffset)
     SEND_TO_CH32(Config)
     SEND_TO_CH32(EnableC2)
