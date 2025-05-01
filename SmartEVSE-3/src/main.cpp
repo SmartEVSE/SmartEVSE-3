@@ -15,6 +15,7 @@
 
 #ifdef SMARTEVSE_VERSION //ESP32
 #define EXT extern
+#define _GLCD GLCD()
 #include "esp32.h"
 #include <ArduinoJson.h>
 #include <SPI.h>
@@ -55,6 +56,7 @@ extern unsigned char RFID[8];
 extern uint16_t LCDPin;
 #else //CH32
 #define EXT extern "C"
+#define _GLCD                                                                   // the GLCD doesnt have to be updated on the CH32
 #include "ch32.h"
 #include "utils.h"
 extern "C" {
@@ -1387,7 +1389,7 @@ void Timer1S_singlerun(void) {
         if (ToModemWaitStateTimer) ToModemWaitStateTimer--;
         else{
             setState(STATE_MODEM_WAIT);                                         // switch to state Modem 2
-            GLCD();
+            _GLCD;
         }
     }
 
@@ -1395,7 +1397,7 @@ void Timer1S_singlerun(void) {
         if (ToModemDoneStateTimer) ToModemDoneStateTimer--;
         else{
             setState(STATE_MODEM_DONE); 
-            GLCD();
+            _GLCD;
         }
     }
 
@@ -1418,7 +1420,7 @@ void Timer1S_singlerun(void) {
                 ModemStage = 1;
 
                 setState(STATE_B);                                     // switch to STATE_B
-                GLCD();                                                // Re-init LCD (200ms delay)
+                _GLCD;                                                // Re-init LCD (200ms delay)
             } else {
                 // We actually do not want to continue charging and re-start at modem request after 60s
                 ModemStage = 0;
@@ -1426,7 +1428,7 @@ void Timer1S_singlerun(void) {
 
                 // Change to MODEM_DENIED state
                 setState(STATE_MODEM_DENIED);
-                GLCD();                                                // Re-init LCD (200ms delay)
+                _GLCD;                                                // Re-init LCD (200ms delay)
             }
         }
     }
@@ -1437,7 +1439,7 @@ void Timer1S_singlerun(void) {
             LeaveModemDeniedStateTimer = -1;           // reset ModemStateDeniedTimer
             setState(STATE_A);                         // switch to STATE_B
             PILOT_CONNECTED;
-            GLCD();                                    // Re-init LCD (200ms delay)
+            _GLCD;                                    // Re-init LCD (200ms delay)
         }
     }
 
@@ -2758,7 +2760,7 @@ void Timer10ms_singlerun(void) {
 
     if (timeinfo.tm_sec != old_sec) {
         old_sec = timeinfo.tm_sec;
-        GLCD();
+        _GLCD;
     }
 #endif
 
@@ -2862,7 +2864,7 @@ void Timer10ms_singlerun(void) {
                         DiodeCheck = 0;                                     // (local variable)
                         setState(STATE_C);                                  // switch to STATE_C
 #ifdef SMARTEVSE_VERSION //not on CH32
-                        if (!LCDNav) GLCD();                                // Don't update the LCD if we are navigating the menu
+                        if (!LCDNav) _GLCD;                                // Don't update the LCD if we are navigating the menu
 #endif                                                                      // immediately update LCD (20ms)
                     }
                     else if (Mode == MODE_SOLAR) {                          // Not enough power:
@@ -2928,7 +2930,7 @@ void Timer10ms_singlerun(void) {
         setState(STATE_C);                                                  // switch to STATE_C
                                                                             // Don't update the LCD if we are navigating the menu
 #ifdef SMARTEVSE_VERSION //not on CH32
-        if (!LCDNav) GLCD();                                                // immediately update LCD
+        if (!LCDNav) _GLCD;                                                // immediately update LCD
 #endif
     }
 
