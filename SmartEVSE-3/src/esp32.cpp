@@ -605,15 +605,15 @@ void mqtt_receive_callback(const String topic, const String payload) {
         int pwm = payload.toInt();
         if (pwm == -1) {
             SetCPDuty(1024);
-            CP_ON;
+            PILOT_CONNECTED;
             CPDutyOverride = false;
         } else if (pwm == 0) {
             SetCPDuty(0);
-            CP_OFF;
+            PILOT_DISCONNECTED;
             CPDutyOverride = true;
         } else if (pwm <= 1024) {
             SetCPDuty(pwm);
-            CP_ON;
+            PILOT_CONNECTED;
             CPDutyOverride = true;
         }
     } else if (topic == MQTTprefix + "/Set/MainsMeter") {
@@ -1571,14 +1571,14 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
         if(request->hasParam("override_pwm")) {
             int pwm = request->getParam("override_pwm")->value().toInt();
             if (pwm == 0){
-                CP_OFF;
+                PILOT_DISCONNECTED;
                 CPDutyOverride = true;
             } else if (pwm < 0){
-                CP_ON;
+                PILOT_CONNECTED;
                 CPDutyOverride = false;
                 pwm = 100; // 10% until next loop, to be safe, corresponds to 6A
             } else{
-                CP_ON;
+                PILOT_CONNECTED;
                 CPDutyOverride = true;
             }
 
@@ -2480,7 +2480,7 @@ void setup() {
     digitalWrite(PIN_SSR, LOW);             // SSR1 OFF
     digitalWrite(PIN_SSR2, LOW);            // SSR2 OFF
     digitalWrite(PIN_LCD_LED, HIGH);        // LCD Backlight ON
-    CP_OFF;           // CP signal OFF
+    PILOT_DISCONNECTED;                     // CP signal OFF
 
  
     // Uart 0 debug/program port
@@ -2773,7 +2773,7 @@ void setup() {
     // Set eModbus LogLevel to 1, to suppress possible E5 errors
     MBUlogLvl = LOG_LEVEL_CRITICAL;
     ConfigureModbusMode(255);
-    CP_ON;           // CP signal ACTIVE
+    PILOT_CONNECTED;           // CP signal ACTIVE
 #endif
 
     firmwareUpdateTimer = random(FW_UPDATE_DELAY, 0xffff);

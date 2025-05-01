@@ -729,14 +729,14 @@ void setState(uint8_t NewState) { //c
             ToModemDoneStateTimer = 60;
             break;
         case STATE_MODEM_DONE:  // This state is reached via STATE_MODEM_WAIT after 60s (timeout condition, nothing received) or after REST request (success, shortcut to immediate charging).
-            CP_OFF;
+            PILOT_DISCONNECTED;
             DisconnectTimeCounter = -1;                                         // Disable Disconnect timer. Car is connected
             LeaveModemDoneStateTimer = 5;                                       // Disconnect CP for 5 seconds, restart charging cycle but this time without the modem steps.
 #endif
             break;
         case STATE_B:
 #if MODEM
-            CP_ON;
+            PILOT_CONNECTED;
             DisconnectTimeCounter = -1;                                         // Disable Disconnect timer. Car is connected
 #endif
             CONTACTOR1_OFF;
@@ -1410,7 +1410,7 @@ void Timer1S_singlerun(void) {
 
             // Reset CP to idle & turn off, it will be turned on again later for another try
             SetCPDuty(1024);
-            CP_OFF;
+            PILOT_DISCONNECTED;
 
             // Check whether the EVCCID matches the one required
             if (strcmp(RequiredEVCCID, "") == 0 || strcmp(RequiredEVCCID, EVCCID) == 0) {
@@ -1436,7 +1436,7 @@ void Timer1S_singlerun(void) {
         else{
             LeaveModemDeniedStateTimer = -1;           // reset ModemStateDeniedTimer
             setState(STATE_A);                         // switch to STATE_B
-            CP_ON;
+            PILOT_CONNECTED;
             GLCD();                                    // Re-init LCD (200ms delay)
         }
     }
