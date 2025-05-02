@@ -49,7 +49,7 @@ uint8_t tcp_rxdata[TCP_RX_DATA_LEN];
 #define stateWaitForServiceDiscoveryRequest 2
 #define stateWaitForServicePaymentSelectionRequest 3
 #define stateWaitForContractAuthenticationRequest 4
-#define stateWaitForChargeParameterDiscoveryRequest 5 
+#define stateWaitForChargeParameterDiscoveryRequest 5
 #define stateWaitForCableCheckRequest 6
 #define stateWaitForPreChargeRequest 7
 #define stateWaitForPowerDeliveryRequest 8
@@ -66,7 +66,7 @@ void routeDecoderInputData(void) {
     */
     global_streamDec.data = &tcp_rxdata[V2GTP_HEADER_SIZE];
     global_streamDec.size = tcp_rxdataLen - V2GTP_HEADER_SIZE;
-    
+
     /* We have something to decode, this is a good sign that the connection is fine.
         Inform the ConnectionManager that everything is fine. */
     //connMgr_ApplOk();
@@ -75,16 +75,16 @@ void routeDecoderInputData(void) {
 
 void tcp_transmit(void) {
 
-    if (tcpState == TCP_STATE_ESTABLISHED) {  
+    if (tcpState == TCP_STATE_ESTABLISHED) {
         tcpHeaderLen = 20; /* 20 bytes normal header, no options */
-        if (tcpPayloadLen+tcpHeaderLen < TCP_TRANSMIT_PACKET_LEN) {    
+        if (tcpPayloadLen+tcpHeaderLen < TCP_TRANSMIT_PACKET_LEN) {
             memcpy(&TcpTransmitPacket[tcpHeaderLen], tcpPayload, tcpPayloadLen);
             tcp_prepareTcpHeader(TCP_FLAG_PSH + TCP_FLAG_ACK); /* data packets are always sent with flags PUSH and ACK. */
             tcp_packRequestIntoIp();
         } else {
             _LOG_W("Error: tcpPayload and header do not fit into TcpTransmitPacket.\n");
-        }      
-    }  
+        }
+    }
 }
 
 
@@ -98,7 +98,7 @@ void addV2GTPHeaderAndTransmit(const uint8_t *exiBuffer, uint8_t exiBufferLen) {
     tcpPayload[0] = 0x01; // version
     tcpPayload[1] = 0xfe; // version inverted
     tcpPayload[2] = 0x80; // payload type. 0x8001 means "EXI data"
-    tcpPayload[3] = 0x01; // 
+    tcpPayload[3] = 0x01; //
     tcpPayload[4] = (uint8_t)(exiBufferLen >> 24); // length 4 byte.
     tcpPayload[5] = (uint8_t)(exiBufferLen >> 16);
     tcpPayload[6] = (uint8_t)(exiBufferLen >> 8);
@@ -129,13 +129,13 @@ void decodeV2GTP(void) {
 
         // Check if we have received the correct message
         if (aphsDoc.supportedAppProtocolReq_isUsed) {
-        
+
             _LOG_I("SupportedApplicationProtocolRequest\n");
             // process data when no errors occured during decoding
             if (g_errn == 0) {
                 arrayLen = aphsDoc.supportedAppProtocolReq.AppProtocol.arrayLen;
                 _LOG_I("The car supports %u schemas.\n", arrayLen);
-            
+
                 // check all schemas for DIN
                 for(n=0; n<arrayLen; n++) {
 
@@ -143,7 +143,7 @@ void decodeV2GTP(void) {
                     NamespaceLen = aphsDoc.supportedAppProtocolReq.AppProtocol.array[n].ProtocolNamespace.charactersLen;
                     SchemaID = aphsDoc.supportedAppProtocolReq.AppProtocol.array[n].SchemaID;
                     for (i=0; i< NamespaceLen; i++) {
-                        strNamespace[i] = aphsDoc.supportedAppProtocolReq.AppProtocol.array[n].ProtocolNamespace.characters[i];    
+                        strNamespace[i] = aphsDoc.supportedAppProtocolReq.AppProtocol.array[n].ProtocolNamespace.characters[i];
                     }
                     _LOG_I("strNameSpace %s SchemaID: %u\n", strNamespace, SchemaID);
 
@@ -159,7 +159,7 @@ void decodeV2GTP(void) {
         }
 
     } else if (fsmState == stateWaitForSessionSetupRequest) {
-        
+
         // Check if we have received the correct message
         if (dinDocDec.V2G_Message.Body.SessionSetupReq_isUsed) {
 
@@ -177,7 +177,7 @@ void decodeV2GTP(void) {
                 _LOG_I("%02x", EVCCID2[i] );
             }
             _LOG_I("\n");
-            
+
             sessionId[0] = 1;   // our SessionId is set up here, and used by _prepare_DinExiDocument
             sessionId[1] = 2;   // This SessionID will be used by the EV in future communication
             sessionId[2] = 3;
@@ -186,11 +186,11 @@ void decodeV2GTP(void) {
 
             // Now prepare the 'SessionSetupResponse' message to send back to the EV
             projectExiConnector_prepare_DinExiDocument();
-            
+
             dinDocEnc.V2G_Message.Body.SessionSetupRes_isUsed = 1;
             init_dinSessionSetupResType(&dinDocEnc.V2G_Message.Body.SessionSetupRes);
             dinDocEnc.V2G_Message.Body.SessionSetupRes.ResponseCode = dinresponseCodeType_OK_NewSessionEstablished;
-            
+
             dinDocEnc.V2G_Message.Body.SessionSetupRes.EVSEID.bytes[0] = 0;
             dinDocEnc.V2G_Message.Body.SessionSetupRes.EVSEID.bytesLen = 1;
 
@@ -199,12 +199,12 @@ void decodeV2GTP(void) {
             projectExiConnector_encode_DinExiDocument();
             addV2GTPHeaderAndTransmit(global_streamEnc.data, global_streamEncPos);
             fsmState = stateWaitForServiceDiscoveryRequest;
-        }    
-        
+        }
+
     } else if (fsmState == stateWaitForServiceDiscoveryRequest) {
 
 
-                
+
         // Check if we have received the correct message
         if (dinDocDec.V2G_Message.Body.ServiceDiscoveryReq_isUsed) {
 
@@ -213,10 +213,10 @@ void decodeV2GTP(void) {
             _LOG_D("SessionID:");
             for (i=0; i<n; i++) _LOG_D("%02x", dinDocDec.V2G_Message.Header.SessionID.bytes[i] );
             _LOG_D("\n");
-            
+
             // Now prepare the 'ServiceDiscoveryResponse' message to send back to the EV
             projectExiConnector_prepare_DinExiDocument();
-            
+
             dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes_isUsed = 1;
             init_dinServiceDiscoveryResType(&dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes);
             dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ResponseCode = dinresponseCodeType_OK;
@@ -239,21 +239,21 @@ void decodeV2GTP(void) {
             DC_extended means "extended pins of an IEC 62196-3 Configuration FF connector", which is
             the normal CCS connector https://en.wikipedia.org/wiki/IEC_62196#FF) */
             dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.EnergyTransferType = dinEVSESupportedEnergyTransferType_DC_extended;
-            
+
             // Send ServiceDiscoveryResponse to EV
             global_streamEncPos = 0;
             projectExiConnector_encode_DinExiDocument();
             addV2GTPHeaderAndTransmit(global_streamEnc.data, global_streamEncPos);
             fsmState = stateWaitForServicePaymentSelectionRequest;
 
-        }    
-     
+        }
+
     } else if (fsmState == stateWaitForServicePaymentSelectionRequest) {
 
         routeDecoderInputData();
         projectExiConnector_decode_DinExiDocument();      // Decode EXI
         tcp_rxdataLen = 0; /* mark the input data as "consumed" */
-                
+
         // Check if we have received the correct message
         if (dinDocDec.V2G_Message.Body.ServicePaymentSelectionReq_isUsed) {
 
@@ -264,12 +264,12 @@ void decodeV2GTP(void) {
 
                 // Now prepare the 'ServicePaymentSelectionResponse' message to send back to the EV
                 projectExiConnector_prepare_DinExiDocument();
-                 
+
                 dinDocEnc.V2G_Message.Body.ServicePaymentSelectionRes_isUsed = 1;
                 init_dinServicePaymentSelectionResType(&dinDocEnc.V2G_Message.Body.ServicePaymentSelectionRes);
 
                 dinDocEnc.V2G_Message.Body.ServicePaymentSelectionRes.ResponseCode = dinresponseCodeType_OK;
-                
+
                 // Send SessionSetupResponse to EV
                 global_streamEncPos = 0;
                 projectExiConnector_encode_DinExiDocument();
@@ -282,7 +282,7 @@ void decodeV2GTP(void) {
         routeDecoderInputData();
         projectExiConnector_decode_DinExiDocument();      // Decode EXI
         tcp_rxdataLen = 0; /* mark the input data as "consumed" */
-                
+
         // Check if we have received the correct message
         if (dinDocDec.V2G_Message.Body.ContractAuthenticationReq_isUsed) {
 
@@ -290,25 +290,25 @@ void decodeV2GTP(void) {
 
             // Now prepare the 'ContractAuthenticationResponse' message to send back to the EV
             projectExiConnector_prepare_DinExiDocument();
-                        
+
             dinDocEnc.V2G_Message.Body.ContractAuthenticationRes_isUsed = 1;
             // Set Authorisation immediately to 'Finished'.
             dinDocEnc.V2G_Message.Body.ContractAuthenticationRes.EVSEProcessing = dinEVSEProcessingType_Finished;
             init_dinContractAuthenticationResType(&dinDocEnc.V2G_Message.Body.ContractAuthenticationRes);
-            
+
             // Send SessionSetupResponse to EV
             global_streamEncPos = 0;
             projectExiConnector_encode_DinExiDocument();
             addV2GTPHeaderAndTransmit(global_streamEnc.data, global_streamEncPos);
             fsmState = stateWaitForChargeParameterDiscoveryRequest;
-        }    
+        }
 
     } else if (fsmState == stateWaitForChargeParameterDiscoveryRequest) {
 
         routeDecoderInputData();
         projectExiConnector_decode_DinExiDocument();      // Decode EXI
         tcp_rxdataLen = 0; /* mark the input data as "consumed" */
-                
+
         // Check if we have received the correct message
         if (dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq_isUsed) {
 
@@ -328,27 +328,27 @@ void decodeV2GTP(void) {
 
             // Now prepare the 'ChargeParameterDiscoveryResponse' message to send back to the EV
             projectExiConnector_prepare_DinExiDocument();
-            
-            dinDocEnc.V2G_Message.Body.ChargeParameterDiscoveryRes_isUsed = 1;   
+
+            dinDocEnc.V2G_Message.Body.ChargeParameterDiscoveryRes_isUsed = 1;
             init_dinChargeParameterDiscoveryResType(&dinDocEnc.V2G_Message.Body.ChargeParameterDiscoveryRes);
-            
+
             // Send SessionSetupResponse to EV
             global_streamEncPos = 0;
             projectExiConnector_encode_DinExiDocument();
             addV2GTPHeaderAndTransmit(global_streamEnc.data, global_streamEncPos);
             fsmState = stateWaitForCableCheckRequest;
 
-        }    
+        }
 
     }
-    
+
 }
 
 
 void tcp_packRequestIntoEthernet(void) {
     //# packs the IP packet into an ethernet packet
-    uint16_t length;        
-    
+    uint16_t length;
+
     length = TcpIpRequestLen + 6 + 6 + 2; // # Ethernet header needs 14 bytes:
                                                     // #  6 bytes destination MAC
                                                     // #  6 bytes source MAC
@@ -359,7 +359,7 @@ void tcp_packRequestIntoEthernet(void) {
     txbuffer[12] = 0x86; // # 86dd is IPv6
     txbuffer[13] = 0xdd;
     memcpy(txbuffer+14, TcpIpRequest, length);
-    
+
     //_LOG_D("[TX] ");
     //for(int x=0; x<length; x++) _LOG_D("%02x",txbuffer[x]);
     //_LOG_D("\n\n");
@@ -377,7 +377,7 @@ void tcp_packRequestIntoIp(void) {
                                                 //  #   2 bytes length (incl checksum)
                                                 //  #   2 bytes checksum
     TcpIpRequest[0] = 0x60; // traffic class, flow
-    TcpIpRequest[1] = 0x00; 
+    TcpIpRequest[1] = 0x00;
     TcpIpRequest[2] = 0x00;
     TcpIpRequest[3] = 0x00;
     plen = TcpTransmitPacketLen; // length of the payload. Without headers.
@@ -389,7 +389,7 @@ void tcp_packRequestIntoIp(void) {
     // We are the EVSE. So the PevIp is our own link-local IP address.
     for (i=0; i<16; i++) {
         TcpIpRequest[8+i] = SeccIp[i]; // source IP address
-    }            
+    }
     for (i=0; i<16; i++) {
         TcpIpRequest[24+i] = EvccIp[i]; // destination IP address
     }
@@ -428,10 +428,10 @@ void tcp_prepareTcpHeader(uint8_t tcpFlag) {
     TcpTransmitPacket[9] = (uint8_t)(TcpAckNr>>16);
     TcpTransmitPacket[10] = (uint8_t)(TcpAckNr>>8);
     TcpTransmitPacket[11] = (uint8_t)(TcpAckNr);
-    TcpTransmitPacketLen = tcpHeaderLen + tcpPayloadLen; 
+    TcpTransmitPacketLen = tcpHeaderLen + tcpPayloadLen;
     TcpTransmitPacket[12] = (tcpHeaderLen/4) << 4; /* 70 High-nibble: DataOffset in 4-byte-steps. Low-nibble: Reserved=0. */
 
-    TcpTransmitPacket[13] = tcpFlag; 
+    TcpTransmitPacket[13] = tcpFlag;
     TcpTransmitPacket[14] = (uint8_t)(TCP_RECEIVE_WINDOW>>8);
     TcpTransmitPacket[15] = (uint8_t)(TCP_RECEIVE_WINDOW);
 
@@ -442,11 +442,11 @@ void tcp_prepareTcpHeader(uint8_t tcpFlag) {
     TcpTransmitPacket[18] = 0; /* 16 bit urgentPointer. Always zero in our case. */
     TcpTransmitPacket[19] = 0;
 
-    checksum = calculateUdpAndTcpChecksumForIPv6(TcpTransmitPacket, TcpTransmitPacketLen, SeccIp, EvccIp, NEXT_TCP); 
+    checksum = calculateUdpAndTcpChecksumForIPv6(TcpTransmitPacket, TcpTransmitPacketLen, SeccIp, EvccIp, NEXT_TCP);
     TcpTransmitPacket[16] = (uint8_t)(checksum >> 8);
     TcpTransmitPacket[17] = (uint8_t)(checksum);
 
-    //_LOG_D("Source:%u Dest:%u Seqnr:%08x Acknr:%08x\n", seccPort, evccTcpPort, TcpSeqNr, TcpAckNr);  
+    //_LOG_D("Source:%u Dest:%u Seqnr:%08x Acknr:%08x\n", seccPort, evccTcpPort, TcpSeqNr, TcpAckNr);
 }
 
 
@@ -454,15 +454,15 @@ void tcp_sendFirstAck(void) {
    // _LOG_D("[TCP] sending first ACK\n");
     tcpHeaderLen = 20;
     tcpPayloadLen = 0;
-    tcp_prepareTcpHeader(TCP_FLAG_ACK | TCP_FLAG_SYN);	
+    tcp_prepareTcpHeader(TCP_FLAG_ACK | TCP_FLAG_SYN);
     tcp_packRequestIntoIp();
 }
 
 void tcp_sendAck(void) {
 //   _LOG_D("[TCP] sending ACK\n");
    tcpHeaderLen = 20; /* 20 bytes normal header, no options */
-   tcpPayloadLen = 0;   
-   tcp_prepareTcpHeader(TCP_FLAG_ACK);	
+   tcpPayloadLen = 0;
+   tcp_prepareTcpHeader(TCP_FLAG_ACK);
    tcp_packRequestIntoIp();
 }
 
@@ -472,7 +472,7 @@ void evaluateTcpPacket(void) {
     uint32_t remoteSeqNr;
     uint32_t remoteAckNr;
     uint16_t SourcePort, DestinationPort, pLen, hdrLen, tmpPayloadLen;
-        
+
     /* todo: check the IP addresses, checksum etc */
     //nTcpPacketsReceived++;
     pLen =  rxbuffer[18]*256 + rxbuffer[19]; /* length of the IP payload */
@@ -481,8 +481,8 @@ void evaluateTcpPacket(void) {
         tmpPayloadLen = pLen - hdrLen;
     } else {
         tmpPayloadLen = 0; /* no TCP payload data */
-    } 
-    //_LOG_D("pLen=%u, hdrLen=%u, Payload=%u\n", pLen, hdrLen, tmpPayloadLen);  
+    }
+    //_LOG_D("pLen=%u, hdrLen=%u, Payload=%u\n", pLen, hdrLen, tmpPayloadLen);
     SourcePort = rxbuffer[54]*256 +  rxbuffer[55];
     DestinationPort = rxbuffer[56]*256 +  rxbuffer[57];
     if (DestinationPort != 15118) {
@@ -490,17 +490,17 @@ void evaluateTcpPacket(void) {
         return; /* wrong port */
     }
     //  tcpActivityTimer=TCP_ACTIVITY_TIMER_START;
-    remoteSeqNr = 
+    remoteSeqNr =
             (((uint32_t)rxbuffer[58])<<24) +
             (((uint32_t)rxbuffer[59])<<16) +
             (((uint32_t)rxbuffer[60])<<8) +
             (((uint32_t)rxbuffer[61]));
-    remoteAckNr = 
+    remoteAckNr =
             (((uint32_t)rxbuffer[62])<<24) +
             (((uint32_t)rxbuffer[63])<<16) +
             (((uint32_t)rxbuffer[64])<<8) +
             (((uint32_t)rxbuffer[65]));
-    //_LOG_D("Source:%u Dest:%u Seqnr:%08x Acknr:%08x flags:%02x\n", SourcePort, DestinationPort, remoteSeqNr, remoteAckNr, flags);        
+    //_LOG_D("Source:%u Dest:%u Seqnr:%08x Acknr:%08x flags:%02x\n", SourcePort, DestinationPort, remoteSeqNr, remoteAckNr, flags);
     flags = rxbuffer[67];
     if (flags == TCP_FLAG_SYN) { /* This is the connection setup reqest from the EV. */
         if (tcpState == TCP_STATE_CLOSED) {
@@ -511,7 +511,7 @@ void evaluateTcpPacket(void) {
             tcp_sendFirstAck();
         }
         return;
-    }    
+    }
     if (flags == TCP_FLAG_ACK && tcpState == TCP_STATE_SYN_ACK) {
         if (remoteAckNr == (TcpSeqNr + 1) ) {
             _LOG_I("-------------- TCP connection established ---------------\n\n");
@@ -523,17 +523,17 @@ void evaluateTcpPacket(void) {
     if (tcpState != TCP_STATE_ESTABLISHED) {
         /* received something while the connection is closed. Just ignore it. */
         _LOG_D("[TCP] ignore, not connected.\n");
-        return;    
-    } 
+        return;
+    }
 
     // It can be an ACK, or a data package, or a combination of both. We treat the ACK and the data independent from each other,
-    // to treat each combination. 
+    // to treat each combination.
    if ((tmpPayloadLen>0) && (tmpPayloadLen< TCP_RX_DATA_LEN)) {
         /* This is a data transfer packet. */
         // flag bit PSH should also be set.
         tcp_rxdataLen = tmpPayloadLen;
         TcpAckNr = remoteSeqNr + tcp_rxdataLen; // The ACK number of our next transmit packet is tcp_rxdataLen more than the received seq number.
-        TcpSeqNr = remoteAckNr;                 // tcp_rxdatalen will be cleared later.        
+        TcpSeqNr = remoteAckNr;                 // tcp_rxdatalen will be cleared later.
         /* rxbuffer[74] is the first payload byte. */
         memcpy(tcp_rxdata, rxbuffer+74, tcp_rxdataLen);  /* provide the received data to the application */
         //     connMgr_TcpOk();
@@ -544,7 +544,7 @@ void evaluateTcpPacket(void) {
 
    if (flags & TCP_FLAG_ACK) {
     //   _LOG_D("This was an ACK\n\n");
-       TcpSeqNr = remoteAckNr; /* The sequence number of our next transmit packet is given by the received ACK number. */      
+       TcpSeqNr = remoteAckNr; /* The sequence number of our next transmit packet is given by the received ACK number. */
    }
 }
 #endif

@@ -48,7 +48,7 @@ uint32_t qcaspi_read_burst(uint8_t *dst);
 #define MODEM_CM_SET_KEY_REQ 2
 #define MODEM_CM_SET_KEY_CNF 3
 #define MODEM_CONFIGURED 10
-#define SLAC_PARAM_REQ 20   
+#define SLAC_PARAM_REQ 20
 #define SLAC_PARAM_CNF 30
 #define MNBC_SOUND 40
 #define ATTEN_CHAR_IND 50

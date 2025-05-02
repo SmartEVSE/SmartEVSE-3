@@ -6,7 +6,7 @@
 
 const uint8_t broadcastIPv6[16] = { 0xff, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1};
 /* our link-local IPv6 address. Based on myMac, but with 0xFFFE in the middle, and bit 1 of MSB inverted */
-uint8_t SeccIp[16]; 
+uint8_t SeccIp[16];
 uint8_t EvccIp[16];
 uint16_t evccTcpPort; /* the TCP port number of the car */
 uint8_t sourceIp[16];
@@ -50,7 +50,7 @@ void setSeccIp() {
     memset(SeccIp, 0, 16);
     SeccIp[0] = 0xfe;             // Link-local address
     SeccIp[1] = 0x80;
-    // byte 2-7 are zero;               
+    // byte 2-7 are zero;
     SeccIp[8] = myMac[0] ^ 2;     // invert bit 1 of MSB
     SeccIp[9] = myMac[1];
     SeccIp[10] = myMac[2];
@@ -98,15 +98,15 @@ uint16_t calculateUdpAndTcpChecksumForIPv6(uint8_t *UdpOrTcpframe, uint16_t UdpO
     // pseudo-ipv6-header finished.
     // Run the checksum over the concatenation of the pseudoheader and the buffer.
 
-  
+
     totalSum = 0;
 	for (i=0; i<PSEUDO_HEADER_LEN/2; i++) { // running through the pseudo header, in 2-byte-steps
         value16 = pseudoHeader[2*i] * 256 + pseudoHeader[2*i+1]; // take the current 16-bit-word
         totalSum += value16; // we start with a normal addition of the value to the totalSum
         // But we do not want normal addition, we want a 16 bit one's complement sum,
         // see https://en.wikipedia.org/wiki/User_Datagram_Protocol
-        if (totalSum>=65536) { // On each addition, if a carry-out (17th bit) is produced, 
-            totalSum-=65536; // swing that 17th carry bit around 
+        if (totalSum>=65536) { // On each addition, if a carry-out (17th bit) is produced,
+            totalSum-=65536; // swing that 17th carry bit around
             totalSum+=1; // and add it to the least significant bit of the running total.
 		}
 	}
@@ -115,14 +115,14 @@ uint16_t calculateUdpAndTcpChecksumForIPv6(uint8_t *UdpOrTcpframe, uint16_t UdpO
         totalSum += value16; // we start with a normal addition of the value to the totalSum
         // But we do not want normal addition, we want a 16 bit one's complement sum,
         // see https://en.wikipedia.org/wiki/User_Datagram_Protocol
-        if (totalSum>=65536) { // On each addition, if a carry-out (17th bit) is produced, 
-            totalSum-=65536; // swing that 17th carry bit around 
+        if (totalSum>=65536) { // On each addition, if a carry-out (17th bit) is produced,
+            totalSum-=65536; // swing that 17th carry bit around
             totalSum+=1; // and add it to the least significant bit of the running total.
 		}
 	}
     // Finally, the sum is then one's complemented to yield the value of the UDP checksum field.
     checksum = (uint16_t) (totalSum ^ 0xffff);
-    
+
     return checksum;
 }
 
@@ -137,7 +137,7 @@ void packResponseIntoEthernet() {
                                                 //  2 bytes EtherType
     for (i=0; i<6; i++) {       // fill the destination MAC with the source MAC of the received package
         txbuffer[i] = rxbuffer[6+i];
-    }    
+    }
     setMacAt(myMac,6); // bytes 6 to 11 are the source MAC
     txbuffer[12] = 0x86; // 86dd is IPv6
     txbuffer[13] = 0xdd;
@@ -145,7 +145,7 @@ void packResponseIntoEthernet() {
         txbuffer[14+i] = IpResponse[i];
     }
 
-    qcaspi_write_burst(txbuffer, EthTxFrameLen);    
+    qcaspi_write_burst(txbuffer, EthTxFrameLen);
 }
 
 void packResponseIntoIp(void) {
@@ -158,7 +158,7 @@ void packResponseIntoIp(void) {
                                               //  #   2 bytes length (incl checksum)
                                               //  #   2 bytes checksum
   IpResponse[0] = 0x60; // # traffic class, flow
-  IpResponse[1] = 0; 
+  IpResponse[1] = 0;
   IpResponse[2] = 0;
   IpResponse[3] = 0;
   plen = UdpResponseLen; // length of the payload. Without headers.
@@ -172,7 +172,7 @@ void packResponseIntoIp(void) {
   }
   for (i=0; i<UdpResponseLen; i++) {
     IpResponse[40+i] = UdpResponse[i];
-  }            
+  }
   packResponseIntoEthernet();
 }
 
@@ -191,7 +191,7 @@ void packResponseIntoUdp(void) {
     UdpResponse[1] = 15118  & 0xFF;
     UdpResponse[2] = evccPort >> 8;
     UdpResponse[3] = evccPort & 0xFF;
-    
+
     lenInclChecksum = UdpResponseLen;
     UdpResponse[4] = lenInclChecksum >> 8;
     UdpResponse[5] = lenInclChecksum & 0xFF;
@@ -200,7 +200,7 @@ void packResponseIntoUdp(void) {
     UdpResponse[7] = 0;
     memcpy(UdpResponse+8, V2GFrame, v2gFrameLen);
     // The content of buffer is ready. We can calculate the checksum. see https://en.wikipedia.org/wiki/User_Datagram_Protocol
-    checksum =calculateUdpAndTcpChecksumForIPv6(UdpResponse, UdpResponseLen, SeccIp, EvccIp, NEXT_UDP); 
+    checksum =calculateUdpAndTcpChecksumForIPv6(UdpResponse, UdpResponseLen, SeccIp, EvccIp, NEXT_UDP);
     UdpResponse[6] = checksum >> 8;
     UdpResponse[7] = checksum & 0xFF;
     packResponseIntoIp();
@@ -222,16 +222,16 @@ void sendSdpResponse() {
     // to the port 15118.
     seccPort = 15118;
     SdpPayload[16] = seccPort >> 8; // SECC port high byte.
-    SdpPayload[17] = seccPort & 0xff; // SECC port low byte. 
+    SdpPayload[17] = seccPort & 0xff; // SECC port low byte.
     SdpPayload[18] = 0x10; // security. We only support "no transport layer security, 0x10".
     SdpPayload[19] = 0x00; // transport protocol. We only support "TCP, 0x00".
-    
+
     // add the SDP header
     lenSdp = sizeof(SdpPayload);
     V2GFrame[0] = 0x01; // version
     V2GFrame[1] = 0xfe; // version inverted
     V2GFrame[2] = 0x90; // payload type. 0x9001 is the SDP response message
-    V2GFrame[3] = 0x01; // 
+    V2GFrame[3] = 0x01; //
     V2GFrame[4] = (lenSdp >> 24) & 0xff; // 4 byte payload length
     V2GFrame[5] = (lenSdp >> 16) & 0xff;
     V2GFrame[6] = (lenSdp >> 8) & 0xff;
@@ -245,15 +245,15 @@ void sendSdpResponse() {
 void evaluateUdpPayload(void) {
     uint16_t v2gptPayloadType;
     uint32_t v2gptPayloadLen;
-    
+
     if (destinationport == 15118) { // port for the SECC
       if ((udpPayload[0] == 0x01) && (udpPayload[1] == 0xFE)) { //# protocol version 1 and inverted
         // we are the charger, and it is a message from car to charger, lets save the cars IP and port for later use.
         memcpy(EvccIp, sourceIp, 16);
-        evccPort = sourceport;  
+        evccPort = sourceport;
         //addressManager.setPevIp(EvccIp);
 
-        // it is a V2GTP message                
+        // it is a V2GTP message
         // payload is usually: 01 fe 90 00 00 00 00 02 10 00
         v2gptPayloadType = udpPayload[2]*256 + udpPayload[3];
         // 0x8001 EXI encoded V2G message (Will NOT come with UDP. Will come with TCP.)
@@ -262,7 +262,7 @@ void evaluateUdpPayload(void) {
         if (v2gptPayloadType == 0x9000) {
             // it is a SDP request from the car to the charger
             _LOG_D("it is a SDP request from the car to the charger\n");
-            v2gptPayloadLen = (((uint32_t)udpPayload[4])<<24)  + 
+            v2gptPayloadLen = (((uint32_t)udpPayload[4])<<24)  +
                               (((uint32_t)udpPayload[5])<<16) +
                               (((uint32_t)udpPayload[6])<<8) +
                               udpPayload[7];
@@ -282,16 +282,16 @@ void evaluateUdpPayload(void) {
             } else {
                 _LOG_W("v2gptPayloadLen on SDP request is %u not supported\n", v2gptPayloadLen);
             }
-        } else {    
+        } else {
             _LOG_W("v2gptPayloadType %04x not supported\n", v2gptPayloadType);
-        }                  
+        }
     }
-  }                
+  }
 }
 
 void evaluateNeighborSolicitation(void) {
     uint16_t checksum;
-    
+
     /* The neighbor discovery protocol is used by the charger to find out the
         relation between MAC and IP. */
 
@@ -303,7 +303,7 @@ void evaluateNeighborSolicitation(void) {
         - For the chargers IPv6, there are two possible cases:
             (A) The charger made the SDP without NeighborDiscovery. This works, if
                 we use the pyPlc.py as charger. It does not care for NeighborDiscovery,
-                because the SDP is implemented independent of the address resolution of 
+                because the SDP is implemented independent of the address resolution of
                 the operating system.
                 In this case, we know the chargers IP already from the SDP.
             (B) The charger insists of doing NeighborSolitcitation in the middle of
@@ -314,29 +314,29 @@ void evaluateNeighborSolicitation(void) {
                 3. car sends NeighborAdvertisement
                 4. charger sends SDP response
                 In this case, we need to extract the chargers IP from the NeighborSolicitation,
-                otherwise we have to chance to send the correct NeighborAdvertisement. 
+                otherwise we have to chance to send the correct NeighborAdvertisement.
                 We can do this always, because this does not hurt for case A, address
                 is (hopefully) not changing. */
     /* More general approach: In the network there may be more participants than only the charger,
         e.g. a notebook for sniffing. Eeach of it may send a NeighborSolicitation, and we should NOT use the addresses from the
         NeighborSolicitation as addresses of the charger. The chargers address is only determined
         by the SDP. */
-        
+
     /* save the requesters IP. The requesters IP is the source IP on IPv6 level, at byte 22. */
     memcpy(NeighborsIp, rxbuffer+22, 16);
     /* save the requesters MAC. The requesters MAC is the source MAC on Eth level, at byte 6. */
     memcpy(NeighborsMac, rxbuffer+6, 6);
-    
+
     /* send a NeighborAdvertisement as response. */
     // destination MAC = neighbors MAC
-    setMacAt(NeighborsMac, 0); // bytes 0 to 5 are the destination MAC	
+    setMacAt(NeighborsMac, 0); // bytes 0 to 5 are the destination MAC
     // source MAC = my MAC
     setMacAt(myMac, 6); // bytes 6 to 11 are the source MAC
     // Ethertype 86DD
     txbuffer[12] = 0x86; // # 86dd is IPv6
     txbuffer[13] = 0xdd;
     txbuffer[14] = 0x60; // # traffic class, flow
-    txbuffer[15] = 0; 
+    txbuffer[15] = 0;
     txbuffer[16] = 0;
     txbuffer[17] = 0;
     // plen
@@ -350,12 +350,12 @@ void evaluateNeighborSolicitation(void) {
     memcpy(txbuffer+38, NeighborsIp, 16); // destination IP address
     /* here starts the ICMPv6 */
     txbuffer[54] = 0x88; /* Neighbor Advertisement */
-    txbuffer[55] = 0;	
-    txbuffer[56] = 0; /* checksum (filled later) */	
-    txbuffer[57] = 0;	
+    txbuffer[55] = 0;
+    txbuffer[56] = 0; /* checksum (filled later) */
+    txbuffer[57] = 0;
 
     /* Flags */
-    txbuffer[58] = 0x60; /* Solicited, override */	
+    txbuffer[58] = 0x60; /* Solicited, override */
     txbuffer[59] = 0;
     txbuffer[60] = 0;
     txbuffer[61] = 0;
@@ -368,7 +368,7 @@ void evaluateNeighborSolicitation(void) {
     checksum = calculateUdpAndTcpChecksumForIPv6(txbuffer+54, ICMP_LEN, SeccIp, NeighborsIp, NEXT_ICMPv6);
     txbuffer[56] = checksum >> 8;
     txbuffer[57] = checksum & 0xFF;
-    
+
     _LOG_D("transmitting Neighbor Advertisement\n");
     /* Length of the NeighborAdvertisement = 86*/
     qcaspi_write_burst(txbuffer, 86);
@@ -377,15 +377,15 @@ void evaluateNeighborSolicitation(void) {
 
 void IPv6Manager(uint16_t rxbytes) {
     uint16_t x;
-    uint16_t nextheader; 
-    uint8_t icmpv6type; 
+    uint16_t nextheader;
+    uint8_t icmpv6type;
 
    // _LOG_D("\n[RX] ");
    // for (x=0; x<rxbytes; x++) _LOG_D("%02x",rxbuffer[x]);
    // _LOG_D("\n");
 
     //# The evaluation function for received ipv6 packages.
-  
+
     if (rxbytes > 60) {
         //# extract the source ipv6 address
         memcpy(sourceIp, rxbuffer+22, 16);
@@ -409,7 +409,7 @@ void IPv6Manager(uint16_t rxbytes) {
                     udpPayload[x] = rxbuffer[62+x];
                 }
                 evaluateUdpPayload();
-            }                      
+            }
         }
         if (nextheader == 0x06) { // # it is an TCP frame
         //    _LOG_D("TCP received\n");
