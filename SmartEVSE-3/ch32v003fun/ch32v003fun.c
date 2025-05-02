@@ -129,7 +129,8 @@ int wctomb(char *s, wchar_t wc)
 #endif
 size_t strlen(const char *s) { const char *a = s;for (; *s; s++);return s-a; }
 size_t strnlen(const char *s, size_t n) { const char *p = memchr(s, 0, n); return p ? p-s : n;}
-void *memset(void *dest, int c, size_t n) { unsigned char *s = dest; for (; n; n--, s++) *s = c; return dest; }
+//TODO duplicate def not sure if this is the right one to delete
+//void *memset(void *dest, int c, size_t n) { unsigned char *s = dest; for (; n; n--, s++) *s = c; return dest; }
 char *strcpy(char *d, const char *s) { for (; (*d=*s); s++, d++); return d; }
 char *strncpy(char *d, const char *s, size_t n) { for (; n && (*d=*s); n--, s++, d++); return d; }
 /*int strcmp(const char *l, const char *r)

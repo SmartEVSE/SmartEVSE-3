@@ -73,6 +73,7 @@ extern void CheckRS485Comm(void);
 #if SMARTEVSE_VERSION >= 40 //v4 ESP32
 #define RETURN return;
 extern void RecomputeSoC(void);
+#include <qca.h>
 #else
 #define RETURN
 #endif
@@ -1648,7 +1649,21 @@ void Timer1S_singlerun(void) {
     SEND_TO_ESP32(ErrorFlags)
     elapsedmax = 0;
 #endif
-}
+
+#if SMARTEVSE_VERSION >= 40
+    if (EVSOCupdate) { //TODO why poll this, update in tcp.cpp?
+        String EVCCIDstr = "";
+        for (uint8_t i = 0; i < 6; i++) {
+            if (EVCCID[i] < 0x10) EVCCIDstr += "0";  // pad with zero for values less than 0x10
+            EVCCIDstr += String(EVCCID[i], HEX);
+        }
+
+        //String serverPath = "http://" + CallbackIP + "/ev_state?current_soc=" + String(EVSOC) +"&full_soc=95&energy_request=1&energy_capacity=100000&evccid=" + EVCCIDstr;
+
+      EVSOCupdate  = 0;
+    }
+#endif
+} //Timer1S_singlerun
 
 
 

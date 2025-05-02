@@ -2678,6 +2678,26 @@ void setup() {
         NULL            // Task handle
     );
 
+#if SMARTEVSE_VERSION >= 40
+extern void Timer20ms(void * parameter);
+extern uint8_t modem_state;
+extern void setSeccIp();
+    // Create Task 20ms Timer
+    xTaskCreate(
+        Timer20ms,      // Function that should be called
+        "Timer20ms",    // Name of the task (for debugging)
+        3072,           // Stack size (bytes)
+        NULL,           // Parameter to pass
+        1,              // Task priority
+        NULL            // Task handle
+    );
+    esp_read_mac(myMac, ESP_MAC_ETH); // select the Ethernet MAC
+    setSeccIp();  // use myMac to create link-local IPv6 address.
+
+    modem_state = MODEM_POWERUP;
+#endif
+
+
 #if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
     // Create Task 100ms Timer
     xTaskCreate(
@@ -2688,7 +2708,6 @@ void setup() {
         3,              // Task priority - medium
         NULL            // Task handle
     );
-#else //SMARTEVSE_VERSION
 #endif //SMARTEVSE_VERSION
 
     // Create Task Second Timer (1000ms)
