@@ -113,7 +113,6 @@ extern uint8_t myMac[];
 extern uint8_t pevMac[];
 extern uint8_t EVCCID2[];
 extern uint8_t EVSOC;
-extern uint8_t EVSOCupdate;
 void qcaspi_write_burst(uint8_t *src, uint32_t len);
 void setMacAt(uint8_t *mac, uint16_t offset);
 #endif

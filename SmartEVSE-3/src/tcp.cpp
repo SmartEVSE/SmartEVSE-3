@@ -317,8 +317,14 @@ void decodeV2GTP(void) {
             // Read the SOC from the EVRESSOC data
             EVSOC = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.DC_EVStatus.EVRESSSOC;
 
-            _LOG_D("Current SoC %d%%\n", EVSOC);
-            EVSOCupdate = 1;
+            _LOG_A("Current SoC %d%%\n", EVSOC); //FIXME _LOG_D
+            String EVCCIDstr = "";
+            for (uint8_t i = 0; i < 6; i++) {
+                if (EVCCID2[i] < 0x10) EVCCIDstr += "0";  // pad with zero for values less than 0x10
+                EVCCIDstr += String(EVCCID2[i], HEX);
+            }
+            _LOG_A("EVCCID=%s.\n", EVCCIDstr.c_str()); //FIXME _LOG_D
+            //String serverPath = "http://" + CallbackIP + "/ev_state?current_soc=" + String(EVSOC) +"&full_soc=95&energy_request=1&energy_capacity=100000&evccid=" + EVCCIDstr;
 
             // Now prepare the 'ChargeParameterDiscoveryResponse' message to send back to the EV
             projectExiConnector_prepare_DinExiDocument();
