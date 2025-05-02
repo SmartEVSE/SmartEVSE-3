@@ -1219,8 +1219,11 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
         doc["settings"]["lcdlock"] = LCDlock;
 #if MODEM
             doc["settings"]["required_evccid"] = RequiredEVCCID;
+#if SMARTEVSE_VERSION < 40
             doc["settings"]["modem"] = "Experiment";
-
+#else
+            doc["settings"]["modem"] = "QCA7000";
+#endif
             doc["ev_state"]["initial_soc"] = InitialSoC;
             doc["ev_state"]["remaining_soc"] = RemainingSoC;
             doc["ev_state"]["full_soc"] = FullSoC;
