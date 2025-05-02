@@ -1888,7 +1888,7 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
         mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", json.c_str());
         return true;
 
-#if MODEM
+#if MODEM && SMARTEVSE_VERSION < 40
     } else if (mg_http_match_uri(hm, "/ev_state") && !memcmp("POST", hm->method.buf, hm->method.len)) {
         DynamicJsonDocument doc(200);
 

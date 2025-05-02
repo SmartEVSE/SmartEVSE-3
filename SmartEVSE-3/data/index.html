@@ -242,7 +242,7 @@
               $('#evmeter_charged_kwh').text(data.ev_meter.charged_kwh.toFixed(1) + " kWh");
             }
 
-            if(data.settings.modem == "Experiment") {
+            if(data.settings.modem == "Experiment" || data.settings.modem == "QCA7000") {
               $('.with_modem').show();
             } else {
               $('.with_modem').hide();
