@@ -2847,11 +2847,11 @@ void Timer10ms_singlerun(void) {
                 BalancedMax[0] = MaxCapacity * 10;
                 Balanced[0] = ChargeCurrent;                                // Set pilot duty cycle to ChargeCurrent (v2.15)
                 Balanced0 = Balanced[0];
-#if MODEM
+/* FIXME temporarily disables modem stages for v4 so it will charge when no modem connected, eg on the test benh#if MODEM
                 if (ModemStage == 0)
                     setState(STATE_MODEM_REQUEST);
                 else
-#endif
+#endif*/
                     setState(STATE_B);                                          // switch to State B
                 ActivationMode = 30;                                        // Activation mode is triggered if state C is not entered in 30 seconds.
                 AccessTimer = 0;
