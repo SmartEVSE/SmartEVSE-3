@@ -368,6 +368,10 @@ void Meter::UpdateEnergies() {
     Energy = Import_active_energy - Export_active_energy;
     if (ResetKwh == 2) EnergyMeterStart = Energy;                               // At powerup, set Energy to kwh meter value
     EnergyCharged = Energy - EnergyMeterStart;                                  // Calculate Energy
+#ifndef SMARTEVSE_VERSION //CH32
+    printf("@Energy:%03u,%ld\n", Address, Energy);
+    printf("@EnergyCharged:%03d,%ld\n", Address, EnergyCharged);
+#endif
 #if MODEM
     RecomputeSoC();
 #endif
