@@ -193,21 +193,21 @@ void setPilot(bool On);
 #else //v3
 #define SEND_TO_CH32(X) //dummy
 #define SEND_TO_ESP32(X) //dummy
-#define CONTACTOR1_ON _LOG_A("Switching Contactor1 ON.\n"); digitalWrite(PIN_SSR, HIGH);
-#define CONTACTOR1_OFF _LOG_A("Switching Contactor1 OFF.\n"); digitalWrite(PIN_SSR, LOW);
+#define CONTACTOR1_ON _LOG_A("@MSG: Switching Contactor1 ON.\n"); digitalWrite(PIN_SSR, HIGH);
+#define CONTACTOR1_OFF _LOG_A("@MSG: Switching Contactor1 OFF.\n"); digitalWrite(PIN_SSR, LOW);
 
-#define CONTACTOR2_ON _LOG_A("Switching Contactor2 ON.\n"); digitalWrite(PIN_SSR2, HIGH);
-#define CONTACTOR2_OFF _LOG_A("Switching Contactor2 OFF.\n"); digitalWrite(PIN_SSR2, LOW);
+#define CONTACTOR2_ON _LOG_A("@MSG: Switching Contactor2 ON.\n"); digitalWrite(PIN_SSR2, HIGH);
+#define CONTACTOR2_OFF _LOG_A("@MSG: Switching Contactor2 OFF.\n"); digitalWrite(PIN_SSR2, LOW);
 #endif
 #else //CH32
 #define SEND_TO_CH32(X) //dummy
 #define SEND_TO_ESP32(X) printf("@%s:%u\n", #X, X);
 
-#define CONTACTOR1_ON _LOG_A("Switching Contactor1 ON.\n"); funDigitalWrite(SSR1, FUN_HIGH);
-#define CONTACTOR1_OFF _LOG_A("Switching Contactor1 OFF.\n"); funDigitalWrite(SSR1, FUN_LOW);
+#define CONTACTOR1_ON printf("@MSG: Switching Contactor1 ON.\n"); funDigitalWrite(SSR1, FUN_HIGH);
+#define CONTACTOR1_OFF printf("@MSG: Switching Contactor1 OFF.\n"); funDigitalWrite(SSR1, FUN_LOW);
 
-#define CONTACTOR2_ON _LOG_A("Switching Contactor2 ON.\n"); funDigitalWrite(SSR2, FUN_HIGH);
-#define CONTACTOR2_OFF _LOG_A("Switching Contactor2 OFF.\n"); funDigitalWrite(SSR2, FUN_LOW);
+#define CONTACTOR2_ON printf("@MSG: Switching Contactor2 ON.\n"); funDigitalWrite(SSR2, FUN_HIGH);
+#define CONTACTOR2_OFF printf("@MSG: Switching Contactor2 OFF.\n"); funDigitalWrite(SSR2, FUN_LOW);
 
 #define ACTUATOR_LOCK { funDigitalWrite(ACTB, FUN_HIGH); funDigitalWrite(ACTA, FUN_LOW); }
 #define ACTUATOR_UNLOCK { funDigitalWrite(ACTB, FUN_LOW); funDigitalWrite(ACTA, FUN_HIGH); }
