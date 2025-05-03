@@ -649,6 +649,27 @@ void setStatePowerUnavailable(void) {
 #endif
 }
 
+
+//this replaces old CP_OFF and CP_ON and PILOT_CONNECTED and PILOT_DISCONNECTED macros
+//setPilot(true) switches the PILOT ON (CONNECT), setPilot(false) switches it OFF
+void setPilot(bool On) {
+    if (On) {
+#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //ESP32 v3
+        digitalWrite(PIN_CPOFF, LOW);
+    } else
+        digitalWrite(PIN_CPOFF, HIGH);
+#endif
+#ifndef SMARTEVSE_VERSION //CH32
+        funDigitalWrite(CPOFF, FUN_LOW);
+    } else
+        funDigitalWrite(CPOFF, FUN_HIGH);
+#endif
+#if SMARTEVSE_VERSION >=40 //ESP32 v4
+        Serial1.printf("setPilot@%u\n", Switch);
+    }
+#endif
+}
+
 // State is owned by the CH32
 // because it is highly subject to machine interaction
 // and also charging is supposed to function if ESP32 is hung/rebooted
@@ -2079,6 +2100,7 @@ void CheckSerialComm(void) {
     CALL_ON_RECEIVE_PARAM(SetCPDuty@, SetCPDuty)
     CALL_ON_RECEIVE_PARAM(SetCurrent@, SetCurrent)
     CALL_ON_RECEIVE_PARAM(CalcBalancedCurrent@, CalcBalancedCurrent)
+    CALL_ON_RECEIVE_PARAM(setPilot@,setPilot)
     CALL_ON_RECEIVE(setStatePowerUnavailable)
     CALL_ON_RECEIVE(OneWireReadCardId)
     CALL_ON_RECEIVE_PARAM(setErrorFlags@, setErrorFlags)

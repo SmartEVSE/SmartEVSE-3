@@ -171,10 +171,13 @@
 #define LCD_BRIGHTNESS 255
 
 
+//TODO replace the macros by function calls
+void setPilot(bool On);
+#define PILOT_CONNECTED setPilot(true);
+#define PILOT_DISCONNECTED setPilot(false);
+
 //TODO this can be integrated by choosing same definitions
 #ifdef SMARTEVSE_VERSION //ESP32
-#define PILOT_CONNECTED digitalWrite(PIN_CPOFF, LOW);
-#define PILOT_DISCONNECTED digitalWrite(PIN_CPOFF, HIGH);
 
 #define BACKLIGHT_ON digitalWrite(PIN_LCD_LED, HIGH);
 #define BACKLIGHT_OFF digitalWrite(PIN_LCD_LED, LOW);
@@ -199,8 +202,6 @@
 #else //CH32
 #define SEND_TO_CH32(X) //dummy
 #define SEND_TO_ESP32(X) printf("@%s:%u\n", #X, X);
-#define PILOT_CONNECTED funDigitalWrite(CPOFF, FUN_LOW);
-#define PILOT_DISCONNECTED funDigitalWrite(CPOFF, FUN_HIGH);
 
 #define CONTACTOR1_ON _LOG_A("Switching Contactor1 ON.\n"); funDigitalWrite(SSR1, FUN_HIGH);
 #define CONTACTOR1_OFF _LOG_A("Switching Contactor1 OFF.\n"); funDigitalWrite(SSR1, FUN_LOW);
