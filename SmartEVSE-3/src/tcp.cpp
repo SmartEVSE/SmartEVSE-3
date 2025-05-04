@@ -59,6 +59,7 @@ uint8_t fsmState = stateWaitForSupportedApplicationProtocolRequest;
 extern char EVCCID[32];
 extern int8_t InitialSoC;
 extern int8_t ComputedSoC;
+extern int8_t FullSoC;
 
 void routeDecoderInputData(void) {
     /* connect the data from the TCP to the exiDecoder */
@@ -329,6 +330,15 @@ void decodeV2GTP(void) {
             }
             _LOG_D("EVCCID=%s.\n", EVCCIDstr.c_str());
             strncpy(EVCCID, EVCCIDstr.c_str(), sizeof(EVCCID));
+
+            FullSoC = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.FullSOC;
+            _LOG_A("DINGO FullSoC=%d.\n", FullSoC);
+
+            uint8_t BulkSOC = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.BulkSOC;
+            _LOG_A("DINGO BulkSOC=%d.\n", BulkSOC);
+
+            uint8_t EVEnergyCapacity = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVEnergyCapacity.Value; //TODO use Multiplier , Unit, Unit_isUsed ?
+            _LOG_A("DINGO EVEnergyCapacity=%d.\n", EVEnergyCapacity);
 
             // Now prepare the 'ChargeParameterDiscoveryResponse' message to send back to the EV
             projectExiConnector_prepare_DinExiDocument();
