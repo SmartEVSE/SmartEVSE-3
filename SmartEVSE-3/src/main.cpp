@@ -1666,7 +1666,7 @@ void Timer1S_singlerun(void) {
  //   printf("10ms loop:%lu uS systick:%lu millis:%lu\n", elapsedmax/12, (uint32_t)SysTick->CNT, millis());
     // this section sends outcomes of functions and variables to ESP32 to fill Shadow variables
     // FIXME this section preferably should be empty
-    printf("@IsCurrentAvailable:%u", IsCurrentAvailable());
+    printf("@IsCurrentAvailable:%u\n", IsCurrentAvailable());
     SEND_TO_ESP32(ErrorFlags)
     elapsedmax = 0;
 #endif
@@ -3065,10 +3065,12 @@ void Timer10ms_singlerun(void) {
     int av = Serial1.available();
     if (av > 5) {
         idx = idx + Serial1.readBytesUntil('@', SerialBuf+idx, av);
-        _LOG_D("[(%u)<-] %.*s.\n", idx, idx, SerialBuf);
-        Handle_ESP32_Message(SerialBuf, &CommState);
-        memset(SerialBuf,0,idx);        // Clear buffer
-        idx = 0;
+        if (idx > 0) {
+            _LOG_D("[(%u)<-] %.*s", idx, idx, SerialBuf);
+            Handle_ESP32_Message(SerialBuf, &CommState);
+            memset(SerialBuf,0,idx);        // Clear buffer
+            idx = 0;
+        }
     }
     // process data from mainboard
     if (CommTimeout == 0) {
