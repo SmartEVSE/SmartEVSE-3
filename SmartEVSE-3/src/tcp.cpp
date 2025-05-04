@@ -58,6 +58,7 @@ uint8_t fsmState = stateWaitForSupportedApplicationProtocolRequest;
 
 extern char EVCCID[32];
 extern int8_t InitialSoC;
+extern int8_t ComputedSoC;
 
 void routeDecoderInputData(void) {
     /* connect the data from the TCP to the exiDecoder */
@@ -316,11 +317,11 @@ void decodeV2GTP(void) {
             _LOG_D("ChargeParameterDiscoveryRequest\n");
 
             // Read the SOC from the EVRESSOC data
-            EVSOC = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.DC_EVStatus.EVRESSSOC;
+            ComputedSoC = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.DC_EVStatus.EVRESSSOC;
 
-            _LOG_D("Current SoC %d%%\n", EVSOC);
+            _LOG_D("Current SoC %d%%\n", ComputedSoC);
             if (InitialSoC < 0) //not initialized yet
-                InitialSoC = EVSOC;
+                InitialSoC = ComputedSoC;
             String EVCCIDstr = "";
             for (uint8_t i = 0; i < 6; i++) {
                 if (EVCCID2[i] < 0x10) EVCCIDstr += "0";  // pad with zero for values less than 0x10
@@ -328,8 +329,6 @@ void decodeV2GTP(void) {
             }
             _LOG_D("EVCCID=%s.\n", EVCCIDstr.c_str());
             strncpy(EVCCID, EVCCIDstr.c_str(), sizeof(EVCCID));
-
-            //String serverPath = "http://" + CallbackIP + "/ev_state?current_soc=" + String(EVSOC) +"&full_soc=95&energy_request=1&energy_capacity=100000&evccid=" + EVCCIDstr;
 
             // Now prepare the 'ChargeParameterDiscoveryResponse' message to send back to the EV
             projectExiConnector_prepare_DinExiDocument();

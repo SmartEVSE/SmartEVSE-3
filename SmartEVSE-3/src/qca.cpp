@@ -28,8 +28,6 @@ uint8_t LinkReady = 0;
 uint8_t ModemsFound = 0;
 uint8_t ReceivedSounds = 0;
 uint8_t EVCCID2[6];  // Mac address or ID from the PEV, used in V2G communication
-uint8_t EVSOC = 0;  // State Of Charge of the EV, obtained from the 'ContractAuthenticationRequest' message
-
 
 uint16_t qcaspi_read_register16(uint16_t reg) {
     uint16_t tx_data;
