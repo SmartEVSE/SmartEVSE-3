@@ -333,7 +333,12 @@ void decodeV2GTP(void) {
 
             //try to read this required field so we can test if we have communication ok with the EV
             uint8_t EVMaximumCurrentLimit = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVMaximumCurrentLimit.Value;
-            _LOG_A("DINGO EVMaximumCurrentLimit=%d.\n", EVMaximumCurrentLimit);
+            uint8_t Multiplier = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVMaximumCurrentLimit.Multiplier;
+            uint8_t Unit_isUsed = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVMaximumCurrentLimit.Unit_isUsed;
+            uint8_t Unit = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVMaximumCurrentLimit.Unit;
+            const char UnitStr[][4] = {"h" , "m" , "s" , "A" , "Ah" , "V" , "VA" , "W" , "W_s" , "Wh"};
+
+            _LOG_A("DINGO EVMaximumCurrentLimit=%d, Unit_isUsed=%d, Multiplier=%d, Unit=%s.\n", EVMaximumCurrentLimit, Unit_isUsed, Multiplier, UnitStr[Unit]);
 
             FullSoC = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.FullSOC;
             _LOG_A("DINGO FullSoC=%d.\n", FullSoC);
