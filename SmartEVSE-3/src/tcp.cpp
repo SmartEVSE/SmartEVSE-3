@@ -331,6 +331,10 @@ void decodeV2GTP(void) {
             _LOG_D("EVCCID=%s.\n", EVCCIDstr.c_str());
             strncpy(EVCCID, EVCCIDstr.c_str(), sizeof(EVCCID));
 
+            //try to read this required field so we can test if we have communication ok with the EV
+            uint8_t EVMaximumCurrentLimit = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVMaximumCurrentLimit.Value;
+            _LOG_A("DINGO EVMaximumCurrentLimit=%d.\n", EVMaximumCurrentLimit);
+
             FullSoC = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.FullSOC;
             _LOG_A("DINGO FullSoC=%d.\n", FullSoC);
 
