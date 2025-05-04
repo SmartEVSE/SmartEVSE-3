@@ -2800,6 +2800,9 @@ void loop() {
                 extern void Timer20ms(void * parameter);
                 extern uint8_t modem_state;
                 extern void setSeccIp();
+                    esp_read_mac(myMac, ESP_MAC_ETH); // select the Ethernet MAC
+                    setSeccIp();  // use myMac to create link-local IPv6 address.
+                    modem_state = MODEM_WRITESPACE;
                     // Create Task 20ms Timer
                     xTaskCreate(
                         Timer20ms,      // Function that should be called
@@ -2809,9 +2812,6 @@ void loop() {
                         1,              // Task priority
                         NULL            // Task handle
                     );
-                    esp_read_mac(myMac, ESP_MAC_ETH); // select the Ethernet MAC
-                    setSeccIp();  // use myMac to create link-local IPv6 address.
-                    modem_state = MODEM_POWERUP;
             }
         }
 #endif
