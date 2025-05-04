@@ -603,7 +603,7 @@ uint8_t Force_Single_Phase_Charging() {                                         
 void SetCPDuty(uint32_t DutyCycle){
 #if SMARTEVSE_VERSION >= 40 //ESP32
     Serial1.printf("SetCPDuty@%u\n", DutyCycle);
-#else
+#else //CH32 and v3 ESP32
 #if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40 //v3 ESP32
     ledcWrite(CP_CHANNEL, DutyCycle);                                       // update PWM signal
 #endif
@@ -611,8 +611,8 @@ void SetCPDuty(uint32_t DutyCycle){
     // update PWM signal
     TIM1->CH1CVR = DutyCycle;
 #endif
-    CurrentPWM = DutyCycle;
 #endif //v4
+    CurrentPWM = DutyCycle;
 }
 
 // Set Charge Current 
