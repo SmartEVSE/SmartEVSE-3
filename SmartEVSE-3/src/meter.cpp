@@ -370,6 +370,7 @@ void Meter::UpdateEnergies() {
     EnergyCharged = Energy - EnergyMeterStart;                                  // Calculate Energy
 #ifndef SMARTEVSE_VERSION //CH32
     printf("@Energy:%03u,%ld\n", Address, Energy);
+    printf("@EnergyMeterStart:%03u,%ld\n", Address, EnergyMeterStart);
     printf("@EnergyCharged:%03d,%ld\n", Address, EnergyCharged);
 #endif
 #if MODEM

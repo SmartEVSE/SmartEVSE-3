@@ -2749,6 +2749,22 @@ void Handle_ESP32_Message(char *SerialBuf, uint8_t *CommState) {
             _LOG_A("Received corrupt %s, n=%d, message from WCH:%s.\n", token, n, SerialBuf);
         return;
     }
+    strncpy(token, "EnergyMeterStart:", sizeof(token));
+    ret = strstr(SerialBuf, token);
+    if (ret != NULL) {
+        short unsigned int Address;
+        int32_t EnergyMeterStart;
+        int n = sscanf(ret, "EnergyMeterStart:%03hu,%" SCNd32, &Address, &EnergyMeterStart);
+        if (n == 2) {   //success
+            if (Address == MainsMeter.Address) {
+                MainsMeter.EnergyMeterStart = EnergyMeterStart;
+            } else if (Address == EVMeter.Address) {
+                EVMeter.EnergyMeterStart = EnergyMeterStart;
+            }
+        } else
+            _LOG_A("Received corrupt %s, n=%d, message from WCH:%s.\n", token, n, SerialBuf);
+        return;
+    }
     strncpy(token, "EnergyCharged:", sizeof(token));
     ret = strstr(SerialBuf, token);
     if (ret != NULL) {
