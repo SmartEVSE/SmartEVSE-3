@@ -334,8 +334,15 @@ void decodeV2GTP(void) {
             FullSoC = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.FullSOC;
             _LOG_A("DINGO FullSoC=%d.\n", FullSoC);
 
+            uint8_t BulkSOC_isUsed = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.BulkSOC_isUsed;
+            _LOG_A("DINGO BulkSOC_isUsed=%d.\n", BulkSOC_isUsed);
+
             uint8_t BulkSOC = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.BulkSOC;
             _LOG_A("DINGO BulkSOC=%d.\n", BulkSOC);
+
+
+            uint8_t EVEnergyCapacity_isUsed = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVEnergyCapacity_isUsed;
+            _LOG_A("DINGO EVEnergyCapacity_isUsed=%d.\n", EVEnergyCapacity_isUsed);
 
             uint8_t EVEnergyCapacity = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVEnergyCapacity.Value; //TODO use Multiplier , Unit, Unit_isUsed ?
             _LOG_A("DINGO EVEnergyCapacity=%d.\n", EVEnergyCapacity);
