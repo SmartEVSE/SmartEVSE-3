@@ -68,16 +68,6 @@ char *downloadUrl = NULL;
 int downloadProgress = 0;
 int downloadSize = 0;
 
-bool isValidInput(String input) {
-  // Check if the input contains only alphanumeric characters, underscores, and hyphens
-  for (char c : input) {
-    if (!isalnum(c) && c != '_' && c != '-') {
-      return false;
-    }
-  }
-  return true;
-}
-
 static uint8_t CliState = 0;
 #ifdef SENSORBOX_VERSION
 void ProvisionCli(HardwareSerial &s) {
@@ -103,12 +93,8 @@ void ProvisionCli(HWCDC &s = Serial) {
 
     } else if (CliState == 1 && entered) {
         Router_SSID = String(CliBuffer);
-        Router_SSID.trim();
-        if (!isValidInput(Router_SSID)) {
-            s.println("Invalid characters in SSID.");
-            Router_SSID = "";
-            CliState = 0;
-        } else CliState++;              // All OK, now request password.
+        Router_SSID.trim(); //SSID has no limitations on special characters, so dnt check them
+        CliState++;              // All OK, now request password.
         idx = 0;
         entered = false;
 
