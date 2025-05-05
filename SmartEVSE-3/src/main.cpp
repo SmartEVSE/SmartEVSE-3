@@ -349,7 +349,7 @@ void clearErrorFlags(uint8_t flags) {
 
 #ifndef SMARTEVSE_VERSION //CH32 version
 void Button::HandleSwitch(void) {
-    printf("@ExtSwitch:%1u.\n", Pressed);
+    printf("@ExtSwitch:%u.\n", Pressed);
 }
 #else //v3 and v4
 void Button::HandleSwitch(void) {
@@ -551,7 +551,7 @@ void setMode(uint8_t NewMode) {
         preferences.end();
     }
 #else //CH32
-    printf("@Mode:%1u.\n", NewMode); //a
+    printf("@Mode:%u.\n", NewMode); //a
     _LOG_V("[<-] Mode:%u\n", NewMode);
 #endif //SMARTEVSE_VERSION
 }
@@ -699,7 +699,7 @@ void setState(uint8_t NewState) { //c
         Serial1.printf("State@%u\n", NewState); //a
 #endif
 #else //CH32
-        printf("@State:%1u.\n", NewState); //d
+        printf("@State:%u.\n", NewState); //d
 #endif
     }
 
@@ -1875,7 +1875,7 @@ void receiveNodeStatus(uint8_t *buf, uint8_t NodeNr) {
     if ((Node[NodeNr].Mode != Mode) && Switch != 4 && !LCDNav && !NodeNewMode) {
         NodeNewMode = Node[NodeNr].Mode + 1;        // Store the new Mode in NodeNewMode, we'll update Mode in 'ProcessAllNodeStates'
 #ifndef SMARTEVSE_VERSION //CH32
-        printf("@NodeNewMode:%1u.\n", Node[NodeNr].Mode + 1); //CH32 sends new value to ESP32
+        printf("@NodeNewMode:%u.\n", Node[NodeNr].Mode + 1); //CH32 sends new value to ESP32
 #endif
     }
     Node[NodeNr].SolarTimer = (buf[8] * 256) + buf[9];
@@ -2038,7 +2038,7 @@ uint8_t processAllNodeStates(uint8_t NodeNr) {
         setMode(NodeNewMode -1);
         NodeNewMode = 0;
 #ifndef SMARTEVSE_VERSION //CH32
-        printf("@NodeNewMode:%1u.\n", 0); //CH32 sends new value to ESP32
+        printf("@NodeNewMode:%u.\n", 0); //CH32 sends new value to ESP32
 #endif
     }    
 
