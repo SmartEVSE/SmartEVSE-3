@@ -325,7 +325,11 @@ void decodeV2GTP(void) {
 
             _LOG_D("Current SoC %d%%\n", ComputedSoC);
             if (ComputedSoC >= 0 && ComputedSoC <= 100) { // valid
-                setState(STATE_MODEM_DONE);
+                // Skip waiting, charge since we have what we've got
+                if (State == STATE_MODEM_REQUEST || State == STATE_MODEM_WAIT || State == STATE_MODEM_DONE){
+                    _LOG_A("Received SoC via Modem. Shortcut to State Modem Done\n");
+                    setState(STATE_MODEM_DONE); // Go to State B, which means in this case setting PWM
+                }
                 if (InitialSoC < 0) //not initialized yet
                     InitialSoC = ComputedSoC;
             }
