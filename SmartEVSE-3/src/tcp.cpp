@@ -5,6 +5,7 @@
 #include "tcp.h"
 #include "exi/projectExiConnector.h"
 #include "debug.h"
+#include "esp32.h"
 
 /* Todo: implement a retry strategy, to cover the situation that single packets are lost on the way. */
 
@@ -60,6 +61,8 @@ extern char EVCCID[32];
 extern int8_t InitialSoC;
 extern int8_t ComputedSoC;
 extern int8_t FullSoC;
+extern void setState(uint8_t NewState);
+extern void RecomputeSoC(void);
 
 void routeDecoderInputData(void) {
     /* connect the data from the TCP to the exiDecoder */
@@ -321,8 +324,13 @@ void decodeV2GTP(void) {
             ComputedSoC = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.DC_EVStatus.EVRESSSOC;
 
             _LOG_D("Current SoC %d%%\n", ComputedSoC);
-            if (InitialSoC < 0) //not initialized yet
-                InitialSoC = ComputedSoC;
+            if (ComputedSoC >= 0 && ComputedSoC <= 100) { // valid
+                setState(STATE_MODEM_DONE);
+                if (InitialSoC < 0) //not initialized yet
+                    InitialSoC = ComputedSoC;
+            }
+
+
             String EVCCIDstr = "";
             for (uint8_t i = 0; i < 6; i++) {
                 if (EVCCID2[i] < 0x10) EVCCIDstr += "0";  // pad with zero for values less than 0x10
@@ -355,6 +363,8 @@ void decodeV2GTP(void) {
 
             uint8_t EVEnergyCapacity = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVEnergyCapacity.Value; //TODO use Multiplier , Unit, Unit_isUsed ?
             _LOG_A("DINGO EVEnergyCapacity=%d.\n", EVEnergyCapacity);
+
+            RecomputeSoC();
 
             // Now prepare the 'ChargeParameterDiscoveryResponse' message to send back to the EV
             projectExiConnector_prepare_DinExiDocument();

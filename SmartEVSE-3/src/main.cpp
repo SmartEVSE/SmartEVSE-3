@@ -753,7 +753,7 @@ void setState(uint8_t NewState) { //c
             SetCPDuty(50);
             ToModemDoneStateTimer = 60;
             break;
-        case STATE_MODEM_DONE:  // This state is reached via STATE_MODEM_WAIT after 60s (timeout condition, nothing received) or after REST request (success, shortcut to immediate charging).
+        case STATE_MODEM_DONE:  // This state is reached via STATE_MODEM_WAIT after 60s (timeout condition, nothing received) or after REST/MODEM request (success, shortcut to immediate charging).
             PILOT_DISCONNECTED;
             DisconnectTimeCounter = -1;                                         // Disable Disconnect timer. Car is connected
             LeaveModemDoneStateTimer = 5;                                       // Disconnect CP for 5 seconds, restart charging cycle but this time without the modem steps.
@@ -2895,11 +2895,12 @@ void Timer10ms_singlerun(void) {
                 BalancedMax[0] = MaxCapacity * 10;
                 Balanced[0] = ChargeCurrent;                                // Set pilot duty cycle to ChargeCurrent (v2.15)
                 Balanced0 = Balanced[0];
-/* FIXME temporarily disables modem stages for v4 so it will charge when no modem connected, eg on the test benh#if MODEM
+// FIXME temporarily disables modem stages for v4 so it will charge when no modem connected, eg on the test benh
+#if MODEM
                 if (ModemStage == 0)
                     setState(STATE_MODEM_REQUEST);
                 else
-#endif*/
+#endif
                     setState(STATE_B);                                          // switch to State B
                 ActivationMode = 30;                                        // Activation mode is triggered if state C is not entered in 30 seconds.
                 AccessTimer = 0;
