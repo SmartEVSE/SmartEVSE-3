@@ -139,7 +139,6 @@ extern AccessStatus_t AccessStatus;
 extern uint16_t CardOffset;
 
 extern uint16_t SolarStopTimer;
-extern int32_t EnergyCapacity;
 extern uint8_t RFIDstatus;
 extern uint8_t OcppMode;
 extern bool LocalTimeSet;

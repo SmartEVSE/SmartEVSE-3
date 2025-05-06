@@ -58,11 +58,10 @@ uint8_t tcp_rxdata[TCP_RX_DATA_LEN];
 uint8_t fsmState = stateWaitForSupportedApplicationProtocolRequest;
 
 extern char EVCCID[32];
-extern int8_t InitialSoC;
-extern int8_t ComputedSoC;
-extern int8_t FullSoC;
+extern int8_t InitialSoC, ComputedSoC, FullSoC;
 extern void setState(uint8_t NewState);
 extern void RecomputeSoC(void);
+extern int32_t EnergyCapacity, EnergyRequest;
 
 void routeDecoderInputData(void) {
     /* connect the data from the TCP to the exiDecoder */
@@ -334,7 +333,6 @@ void decodeV2GTP(void) {
                     InitialSoC = ComputedSoC;
             }
 
-
             String EVCCIDstr = "";
             for (uint8_t i = 0; i < 6; i++) {
                 if (EVCCID2[i] < 0x10) EVCCIDstr += "0";  // pad with zero for values less than 0x10
@@ -343,30 +341,39 @@ void decodeV2GTP(void) {
             _LOG_D("EVCCID=%s.\n", EVCCIDstr.c_str());
             strncpy(EVCCID, EVCCIDstr.c_str(), sizeof(EVCCID));
 
-            //try to read this required field so we can test if we have communication ok with the EV
-            uint8_t EVMaximumCurrentLimit = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVMaximumCurrentLimit.Value;
-            uint8_t Multiplier = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVMaximumCurrentLimit.Multiplier;
-            uint8_t Unit_isUsed = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVMaximumCurrentLimit.Unit_isUsed;
-            uint8_t Unit = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVMaximumCurrentLimit.Unit;
             const char UnitStr[][4] = {"h" , "m" , "s" , "A" , "Ah" , "V" , "VA" , "W" , "W_s" , "Wh"};
+            dinPhysicalValueType Temp;
 
-            _LOG_A("DINGO EVMaximumCurrentLimit=%d, Unit_isUsed=%d, Multiplier=%d, Unit=%s.\n", EVMaximumCurrentLimit, Unit_isUsed, Multiplier, UnitStr[Unit]);
+            //try to read this required field so we can test if we have communication ok with the EV
+            Temp = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVMaximumCurrentLimit;
+            _LOG_A("Modem: EVMaximumCurrentLimit=%d %s, Multiplier=%d.\n", Temp.Value, Temp.Unit_isUsed ? UnitStr[Temp.Unit] : "", Temp.Multiplier);
 
-            FullSoC = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.FullSOC;
-            _LOG_A("DINGO FullSoC=%d.\n", FullSoC);
+            Temp = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVMaximumVoltageLimit;
+            _LOG_A("Modem: EVMaximumVoltageLimit=%d %s, Multiplier=%d.\n", Temp.Value, Temp.Unit_isUsed ? UnitStr[Temp.Unit] : "", Temp.Multiplier);
+            Temp = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVMaximumPowerLimit;
+            _LOG_A("Modem: EVMaximumPowerLimit=%d %s, Multiplier=%d.\n", Temp.Value, Temp.Unit_isUsed ? UnitStr[Temp.Unit] : "", Temp.Multiplier);
 
-            uint8_t BulkSOC_isUsed = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.BulkSOC_isUsed;
-            _LOG_A("DINGO BulkSOC_isUsed=%d.\n", BulkSOC_isUsed);
+            if(dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.BulkSOC_isUsed) {
+                uint8_t BulkSOC = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.BulkSOC;
+                _LOG_A("Modem: BulkSOC=%d.\n", BulkSOC); \
+            }
 
-            uint8_t BulkSOC = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.BulkSOC;
-            _LOG_A("DINGO BulkSOC=%d.\n", BulkSOC);
+            if(dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.FullSOC_isUsed) {
+                FullSoC = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.FullSOC;
+                _LOG_A("Modem: set FullSoC=%d.\n", FullSoC);
+            }
 
+            if(dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVEnergyCapacity_isUsed) {
+                Temp = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVEnergyCapacity;
+                _LOG_A("Modem: set EVEnergyCapacity=%d %s, Multiplier=%d.\n", Temp.Value, Temp.Unit_isUsed ? UnitStr[Temp.Unit] : "", Temp.Multiplier);
+                EnergyCapacity = Temp.Value;
+            }
 
-            uint8_t EVEnergyCapacity_isUsed = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVEnergyCapacity_isUsed;
-            _LOG_A("DINGO EVEnergyCapacity_isUsed=%d.\n", EVEnergyCapacity_isUsed);
-
-            uint8_t EVEnergyCapacity = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVEnergyCapacity.Value; //TODO use Multiplier , Unit, Unit_isUsed ?
-            _LOG_A("DINGO EVEnergyCapacity=%d.\n", EVEnergyCapacity);
+            if(dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVEnergyRequest_isUsed) {
+                Temp = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVEnergyRequest;
+                _LOG_A("Modem: set EVEnergyRequest=%d %s, Multiplier=%d.\n", Temp.Value, Temp.Unit_isUsed ? UnitStr[Temp.Unit] : "", Temp.Multiplier);
+                EnergyRequest = Temp.Value;
+            }
 
             RecomputeSoC();
 
