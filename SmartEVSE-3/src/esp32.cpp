@@ -2624,6 +2624,9 @@ void setup() {
     GLCD_init();
 
 #if SMARTEVSE_VERSION >=40 //v4
+    // since reflashing the ESP32 is not working when the ESP32 is flashing the WCH, we delay for 3s so in case of WCHflash loop we can use these 3s to reflash the ESP32
+    delay(3000);
+
     // After powerup request WCH version (version?)
     // then send Configuration to WCH
     static unsigned long FlashTimeout = millis();
