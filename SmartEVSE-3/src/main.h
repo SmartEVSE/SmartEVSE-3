@@ -141,23 +141,12 @@
 #define COMM_TIMEOUT 11                                                         // Timeout for MainsMeter
 #define COMM_EVTIMEOUT 8*NR_EVSES                                               // Timeout for EV Energy Meters
 
-
-//TODO this can be integrated by choosing same definitions
-#ifdef SMARTEVSE_VERSION //ESP32
-#define PILOT_12V 1                                                             // State A - vehicle disconnected
-#define PILOT_9V 2                                                              // State B - vehicle connected
-#define PILOT_6V 3                                                              // State C - EV charge
-#define PILOT_3V 4
-#define PILOT_DIODE 5
-#define PILOT_NOK 0
-#else //CH32
-#define PILOT_12V   12
-#define PILOT_9V    9
-#define PILOT_6V    6
+#define PILOT_12V   12                                                          // State A - vehicle disconnected
+#define PILOT_9V    9                                                           // State B - vehicle connected
+#define PILOT_6V    6                                                           // State C - EV charge
 #define PILOT_3V    3
 #define PILOT_DIODE 1
 #define PILOT_NOK   0
-#endif
 
 #define _RSTB_0 digitalWrite(PIN_LCD_RST, LOW);
 #define _RSTB_1 digitalWrite(PIN_LCD_RST, HIGH);

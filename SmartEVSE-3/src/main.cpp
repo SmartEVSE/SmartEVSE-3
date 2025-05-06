@@ -977,7 +977,8 @@ uint8_t Pilot() {
     }
     return ret;
 }
-#else //v3 or v4
+#endif
+#if defined(SMARTEVSE_VERSION) && SMARTEVSE_VERSION < 40 //ESP32 v4
 // Determine the state of the Pilot signal
 //
 uint8_t Pilot() {
