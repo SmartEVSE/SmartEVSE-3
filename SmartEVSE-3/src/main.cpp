@@ -1015,12 +1015,16 @@ uint8_t Pilot() {
 char IsCurrentAvailable(void) {
     uint8_t n, ActiveEVSE = 0;
     int Baseload, Baseload_EV, TotalCurrent = 0;
-
+//TODO debug:
+    for (n = 0; n < NR_EVSES; n++) printf("@MSG: BalancedState[%d]=%d.\n", n, BalancedState[n]);
     for (n = 0; n < NR_EVSES; n++) if (BalancedState[n] == STATE_C)             // must be in STATE_C
     {
         ActiveEVSE++;                                                           // Count nr of active (charging) EVSE's
         TotalCurrent += Balanced[n];                                            // Calculate total of all set charge currents
     }
+
+//TODO debug:
+    printf("@MSG: Mode=%d.\n", Mode);
 
     // Allow solar Charging if surplus current is above 'StartCurrent' (sum of all phases)
     // Charging will start after the timeout (chargedelay) period has ended
@@ -1048,12 +1052,12 @@ char IsCurrentAvailable(void) {
 
     // Check if the lowest charge current(6A) x ActiveEV's + baseload would be higher then the MaxMains.
     if (Mode != MODE_NORMAL && (ActiveEVSE * (MinCurrent * 10) + Baseload) > (MaxMains * 10)) {
-        _LOG_D("No current available MaxMains line %d. ActiveEVSE=%u, Baseload=%d.%dA, MinCurrent=%uA, MaxMains=%uA.\n", __LINE__, ActiveEVSE, Baseload/10, abs(Baseload%10), MinCurrent, MaxMains);
+        printf("@MSG: No current available MaxMains line %d. ActiveEVSE=%u, Baseload=%d.%dA, MinCurrent=%uA, MaxMains=%uA.\n", __LINE__, ActiveEVSE, Baseload/10, abs(Baseload%10), MinCurrent, MaxMains);
         return 0;                                                           // Not enough current available!, return with error
     }
     if (((LoadBl == 0 && EVMeter.Type && Mode != MODE_NORMAL) || LoadBl == 1) // Conditions in which MaxCircuit has to be considered
         && ((ActiveEVSE * (MinCurrent * 10) + Baseload_EV) > (MaxCircuit * 10))) { // MaxCircuit is exceeded
-        _LOG_D("No current available MaxCircuit line %d. ActiveEVSE=%u, Baseload_EV=%d.%dA, MinCurrent=%uA, MaxCircuit=%uA.\n", __LINE__, ActiveEVSE, Baseload_EV/10, abs(Baseload_EV%10), MinCurrent, MaxCircuit);
+        printf("@MSG: No current available MaxCircuit line %d. ActiveEVSE=%u, Baseload_EV=%d.%dA, MinCurrent=%uA, MaxCircuit=%uA.\n", __LINE__, ActiveEVSE, Baseload_EV/10, abs(Baseload_EV%10), MinCurrent, MaxCircuit);
         return 0;                                                           // Not enough current available!, return with error
     }
     //assume the current should be available on all 3 phases
@@ -1061,7 +1065,7 @@ char IsCurrentAvailable(void) {
             (Mode == MODE_SOLAR && EnableC2 == AUTO && Switching_To_Single_Phase == AFTER_SWITCH));
     int Phases = must_be_single_phase_charging ? 1 : 3;
     if (Mode != MODE_NORMAL && MaxSumMains && ((Phases * ActiveEVSE * MinCurrent * 10) + Isum > MaxSumMains * 10)) {
-        _LOG_D("No current available MaxSumMains line %d. ActiveEVSE=%u, MinCurrent=%uA, Isum=%d.%dA, MaxSumMains=%uA.\n", __LINE__, ActiveEVSE, MinCurrent, Isum/10, abs(Isum%10), MaxSumMains);
+        printf("@MSG: No current available MaxSumMains line %d. ActiveEVSE=%u, MinCurrent=%uA, Isum=%d.%dA, MaxSumMains=%uA.\n", __LINE__, ActiveEVSE, MinCurrent, Isum/10, abs(Isum%10), MaxSumMains);
         return 0;                                                           // Not enough current available!, return with error
     }
 
@@ -1071,17 +1075,19 @@ char IsCurrentAvailable(void) {
             !LoadBl &&                         // Internal LB disabled
             OcppCurrentLimit >= 0.f &&         // OCPP limit defined
             OcppCurrentLimit < MinCurrent) {  // OCPP suspends charging
-        _LOG_D("OCPP Smart Charging suspends EVSE\n");
+        printf("@MSG: OCPP Smart Charging suspends EVSE\n");
         return 0;
     }
 #endif //ENABLE_OCPP
 
-    _LOG_D("Current available checkpoint D. ActiveEVSE increased by one=%u, TotalCurrent=%d.%dA, StartCurrent=%uA, Isum=%d.%dA, ImportCurrent=%uA.\n", ActiveEVSE, TotalCurrent/10, abs(TotalCurrent%10), StartCurrent, Isum/10, abs(Isum%10), ImportCurrent);
+    printf("@MSG: Current available checkpoint D. ActiveEVSE increased by one=%u, TotalCurrent=%d.%dA, StartCurrent=%uA, Isum=%d.%dA, ImportCurrent=%uA.\n", ActiveEVSE, TotalCurrent/10, abs(TotalCurrent%10), StartCurrent, Isum/10, abs(Isum%10), ImportCurrent);
     return 1;
 }
 #else //v4 ESP32
 bool Shadow_IsCurrentAvailable; // this is a global variable that will be kept uptodate by Timer1S on CH32
 char IsCurrentAvailable(void) {
+    //TODO debug:
+    _LOG_A("Shadow_IsCurrentAvailable=%d.\n", Shadow_IsCurrentAvailable);
     return Shadow_IsCurrentAvailable;
 }
 #endif
