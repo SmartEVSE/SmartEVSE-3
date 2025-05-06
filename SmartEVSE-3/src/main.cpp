@@ -1060,7 +1060,8 @@ char IsCurrentAvailable(void) {
         && ((ActiveEVSE * (MinCurrent * 10) + Baseload_EV) > (MaxCircuit * 10))) { // MaxCircuit is exceeded
         printf("@MSG: No current available MaxCircuit line %d. ActiveEVSE=%u, Baseload_EV=%d.%dA, MinCurrent=%uA, MaxCircuit=%uA.\n", __LINE__, ActiveEVSE, Baseload_EV/10, abs(Baseload_EV%10), MinCurrent, MaxCircuit);
         return 0;                                                           // Not enough current available!, return with error
-    }
+    } else
+        printf("@MSG: Current available MaxCircuit line %d. ActiveEVSE=%u, Baseload_EV=%d.%dA, MinCurrent=%uA, MaxCircuit=%uA.\n", __LINE__, ActiveEVSE, Baseload_EV/10, abs(Baseload_EV%10), MinCurrent, MaxCircuit);
     //assume the current should be available on all 3 phases
     bool must_be_single_phase_charging = (EnableC2 == ALWAYS_OFF || (Mode == MODE_SOLAR && EnableC2 == SOLAR_OFF) ||
             (Mode == MODE_SOLAR && EnableC2 == AUTO && Switching_To_Single_Phase == AFTER_SWITCH));
