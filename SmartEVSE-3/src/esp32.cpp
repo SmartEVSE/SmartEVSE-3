@@ -222,8 +222,6 @@ extern uint16_t CardOffset;
 extern uint8_t ConfigChanged;
 
 extern uint16_t SolarStopTimer;
-extern bool PilotDisconnected;
-extern uint8_t PilotDisconnectTime;
 
 extern uint8_t ActivationMode, ActivationTimer;
 extern volatile uint16_t adcsample;
