@@ -707,8 +707,9 @@ void setState(uint8_t NewState) { //c
     switch (NewState) {
         case STATE_B1:
             if (!ChargeDelay) ChargeDelay = 3;                                  // When entering State B1, wait at least 3 seconds before switching to another state.
-            if (State != STATE_B1 && State != STATE_B && !PilotDisconnected) {
+            if (State != STATE_C1 && State != STATE_B1 && State != STATE_B && !PilotDisconnected) {
                 PILOT_DISCONNECTED;
+printf("@MSG: DINGO setting PilotDisconnected.\n");
                 PilotDisconnected = true;
                 PilotDisconnectTime = 5;                                       // Set PilotDisconnectTime to 5 seconds
 
@@ -1017,7 +1018,7 @@ char IsCurrentAvailable(void) {
     uint8_t n, ActiveEVSE = 0;
     int Baseload, Baseload_EV, TotalCurrent = 0;
 //TODO debug:
-    printf("@MSG: BalancedStates=%s,%s,%s,%s,%s,%s,%s,%s.\n", StrStateName[BalancedState[0]],StrStateName[BalancedState[1]],StrStateName[BalancedState[2]],StrStateName[BalancedState[3]],StrStateName[BalancedState[4]],StrStateName[BalancedState[5]],StrStateName[BalancedState[6]],StrStateName[BalancedState[7]]);
+//    printf("@MSG: BalancedStates=%s,%s,%s,%s,%s,%s,%s,%s.\n", StrStateName[BalancedState[0]],StrStateName[BalancedState[1]],StrStateName[BalancedState[2]],StrStateName[BalancedState[3]],StrStateName[BalancedState[4]],StrStateName[BalancedState[5]],StrStateName[BalancedState[6]],StrStateName[BalancedState[7]]);
     for (n = 0; n < NR_EVSES; n++) if (BalancedState[n] == STATE_C)             // must be in STATE_C
     {
         ActiveEVSE++;                                                           // Count nr of active (charging) EVSE's
@@ -1025,7 +1026,7 @@ char IsCurrentAvailable(void) {
     }
 
 //TODO debug:
-    printf("@MSG: Mode=%d.\n", Mode);
+//    printf("@MSG: Mode=%d.\n", Mode);
 
     // Allow solar Charging if surplus current is above 'StartCurrent' (sum of all phases)
     // Charging will start after the timeout (chargedelay) period has ended
@@ -1060,14 +1061,14 @@ char IsCurrentAvailable(void) {
         && ((ActiveEVSE * (MinCurrent * 10) + Baseload_EV) > (MaxCircuit * 10))) { // MaxCircuit is exceeded
         printf("@MSG: No current available MaxCircuit line %d. ActiveEVSE=%u, Baseload_EV=%d.%dA, MinCurrent=%uA, MaxCircuit=%uA.\n", __LINE__, ActiveEVSE, Baseload_EV/10, abs(Baseload_EV%10), MinCurrent, MaxCircuit);
         return 0;                                                           // Not enough current available!, return with error
-    } else
-        printf("@MSG: Current available MaxCircuit line %d. ActiveEVSE=%u, Baseload_EV=%d.%dA, MinCurrent=%uA, MaxCircuit=%uA.\n", __LINE__, ActiveEVSE, Baseload_EV/10, abs(Baseload_EV%10), MinCurrent, MaxCircuit);
+    } //else
+        //printf("@MSG: Current available MaxCircuit line %d. ActiveEVSE=%u, Baseload_EV=%d.%dA, MinCurrent=%uA, MaxCircuit=%uA.\n", __LINE__, ActiveEVSE, Baseload_EV/10, abs(Baseload_EV%10), MinCurrent, MaxCircuit);
     //assume the current should be available on all 3 phases
     bool must_be_single_phase_charging = (EnableC2 == ALWAYS_OFF || (Mode == MODE_SOLAR && EnableC2 == SOLAR_OFF) ||
             (Mode == MODE_SOLAR && EnableC2 == AUTO && Switching_To_Single_Phase == AFTER_SWITCH));
     int Phases = must_be_single_phase_charging ? 1 : 3;
     if (Mode != MODE_NORMAL && MaxSumMains && ((Phases * ActiveEVSE * MinCurrent * 10) + Isum > MaxSumMains * 10)) {
-        printf("@MSG: No current available MaxSumMains line %d. ActiveEVSE=%u, MinCurrent=%uA, Isum=%d.%dA, MaxSumMains=%uA.\n", __LINE__, ActiveEVSE, MinCurrent, Isum/10, abs(Isum%10), MaxSumMains);
+        //printf("@MSG: No current available MaxSumMains line %d. ActiveEVSE=%u, MinCurrent=%uA, Isum=%d.%dA, MaxSumMains=%uA.\n", __LINE__, ActiveEVSE, MinCurrent, Isum/10, abs(Isum%10), MaxSumMains);
         return 0;                                                           // Not enough current available!, return with error
     }
 
@@ -1402,6 +1403,9 @@ void CalcBalancedCurrent(char mod) {
 
 
 void Timer1S_singlerun(void) {
+#ifndef SMARTEVSE_VERSION //CH32
+printf("@MSG: DINGO State=%d, pilot=%d, AccessTimer=%d, PilotDisconnected=%d.\n", State, pilot, AccessTimer, PilotDisconnected);
+#endif
 #if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40 //not on ESP32 v4
     static uint8_t Broadcast = 1;
 #endif
@@ -2864,14 +2868,18 @@ void Timer10ms_singlerun(void) {
     // ############### EVSE State A #################
 
     if (State == STATE_A || State == STATE_COMM_B || State == STATE_B1) {
+//printf("@MSG: DINGO1, PilotDisconnected=%d.\n", PilotDisconnected);
         // When the pilot line is disconnected, wait for PilotDisconnectTime, then reconnect
         if (PilotDisconnected) {
+//printf("@MSG: DINGO2, pilot\n");
             if (PilotDisconnectTime == 0 && pilot == PILOT_NOK ) {          // Pilot should be ~ 0V when disconnected
+printf("@MSG: DINGO3.\n");
                 PILOT_CONNECTED;
                 PilotDisconnected = false;
                 _LOG_A("Pilot Connected\n");
             }
         } else if (pilot == PILOT_12V) {                                    // Check if we are disconnected, or forced to State A, but still connected to the EV
+printf("@MSG: DINGO4.\n");
             // If the RFID reader is set to EnableOne or EnableAll mode, and the Charging cable is disconnected
             // We start a timer to re-lock the EVSE (and unlock the cable) after 60 seconds.
             if ((RFIDReader == 2 || RFIDReader == 1) && AccessTimer == 0 && AccessStatus == ON) AccessTimer = RFIDLOCKTIME;
@@ -2886,6 +2894,7 @@ void Timer10ms_singlerun(void) {
 #endif
                 )
         {                                                                    // Allow to switch to state C directly if STATE_A_TO_C is set to PILOT_6V (see EVSE.h)
+printf("@MSG: DINGO5.\n");
             DiodeCheck = 0;
 
             MaxCapacity = ProximityPin();                                   // Sample Proximity Pin
@@ -2903,6 +2912,7 @@ void Timer10ms_singlerun(void) {
                 BalancedMax[0] = MaxCapacity * 10;
                 Balanced[0] = ChargeCurrent;                                // Set pilot duty cycle to ChargeCurrent (v2.15)
                 Balanced0 = Balanced[0];
+printf("@MSG: DINGO6.\n");
 // FIXME temporarily disables modem stages for v4 so it will charge when no modem connected, eg on the test benh
 #if MODEM
                 if (ModemStage == 0)
@@ -2916,6 +2926,7 @@ void Timer10ms_singlerun(void) {
                 ErrorFlags |= NO_SUN;                                       // Not enough solar power
             } else ErrorFlags |= LESS_6A;                                   // Not enough power available
         } else if (pilot == PILOT_9V && State != STATE_B1 && State != STATE_COMM_B && AccessStatus == ON) {
+printf("@MSG: DINGO7.\n");
             setState(STATE_B1);
         }
     } // State == STATE_A || State == STATE_COMM_B || State == STATE_B1
