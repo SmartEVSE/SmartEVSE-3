@@ -2785,6 +2785,8 @@ void loop() {
             // Search for QCA modem
             digitalWrite(PIN_QCA700X_RESETN, HIGH);         // get modem out of reset
             _LOG_D("Searching for modem.. \n");
+            qcaspi_read_register16(SPI_REG_SIGNATURE);      // applicatation note says to ignore
+                                                            // the first result
             Modem = (qcaspi_read_register16(SPI_REG_SIGNATURE) == QCASPI_GOOD_SIGNATURE);
             if (Modem) {
                 _LOG_D("QCA700X modem found\n");

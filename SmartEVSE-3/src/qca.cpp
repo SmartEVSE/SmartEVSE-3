@@ -481,6 +481,7 @@ void Timer20ms(void * parameter) {
             case MODEM_POWERUP:
                 _LOG_I("Searching for local modem.. ");
                 reg16 = qcaspi_read_register16(SPI_REG_SIGNATURE);
+                reg16 = qcaspi_read_register16(SPI_REG_SIGNATURE); //do it twice following the application notes
                 if (reg16 == QCASPI_GOOD_SIGNATURE) {
                     _LOG_I("QCA700X modem found\n");
                     modem_state = MODEM_WRITESPACE;
