@@ -2538,6 +2538,7 @@ void setup() {
     pinMode(WCH_NRST, INPUT);               // WCH NRST
 
 
+    delay(1000); //this delay is necessary for the modem to be reliably found
     // shutdown QCA is done by the WCH32V, we set all IO pins low, so no current is flowing into the powered down chip.
     digitalWrite(PIN_QCA700X_CS, LOW);
     digitalWrite(PIN_QCA700X_RESETN, LOW);
@@ -2545,6 +2546,7 @@ void setup() {
     digitalWrite(SPI_MOSI, LOW);
 
 
+    delay(1000); //this delay is necessary for the modem to be reliably found
     //digitalWrite(PIN_QCA700X_RESETN, HIGH);     // Active Low
     //digitalWrite(PIN_QCA700X_CS, HIGH);
 
