@@ -41,8 +41,6 @@ extern void SetCurrent(uint16_t current);
 extern uint8_t ModbusRx[256];
 extern void SetCPDuty(uint32_t DutyCycle);
 
-extern uint8_t PwrPanic;
-extern uint8_t ModemPwr;
 extern volatile uint8_t RxRdy1;
 extern volatile uint8_t ModbusRxLen;
 

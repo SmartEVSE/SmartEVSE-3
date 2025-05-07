@@ -2113,6 +2113,8 @@ void CheckSerialComm(void) {
     CALL_ON_RECEIVE_PARAM(SetCurrent@, SetCurrent)
     CALL_ON_RECEIVE_PARAM(CalcBalancedCurrent@, CalcBalancedCurrent)
     CALL_ON_RECEIVE_PARAM(setPilot@,setPilot)
+    CALL_ON_RECEIVE_PARAM(PowerPanicCtrl@, PowerPanicCtrl)
+    CALL_ON_RECEIVE_PARAM(ModemPower@, ModemPower)
     CALL_ON_RECEIVE(setStatePowerUnavailable)
     CALL_ON_RECEIVE(OneWireReadCardId)
     CALL_ON_RECEIVE_PARAM(setErrorFlags@, setErrorFlags)
@@ -2162,8 +2164,6 @@ void CheckSerialComm(void) {
     SET_ON_RECEIVE(EMFunction@, EMConfig[EM_CUSTOM].Function)
     SET_ON_RECEIVE(EnableC2@, tmp); if (ret) EnableC2 = (EnableC2_t) tmp;
     SET_ON_RECEIVE(maxTemp@, maxTemp)
-    SET_ON_RECEIVE(PwrPanic@, PwrPanic)
-    SET_ON_RECEIVE(ModemPwr@, ModemPwr)
     SET_ON_RECEIVE(MainsMeterTimeout@, MainsMeter.Timeout)
     SET_ON_RECEIVE(EVMeterTimeout@, EVMeter.Timeout)
     SET_ON_RECEIVE(ConfigChanged@, ConfigChanged)
@@ -2183,12 +2183,6 @@ void CheckSerialComm(void) {
     if (ret) {
         strncpy(RequiredEVCCID, ret+strlen(token), sizeof(RequiredEVCCID));
     }
-
-    // Enable/disable modem power
-    ModemPower(ModemPwr);
-
-    // Enable/disable Power Panic function
-    PowerPanicCtrl(PwrPanic);
 
     //if (LoadBl) {
     //    printf("Config@OK %u,Lock@%u,Mode@%u,Current@%u,Switch@%u,RCmon@%u,PwrPanic@%u,RFID@%u\n", Config, Lock, Mode, ChargeCurrent, Switch, RCmon, PwrPanic, RFIDReader);
@@ -2609,8 +2603,6 @@ void SendConfigToCH32() {
     SEND_TO_CH32(maxTemp)
     SEND_TO_CH32(MinCurrent)
     SEND_TO_CH32(Mode)
-    SEND_TO_CH32(ModemPwr)
-    SEND_TO_CH32(PwrPanic)
     SEND_TO_CH32(RCmon)
     SEND_TO_CH32(RFIDReader)
     SEND_TO_CH32(StartCurrent)
@@ -3093,7 +3085,7 @@ printf("@MSG: DINGO7.\n");
         }
     }
     // process data from mainboard
-    if (CommTimeout == 0) {
+    if (CommTimeout == 0 && CommState != COMM_STATUS_RSP) {
         switch (CommState) {
 
             case COMM_VER_REQ:
@@ -3111,11 +3103,10 @@ printf("@MSG: DINGO7.\n");
 
             case COMM_STATUS_REQ:                       // Ready to receive status from mainboard
                 CommTimeout = 10;
-                /*
-                State: A
-                Temp: 28
-                Error: 0
-                */
+                Serial1.printf("ModemPower@1\n");                                           // Modem Power ON
+                Serial1.printf("PowerPanicCtrl@0\n");
+                Serial1.printf("RCmonCtrl@%u\n", RCmon);
+                CommState = COMM_STATUS_RSP;
         }
     }
 

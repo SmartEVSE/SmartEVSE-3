@@ -29,8 +29,6 @@
 #include "evse.h"
 
 extern uint8_t State;
-uint8_t PwrPanic = 0;                                                       // Power Panic feature
-uint8_t ModemPwr = 0;                                                       // Enable power to the Modem
 
 uint8_t LockCable = 0;
 

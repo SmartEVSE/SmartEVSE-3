@@ -82,9 +82,7 @@ SPIClass LCD_SPI2(HSPI);
 
 */
 
-uint8_t PwrPanic = 1;           // enabled
 uint8_t CommState = COMM_OFF;
-uint8_t ModemPwr = 1;           // Enable the power to the Modem
 
 // Power Panic handler
 // Shut down ESP to conserve the power we have left. RTC will automatically store powerdown timestamp
@@ -2593,17 +2591,6 @@ void setup() {
     ledcSetup(LCD_CHANNEL, 5000, 8);            // LCD channel 5, 5kHz, 8 bit
     ledcAttachPin(LCD_LED, LCD_CHANNEL);
     ledcWrite(LCD_CHANNEL, 255);                // Set LCD backlight brightness 0-255
-
-    Config = 0;         // Configuration (0:Socket / 1:Fixed Cable)
-    Mode = 1;           // EVSE mode (0:Normal / 1:Smart / 2:Solar)
-    Lock = 1;           // Cable lock (0:Disable / 1:Solenoid / 2:Motor)
-    Switch = 3;         // External Switch (0:Disable / 1:Access B / 2:Access S / 3:Smart-Solar B / 4:Smart-Solar S)
-    RFIDReader = 1;     // RFID Reader (0:Disabled / 1:Enabled / 2:Enable One / 3:Learn / 4:Delete / 5:Delete All)
-    RCmon = 0;          // Residual Current Monitor (0:Disable / 1:Enable)
-    PwrPanic = 0;       // Enable PowerPanic feature
-    LoadBl = 3;         // Set to Node 2
-    ModemPwr = 1;       // Modem Power ON
-
 
 #endif //SMARTEVSE_VERSION
     // Read all settings from non volatile memory; MQTTprefix will be overwritten if stored in NVS
