@@ -744,6 +744,7 @@ printf("@MSG: DINGO setting PilotDisconnected.\n");
             }
             break;
         case STATE_MODEM_REQUEST: // After overriding PWM, and resetting the safe state is 10% PWM. To make sure communication recovers after going to normal, we do this. Ugly and temporary
+            ModemPower(1);                                                      // switch on modem
             ToModemWaitStateTimer = 5;
             DisconnectTimeCounter = -1;                                         // Disable Disconnect timer. Car is connected
             SetCPDuty(1024);
@@ -755,6 +756,7 @@ printf("@MSG: DINGO setting PilotDisconnected.\n");
             ToModemDoneStateTimer = 60;
             break;
         case STATE_MODEM_DONE:  // This state is reached via STATE_MODEM_WAIT after 60s (timeout condition, nothing received) or after REST/MODEM request (success, shortcut to immediate charging).
+            ModemPower(0);                                                      // switch off modem
             PILOT_DISCONNECTED;
             DisconnectTimeCounter = -1;                                         // Disable Disconnect timer. Car is connected
             LeaveModemDoneStateTimer = 5;                                       // Disconnect CP for 5 seconds, restart charging cycle but this time without the modem steps.
