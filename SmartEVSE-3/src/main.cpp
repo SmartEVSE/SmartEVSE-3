@@ -67,12 +67,14 @@ extern "C" {
 extern void CheckRS485Comm(void);
 #endif
 
+
 // Global data
 
 #if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=40   //CH32 and v4 ESP32
 #if SMARTEVSE_VERSION >= 40 //v4 ESP32
 #define RETURN return;
 extern void RecomputeSoC(void);
+extern uint8_t modem_state;
 #include <qca.h>
 #else
 #define RETURN
@@ -751,7 +753,7 @@ printf("@MSG: DINGO setting PilotDisconnected.\n");
             ModemPower(1);                                                      // switch on modem
             ToModemWaitStateTimer = 5;
             DisconnectTimeCounter = -1;                                         // Disable Disconnect timer. Car is connected
-            SetCPDuty(1024);
+            SetCPDuty(1024); //TODO try 0 to emulate STATE_E
             CONTACTOR1_OFF;
             CONTACTOR2_OFF;
             break;
@@ -1429,6 +1431,38 @@ printf("@MSG: DINGO State=%d, pilot=%d, AccessTimer=%d, PilotDisconnected=%d.\n"
     if (ActivationTimer) ActivationTimer--;                             // Decrease ActivationTimer every second.
 #if MODEM
     if (State == STATE_MODEM_REQUEST){
+#if SMARTEVSE_VERSION >=40 //v4
+        //ModemReset();
+        modem_state = MODEM_POWERUP;
+        static bool Modem = false; //TODO set to false when modem is powered off
+                                   //or perhaps we can funDigitalRead the power status?
+        if (!Modem) {
+            // Search for QCA modem
+            digitalWrite(PIN_QCA700X_RESETN, HIGH);         // get modem out of reset
+            _LOG_D("Searching for modem.. \n");
+            qcaspi_read_register16(SPI_REG_SIGNATURE);      // applicatation note says to ignore
+                                                            // the first result
+            Modem = (qcaspi_read_register16(SPI_REG_SIGNATURE) == QCASPI_GOOD_SIGNATURE);
+            if (Modem) {
+                _LOG_D("QCA700X modem found\n");
+                extern void Timer20ms(void * parameter);
+                extern uint8_t modem_state;
+                extern void setSeccIp();
+                    esp_read_mac(myMac, ESP_MAC_ETH); // select the Ethernet MAC
+                    setSeccIp();  // use myMac to create link-local IPv6 address.
+                    modem_state = MODEM_WRITESPACE;
+                    // Create Task 20ms Timer
+                    xTaskCreate(
+                        Timer20ms,      // Function that should be called
+                        "Timer20ms",    // Name of the task (for debugging)
+                        3072,           // Stack size (bytes)
+                        NULL,           // Parameter to pass
+                        1,              // Task priority
+                        NULL            // Task handle
+                    );
+            }
+        }
+#endif
         if (ToModemWaitStateTimer) ToModemWaitStateTimer--;
         else{
             setState(STATE_MODEM_WAIT);                                         // switch to state Modem 2

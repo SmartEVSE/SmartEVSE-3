@@ -2857,35 +2857,6 @@ void loop() {
         lastCheck = millis();
         //this block is for non-time critical stuff that needs to run approx 1 / second
 
-#if SMARTEVSE_VERSION >=40 //v4
-        static bool Modem = false;
-        if (!Modem) {
-            // Search for QCA modem
-            digitalWrite(PIN_QCA700X_RESETN, HIGH);         // get modem out of reset
-            _LOG_D("Searching for modem.. \n");
-            qcaspi_read_register16(SPI_REG_SIGNATURE);      // applicatation note says to ignore
-                                                            // the first result
-            Modem = (qcaspi_read_register16(SPI_REG_SIGNATURE) == QCASPI_GOOD_SIGNATURE);
-            if (Modem) {
-                _LOG_D("QCA700X modem found\n");
-                extern void Timer20ms(void * parameter);
-                extern uint8_t modem_state;
-                extern void setSeccIp();
-                    esp_read_mac(myMac, ESP_MAC_ETH); // select the Ethernet MAC
-                    setSeccIp();  // use myMac to create link-local IPv6 address.
-                    modem_state = MODEM_WRITESPACE;
-                    // Create Task 20ms Timer
-                    xTaskCreate(
-                        Timer20ms,      // Function that should be called
-                        "Timer20ms",    // Name of the task (for debugging)
-                        3072,           // Stack size (bytes)
-                        NULL,           // Parameter to pass
-                        1,              // Task priority
-                        NULL            // Task handle
-                    );
-            }
-        }
-#endif
         //printStatus:
         _LOG_I ("STATE: %s Error: %u StartCurrent: -%i ChargeDelay: %u SolarStopTimer: %u NoCurrent: %u Imeasured: %.1f A IsetBalanced: %.1f A, MainsMeter.Timeout=%u, EVMeter.Timeout=%u.\n", getStateName(State), ErrorFlags, StartCurrent, ChargeDelay, SolarStopTimer,  NoCurrent, (float)MainsMeter.Imeasured/10, (float)IsetBalanced/10, MainsMeter.Timeout, EVMeter.Timeout);
         _LOG_I("L1: %.1f A L2: %.1f A L3: %.1f A Isum: %.1f A\n", (float)MainsMeter.Irms[0]/10, (float)MainsMeter.Irms[1]/10, (float)MainsMeter.Irms[2]/10, (float)Isum/10);
