@@ -715,7 +715,6 @@ void setState(uint8_t NewState) { //c
             if (!ChargeDelay) ChargeDelay = 3;                                  // When entering State B1, wait at least 3 seconds before switching to another state.
             if (State != STATE_C1 && State != STATE_B1 && State != STATE_B && !PilotDisconnected) {
                 PILOT_DISCONNECTED;
-printf("@MSG: DINGO setting PilotDisconnected.\n");
                 PilotDisconnected = true;
                 PilotDisconnectTime = 5;                                       // Set PilotDisconnectTime to 5 seconds
 
@@ -2898,18 +2897,14 @@ void Timer10ms_singlerun(void) {
     // ############### EVSE State A #################
 
     if (State == STATE_A || State == STATE_COMM_B || State == STATE_B1) {
-//printf("@MSG: DINGO1, PilotDisconnected=%d.\n", PilotDisconnected);
         // When the pilot line is disconnected, wait for PilotDisconnectTime, then reconnect
         if (PilotDisconnected) {
-//printf("@MSG: DINGO2, pilot\n");
             if (PilotDisconnectTime == 0 && pilot == PILOT_NOK ) {          // Pilot should be ~ 0V when disconnected
-printf("@MSG: DINGO3.\n");
                 PILOT_CONNECTED;
                 PilotDisconnected = false;
                 _LOG_A("Pilot Connected\n");
             }
         } else if (pilot == PILOT_12V) {                                    // Check if we are disconnected, or forced to State A, but still connected to the EV
-printf("@MSG: DINGO4.\n");
             // If the RFID reader is set to EnableOne or EnableAll mode, and the Charging cable is disconnected
             // We start a timer to re-lock the EVSE (and unlock the cable) after 60 seconds.
             if ((RFIDReader == 2 || RFIDReader == 1) && AccessTimer == 0 && AccessStatus == ON) AccessTimer = RFIDLOCKTIME;
@@ -2924,7 +2919,6 @@ printf("@MSG: DINGO4.\n");
 #endif
                 )
         {                                                                    // Allow to switch to state C directly if STATE_A_TO_C is set to PILOT_6V (see EVSE.h)
-printf("@MSG: DINGO5.\n");
             DiodeCheck = 0;
 
             MaxCapacity = ProximityPin();                                   // Sample Proximity Pin
@@ -2941,7 +2935,6 @@ printf("@MSG: DINGO5.\n");
             } else if (IsCurrentAvailable()) {
                 BalancedMax[0] = MaxCapacity * 10;
                 Balanced[0] = ChargeCurrent;                                // Set pilot duty cycle to ChargeCurrent (v2.15)
-printf("@MSG: DINGO6.\n");
 #if MODEM
                 if (ModemStage == 0)
                     setState(STATE_MODEM_REQUEST);
@@ -2954,7 +2947,6 @@ printf("@MSG: DINGO6.\n");
                 ErrorFlags |= NO_SUN;                                       // Not enough solar power
             } else ErrorFlags |= LESS_6A;                                   // Not enough power available
         } else if (pilot == PILOT_9V && State != STATE_B1 && State != STATE_COMM_B && AccessStatus == ON) {
-printf("@MSG: DINGO7.\n");
             setState(STATE_B1);
         }
     } // State == STATE_A || State == STATE_COMM_B || State == STATE_B1
