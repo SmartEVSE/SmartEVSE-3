@@ -126,6 +126,7 @@
 #define AUTOUPDATE 0                                                            // default for Automatic Firmware Update: 0 = disabled, 1 = enabled
 #define SB2_WIFI_MODE 0
 #define LCD_LOCK 0                                                              // 0 = LCD buttons operational, 1 = LCD buttons disabled
+#define CABLE_LOCK 0                                                            // 0 = Cable Lock disabled, 1 = Cable Lock enabled
 #define INITIALIZED 0
 
 // Mode settings

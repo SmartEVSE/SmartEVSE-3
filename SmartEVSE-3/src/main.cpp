@@ -220,6 +220,7 @@ uint16_t SolarStopTimer = 0;
 #ifdef SMARTEVSE_VERSION //ESP32 v3 and v4
 uint8_t DelayedRepeat;                                                      // 0 = no repeat, 1 = daily repeat
 uint8_t LCDlock = LCD_LOCK;                                                 // 0 = LCD buttons operational, 1 = LCD buttons disabled
+uint8_t CableLock = CABLE_LOCK;                                             // 0 = Disabled (default), 1 = Enabled
 uint16_t BacklightTimer = 0;                                                // Backlight timer (sec)
 uint8_t BacklightSet = 0;
 uint8_t LCDTimer = 0;
@@ -2291,18 +2292,20 @@ static unsigned int locktimer = 0, unlocktimer = 0;
         (OcppMode &&!OcppForcesLock) ||
 #endif
             State == STATE_A) {                                 // The charging socket is unlocked when unplugged from the EV
-            if (unlocktimer == 0) {                             // 600ms pulse
-                ACTUATOR_UNLOCK;
-            } else if (unlocktimer == 6) {
-                ACTUATOR_OFF;
+            if (CableLock != 1 && Lock != 0) {                  // CableLock is Enabled, do not unlock
+                if (unlocktimer == 0) {                         // 600ms pulse
+                    ACTUATOR_UNLOCK;
+                } else if (unlocktimer == 6) {
+                    ACTUATOR_OFF;
+                }
+                if (unlocktimer++ > 7) {
+                    if (digitalRead(PIN_LOCK_IN) == (Lock == 2 ? 1:0 ))         // still locked...
+                    {
+                        if (unlocktimer > 50) unlocktimer = 0;      // try to unlock again in 5 seconds
+                    } else unlocktimer = 7;
+                }
+                locktimer = 0;
             }
-            if (unlocktimer++ > 7) {
-                if (digitalRead(PIN_LOCK_IN) == (Lock == 2 ? 1:0 ))         // still locked...
-                {
-                    if (unlocktimer > 50) unlocktimer = 0;      // try to unlock again in 5 seconds
-                } else unlocktimer = 7;
-            }
-            locktimer = 0;
         // Lock Cable    
         } else if (State != STATE_A                            // Lock cable when connected to the EV
 #if ENABLE_OCPP && defined(SMARTEVSE_VERSION) //run OCPP only on ESP32

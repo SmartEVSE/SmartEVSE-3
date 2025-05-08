@@ -266,6 +266,21 @@
               document.getElementById("lcdlock_label").classList.add("ui-checkbox-off")
             }            
 
+            if (data.settings.lock != 0) {
+              if (data.settings.cablelock == 1) {
+                  document.getElementById("cablelock").checked = true;
+                  document.getElementById("cablelock_label").classList.remove("ui-checkbox-off")
+                  document.getElementById("cablelock_label").classList.add("ui-checkbox-on")
+              } else {
+                  document.getElementById("cablelock").checked = false;
+                  document.getElementById("cablelock_label").classList.remove("ui-checkbox-on")
+                  document.getElementById("cablelock_label").classList.add("ui-checkbox-off")
+              }
+            } else {
+              $('[id=cablelock]').hide();
+              $('[id=cablelock_label]').hide();
+            }
+
             if (data.ocpp) {
               if (data.ocpp.mode == "Enabled") {
                 $('[id=ocpp_settings]').show();
@@ -1044,6 +1059,10 @@
                       var LCDlockCheckbox = document.getElementById("lcdlock");
                       $.post( "/settings?lcdlock=" + (LCDlockCheckbox.checked == true ? 1 : 0));
                     }
+                    function toggleCableLock() {
+                      var CableLockCheckbox = document.getElementById("cablelock");
+                      $.post( "/settings?cablelock=" + (CableLockCheckbox.checked == true ? 1 : 0));
+                    }
                     function toggleEnableOcpp() {
                       var enableOcppCheckbox = document.getElementById("enable_ocpp");
                       $.post( "/settings?ocpp_update=1&ocpp_mode=" + (enableOcppCheckbox.checked == true ? 1 : 0));
@@ -1195,13 +1214,17 @@
                                     </div>
                                     <div class="row no-gutters align-items-center">
                                       <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
-                                        LCD:
+                                        Lock:
                                       </div>
                                       <div class="col">
-                                          <input type="checkbox" class="form-check-input" id="lcdlock" onclick="toggleLCDlock()">
-                                          <label class="form-check-label" style="width: 140px; display:inline-block;" for="lcdlock" id="lcdlock_label" title="Lock buttons on LCD screen">LCD Lock</label>
-                                        </div>
-                                    </div>  
+                                          <div class="lock-options">
+                                              <input type="checkbox" class="form-check-input" id="lcdlock" onclick="toggleLCDlock()">
+                                              <label class="form-check-label" style="width: 140px; display:inline-block;" for="lcdlock" id="lcdlock_label" title="Lock buttons on LCD screen">LCD Lock</label>
+                                              <input type="checkbox" class="form-check-input" id="cablelock" onclick="toggleCableLock()">
+                                              <label class="form-check-label" style="width: 155px; display:inline-block;" for="cablelock" id="cablelock_label" title="Lock cable with actuator on EVSE side">Cable Lock</label>
+                                          </div>
+                                      </div>
+                                    </div> 
                                     <div class="row no-gutters align-items-center with_modem">
                                         <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
                                             Override PWM:

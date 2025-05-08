@@ -73,3 +73,9 @@
 #lcd .lcd-activate:hover {
     opacity: 1;
 }
+
+.lock-options {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
