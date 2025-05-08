@@ -169,7 +169,6 @@ int16_t Isum = 0;                                                           // S
 
 // Load Balance variables
 int16_t IsetBalanced = 0;                                                   // Max calculated current (Amps *10) available for all EVSE's
-uint16_t Balanced0 = 0;                                                     // Amps value per EVSE, substitutes Balanced[0]
 #if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
 uint16_t Balanced[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};                     // Amps value per EVSE
 uint16_t BalancedMax[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};                  // Max Amps value per EVSE
@@ -898,7 +897,7 @@ int Set_Nr_of_Phases_Charging(void) {
     Nr_Of_Phases_Charging = 0;
 #define THRESHOLD 40
 #define BOTTOM_THRESHOLD 25
-    _LOG_D("Detected Charging Phases: ChargeCurrent=%u, Balanced0=%u.%u A, IsetBalanced=%u.%u A.\n", ChargeCurrent, Balanced0/10, Balanced0%10, IsetBalanced/10, IsetBalanced%10);
+    _LOG_D("Detected Charging Phases: ChargeCurrent=%u, Balanced[0]=%u.%u A, IsetBalanced=%u.%u A.\n", ChargeCurrent, Balanced[0]/10, Balanced[0]%10, IsetBalanced/10, IsetBalanced%10);
     for (int i=0; i<3; i++) {
         if (EVMeter.Type) {
             Charging_Prob = 10 * (abs(EVMeter.Irms[i] - IsetBalanced)) / IsetBalanced;  //100% means this phase is charging, 0% mwans not charging
@@ -1399,7 +1398,6 @@ void CalcBalancedCurrent(char mod) {
         }
         _LOG_D_NO_FUNC("\n");
     }
-    Balanced0 = Balanced[0];
     SEND_TO_ESP32(ChargeCurrent)
     SEND_TO_ESP32(Balanced0)
     SEND_TO_ESP32(IsetBalanced)
@@ -2415,7 +2413,7 @@ void ModbusRequestLoop() {
                 }
                 if (LoadBl == 1 && !(ErrorFlags & CT_NOCOMM) ) BroadcastCurrent();               // When there is no Comm Error, Master sends current to all connected EVSE's
 
-                if ((State == STATE_B || State == STATE_C) && !CPDutyOverride) SetCurrent(Balanced0); // set PWM output for Master //mind you, the !CPDutyOverride was not checked in Smart/Solar mode, but I think this was a bug!
+                if ((State == STATE_B || State == STATE_C) && !CPDutyOverride) SetCurrent(Balanced[0]); // set PWM output for Master //mind you, the !CPDutyOverride was not checked in Smart/Solar mode, but I think this was a bug!
                 ModbusRequest = 0;
                 //_LOG_A("Timer100ms task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
                 break;
@@ -2910,9 +2908,7 @@ printf("@MSG: DINGO5.\n");
             } else if (IsCurrentAvailable()) {
                 BalancedMax[0] = MaxCapacity * 10;
                 Balanced[0] = ChargeCurrent;                                // Set pilot duty cycle to ChargeCurrent (v2.15)
-                Balanced0 = Balanced[0];
 printf("@MSG: DINGO6.\n");
-// FIXME temporarily disables modem stages for v4 so it will charge when no modem connected, eg on the test benh
 #if MODEM
                 if (ModemStage == 0)
                     setState(STATE_MODEM_REQUEST);
@@ -2961,7 +2957,6 @@ printf("@MSG: DINGO7.\n");
                     if (IsCurrentAvailable()) {
 
                         Balanced[0] = 0;                                    // For correct baseload calculation set current to zero
-                        Balanced0 = Balanced[0];
                         CalcBalancedCurrent(1);                             // Calculate charge current for all connected EVSE's
                         DiodeCheck = 0;                                     // (local variable)
                         setState(STATE_C);                                  // switch to STATE_C
@@ -3372,7 +3367,7 @@ uint16_t getItemValue(uint8_t nav) {
         case STATUS_ERROR:
             return ErrorFlags;
         case STATUS_CURRENT:
-            return Balanced0;
+            return Balanced[0];
         case STATUS_SOLAR_TIMER:
             return SolarStopTimer;
         case STATUS_ACCESS:
