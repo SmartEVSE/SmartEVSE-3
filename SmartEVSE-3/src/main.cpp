@@ -169,8 +169,8 @@ int16_t Isum = 0;                                                           // S
 
 // Load Balance variables
 int16_t IsetBalanced = 0;                                                   // Max calculated current (Amps *10) available for all EVSE's
-#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
 uint16_t Balanced[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};                     // Amps value per EVSE
+#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
 uint16_t BalancedMax[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};                  // Max Amps value per EVSE
 uint8_t BalancedState[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};                 // State of all EVSE's 0=not active (state A), 1=charge request (State B), 2= Charging (State C)
 uint16_t BalancedError[NR_EVSES] = {0, 0, 0, 0, 0, 0, 0, 0};                // Error state of EVSE
@@ -1399,6 +1399,9 @@ void CalcBalancedCurrent(char mod) {
         _LOG_D_NO_FUNC("\n");
     }
     SEND_TO_ESP32(ChargeCurrent)
+#ifndef SMARTEVSE_VERSION //CH32
+    uint16_t Balanced0 = Balanced[0];
+#endif
     SEND_TO_ESP32(Balanced0)
     SEND_TO_ESP32(IsetBalanced)
 #else //ESP32v4
@@ -2660,7 +2663,8 @@ void Handle_ESP32_Message(char *SerialBuf, uint8_t *CommState) {
     SET_ON_RECEIVE(Pilot:, pilot)
     SET_ON_RECEIVE(Temp:, TempEVSE)
     SET_ON_RECEIVE(State:, State)
-    SET_ON_RECEIVE(Balanced0:, Balanced0)
+    uint16_t Balanced0;
+    SET_ON_RECEIVE(Balanced0:, Balanced0); if (ret) Balanced[0] = Balanced0;
     SET_ON_RECEIVE(IsetBalanced:, IsetBalanced)
     SET_ON_RECEIVE(ChargeCurrent:, ChargeCurrent)
     SET_ON_RECEIVE(IsCurrentAvailable:, Shadow_IsCurrentAvailable)

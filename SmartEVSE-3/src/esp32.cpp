@@ -191,9 +191,11 @@ extern uint16_t OverrideCurrent;
 // Load Balance variables
 extern int16_t IsetBalanced;
 extern uint16_t Balanced[NR_EVSES];
+#if SMARTEVSE_VERSION < 40
 extern uint16_t BalancedMax[NR_EVSES];
 extern uint8_t BalancedState[NR_EVSES];
 extern uint16_t BalancedError[NR_EVSES];
+#endif
 
 extern Node_t Node[NR_EVSES];
 extern uint16_t BacklightTimer;
