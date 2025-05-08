@@ -372,10 +372,11 @@ void Meter::UpdateEnergies() {
     printf("@Energy:%03u,%ld\n", Address, Energy);
     printf("@EnergyMeterStart:%03u,%ld\n", Address, EnergyMeterStart);
     printf("@EnergyCharged:%03d,%ld\n", Address, EnergyCharged);
-#endif
+#else //ESP32 v3 and v4
 #if MODEM
     RecomputeSoC();
-#endif
+#endif //MODEM
+#endif //SMARTEVSE_VERSION
 }
 
 void Meter::setTimeout(uint8_t NewTimeout) {

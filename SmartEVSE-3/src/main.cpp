@@ -1498,7 +1498,7 @@ printf("@MSG: DINGO State=%d, pilot=%d, AccessTimer=%d, PilotDisconnected=%d.\n"
         }
     }
 
-#if MODEM
+#if MODEM && defined(SMARTEVSE_VERSION) //EPS32 v3 and v4
     // Normally, the modem is enabled when Modem == Experiment. However, after a succesfull communication has been set up, EVSE will restart communication by replugging car and moving back to state B.
     // This time, communication is not initiated. When a car is disconnected, we want to enable the modem states again, but using 12V signal is not reliable (we just "replugged" via CP pin, remember).
     // This counter just enables the state after 3 seconds of success.
@@ -2647,8 +2647,6 @@ void Handle_ESP32_Message(char *SerialBuf, uint8_t *CommState) {
     CALL_ON_RECEIVE_PARAM(OverrideCurrent:, setOverrideCurrent)
     CALL_ON_RECEIVE_PARAM(Mode:, setMode)
     CALL_ON_RECEIVE(write_settings)
-    CALL_ON_RECEIVE(RecomputeSoC)
-    CALL_ON_RECEIVE(DisconnectEvent)
 
     //these variables do not exist in CH32 so values are sent to ESP32
     SET_ON_RECEIVE(RFIDstatus:, RFIDstatus)
