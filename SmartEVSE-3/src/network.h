@@ -117,7 +117,7 @@ extern void WiFiSetup(void);
 extern void handleWIFImode(void *s = &Serial);
 extern bool getLatestVersion(String owner_repo, String asset_name, char *version);
 #ifndef SENSORBOX_VERSION
-extern std::pair<int8_t, std::array<std::int8_t, 3>> getMainsFromHomeWizardP1();
+extern std::pair<int8_t, std::array<std::int16_t, 3>> getMainsFromHomeWizardP1();
 extern String homeWizardHost;
 #endif
 

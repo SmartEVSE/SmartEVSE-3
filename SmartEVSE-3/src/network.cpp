@@ -794,7 +794,7 @@ String discoverHomeWizardP1() {
  *     - A int flag indicating: 0: failure, 1: single phase current, 3: 3 phase current
  *     - An array of 3 values representing the active current in deci-amps for L1, L2, and L3
  */
-std::pair<int8_t, std::array<std::int8_t, 3> > getMainsFromHomeWizardP1() {
+std::pair<int8_t, std::array<std::int16_t, 3> > getMainsFromHomeWizardP1() {
 
     _LOG_A("getMainsFromHWP1(): invocation\n");
     const String hostname = discoverHomeWizardP1();
@@ -871,13 +871,12 @@ std::pair<int8_t, std::array<std::int8_t, 3> > getMainsFromHomeWizardP1() {
     };
 
     // Process all three phases.
-    std::array<int8_t, 3> currents;
+    std::array<int16_t, 3> currents;
     for (size_t i = 0; i < phases; ++i) {
-        int rawCurrent = doc[currentKeys[i]].as<float>() * 10;
+        int16_t rawCurrent = doc[currentKeys[i]].as<float>() * 10;
         currents[i] = std::abs(rawCurrent) * getCorrection(powerKeys[i]);
     }
-
-    return {phases, currents};
+return {phases, currents};
 }
 #endif
 
