@@ -2443,16 +2443,22 @@ static uint8_t LedCount = 0;                                                   /
 static unsigned int LedPwm = 0;                                                // PWM value 0-255
 
     // RGB LED
-    if (ErrorFlags || ChargeDelay) {
-
-        if (ErrorFlags & (RCM_TRIPPED | CT_NOCOMM | EV_NOCOMM) ) {
+    if (ErrorFlags & (RCM_TRIPPED | CT_NOCOMM | EV_NOCOMM | TEMP_HIGH) ) {
             LedCount += 20;                                                 // Very rapid flashing, RCD tripped or no Serial Communication.
             if (LedCount > 128) LedPwm = ERROR_LED_BRIGHTNESS;              // Red LED 50% of time on, full brightness
             else LedPwm = 0;
             RedPwm = LedPwm;
             GreenPwm = 0;
             BluePwm = 0;
-        } else {                                                            // Waiting for Solar power or not enough current to start charging
+    } else if (AccessStatus == OFF && CustomButton) {
+        RedPwm = ColorCustom[0];
+        GreenPwm = ColorCustom[1];
+        BluePwm = ColorCustom[2];
+    } else if (AccessStatus == OFF || State == STATE_MODEM_DENIED) {
+        RedPwm = ColorOff[0];
+        GreenPwm = ColorOff[1];
+        BluePwm = ColorOff[2];
+    } else if (ErrorFlags || ChargeDelay) {                                 // Waiting for Solar power or not enough current to start charging
             LedCount += 2;                                                  // Slow blinking.
             if (LedCount > 230) LedPwm = WAITING_LED_BRIGHTNESS;            // LED 10% of time on, full brightness
             else LedPwm = 0;
@@ -2474,7 +2480,6 @@ static unsigned int LedPwm = 0;                                                /
                 GreenPwm = LedPwm * ColorNormal[1] / 255;
                 BluePwm = LedPwm * ColorNormal[2] / 255;
             }    
-        }
 
 #if ENABLE_OCPP && defined(SMARTEVSE_VERSION) //run OCPP only on ESP32
     } else if (OcppMode && (RFIDReader == 6 || RFIDReader == 0) &&
@@ -2512,14 +2517,6 @@ static unsigned int LedPwm = 0;                                                /
         GreenPwm = 0;
         BluePwm = 0;
 #endif //ENABLE_OCPP
-    } else if (AccessStatus == OFF && CustomButton) {
-        RedPwm = ColorCustom[0];
-        GreenPwm = ColorCustom[1];
-        BluePwm = ColorCustom[2];
-    } else if (AccessStatus == OFF || State == STATE_MODEM_DENIED) {
-        RedPwm = ColorOff[0];
-        GreenPwm = ColorOff[1];
-        BluePwm = ColorOff[2];
     } else {                                                                // State A, B or C
 
         if (State == STATE_A) {
