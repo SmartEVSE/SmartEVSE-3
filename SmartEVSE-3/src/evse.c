@@ -161,7 +161,7 @@ void USART1_IRQHandler()
     // Receive interrupt
     if (USART1->STATR & USART_FLAG_RXNE) {
         data = (uint8_t)USART1->DATAR;                  // read data
-        
+
         if (!buffer_enqueue(&RxBuffer, data)) {         // Store the data in the RxBuffer
             // TODO: handle buffer full
         }
@@ -207,7 +207,7 @@ void USART2_IRQHandler()
 
     // Transmission complete interrupt
     if (USART2->STATR & USART_FLAG_TC) {
-        
+
         USART2->STATR &= ~USART_FLAG_TC;                // clear Transmission complete flag
         funDigitalWrite(RS485_DIR, FUN_LOW);            // switch RS485 transceiver back to receive
     }
@@ -218,7 +218,7 @@ void USART2_IRQHandler()
         } else {
             USART2->CTLR1 &= ~USART_CTLR1_TXEIE;        // Disable the TXE interrupt if no more data
         }
-    }    
+    }
 
     USART2->STATR &= ~USART_FLAG_ORE;                   // Clear possible overrun flag
 }
@@ -292,18 +292,18 @@ void ModemPower(uint8_t enable)
 
 void GPIOInit(void)
 {
-	// Enable APB1 peripheral clocks
-	RCC->APB1PCENR |= RCC_APB1Periph_USART2 | RCC_APB1Periph_TIM2 | RCC_APB1Periph_TIM3 | RCC_APB1Periph_TIM4;
-	// Enable APB2 peripheral clocks
+    // Enable APB1 peripheral clocks
+    RCC->APB1PCENR |= RCC_APB1Periph_USART2 | RCC_APB1Periph_TIM2 | RCC_APB1Periph_TIM3 | RCC_APB1Periph_TIM4;
+    // Enable APB2 peripheral clocks
     RCC->APB2PCENR |= RCC_APB2Periph_USART1 | RCC_APB2Periph_AFIO | RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOB | RCC_APB2Periph_TIM1 | RCC_APB2Periph_ADC1;
     // Enable DMA clock
     RCC->AHBPCENR |= RCC_AHBPeriph_DMA1;
 
 
-	// Port A
+    // Port A
     funPinMode(PP_IN, GPIO_CFGLR_IN_ANALOG);
     funPinMode(CP_IN, GPIO_CFGLR_IN_ANALOG);
-	funPinMode(RS485_TX, GPIO_CFGLR_OUT_10Mhz_AF_PP);
+    funPinMode(RS485_TX, GPIO_CFGLR_OUT_10Mhz_AF_PP);
     funPinMode(RS485_RX, GPIO_CFGLR_IN_FLOAT);
     funPinMode(TEMP, GPIO_CFGLR_IN_ANALOG);
     funPinMode(CP_OUT, GPIO_CFGLR_OUT_10Mhz_AF_PP);
@@ -314,20 +314,20 @@ void GPIOInit(void)
     funPinMode(LEDR, GPIO_CFGLR_OUT_10Mhz_AF_PP);
     funPinMode(LEDG, GPIO_CFGLR_OUT_10Mhz_AF_PP);
     funPinMode(SWDIO, GPIO_CFGLR_OUT_2Mhz_OD);
-    
+
     // Port B
     funPinMode(LEDB, GPIO_CFGLR_OUT_10Mhz_AF_PP);
-    funPinMode(RS485_DIR, GPIO_CFGLR_OUT_10Mhz_PP);	
-    funPinMode(RCMTEST, GPIO_CFGLR_OUT_2Mhz_PP);	
-    funPinMode(SSR1, GPIO_CFGLR_OUT_2Mhz_PP);	
-    funPinMode(SSR2, GPIO_CFGLR_OUT_2Mhz_PP);	
-    funPinMode(ACTA, GPIO_CFGLR_OUT_2Mhz_PP);	
-    funPinMode(ACTB, GPIO_CFGLR_OUT_2Mhz_PP);	
-    funPinMode(ZC, GPIO_CFGLR_IN_FLOAT);	
-    funPinMode(RCMFAULT, GPIO_CFGLR_IN_PUPD);	        // pull up
-    funPinMode(SW_IN, GPIO_CFGLR_IN_PUPD);	            // pull up
-    funPinMode(LOCK_IN, GPIO_CFGLR_IN_FLOAT);	
-    GPIOB->OUTDR |= 0x0220;                             // Enable pull up on PB5 and PB9               
+    funPinMode(RS485_DIR, GPIO_CFGLR_OUT_10Mhz_PP);
+    funPinMode(RCMTEST, GPIO_CFGLR_OUT_2Mhz_PP);
+    funPinMode(SSR1, GPIO_CFGLR_OUT_2Mhz_PP);
+    funPinMode(SSR2, GPIO_CFGLR_OUT_2Mhz_PP);
+    funPinMode(ACTA, GPIO_CFGLR_OUT_2Mhz_PP);
+    funPinMode(ACTB, GPIO_CFGLR_OUT_2Mhz_PP);
+    funPinMode(ZC, GPIO_CFGLR_IN_FLOAT);
+    funPinMode(RCMFAULT, GPIO_CFGLR_IN_PUPD);            // pull up
+    funPinMode(SW_IN, GPIO_CFGLR_IN_PUPD);                // pull up
+    funPinMode(LOCK_IN, GPIO_CFGLR_IN_FLOAT);
+    GPIOB->OUTDR |= 0x0220;                             // Enable pull up on PB5 and PB9
 
 }
 
@@ -630,7 +630,7 @@ uint8_t ProximityPin() {
 
 // Copy data to circular buffer
 // return nr of bytes written
-// Note! Can't use printf here, as it's used by write_ 
+// Note! Can't use printf here, as it's used by write_
 int buffer_write(CircularBuffer *cb, char *data, uint16_t size)
 {
     uint16_t i;
@@ -696,39 +696,35 @@ uint8_t ReadESPdata(char *buf) {
 }
 
 
-
-//{"mode":"SMART","mode_id":3,"temp":26,"access":true,"mode":1,"pwm":102,"solar_stop_timer":0,"state":"Connected to EV","state_id":1,"error":"None","error_id":0,"rfid":"Not Installed"},"settings":{"charge_current":60,"override_current":0,"current_min":6,"current_max":32,"current_main":33,"current_max_circuit":32,"current_max_sum_mains":600,"solar_max_import":0,"solar_start_current":7,"solar_stop_time":5,"enable_C2":"Always Off","modem":"Not present","mains_meter":"API","starttime":0,"stoptime":0,"repeat":0},"mqtt":{"host":"mqtt.imaginous.nl","port":1883,"topic_prefix":"SmartEVSE","username":"mqtt","password_set":true,"status":"Connected"},"home_battery":{"current":0,"last_update":0},"ev_meter":{"description":"Disabled","address":12,"import_active_power":0,"total_kwh":0,"charged_kwh":0,"currents":{"TOTAL":0,"L1":0,"L2":0,"L3":0},"import_active_energy":0,"export_active_energy":0},"mains_meter":{"import_active_energy":0,"export_active_energy":0},"phase_currents":{"TOTAL":127,"L1":127,"L2":0,"L3":0,"last_data_update":1706286654,"original_data":{"TOTAL":127,"L1":127,"L2":0,"L3":0}},"backlight":{"timer":0,"status":"OFF"}}
-
-
 void setup(void) {
     SystemInit();
 //  NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
-//	SystemCoreClockUpdate();
+//  SystemCoreClockUpdate();
 
-	SysTick->CTLR = 1;                              // Enable SysTick counter HCLK/8, count up
-    
-	GPIOInit();
-	UsartInit();                                    // Usart1 = FUNCONF_UART_PRINTF_BAUD bps. Usart2 = Modbus 9600bps 8N1
-	DMAInit();                                      // DMA transfer for Uart1 TX
+    SysTick->CTLR = 1;                              // Enable SysTick counter HCLK/8, count up
 
-	// Note that printf will only actually send data to the uart, when it detects a newline, or after a timeout
-	//
+    GPIOInit();
+    UsartInit();                                    // Usart1 = FUNCONF_UART_PRINTF_BAUD bps. Usart2 = Modbus 9600bps 8N1
+    DMAInit();                                      // DMA transfer for Uart1 TX
 
-	printf("@MSG: \nSmartEVSE mainboard startup\n");
-	printf("@MSG: SystemClk:%d\n",FUNCONF_SYSTEM_CORE_CLOCK);
-	//printf("@MSG: ChipID:%08x\n", DBGMCU_GetCHIPID() );
-	//printf("@MSG: UID:%08x%04x\n", *( uint32_t * )0x1FFFF7E8 , (*( uint32_t * )0x1FFFF7EC)>>16 );
+    // Note that printf will only actually send data to the uart, when it detects a newline, or after a timeout
+    //
+
+    printf("@MSG: \nSmartEVSE mainboard startup\n");
+    printf("@MSG: SystemClk:%d\n",FUNCONF_SYSTEM_CORE_CLOCK);
+    //printf("@MSG: ChipID:%08x\n", DBGMCU_GetCHIPID() );
+    //printf("@MSG: UID:%08x%04x\n", *( uint32_t * )0x1FFFF7E8 , (*( uint32_t * )0x1FFFF7EC)>>16 );
 
     EXTInit();                                      // Interrupt on RCMFAULT pin
-	ADCInit();                                      // CP, PP and Temp inputs
-	TIM1Init();                                     // Timebase for CP (PWM)signal and CP/PP/Temp ADC reading (1kHz)
-	TIM2Init();                                     // Modbus t3.5 timeout timer, calls ISR after 3.5ms of silence on the bus
-	TIM3Init();                                     // LED PWM ~4Khz
-	TIM4Init();                                     // ZC input monitoring 50Hz
+    ADCInit();                                      // CP, PP and Temp inputs
+    TIM1Init();                                     // Timebase for CP (PWM)signal and CP/PP/Temp ADC reading (1kHz)
+    TIM2Init();                                     // Modbus t3.5 timeout timer, calls ISR after 3.5ms of silence on the bus
+    TIM3Init();                                     // LED PWM ~4Khz
+    TIM4Init();                                     // ZC input monitoring 50Hz
 
-	funDigitalWrite(VCC_EN, FUN_LOW);               // Modem power control
-	funDigitalWrite(CPOFF, FUN_LOW);                // CP enabled
-	funDigitalWrite(RS485_DIR, FUN_LOW);
+    funDigitalWrite(VCC_EN, FUN_LOW);               // Modem power control OFF
+    funDigitalWrite(CPOFF, FUN_LOW);                // CP enabled
+    funDigitalWrite(RS485_DIR, FUN_LOW);
     funDigitalWrite(RCMTEST, FUN_HIGH);             // RCM_TEST signal OFF (small current draw ~2mA)
     funDigitalWrite(SSR1, FUN_LOW);                 // Contactor 1 OFF
     funDigitalWrite(SSR2, FUN_LOW);                 // Contactor 2 OFF
