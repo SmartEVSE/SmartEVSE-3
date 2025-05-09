@@ -8,7 +8,7 @@ int32_t TimeUntilFull = -1;                                                 // R
 int32_t EnergyCapacity = -1;                                                // Car's total battery capacity
 int32_t EnergyRequest = -1;                                                 // Requested amount of energy by car
 char EVCCID[32];                                                            // Car's EVCCID (EV Communication Controller Identifer)
-char RequiredEVCCID[32];                                                    // Required EVCCID before allowing charging
+char RequiredEVCCID[32] = "";                                               // Required EVCCID before allowing charging
 void RecomputeSoC(void);
 #endif
 
@@ -2662,6 +2662,7 @@ void setup() {
     ledcWrite(LCD_CHANNEL, 255);                // Set LCD backlight brightness 0-255
 
 #endif //SMARTEVSE_VERSION
+
     // Read all settings from non volatile memory; MQTTprefix will be overwritten if stored in NVS
     read_settings();                                                            // initialize with default data when starting for the first time
     validate_settings();

@@ -1496,7 +1496,7 @@ printf("@MSG: DINGO State=%d, pilot=%d, AccessTimer=%d, PilotDisconnected=%d.\n"
             PILOT_DISCONNECTED;
 
             // Check whether the EVCCID matches the one required
-            if (strcmp(RequiredEVCCID, "") == 0 || strcmp(RequiredEVCCID, EVCCID) == 0) {  //FIXME does this work when only running on CH32?
+            if (strcmp(RequiredEVCCID, "") == 0 || strcmp(RequiredEVCCID, EVCCID) == 0) {
                 // We satisfied the EVCCID requirements, skip modem stages next time
                 ModemStage = 1;
 
@@ -2239,6 +2239,16 @@ void CheckSerialComm(void) {
     ret = strstr(SerialBuf, token);
     if (ret) {
         strncpy(RequiredEVCCID, ret+strlen(token), sizeof(RequiredEVCCID));
+        if (RequiredEVCCID[0] == 0x0a) //empty string was sent
+            RequiredEVCCID[0] = '\0';
+    }
+
+    strncpy(token, "EVCCID@", sizeof(token));
+    ret = strstr(SerialBuf, token);
+    if (ret) {
+        strncpy(EVCCID, ret+strlen(token), sizeof(EVCCID));
+        if (EVCCID[0] == 0x0a) //empty string was sent
+            EVCCID[0] = '\0';
     }
 
     //if (LoadBl) {
