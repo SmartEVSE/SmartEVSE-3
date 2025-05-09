@@ -201,13 +201,13 @@ uint8_t ChargeDelay = 0;                                                    // D
 uint8_t C1Timer = 0;
 uint8_t ModemStage = 0;                                                     // 0: Modem states will be executed when Modem is enabled 1: Modem stages will be skipped, as SoC is already extracted
 int8_t DisconnectTimeCounter = -1;                                          // Count for how long we're disconnected, so we can more reliably throw disconnect event. -1 means counter is disabled
+uint8_t NoCurrent = 0;                                                      // counts overcurrent situations.
+uint8_t TestState = 0;
+#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
 uint8_t ToModemWaitStateTimer = 0;                                          // Timer used from STATE_MODEM_REQUEST to STATE_MODEM_WAIT
 uint8_t ToModemDoneStateTimer = 0;                                          // Timer used from STATE_MODEM_WAIT to STATE_MODEM_DONE
 uint8_t LeaveModemDoneStateTimer = 0;                                       // Timer used from STATE_MODEM_DONE to other, usually STATE_B
 uint8_t LeaveModemDeniedStateTimer = 0;                                     // Timer used from STATE_MODEM_DENIED to STATE_B to re-try authentication
-uint8_t NoCurrent = 0;                                                      // counts overcurrent situations.
-uint8_t TestState = 0;
-#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
 uint8_t ModbusRequest = 0;                                                  // Flag to request Modbus information
 bool PilotDisconnected = false;
 uint8_t PilotDisconnectTime = 0;                                            // Time the Control Pilot line should be disconnected (Sec)
@@ -750,7 +750,9 @@ void setState(uint8_t NewState) { //c
             break;
         case STATE_MODEM_REQUEST: // After overriding PWM, and resetting the safe state is 10% PWM. To make sure communication recovers after going to normal, we do this. Ugly and temporary
             ModemPower(1);                                                      // switch on modem
+#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
             ToModemWaitStateTimer = 5;
+#endif
             DisconnectTimeCounter = -1;                                         // Disable Disconnect timer. Car is connected
             SetCPDuty(1024); //TODO try 0 to emulate STATE_E
             CONTACTOR1_OFF;
@@ -1462,13 +1464,16 @@ printf("@MSG: DINGO State=%d, pilot=%d, AccessTimer=%d, PilotDisconnected=%d.\n"
             }
         }
 #endif
+#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
         if (ToModemWaitStateTimer) ToModemWaitStateTimer--;
         else{
             setState(STATE_MODEM_WAIT);                                         // switch to state Modem 2
             _GLCD;
         }
+#endif
     }
 
+#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
     if (State == STATE_MODEM_WAIT){
         if (ToModemDoneStateTimer) ToModemDoneStateTimer--;
         else{
@@ -1491,7 +1496,7 @@ printf("@MSG: DINGO State=%d, pilot=%d, AccessTimer=%d, PilotDisconnected=%d.\n"
             PILOT_DISCONNECTED;
 
             // Check whether the EVCCID matches the one required
-            if (strcmp(RequiredEVCCID, "") == 0 || strcmp(RequiredEVCCID, EVCCID) == 0) {
+            if (strcmp(RequiredEVCCID, "") == 0 || strcmp(RequiredEVCCID, EVCCID) == 0) {  //FIXME does this work when only running on CH32?
                 // We satisfied the EVCCID requirements, skip modem stages next time
                 ModemStage = 1;
 
@@ -1518,6 +1523,7 @@ printf("@MSG: DINGO State=%d, pilot=%d, AccessTimer=%d, PilotDisconnected=%d.\n"
             _GLCD;                                    // Re-init LCD (200ms delay)
         }
     }
+#endif
 
 #endif
     if (State == STATE_C1) {
@@ -2124,6 +2130,14 @@ uint8_t processAllNodeStates(uint8_t NodeNr) {
 
 
 #ifndef SMARTEVSE_VERSION //CH32 version
+void ResetModemTimers(void) {
+    ToModemWaitStateTimer = 0;
+    ToModemDoneStateTimer = 0;
+    LeaveModemDoneStateTimer = 0;
+    LeaveModemDeniedStateTimer = 0;
+    setAccess(OFF);
+}
+
 
 // CH32 receives info from ESP32
 void CheckSerialComm(void) {
@@ -2161,6 +2175,7 @@ void CheckSerialComm(void) {
     CALL_ON_RECEIVE_PARAM(setErrorFlags@, setErrorFlags)
     CALL_ON_RECEIVE_PARAM(clearErrorFlags@, clearErrorFlags)
     CALL_ON_RECEIVE(BroadcastSettings)
+    CALL_ON_RECEIVE(ResetModemTimers)
     // these veriables are owned by ESP32 and copies are kept in CH32:
 // Configuration items array
 //ConfigItem configItems[] = {

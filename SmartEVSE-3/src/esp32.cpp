@@ -208,10 +208,6 @@ extern uint8_t ChargeDelay;
 extern uint8_t C1Timer;
 extern uint8_t ModemStage;
 extern int8_t DisconnectTimeCounter;
-extern uint8_t ToModemWaitStateTimer;
-extern uint8_t ToModemDoneStateTimer;
-extern uint8_t LeaveModemDoneStateTimer;
-extern uint8_t LeaveModemDeniedStateTimer;
 extern uint8_t NoCurrent;
 extern uint8_t ModbusRequest;
 extern uint16_t CardOffset;
@@ -489,9 +485,7 @@ void getButtonState() {
 void mqtt_receive_callback(const String topic, const String payload) {
     if (topic == MQTTprefix + "/Set/Mode") {
         if (payload == "Off") {
-            ToModemWaitStateTimer = 0;
-            ToModemDoneStateTimer = 0;
-            LeaveModemDoneStateTimer = 0;
+            Serial1.printf("ResetModemTimers\n");
             setAccess(OFF);
         } else if (payload == "Normal") {
             setMode(MODE_NORMAL);
@@ -1505,10 +1499,7 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
 
             switch(mode.toInt()) {
                 case 0: // OFF
-                    ToModemWaitStateTimer = 0;
-                    ToModemDoneStateTimer = 0;
-                    LeaveModemDoneStateTimer = 0;
-                    LeaveModemDeniedStateTimer = 0;
+                    Serial1.printf("ResetModemTimers\n");
                     setAccess(OFF);
                     break;
                 case 1:
