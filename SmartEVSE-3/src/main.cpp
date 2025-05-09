@@ -199,11 +199,11 @@ uint8_t LCDNav = 0;
 uint8_t SubMenu = 0;
 uint8_t ChargeDelay = 0;                                                    // Delays charging at least 60 seconds in case of not enough current available. //TODO CH32 vs ESP32
 uint8_t C1Timer = 0;
-uint8_t ModemStage = 0;                                                     // 0: Modem states will be executed when Modem is enabled 1: Modem stages will be skipped, as SoC is already extracted
 int8_t DisconnectTimeCounter = -1;                                          // Count for how long we're disconnected, so we can more reliably throw disconnect event. -1 means counter is disabled
 uint8_t NoCurrent = 0;                                                      // counts overcurrent situations.
 uint8_t TestState = 0;
 #if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
+uint8_t ModemStage = 0;                                                     // 0: Modem states will be executed when Modem is enabled 1: Modem stages will be skipped, as SoC is already extracted
 uint8_t ToModemWaitStateTimer = 0;                                          // Timer used from STATE_MODEM_REQUEST to STATE_MODEM_WAIT
 uint8_t ToModemDoneStateTimer = 0;                                          // Timer used from STATE_MODEM_WAIT to STATE_MODEM_DONE
 uint8_t LeaveModemDoneStateTimer = 0;                                       // Timer used from STATE_MODEM_DONE to other, usually STATE_B
@@ -2225,6 +2225,7 @@ void CheckSerialComm(void) {
     SET_ON_RECEIVE(ConfigChanged@, ConfigChanged)
 
     SET_ON_RECEIVE(Initialized@, Initialized)
+    SET_ON_RECEIVE(ModemStage@, ModemStage)
 
     //these variables are owned by CH32 and copies are sent to ESP32:
     SET_ON_RECEIVE(SolarStopTimer@, SolarStopTimer)

@@ -206,7 +206,6 @@ uint8_t ButtonStateOverride = 0x07;                                         // P
 uint32_t LastBtnOverrideTime = 0;                                           // Avoid UI buttons getting stuck
 extern uint8_t ChargeDelay;
 extern uint8_t C1Timer;
-extern uint8_t ModemStage;
 extern int8_t DisconnectTimeCounter;
 extern uint8_t NoCurrent;
 extern uint8_t ModbusRequest;
@@ -1161,7 +1160,8 @@ void RecomputeSoC(void) {
 // This is done so we can "re-plug" the car in the Modem process without triggering disconnect events
 void DisconnectEvent(void){
     _LOG_A("EV disconnected for a while. Resetting SoC states");
-    ModemStage = 0; // Enable Modem states again
+    uint8_t ModemStage = 0; // Enable Modem states again
+    SEND_TO_CH32(ModemStage)
     InitialSoC = -1;
     FullSoC = -1;
     RemainingSoC = -1;
