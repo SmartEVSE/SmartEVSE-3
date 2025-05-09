@@ -3156,7 +3156,6 @@ void Timer10ms_singlerun(void) {
 
             case COMM_STATUS_REQ:                       // Ready to receive status from mainboard
                 CommTimeout = 10;
-                Serial1.printf("ModemPower@1\n");                                           // Modem Power ON
                 Serial1.printf("PowerPanicCtrl@0\n");
                 Serial1.printf("RCmonCtrl@%u\n", RCmon);
                 CommState = COMM_STATUS_RSP;
