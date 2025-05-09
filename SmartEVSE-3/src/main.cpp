@@ -732,6 +732,7 @@ void setState(uint8_t NewState) { //c
 #endif
 
             if (NewState == STATE_A) {
+                ModemStage = 0;                                                 // Start modem if EV connects
                 ErrorFlags &= ~NO_SUN;
                 ErrorFlags &= ~LESS_6A;
                 ChargeDelay = 0;
