@@ -12,10 +12,12 @@ The following meters are directly supported as Mains or EV meter:
 - Sinotimer DTS6619
 - WAGO 879-30x0
 - Schneider iEM3x5x
+- Chint DTSU666
+- Carlo Gavazzi EM340
 
 If your meter is not listed, you might be able to use the Custom option in the menu, that let's you enter each register manually.<br>
 Connect the A and B of your meter to the A and B terminals of the SmartEVSE.<br>
-Note that the ABB meter has the A/B signals reversed, you should connect A to B, and B to A on the ABB meter.<br>
+Note that the ABB and Carlo Gavazzi meter have the A/B signals reversed, you should connect A to B, and B to A on these meters.<br>
 You can use Cat5 network cable for the wiring between SmartEVSE(s), kWh meter(s) and Sensorbox.<br>
 Make sure to use one twisted pair for A and B, so for example A=Green, B=Green/White
 

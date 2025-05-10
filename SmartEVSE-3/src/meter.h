@@ -46,9 +46,11 @@
 #define EM_SINOTIMER 12
 #define EM_HOMEWIZARD_P1 13
 #define EM_SCHNEIDER 14
-#define EM_UNUSED_SLOT3 15
-#define EM_UNUSED_SLOT4 16
-#define EM_CUSTOM 17
+#define EM_CHINT 15
+#define EM_CARLO_CAVAZZI 16
+#define EM_UNUSED_SLOT3 17
+#define EM_UNUSED_SLOT4 18
+#define EM_CUSTOM 19
 
 typedef enum mb_datatype {
     MB_DATATYPE_INT32 = 0,
