@@ -2928,7 +2928,11 @@ void Timer10ms_singlerun(void) {
     if (State == STATE_A || State == STATE_COMM_B || State == STATE_B1) {
         // When the pilot line is disconnected, wait for PilotDisconnectTime, then reconnect
         if (PilotDisconnected) {
+#ifdef SMARTEVSE_VERSION //ESP32 v3
             if (PilotDisconnectTime == 0 && pilot == PILOT_NOK ) {          // Pilot should be ~ 0V when disconnected
+#else //CH32
+            if (PilotDisconnectTime == 0 && pilot == PILOT_3V ) {          // Pilot should be ~ 3V when disconnected TODO is this ok?
+#endif
                 PILOT_CONNECTED;
                 PilotDisconnected = false;
                 _LOG_A("Pilot Connected\n");
