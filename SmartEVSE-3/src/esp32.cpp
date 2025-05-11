@@ -9,7 +9,6 @@ int32_t EnergyCapacity = -1;                                                // C
 int32_t EnergyRequest = -1;                                                 // Requested amount of energy by car
 char EVCCID[32];                                                            // Car's EVCCID (EV Communication Controller Identifer)
 char RequiredEVCCID[32] = "";                                               // Required EVCCID before allowing charging
-void RecomputeSoC(void);
 #endif
 
 #ifdef SMARTEVSE_VERSION //ESP32
