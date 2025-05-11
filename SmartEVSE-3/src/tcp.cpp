@@ -364,6 +364,9 @@ void decodeV2GTP(void) {
                 _LOG_A("Modem: set FullSoC=%d.\n", FullSoC);
             }
 
+            uint32_t deptime = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.AC_EVChargeParameter.DepartureTime;
+            _LOG_A("Modem: Departure Time=%u.\n", deptime);
+
             if(dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVEnergyCapacity_isUsed) {
                 Temp = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVEnergyCapacity;
                 _LOG_A("Modem: set EVEnergyCapacity=%d %s, Multiplier=%d.\n", Temp.Value, Temp.Unit_isUsed ? UnitStr[Temp.Unit] : "", Temp.Multiplier);
