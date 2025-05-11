@@ -9,9 +9,9 @@
 uint8_t txbuffer[3164], rxbuffer[3164];
 uint8_t modem_state;
 uint8_t myMac[6]; // the MAC of the EVSE (derived from the ESP32's MAC).
-uint8_t pevMac[6]; // the MAC of the PEV (most likely the same as EVCCID?)
+uint8_t pevMac[6]; // the MAC of the PEV (most likely the same as EVCCID?) //YES for Volkswagen's rotating EVCCID equals pevMac every time
 uint8_t myModemMac[6]; // our own modem's MAC (this is different from myMAC !). Unused.
-uint8_t pevModemMac[6]; // the MAC of the PEV's modem (obtained with GetSwReq). Could this be used to identify the EV?
+uint8_t pevModemMac[6]; // the MAC of the PEV's modem (obtained with GetSwReq). Could this be used to identify the EV? //NO for Volkswagen I got an Porsche vendor MAC id, but the MAC id ends in 00:00, so I suspect multiple EVs share this MAC address
 uint8_t pevRunId[8]; // pev RunId. Received from the PEV in the CM_SLAC_PARAM.REQ message.
 uint16_t AvgACVar[58]; // Average AC Variable Field. (used in CM_ATTEN_PROFILE.IND)
 uint8_t NMK[16]; // Network Key. Will be initialized with a random key on each session.
@@ -437,7 +437,7 @@ void SlacManager(uint16_t rxbytes) {
 //
 void Timer20ms(void * parameter) {
 
-    uint16_t reg16, rxbytes, x;
+    uint16_t reg16, rxbytes;
     uint16_t FrameType;
     uint8_t SetKeyRetryCount = 0;
 
@@ -588,11 +588,8 @@ void Timer20ms(void * parameter) {
             if (ModemsFound >= 2) {
                 _LOG_I("Found %u modems. Private network between EVSE and PEV established\n", ModemsFound);
 
-                _LOG_I("PEV MAC: ");
-                for(x=0; x<6 ;x++) _LOG_I("%02x", pevMac[x]);
-                _LOG_I(" PEV modem MAC: ");
-                for(x=0; x<6 ;x++) _LOG_I("%02x", pevModemMac[x]);
-                _LOG_I("\n");
+                _LOG_I("PEV MAC: %02x:%02x:%02x:%02x:%02x:%02x.\n", pevMac[0], pevMac[1], pevMac[2], pevMac[3], pevMac[4], pevMac[5]);
+                _LOG_I("PEV modem MAC: %02x:%02x:%02x:%02x:%02x:%02x.\n", pevModemMac[0], pevModemMac[1], pevModemMac[2], pevModemMac[3], pevModemMac[4], pevModemMac[5]);
 
                 //SetLED(CRGB::Purple);
                 modem_state = MODEM_LINK_READY;
