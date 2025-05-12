@@ -378,6 +378,8 @@ void Meter::UpdateEnergies() {
     printf("@Energy:%03u,%ld\n", Address, Energy);
     printf("@EnergyMeterStart:%03u,%ld\n", Address, EnergyMeterStart);
     printf("@EnergyCharged:%03d,%ld\n", Address, EnergyCharged);
+    printf("@Import_active_energy:%03d,%ld\n", Address, Import_active_energy);
+    printf("@Export_active_energy:%03d,%ld\n", Address, Export_active_energy);
 #else //ESP32 v3 and v4
 #if MODEM
     RecomputeSoC();
