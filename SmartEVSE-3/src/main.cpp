@@ -392,8 +392,7 @@ void Button::HandleSwitch(void) {
         // Reset RCM error when button is pressed
         // RCM was tripped, but RCM level is back to normal
         if (RCmon == 1 && (ErrorFlags & RCM_TRIPPED) && digitalRead(PIN_RCM_FAULT) == LOW) {
-            // Clear RCM error
-            ErrorFlags &= ~RCM_TRIPPED;
+            clearErrorFlags(RCM_TRIPPED);
         }
         // Also light up the LCD backlight
         BacklightTimer = BACKLIGHT;                                 // Backlight ON
@@ -734,7 +733,7 @@ void setState(uint8_t NewState) { //c
 
             if (NewState == STATE_A) {
                 ModemStage = 0;                                                 // Start modem if EV connects
-                ErrorFlags &= ~LESS_6A;
+                clearErrorFlags(LESS_6A);
                 ChargeDelay = 0;
                 Switching_To_Single_Phase = FALSE;
                 // Reset Node
@@ -1632,11 +1631,11 @@ printf("@MSG: DINGO State=%d, pilot=%d, AccessTimer=%d, PilotDisconnected=%d.\n"
     } else AccessTimer = 0;                                             // Not in state A, then disable timer
 
     if ((TempEVSE < (maxTemp - 10)) && (ErrorFlags & TEMP_HIGH)) {                  // Temperature below limit?
-        ErrorFlags &= ~TEMP_HIGH; // clear Error
+        clearErrorFlags(TEMP_HIGH); // clear Error
     }
 
     if ( (ErrorFlags & (LESS_6A) ) && (LoadBl < 2) && (IsCurrentAvailable())) {
-        ErrorFlags &= ~LESS_6A;                                         // Clear Errors if there is enough current available, and Load Balancing is disabled or we are Master
+        clearErrorFlags(LESS_6A);                                         // Clear Errors if there is enough current available, and Load Balancing is disabled or we are Master
         _LOG_I("No power/current Errors Cleared.\n");
     }
 
@@ -1645,7 +1644,7 @@ printf("@MSG: DINGO State=%d, pilot=%d, AccessTimer=%d, PilotDisconnected=%d.\n"
         if ( MainsMeter.Timeout == 0 && !(ErrorFlags & CT_NOCOMM) && Mode != MODE_NORMAL) { // timeout if current measurement takes > 10 secs
             // When power sharing is set to Disabled/Master, and in Normal mode, do not timeout;
             // there might be MainsMeter/EVMeter configured that can be retrieved through the API.
-            ErrorFlags |= CT_NOCOMM;
+            setErrorFlags(CT_NOCOMM);
             setStatePowerUnavailable();
             SB2.SoftwareVer = 0;
             _LOG_W("Error, MainsMeter communication error!\n");
@@ -1655,7 +1654,7 @@ printf("@MSG: DINGO State=%d, pilot=%d, AccessTimer=%d, PilotDisconnected=%d.\n"
     // We are a Node, we will timeout if there is no communication with the Master controller.
     } else if (LoadBl > 1) {
         if (MainsMeter.Timeout == 0 && !(ErrorFlags & CT_NOCOMM)) {
-            ErrorFlags |= CT_NOCOMM;
+            setErrorFlags(CT_NOCOMM);
             setStatePowerUnavailable();
             SB2.SoftwareVer = 0;
             _LOG_W("Error, Master communication error!\n");
@@ -1667,7 +1666,7 @@ printf("@MSG: DINGO State=%d, pilot=%d, AccessTimer=%d, PilotDisconnected=%d.\n"
 
     if (EVMeter.Type) {
         if ( EVMeter.Timeout == 0 && !(ErrorFlags & EV_NOCOMM) && Mode != MODE_NORMAL) {
-            ErrorFlags |= EV_NOCOMM;
+            setErrorFlags(EV_NOCOMM);
             setStatePowerUnavailable();
             _LOG_W("Error, EV Meter communication error!\n");
         } else {
@@ -1677,19 +1676,19 @@ printf("@MSG: DINGO State=%d, pilot=%d, AccessTimer=%d, PilotDisconnected=%d.\n"
         EVMeter.setTimeout(COMM_EVTIMEOUT);
     
     // Clear communication error, if present
-    if ((ErrorFlags & CT_NOCOMM) && MainsMeter.Timeout) ErrorFlags &= ~CT_NOCOMM;
+    if ((ErrorFlags & CT_NOCOMM) && MainsMeter.Timeout) clearErrorFlags(CT_NOCOMM);
 
-    if ((ErrorFlags & EV_NOCOMM) && EVMeter.Timeout) ErrorFlags &= ~EV_NOCOMM;
+    if ((ErrorFlags & EV_NOCOMM) && EVMeter.Timeout) clearErrorFlags(EV_NOCOMM);
 
 
     if (TempEVSE > maxTemp && !(ErrorFlags & TEMP_HIGH))                // Temperature too High?
     {
-        ErrorFlags |= TEMP_HIGH;
+        setErrorFlags(TEMP_HIGH);
         setStatePowerUnavailable();
         _LOG_W("Error, temperature %u C !\n", TempEVSE);
     }
 
-    if (ErrorFlags & (LESS_6A)) {
+    if (ErrorFlags & LESS_6A) {
         if (ChargeDelay == 0) {
             if (Mode == MODE_SOLAR) { _LOG_I("Waiting for Solar power...\n"); }
             else { _LOG_I("Not enough current available!\n"); }
@@ -2471,7 +2470,7 @@ void ModbusRequestLoop() {
                 if (Mode && (NoCurrent > 2 || MainsMeter.Imeasured > (MaxMains * 20))) { // I guess we don't want to set this flag in Normal mode, we just want to charge ChargeCurrent
                     // STOP charging for all EVSE's
                     // Display error message
-                    ErrorFlags |= LESS_6A; //NOCURRENT;
+                    setErrorFlags(LESS_6A); //NOCURRENT;
                     // Broadcast Error code over RS485
                     ModbusWriteSingleRequest(BROADCAST_ADR, 0x0001, ErrorFlags);
                     NoCurrent = 0;
@@ -2904,7 +2903,7 @@ void Timer10ms_singlerun(void) {
     if (((ButtonState != 0x07) || (ButtonState != OldButtonState)) ) {
         // RCM was tripped, but RCM level is back to normal
         if (getItemValue(MENU_RCMON) == 1 && (ErrorFlags & RCM_TRIPPED) && RCMFAULT == LOW) {
-            ErrorFlags &= ~RCM_TRIPPED;         // Clear RCM error bit
+            clearErrorFlags(RCM_TRIPPED);         // Clear RCM error bit
         }
         if (!LCDlock) GLCDMenu(ButtonState);    // LCD is unlocked, enter menu
     }
@@ -2977,7 +2976,7 @@ void Timer10ms_singlerun(void) {
                     setState(STATE_B);                                          // switch to State B
                 ActivationMode = 30;                                        // Activation mode is triggered if state C is not entered in 30 seconds.
                 AccessTimer = 0;
-            } else ErrorFlags |= LESS_6A;                                   // Not enough power available
+            } else setErrorFlags(LESS_6A);                                   // Not enough power available
         } else if (pilot == PILOT_9V && State != STATE_B1 && State != STATE_COMM_B && AccessStatus == ON) {
             setState(STATE_B1);
         }
@@ -3020,7 +3019,7 @@ void Timer10ms_singlerun(void) {
 #ifdef SMARTEVSE_VERSION //not on CH32
                         if (!LCDNav) _GLCD;                                // Don't update the LCD if we are navigating the menu
 #endif                                                                      // immediately update LCD (20ms)
-                    } else ErrorFlags |= LESS_6A;                           // Not enough power available
+                    } else setErrorFlags(LESS_6A);                          // Not enough power available
                 }
             }
 
@@ -3120,7 +3119,7 @@ void Timer10ms_singlerun(void) {
         // check again, to prevent voltage spikes from tripping the RCM detection
         if (digitalRead(PIN_RCM_FAULT) == HIGH) {
             if (State) setState(STATE_B1);
-            ErrorFlags = RCM_TRIPPED;
+            setErrorFlags(RCM_TRIPPED);
             LCDTimer = 0;                                                   // display the correct error message on the LCD
         }
     }
@@ -3172,7 +3171,7 @@ void Timer10ms_singlerun(void) {
 
 #ifndef SMARTEVSE_VERSION //CH32
     // Clear communication error, if present
-    if ((ErrorFlags & CT_NOCOMM) && MainsMeter.Timeout == 10) ErrorFlags &= ~CT_NOCOMM;
+    if ((ErrorFlags & CT_NOCOMM) && MainsMeter.Timeout == 10) clearErrorFlags(CT_NOCOMM);
 #endif
 
 }
