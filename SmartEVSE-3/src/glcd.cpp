@@ -885,7 +885,7 @@ void GLCD(void) {
                         if (!ChargeDelay) Str[5] = '\0';
                         break;
                     case GOING_TO_SWITCH:
-                        sprintf(Str, "3F -> 1F %u", ChargeDelay);
+                        sprintf(Str, "3P -> 1P %u", ChargeDelay);
                         if (!ChargeDelay) Str[7] = '\0';
                         break;
                 }

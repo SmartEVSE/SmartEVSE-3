@@ -77,7 +77,7 @@ to your curl POST command. -d ''
 <br>&emsp;&emsp;Note 2: This is just changing the config setting, the contactor will not be controlled immediately but only when there is a
 <br>&emsp;&emsp;state change.
 <br>&emsp;&emsp;
-<br>&emsp;&emsp;If car is charging and you want to change from 1F to 3F or vice versa:
+<br>&emsp;&emsp;If car is charging and you want to change from 1P to 3P or vice versa:
 ```
   - Change mode to OFF
   - Enable or disable C2 contactor
