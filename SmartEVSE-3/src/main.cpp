@@ -132,7 +132,8 @@ uint16_t MinCurrent = MIN_CURRENT;                                          // M
 uint8_t Mode = MODE;                                                        // EVSE mode (0:Normal / 1:Smart / 2:Solar)
 uint32_t CurrentPWM = 0;                                                    // Current PWM duty cycle value (0 - 1024)
 bool CPDutyOverride = false;
-uint8_t Lock = LOCK;                                                        // Cable lock (0:Disable / 1:Solenoid / 2:Motor)
+uint8_t Lock = LOCK;                                                        // Cable lock device (0:Disable / 1:Solenoid / 2:Motor)
+uint8_t CableLock = CABLE_LOCK;                                             // 0 = Disabled (default), 1 = Enabled; when enabled the cable is locked at all times, when disabled only when STATE != A
 uint16_t MaxCircuit = MAX_CIRCUIT;                                          // Max current of the EVSE circuit (A)
 uint8_t Config = CONFIG;                                                    // Configuration (0:Socket / 1:Fixed Cable)
 uint8_t LoadBl = LOADBL;                                                    // Load Balance Setting (0:Disable / 1:Master / 2-8:Node)
@@ -220,7 +221,6 @@ uint16_t SolarStopTimer = 0;
 #ifdef SMARTEVSE_VERSION //ESP32 v3 and v4
 uint8_t DelayedRepeat;                                                      // 0 = no repeat, 1 = daily repeat
 uint8_t LCDlock = LCD_LOCK;                                                 // 0 = LCD buttons operational, 1 = LCD buttons disabled
-uint8_t CableLock = CABLE_LOCK;                                             // 0 = Disabled (default), 1 = Enabled
 uint16_t BacklightTimer = 0;                                                // Backlight timer (sec)
 uint8_t BacklightSet = 0;
 uint8_t LCDTimer = 0;
@@ -2185,6 +2185,7 @@ void CheckSerialComm(void) {
 //ConfigItem configItems[] = {
     SET_ON_RECEIVE(Config@, Config)
     SET_ON_RECEIVE(Lock@, Lock)
+    SET_ON_RECEIVE(CableLock@, CableLock)
     SET_ON_RECEIVE(Mode@, Mode)
     SET_ON_RECEIVE(Access@, tmp); if (ret) AccessStatus = (AccessStatus_t) tmp;
     SET_ON_RECEIVE(OverrideCurrent@, OverrideCurrent)
@@ -2665,6 +2666,7 @@ void SendConfigToCH32() {
     SEND_TO_CH32(ImportCurrent)
     SEND_TO_CH32(LoadBl)
     SEND_TO_CH32(Lock)
+    SEND_TO_CH32(CableLock)
     SEND_TO_CH32(MaxCircuit)
     SEND_TO_CH32(MaxCurrent)
     SEND_TO_CH32(MaxMains)

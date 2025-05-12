@@ -648,6 +648,7 @@ void mqtt_receive_callback(const String topic, const String payload) {
         } else {
             CableLock = 0;
         }
+        write_settings();
     }
 
     // Make sure MQTT updates directly to prevent debounces
