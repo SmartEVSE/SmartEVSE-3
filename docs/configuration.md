@@ -250,6 +250,7 @@ Valid topics you can publish to are:
 /Set/ColorNormal
 /Set/ColorSmart
 /Set/ColorSolar
+/Set/CableLock
 ```
 Your mains kWh meter data can be fed with:
 ```

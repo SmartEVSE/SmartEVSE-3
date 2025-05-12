@@ -110,4 +110,12 @@ For more information, visit [this link](https://github.com/serkri/SmartEVSE-3/is
 
 The keys below the LCD screen can be locked/unlocked:
 * By pressing middle and right key at boot, or
-* By checking/unchecking the LCDLock box in the webserver screen.
+* By checking/unchecking the LCD Lock box in the webserver screen.
+
+# Cable Lock
+
+The charging cable can be locked/unlocked at the EVSE side.
+* This setting applies only when a locking actuator (e.g. Solenoid or Motor) has been configured via the LCD menu.
+* The charging cable can be locked/unlocked by checking/unchecking the Cable Lock box in the webserver screen.
+* The EVSE will lock the cable by default, when an EV is connected. This option applies to when the cable is disconnected from the EV afterwards.
+
