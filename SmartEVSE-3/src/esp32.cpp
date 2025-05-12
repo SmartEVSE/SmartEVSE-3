@@ -1229,7 +1229,7 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
         String error = getErrorNameWeb(ErrorFlags);
         int errorId = getErrorId(ErrorFlags);
 
-        if (ErrorFlags & NO_SUN) {
+        if (ErrorFlags & LESS_6A) {
             evstate += " - " + error;
             error = "None";
             errorId = 0;

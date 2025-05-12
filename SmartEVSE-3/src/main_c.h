@@ -52,7 +52,7 @@ extern volatile uint8_t ModbusRxLen;
 #define TEMP_HIGH 4
 #define EV_NOCOMM 8
 #define RCM_TRIPPED 16                                                          // RCM tripped. >6mA DC residual current detected.
-#define NO_SUN 32
+//#define unused 32
 #define Test_IO 64
 #define BL_FLASH 128
 

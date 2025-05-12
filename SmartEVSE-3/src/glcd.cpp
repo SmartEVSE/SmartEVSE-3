@@ -866,11 +866,14 @@ void GLCD(void) {
         if (ErrorFlags & LESS_6A) {
             if (!LCDToggle) {
                 GLCD_print_buf2(5, (const char *) "WAITING");
-            } else GLCD_print_buf2(5, (const char *) "FOR POWER");
-        } else if (ErrorFlags & NO_SUN) {
-            if (!LCDToggle) {
-                GLCD_print_buf2(5, (const char *) "WAITING");
-            } else GLCD_print_buf2(5, (const char *) "FOR SOLAR");
+            } else {
+                if (Mode == MODE_SMART) {
+                    GLCD_print_buf2(5, (const char *) "FOR POWER");
+                } else {
+                    GLCD_print_buf2(5, (const char *) "FOR SOLAR");
+                }
+            }
+
 #if MODEM
         } else if (State == STATE_MODEM_REQUEST || State == STATE_MODEM_WAIT || State == STATE_MODEM_DONE) {                                          // Modem states
             GLCD_print_buf2(5, (const char *) "MODEM");

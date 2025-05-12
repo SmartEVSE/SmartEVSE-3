@@ -536,7 +536,7 @@ void setMode(uint8_t NewMode) {
 #endif
 
     if (NewMode == MODE_SMART || NewMode == MODE_SOLAR) {                       // the smart-solar button used to clear all those flags toggling between those modes
-        clearErrorFlags(NO_SUN | LESS_6A);                                      // Clear All errors
+        clearErrorFlags(LESS_6A);                                      // Clear All errors
         setSolarStopTimer(0);                                                   // Also make sure the SolarTimer is disabled.
         MaxSumMainsTimer = 0;
     }
@@ -734,7 +734,6 @@ void setState(uint8_t NewState) { //c
 
             if (NewState == STATE_A) {
                 ModemStage = 0;                                                 // Start modem if EV connects
-                ErrorFlags &= ~NO_SUN;
                 ErrorFlags &= ~LESS_6A;
                 ChargeDelay = 0;
                 Switching_To_Single_Phase = FALSE;
@@ -1589,7 +1588,7 @@ printf("@MSG: DINGO State=%d, pilot=%d, AccessTimer=%d, PilotDisconnected=%d.\n"
 #endif
         if (SolarStopTimer == 0) {
             if (State == STATE_C) setState(STATE_C1);                   // tell EV to stop charging
-            setErrorFlags(NO_SUN);                                      // Set error: NO_SUN
+            setErrorFlags(LESS_6A);                                     // Set error: not enough sun
         }
     }
 
@@ -1636,10 +1635,9 @@ printf("@MSG: DINGO State=%d, pilot=%d, AccessTimer=%d, PilotDisconnected=%d.\n"
         ErrorFlags &= ~TEMP_HIGH; // clear Error
     }
 
-    if ( (ErrorFlags & (LESS_6A|NO_SUN) ) && (LoadBl < 2) && (IsCurrentAvailable())) {
+    if ( (ErrorFlags & (LESS_6A) ) && (LoadBl < 2) && (IsCurrentAvailable())) {
         ErrorFlags &= ~LESS_6A;                                         // Clear Errors if there is enough current available, and Load Balancing is disabled or we are Master
-        ErrorFlags &= ~NO_SUN;
-        _LOG_I("No sun/current Errors Cleared.\n");
+        _LOG_I("No power/current Errors Cleared.\n");
     }
 
     // Mainsmeter defined, and power sharing set to Disabled or Master
@@ -1691,7 +1689,7 @@ printf("@MSG: DINGO State=%d, pilot=%d, AccessTimer=%d, PilotDisconnected=%d.\n"
         _LOG_W("Error, temperature %u C !\n", TempEVSE);
     }
 
-    if (ErrorFlags & (NO_SUN | LESS_6A)) {
+    if (ErrorFlags & (LESS_6A)) {
         if (ChargeDelay == 0) {
             if (Mode == MODE_SOLAR) { _LOG_I("Waiting for Solar power...\n"); }
             else { _LOG_I("Not enough current available!\n"); }
@@ -1901,7 +1899,7 @@ void requestNodeStatus(uint8_t NodeNr) {
 Regist 	Access  Description 	        Unit 	Values
 0x0000 	R/W 	State 		                0:A / 1:B / 2:C / 3:D / 4:Node request B / 5:Master confirm B / 6:Node request C /
                                                 7:Master confirm C / 8:Activation mode / 9:B1 / 10:C1
-0x0001 	R/W 	Error 	                Bit 	1:LESS_6A / 2:NO_COMM / 4:TEMP_HIGH / 8:EV_NOCOMM / 16:RCD / 32:NO_SUN
+0x0001 	R/W 	Error 	                Bit 	1:LESS_6A / 2:NO_COMM / 4:TEMP_HIGH / 8:EV_NOCOMM / 16:RCD
 0x0002 	R/W 	Charging current        0.1 A 	0:no current available / 6-80
 0x0003 	R/W 	EVSE mode (without saving)      0:Normal / 1:Smart / 2:Solar
 0x0004 	R/W 	Solar Timer 	        s
@@ -2030,8 +2028,8 @@ uint8_t processAllNodeStates(uint8_t NodeNr) {
 
     current = IsCurrentAvailable();
     if (current) {                                                              // Yes enough current
-        if (BalancedError[NodeNr] & (LESS_6A|NO_SUN)) {
-            BalancedError[NodeNr] &= ~(LESS_6A | NO_SUN);                       // Clear Error flags
+        if (BalancedError[NodeNr] & LESS_6A) {
+            BalancedError[NodeNr] &= ~(LESS_6A);                                // Clear Error flags
             write = 1;
         }
     }
@@ -2062,9 +2060,8 @@ uint8_t processAllNodeStates(uint8_t NodeNr) {
                 _LOG_I("- OK!\n");
             } else {                                                            // We do not have enough current to start charging
                 Balanced[NodeNr] = 0;                                           // Make sure the Node does not start charging by setting current to 0
-                if ((BalancedError[NodeNr] & (LESS_6A|NO_SUN)) == 0) {          // Error flags cleared?
-                    if (Mode == MODE_SOLAR) BalancedError[NodeNr] |= NO_SUN;    // Solar mode: No Solar Power available
-                    else BalancedError[NodeNr] |= LESS_6A;                      // Normal or Smart Mode: Not enough current available
+                if ((BalancedError[NodeNr] & LESS_6A) == 0) {                   // Error flags cleared?
+                    BalancedError[NodeNr] |= LESS_6A;                           // Normal or Smart Mode: Not enough current available
                     write = 1;
                 }
                 _LOG_I("- Not enough current!\n");
@@ -2082,9 +2079,8 @@ uint8_t processAllNodeStates(uint8_t NodeNr) {
                 write = 1;
                 _LOG_I("- OK!\n");
             } else {                                                            // We do not have enough current to start charging
-                if ((BalancedError[NodeNr] & (LESS_6A|NO_SUN)) == 0) {          // Error flags cleared?
-                    if (Mode == MODE_SOLAR) BalancedError[NodeNr] |= NO_SUN;    // Solar mode: No Solar Power available
-                    else BalancedError[NodeNr] |= LESS_6A;                      // Normal or Smart Mode: Not enough current available
+                if ((BalancedError[NodeNr] & LESS_6A) == 0) {          // Error flags cleared?
+                    BalancedError[NodeNr] |= LESS_6A;                      // Normal or Smart Mode: Not enough current available
                     write = 1;
                 }
                 _LOG_I("- Not enough current!\n");
@@ -2981,8 +2977,6 @@ void Timer10ms_singlerun(void) {
                     setState(STATE_B);                                          // switch to State B
                 ActivationMode = 30;                                        // Activation mode is triggered if state C is not entered in 30 seconds.
                 AccessTimer = 0;
-            } else if (Mode == MODE_SOLAR) {                                // Not enough power:
-                ErrorFlags |= NO_SUN;                                       // Not enough solar power
             } else ErrorFlags |= LESS_6A;                                   // Not enough power available
         } else if (pilot == PILOT_9V && State != STATE_B1 && State != STATE_COMM_B && AccessStatus == ON) {
             setState(STATE_B1);
@@ -3026,9 +3020,6 @@ void Timer10ms_singlerun(void) {
 #ifdef SMARTEVSE_VERSION //not on CH32
                         if (!LCDNav) _GLCD;                                // Don't update the LCD if we are navigating the menu
 #endif                                                                      // immediately update LCD (20ms)
-                    }
-                    else if (Mode == MODE_SOLAR) {                          // Not enough power:
-                        ErrorFlags |= NO_SUN;                               // Not enough solar power
                     } else ErrorFlags |= LESS_6A;                           // Not enough power available
                 }
             }
