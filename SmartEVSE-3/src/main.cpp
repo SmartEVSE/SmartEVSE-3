@@ -3309,6 +3309,8 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
             if (val != State) setState(val);
             break;
         case STATUS_ERROR:
+            //we want ErrorFlags = val so:
+            clearErrorFlags(0xFF);
             setErrorFlags(val);
             if (ErrorFlags) {                                                   // Is there an actual Error? Maybe the error got cleared?
                 if (ErrorFlags & CT_NOCOMM) MainsMeter.Timeout = 0;             // clear MainsMeter.Timeout on a CT_NOCOMM error, so the error will be immediate.
