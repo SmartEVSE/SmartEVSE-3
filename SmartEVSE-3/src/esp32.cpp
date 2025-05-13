@@ -2055,6 +2055,18 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
         mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", json.c_str());    // Yes. Respond JSON
         return true;
 #endif
+#if MODEM && SMARTEVSE_VERSION >= 40
+    } else if (mg_http_match_uri(hm, "/ev_state") && !memcmp("GET", hm->method.buf, hm->method.len)) {
+        //this can be activated by: curl -X GET "http://smartevse-xxxx.lan/ev_state?update_ev_state=1" -d ''
+        uint8_t GetState = 0;
+        if(request->hasParam("update_ev_state")) {
+            GetState = strtol(request->getParam("update_ev_state")->value().c_str(),NULL,0);
+        }
+        _LOG_A("DEBUG: GetState=%u.\n", GetState);
+        setState(STATE_MODEM_REQUEST);
+        mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", ""); //json request needs json response
+        return true;
+#endif
 
 #if FAKE_RFID
     //this can be activated by: http://smartevse-xxx.lan/debug?showrfid=1
