@@ -162,7 +162,7 @@ uint8_t Nr_Of_Phases_Charging = 0;                                          // 0
 Single_Phase_t Switching_To_Single_Phase = FALSE;
 
 uint8_t State = STATE_A;
-ErrorFl_t Error2;
+uint8_t ErrorFlags;
 uint8_t pilot;
 
 uint16_t MaxCapacity;                                                       // Cable limit (A) (limited by the wire in the charge cable, set automatically, or manually if Config=Fixed Cable)
@@ -289,6 +289,7 @@ esp_adc_cal_characteristics_t * adc_chars_CP;
 //functions
 EXT void setup();
 EXT void setState(uint8_t NewState);
+EXT void setErrorFlags(uint8_t flags);
 EXT int8_t TemperatureSensor();
 uint8_t OneWireReadCardId();
 EXT uint8_t ProximityPin();

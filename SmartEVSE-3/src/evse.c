@@ -145,7 +145,7 @@ void EXTI9_5_IRQHandler()
     // check again, to prevent voltage spikes from tripping the RCM detection
     if (funDigitalRead(RCMFAULT) == FUN_HIGH ) {
         if (State) setState(STATE_B1);
-        Error2.RCM_tripped = 1;
+        setErrorFlags(RCM_TRIPPED);
     }
 
     EXTI->INTFR = 0x1ffffff;                        // clear interrupt flag register

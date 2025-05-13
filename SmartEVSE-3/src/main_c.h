@@ -56,23 +56,7 @@ extern volatile uint8_t ModbusRxLen;
 #define Test_IO 64
 #define BL_FLASH 128
 
-typedef union {
-    uint8_t Flags; //TODO initialize to NO_ERROR
-    struct {
-         unsigned int less_6A : 1;
-         unsigned int CT_nocomm : 1;
-         unsigned int temp_high : 1;
-         unsigned int EV_nocomm : 1;
-         unsigned int RCM_tripped : 1;
-         unsigned int no_sun : 1;
-         unsigned int test_io : 1;
-         unsigned int bl_flash : 1;
-    };
-} ErrorFl_t;
-
-extern ErrorFl_t Error2;
-#define ErrorFlags Error2.Flags
-extern void setErrorFlags(uint8_t flags);
+extern uint8_t ErrorFlags;
 extern void clearErrorFlags(uint8_t flags);
 //#endif
 

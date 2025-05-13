@@ -39,6 +39,7 @@ extern CircularBuffer ModbusTx;                 // USART2 Transmit buffer (modbu
 
 
 void setState(uint8_t NewState);
+void setErrorFlags(uint8_t flags);
 uint8_t buffer_enqueue(CircularBuffer *cb, char data);
 uint8_t buffer_dequeue(CircularBuffer *cb, char *data);
 int buffer_write(CircularBuffer *cb, char *data, uint16_t size);
