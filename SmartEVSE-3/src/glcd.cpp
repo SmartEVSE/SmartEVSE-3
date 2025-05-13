@@ -1309,7 +1309,7 @@ void GLCDMenu(uint8_t Buttons) {
                 SubMenu = 0;
                 clearErrorFlags(!(NO_ERROR));                                           // Clear All Errors when exiting the Main Menu
                 TestState = 0;                                                  // Clear TestState
-                ChargeDelay = 0;                                                // Clear ChargeDelay
+                setChargeDelay(0);                                              // Clear ChargeDelay
                 setSolarStopTimer(0);                                           // Disable Solar Timer
                 GLCD();
                 write_settings();                                               // Write to eeprom

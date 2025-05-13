@@ -192,7 +192,7 @@ extern uint16_t OverrideCurrent;
 // Load Balance variables
 extern int16_t IsetBalanced;
 extern uint16_t Balanced[NR_EVSES];
-#if SMARTEVSE_VERSION < 40
+#if SMARTEVSE_VERSION < 40 //v3
 extern uint16_t BalancedMax[NR_EVSES];
 extern uint8_t BalancedState[NR_EVSES];
 extern uint16_t BalancedError[NR_EVSES];
@@ -2277,7 +2277,7 @@ void ocppInit() {
                 if (IsCurrentAvailable()) {
                     // OCPP is the exclusive LB, clear LESS_6A error if set
                     clearErrorFlags(LESS_6A);
-                    ChargeDelay = 0;
+                    setChargeDelay(0);
                 }
                 if ((State == STATE_B || State == STATE_C) && !CPDutyOverride) {
                     if (IsCurrentAvailable()) {

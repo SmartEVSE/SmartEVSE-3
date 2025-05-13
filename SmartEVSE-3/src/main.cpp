@@ -198,7 +198,7 @@ uint8_t ButtonState = 0x07;                                                 // H
 uint8_t OldButtonState = 0x07;                                              // Holds previous push Buttons state (LSB 2:0)
 uint8_t LCDNav = 0;
 uint8_t SubMenu = 0;
-uint8_t ChargeDelay = 0;                                                    // Delays charging at least 60 seconds in case of not enough current available. //TODO CH32 vs ESP32
+uint8_t ChargeDelay = 0;                                                    // Delays charging at least 60 seconds in case of not enough current available.
 int8_t DisconnectTimeCounter = -1;                                          // Count for how long we're disconnected, so we can more reliably throw disconnect event. -1 means counter is disabled
 uint8_t NoCurrent = 0;                                                      // counts overcurrent situations.
 uint8_t TestState = 0;
@@ -350,6 +350,16 @@ void clearErrorFlags(uint8_t flags) {
 #endif
 }
 
+// ChargeDelay owned by CH32 so ESP32 gets a copy
+void setChargeDelay(uint8_t delay) {
+#if SMARTEVSE_VERSION >= 40 //v4 ESP32
+    Serial1.printf("ChargeDelay@%u\n", delay);
+#else
+    ChargeDelay = delay;
+#endif
+}
+
+
 #ifndef SMARTEVSE_VERSION //CH32 version
 void Button::HandleSwitch(void) {
     printf("@ExtSwitch:%u.\n", Pressed);
@@ -385,7 +395,8 @@ void Button::HandleSwitch(void) {
             default:
                 if (State == STATE_C) {                             // Menu option Access is set to Disabled
                     setState(STATE_C1);
-                    if (!TestState) ChargeDelay = 15;               // Keep in State B for 15 seconds, so the Charge cable can be removed.
+                    if (!TestState) setChargeDelay(15);             // Keep in State B for 15 seconds, so the Charge cable can be removed.
+
                 }
                 break;
         }
@@ -467,7 +478,7 @@ void Button::CheckSwitch(bool force) {
         if (Pressed && Switch == 3 && millis() > TimeOfPress + 1500) {
             if (State == STATE_C) {
                 setState(STATE_C1);
-                if (!TestState) ChargeDelay = 15;                               // Keep in State B for 15 seconds, so the Charge cable can be removed.
+                if (!TestState) setChargeDelay(15);                             // Keep in State B for 15 seconds, so the Charge cable can be removed.
             }
         }
     }
@@ -540,7 +551,7 @@ void setMode(uint8_t NewMode) {
         setSolarStopTimer(0);                                                   // Also make sure the SolarTimer is disabled.
         MaxSumMainsTimer = 0;
     }
-    ChargeDelay = 0;                                                            // Clear any Chargedelay
+    setChargeDelay(0);                                                          // Clear any Chargedelay
     BacklightTimer = BACKLIGHT;                                                 // Backlight ON
     if (Mode != NewMode) NodeNewMode = NewMode + 1;
     Mode = NewMode;    
@@ -713,7 +724,7 @@ void setState(uint8_t NewState) { //c
 #if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32 //a
     switch (NewState) {
         case STATE_B1:
-            if (!ChargeDelay) ChargeDelay = 3;                                  // When entering State B1, wait at least 3 seconds before switching to another state.
+            if (!ChargeDelay) setChargeDelay(3);                                // When entering State B1, wait at least 3 seconds before switching to another state.
             if (State != STATE_C1 && State != STATE_B1 && State != STATE_B && !PilotDisconnected) {
                 PILOT_DISCONNECTED;
                 PilotDisconnected = true;
@@ -735,7 +746,7 @@ void setState(uint8_t NewState) { //c
             if (NewState == STATE_A) {
                 ModemStage = 0;                                                 // Start modem if EV connects
                 clearErrorFlags(LESS_6A);
-                ChargeDelay = 0;
+                setChargeDelay(0);
                 Switching_To_Single_Phase = FALSE;
                 // Reset Node
                 Node[0].Timer = 0;
@@ -815,7 +826,7 @@ void setState(uint8_t NewState) { //c
             TIM1->CH1CVR = 1000;                                                // Set CP output to +12V
 #endif
             C1Timer = 6;                                                        // Wait maximum 6 seconds, before forcing the contactor off.
-            ChargeDelay = 15;
+            setChargeDelay(15);
             break;
         default:
             break;
@@ -1623,7 +1634,7 @@ printf("@MSG: DINGO State=%d, pilot=%d, AccessTimer=%d, PilotDisconnected=%d.\n"
         }
     }
 
-    if (ChargeDelay) ChargeDelay--;                                     // Decrease Charge Delay counter
+    if (ChargeDelay) setChargeDelay(ChargeDelay-1);                     // Decrease Charge Delay counter
 
     if (AccessTimer && State == STATE_A) {
         if (--AccessTimer == 0) {
@@ -1695,7 +1706,7 @@ printf("@MSG: DINGO State=%d, pilot=%d, AccessTimer=%d, PilotDisconnected=%d.\n"
             else { _LOG_I("Not enough current available!\n"); }
         }
         setStatePowerUnavailable();
-        ChargeDelay = CHARGEDELAY;                                      // Set Chargedelay
+        setChargeDelay(CHARGEDELAY);                                    // Set Chargedelay
     }
 
     //_LOG_A("Timer1S task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
@@ -2727,6 +2738,7 @@ void Handle_ESP32_Message(char *SerialBuf, uint8_t *CommState) {
     SET_ON_RECEIVE(ChargeCurrent:, ChargeCurrent)
     SET_ON_RECEIVE(IsCurrentAvailable:, Shadow_IsCurrentAvailable)
     SET_ON_RECEIVE(ErrorFlags:, ErrorFlags)
+    SET_ON_RECEIVE(ChargeDelay:, ChargeDelay)
     SET_ON_RECEIVE(SolarStopTimer:, SolarStopTimer)
 
     strncpy(token, "version:", sizeof(token));
@@ -2919,7 +2931,7 @@ void Timer10ms_singlerun(void) {
             if ((RFIDReader == 2 || RFIDReader == 1) && AccessTimer == 0 && AccessStatus == ON) AccessTimer = RFIDLOCKTIME;
 
             if (State != STATE_A) setState(STATE_A);                        // reset state, incase we were stuck in STATE_COMM_B
-            ChargeDelay = 0;                                                // Clear ChargeDelay when disconnected.
+            setChargeDelay(0);                                              // Clear ChargeDelay when disconnected.
             if (!EVMeter.ResetKwh) EVMeter.ResetKwh = 1;                    // when set, reset EV kWh meter on state B->C change.
         } else if ( pilot == PILOT_9V && ErrorFlags == NO_ERROR
             && ChargeDelay == 0 && AccessStatus == ON && State != STATE_COMM_B
@@ -3281,7 +3293,7 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
             if (ErrorFlags) {                                                   // Is there an actual Error? Maybe the error got cleared?
                 if (ErrorFlags & CT_NOCOMM) MainsMeter.Timeout = 0;             // clear MainsMeter.Timeout on a CT_NOCOMM error, so the error will be immediate.
                 setStatePowerUnavailable();
-                ChargeDelay = CHARGEDELAY;
+                setChargeDelay(CHARGEDELAY);
                 _LOG_V("Error message received!\n");
             } else {
                 _LOG_V("Errors Cleared received!\n");

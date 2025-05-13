@@ -316,6 +316,7 @@ enum AccessStatus_t { OFF, ON, PAUSE };
 extern void CalcBalancedCurrent(char mod);
 extern void write_settings(void);
 extern void CalcIsum(void);
+extern void setChargeDelay(uint8_t delay);
 
 struct Sensorbox {
     uint8_t SoftwareVer;        // Sensorbox 2 software version
