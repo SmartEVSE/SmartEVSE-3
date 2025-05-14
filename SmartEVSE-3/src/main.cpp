@@ -2180,7 +2180,6 @@ void CheckSerialComm(void) {
     CALL_ON_RECEIVE_PARAM(CalcBalancedCurrent@, CalcBalancedCurrent)
     CALL_ON_RECEIVE_PARAM(setPilot@,setPilot)
     CALL_ON_RECEIVE_PARAM(PowerPanicCtrl@, PowerPanicCtrl)
-    CALL_ON_RECEIVE_PARAM(ModemPower@, ModemPower)
     CALL_ON_RECEIVE(setStatePowerUnavailable)
     CALL_ON_RECEIVE(OneWireReadCardId)
     CALL_ON_RECEIVE_PARAM(setErrorFlags@, setErrorFlags)
