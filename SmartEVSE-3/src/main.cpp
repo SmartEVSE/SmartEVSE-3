@@ -313,7 +313,7 @@ extern uint8_t ModbusRequest;
 extern unsigned char ease8InOutQuad(unsigned char i);
 extern unsigned char triwave8(unsigned char in);
 
-extern const char StrStateName[15][13] = {"A", "B", "C", "D", "COMM_B", "COMM_B_OK", "COMM_C", "COMM_C_OK", "Activate", "B1", "C1", "MODEM1", "MODEM2", "MODEM_OK", "MODEM_DENIED"}; //note that the extern is necessary here because the const will point the compiler to internal linkage; https://cplusplus.com/forum/general/81640/
+extern const char StrStateName[15][13] = {"A", "B", "C", "D", "COMM_B", "COMM_B_OK", "COMM_C", "COMM_C_OK", "Activate", "B1", "C1", "MODEM_REQ", "MODEM_WAIT", "MODEM_DONE", "MODEM_DENIED"}; //note that the extern is necessary here because the const will point the compiler to internal linkage; https://cplusplus.com/forum/general/81640/
 extern const char StrEnableC2[5][12] = { "Not present", "Always Off", "Solar Off", "Always On", "Auto" };
 
 //TODO perhaps move those routines from modbus to main?
