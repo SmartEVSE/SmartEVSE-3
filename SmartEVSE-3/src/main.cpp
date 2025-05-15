@@ -761,10 +761,10 @@ void setState(uint8_t NewState) { //c
             }
             break;
         case STATE_MODEM_REQUEST: // After overriding PWM, and resetting the safe state is 10% PWM. To make sure communication recovers after going to normal, we do this. Ugly and temporary
+#ifndef SMARTEVSE_VERSION //CH32
             ModemPower(1);                                                      // switch on modem
-#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
-            ToModemWaitStateTimer = 5;
 #endif
+            ToModemWaitStateTimer = 5;
             DisconnectTimeCounter = -1;                                         // Disable Disconnect timer. Car is connected
             SetCPDuty(1024); //TODO try 0 to emulate STATE_E
             CONTACTOR1_OFF;
@@ -775,7 +775,9 @@ void setState(uint8_t NewState) { //c
             ToModemDoneStateTimer = 60;
             break;
         case STATE_MODEM_DONE:  // This state is reached via STATE_MODEM_WAIT after 60s (timeout condition, nothing received) or after REST/MODEM request (success, shortcut to immediate charging).
+#ifndef SMARTEVSE_VERSION //CH32
             ModemPower(0);                                                      // switch off modem
+#endif
             PILOT_DISCONNECTED;
             DisconnectTimeCounter = -1;                                         // Disable Disconnect timer. Car is connected
             LeaveModemDoneStateTimer = 5;                                       // Disconnect CP for 5 seconds, restart charging cycle but this time without the modem steps.
@@ -1478,7 +1480,7 @@ printf("@MSG: DINGO State=%d, pilot=%d, AccessTimer=%d, PilotDisconnected=%d.\n"
 #endif
 #if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
         if (ToModemWaitStateTimer) ToModemWaitStateTimer--;
-        else{
+        else {
             setState(STATE_MODEM_WAIT);                                         // switch to state Modem 2
             _GLCD;
         }
