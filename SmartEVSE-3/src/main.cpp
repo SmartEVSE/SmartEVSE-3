@@ -199,12 +199,12 @@ uint8_t OldButtonState = 0x07;                                              // H
 uint8_t LCDNav = 0;
 uint8_t SubMenu = 0;
 uint8_t ChargeDelay = 0;                                                    // Delays charging at least 60 seconds in case of not enough current available.
-int8_t DisconnectTimeCounter = -1;                                          // Count for how long we're disconnected, so we can more reliably throw disconnect event. -1 means counter is disabled
 uint8_t NoCurrent = 0;                                                      // counts overcurrent situations.
 uint8_t TestState = 0;
 #if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
 uint8_t C1Timer = 0;
 uint8_t ModemStage = 0;                                                     // 0: Modem states will be executed when Modem is enabled 1: Modem stages will be skipped, as SoC is already extracted
+int8_t DisconnectTimeCounter = -1;                                          // Count for how long we're disconnected, so we can more reliably throw disconnect event. -1 means counter is disabled
 uint8_t ToModemWaitStateTimer = 0;                                          // Timer used from STATE_MODEM_REQUEST to STATE_MODEM_WAIT
 uint8_t ToModemDoneStateTimer = 0;                                          // Timer used from STATE_MODEM_WAIT to STATE_MODEM_DONE
 uint8_t LeaveModemDoneStateTimer = 0;                                       // Timer used from STATE_MODEM_DONE to other, usually STATE_B
@@ -1551,9 +1551,8 @@ printf("@MSG: DINGO State=%d, pilot=%d, AccessTimer=%d, PilotDisconnected=%d.\n"
 #endif
         }
     }
-#endif
 
-#if MODEM && defined(SMARTEVSE_VERSION) //EPS32 v3 and v4
+#if MODEM
     // Normally, the modem is enabled when Modem == Experiment. However, after a succesfull communication has been set up, EVSE will restart communication by replugging car and moving back to state B.
     // This time, communication is not initiated. When a car is disconnected, we want to enable the modem states again, but using 12V signal is not reliable (we just "replugged" via CP pin, remember).
     // This counter just enables the state after 3 seconds of success.
@@ -1564,12 +1563,13 @@ printf("@MSG: DINGO State=%d, pilot=%d, AccessTimer=%d, PilotDisconnected=%d.\n"
     if (DisconnectTimeCounter > 3){
         if (pilot == PILOT_12V){
             DisconnectTimeCounter = -1;
-            DisconnectEvent();
+            printf("@DisconnectEvent\n");
         } else{ // Run again
             DisconnectTimeCounter = 0; 
         }
     }
 #endif
+#endif //CH32 and v3 ESP32
 
 #if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40 //ESP32 v3
     // Check if there is a RFID card in front of the reader
@@ -2722,6 +2722,7 @@ void Handle_ESP32_Message(char *SerialBuf, uint8_t *CommState) {
     CALL_ON_RECEIVE_PARAM(OverrideCurrent:, setOverrideCurrent)
     CALL_ON_RECEIVE_PARAM(Mode:, setMode)
     CALL_ON_RECEIVE(write_settings)
+    CALL_ON_RECEIVE(DisconnectEvent)
 
     //these variables do not exist in CH32 so values are sent to ESP32
     SET_ON_RECEIVE(RFIDstatus:, RFIDstatus)
