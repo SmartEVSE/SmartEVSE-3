@@ -2061,9 +2061,10 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
         uint8_t GetState = 0;
         if(request->hasParam("update_ev_state")) {
             GetState = strtol(request->getParam("update_ev_state")->value().c_str(),NULL,0);
+            if (GetState)
+                setState(STATE_MODEM_REQUEST);
         }
         _LOG_A("DEBUG: GetState=%u.\n", GetState);
-        setState(STATE_MODEM_REQUEST);
         mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", ""); //json request needs json response
         return true;
 #endif
