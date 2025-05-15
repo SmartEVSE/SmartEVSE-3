@@ -206,8 +206,6 @@ SemaphoreHandle_t buttonMutex = xSemaphoreCreateMutex();
 uint8_t ButtonStateOverride = 0x07;                                         // Possibility to override the buttons via API
 uint32_t LastBtnOverrideTime = 0;                                           // Avoid UI buttons getting stuck
 extern uint8_t ChargeDelay;
-extern uint8_t C1Timer;
-extern int8_t DisconnectTimeCounter;
 extern uint8_t NoCurrent;
 extern uint8_t ModbusRequest;
 extern uint16_t CardOffset;
