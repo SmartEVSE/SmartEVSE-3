@@ -1448,7 +1448,6 @@ printf("@MSG: DINGO State=%d, pilot=%d, AccessTimer=%d, PilotDisconnected=%d.\n"
     if (State == STATE_MODEM_REQUEST){
 #if SMARTEVSE_VERSION >=40 //v4
         //ModemReset();
-        modem_state = MODEM_POWERUP;
         static bool Modem = false; //TODO set to false when modem is powered off
                                    //or perhaps we can funDigitalRead the power status?
         if (!Modem) {
