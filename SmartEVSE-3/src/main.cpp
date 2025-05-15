@@ -765,12 +765,14 @@ void setState(uint8_t NewState) { //c
             ModemPower(1);                                                      // switch on modem
 #endif
             ToModemWaitStateTimer = 5;
+            PILOT_DISCONNECTED;                                                 // CP 0V = STATE E
             DisconnectTimeCounter = -1;                                         // Disable Disconnect timer. Car is connected
             SetCPDuty(1024); //TODO try 0 to emulate STATE_E
             CONTACTOR1_OFF;
             CONTACTOR2_OFF;
             break;
         case STATE_MODEM_WAIT:
+            PILOT_CONNECTED;
             SetCPDuty(50);
             ToModemDoneStateTimer = 60;
             break;
