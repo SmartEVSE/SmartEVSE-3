@@ -61,7 +61,7 @@ unsigned char OneWireReadCardId(void) {
         return 0; //card is already read, no new card
 }
 
-#endif
+#else //FAKE_RFID
 #if SMARTEVSE_VERSION >= 30 && SMARTEVSE_VERSION < 40 //ESP32v3
 unsigned char OneWireReadCardId(void) {
     uint8_t x;
@@ -80,6 +80,7 @@ unsigned char OneWireReadCardId(void) {
     return 0;
 }
 #endif
+#endif //FAKE_RFID
 
 
 // ############################## RFID functions ##############################
