@@ -75,6 +75,7 @@ extern void CheckRS485Comm(void);
 #define RETURN return;
 extern void RecomputeSoC(void);
 extern uint8_t modem_state;
+static bool ModemFound = false;                                                 //signals if the modem is found
 #include <qca.h>
 #else
 #define RETURN
@@ -776,6 +777,7 @@ void setState(uint8_t NewState) { //c
             SetCPDuty(50);
             ToModemDoneStateTimer = 60;
             break;
+        //TODO how about STATE_MODEM_DENIED?
         case STATE_MODEM_DONE:  // This state is reached via STATE_MODEM_WAIT after 60s (timeout condition, nothing received) or after REST/MODEM request (success, shortcut to immediate charging).
 #ifndef SMARTEVSE_VERSION //CH32
             ModemPower(0);                                                      // switch off modem
@@ -1450,16 +1452,15 @@ printf("@MSG: DINGO State=%d, pilot=%d, AccessTimer=%d, PilotDisconnected=%d.\n"
     if (State == STATE_MODEM_REQUEST){
 #if SMARTEVSE_VERSION >=40 //v4
         //ModemReset();
-        static bool Modem = false; //TODO set to false when modem is powered off
                                    //or perhaps we can funDigitalRead the power status?
-        if (!Modem) {
+        if (!ModemFound) {
             // Search for QCA modem
             digitalWrite(PIN_QCA700X_RESETN, HIGH);         // get modem out of reset
             _LOG_D("Searching for modem.. \n");
             qcaspi_read_register16(SPI_REG_SIGNATURE);      // applicatation note says to ignore
                                                             // the first result
-            Modem = (qcaspi_read_register16(SPI_REG_SIGNATURE) == QCASPI_GOOD_SIGNATURE);
-            if (Modem) {
+            ModemFound = (qcaspi_read_register16(SPI_REG_SIGNATURE) == QCASPI_GOOD_SIGNATURE);
+            if (ModemFound) {
                 _LOG_D("QCA700X modem found\n");
                 extern void Timer20ms(void * parameter);
                 extern uint8_t modem_state;
@@ -1533,10 +1534,15 @@ printf("@MSG: DINGO State=%d, pilot=%d, AccessTimer=%d, PilotDisconnected=%d.\n"
         if (LeaveModemDeniedStateTimer) LeaveModemDeniedStateTimer--;
         else{
             LeaveModemDeniedStateTimer = -1;           // reset ModemStateDeniedTimer
-            setState(STATE_A);                         // switch to STATE_B
+            setState(STATE_A);                         // switch to STATE_A
             PILOT_CONNECTED;
-            _GLCD;                                    // Re-init LCD (200ms delay)
+            _GLCD;                                     // Re-init LCD (200ms delay)
         }
+    }
+#else //ESP32v4
+    if (State == STATE_MODEM_DONE || State == STATE_MODEM_DENIED) {
+        ModemFound = false;                                       // so we start looking for the modem next time
+        modem_state = MODEM_POWERDOWN;                            // so we end the 20ms loop on the CH32
     }
 #endif
 

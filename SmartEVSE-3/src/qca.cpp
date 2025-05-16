@@ -568,6 +568,10 @@ void Timer20ms(void * parameter) {
                 modem_state = MODEM_WAIT_SW;
                 break;
 
+            case MODEM_POWERDOWN:
+                vTaskDelete(NULL);                    // end this task
+                break;
+
             default:
                 break;
         }

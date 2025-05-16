@@ -61,6 +61,7 @@ uint32_t qcaspi_read_burst(uint8_t *dst);
 #define MODEM_WAIT_SW 110
 #define MODEM_LINK_READY 120
 
+#define MODEM_POWERDOWN 255
 
 /*====================================================================*
  *   SLAC commands
