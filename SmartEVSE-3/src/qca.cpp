@@ -22,7 +22,7 @@ unsigned long LinkStatusTimer = 0;
 unsigned long TPMatchResponse = 0;      // 200ms timeout
 unsigned long TTMatchSequence = 0;      // 400ms timeout
 unsigned long TTMatchJoin = 0;          // 12000s timeout
-unsigned long MillisLoop = 0;
+//unsigned long millis() = 0;
 uint8_t CEVMatchRetry = 0;      // retry counter to send CM_ATTEN_CHAR.IND
 uint8_t LinkReady = 0;
 uint8_t ModemsFound = 0;
@@ -474,8 +474,6 @@ void Timer20ms(void * parameter) {
             }
         }
 
-        MillisLoop = millis();      // once per loop set millis();
-
         switch(modem_state) {
 
             case MODEM_POWERUP:
@@ -504,11 +502,11 @@ void Timer20ms(void * parameter) {
                 _LOG_I("transmitting SET_KEY.REQ, to configure the EVSE modem with random NMK\n");
                 //SetLED(CRGB::Red);
                 modem_state = MODEM_CM_SET_KEY_CNF;
-                TPMatchResponse = MillisLoop;
+                TPMatchResponse = millis();
                 break;
 
             case MODEM_CM_SET_KEY_CNF:
-                if ((TPMatchResponse + 200) < MillisLoop) {
+                if ((TPMatchResponse + 200) < millis()) {
                     // We have not received the SET_KEY.CNF in time. re-send SET_KEY.REQ
                     SetKeyRetryCount ++;
                     modem_state = MODEM_CM_SET_KEY_REQ;
@@ -516,7 +514,7 @@ void Timer20ms(void * parameter) {
                 break;
 
             case SLAC_PARAM_REQ:
-                if ((TTMatchSequence + 400) < MillisLoop) {
+                if ((TTMatchSequence + 400) < millis()) {
                     // We have not received the CM_START_ATTEN_CHAR.IND in time.
                     // Matching FAILED. Setup a new key, and wait.
                     modem_state = MODEM_CM_SET_KEY_REQ;
@@ -524,7 +522,7 @@ void Timer20ms(void * parameter) {
                 break;
 
             case MNBC_SOUND:
-                if ((SoundsTimer + 600) < MillisLoop ) {
+                if ((SoundsTimer + 600) < millis() ) {
                     _LOG_D("SOUND timer expired\n");
                     // Send CM_ATTEN_CHAR_IND, even if no Sounds were received.
                     modem_state = ATTEN_CHAR_IND;
@@ -535,12 +533,12 @@ void Timer20ms(void * parameter) {
                 composeAttenCharInd();
                 qcaspi_write_burst(txbuffer, 129); // Send data to modem
                 modem_state = ATTEN_CHAR_RSP;
-                TPMatchResponse = MillisLoop;
+                TPMatchResponse = millis();
                 _LOG_I("transmitting CM_ATTEN_CHAR.IND\n");
                 break;
 
             case ATTEN_CHAR_RSP:
-                if ((TPMatchResponse + 200) < MillisLoop) {
+                if ((TPMatchResponse + 200) < millis()) {
                     // We have not received the CM_ATTEN_CHAR.RSP in time.
                     CEVMatchRetry ++; // keep track of retries.
                     if (CEVMatchRetry > 2) {
@@ -554,7 +552,7 @@ void Timer20ms(void * parameter) {
                 composeLinkStatus();
                 qcaspi_write_burst(txbuffer, 60); // Send data to modem
                 _LOG_I("Check Link Status..\n");
-                LinkStatusTimer = MillisLoop;
+                LinkStatusTimer = millis();
                 modem_state = MODEM_WAIT_LINK;
                 break;
 
@@ -564,7 +562,7 @@ void Timer20ms(void * parameter) {
                 _LOG_I("Modem Search..\n");
                 //SetLED(CRGB::Amethyst);
                 ModemsFound = 0;
-                ModemSearchTimer = MillisLoop;        // start timer
+                ModemSearchTimer = millis();        // start timer
                 modem_state = MODEM_WAIT_SW;
                 break;
 
@@ -577,7 +575,7 @@ void Timer20ms(void * parameter) {
         }
 
 
-        if (modem_state == MODEM_WAIT_LINK && (LinkStatusTimer + 200) < MillisLoop ) {
+        if (modem_state == MODEM_WAIT_LINK && (LinkStatusTimer + 200) < millis() ) {
 
             if (LinkReady == 1) {
                 _LOG_I("Link Detected\n");
@@ -587,7 +585,7 @@ void Timer20ms(void * parameter) {
             }
         }
 
-        if (modem_state == MODEM_WAIT_SW && (ModemSearchTimer + 1000) < MillisLoop ) {
+        if (modem_state == MODEM_WAIT_SW && (ModemSearchTimer + 1000) < millis() ) {
             _LOG_D("MODEM timer expired. ");
             if (ModemsFound >= 2) {
                 _LOG_I("Found %u modems. Private network between EVSE and PEV established\n", ModemsFound);
@@ -599,7 +597,7 @@ void Timer20ms(void * parameter) {
                 modem_state = MODEM_LINK_READY;
             } else {
 
-                if ((TTMatchJoin + 12000) < MillisLoop) {
+                if ((TTMatchJoin + 12000) < millis()) {
                     _LOG_W("Not joined in time, restart\n");
                     modem_state = MODEM_CM_SET_KEY_REQ;
                 } else {
