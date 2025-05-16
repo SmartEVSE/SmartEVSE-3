@@ -372,6 +372,7 @@ void decodeV2GTP(void) {
                 if (State == STATE_MODEM_REQUEST || State == STATE_MODEM_WAIT || State == STATE_MODEM_DONE){
                     _LOG_A("Received SoC via Modem. Shortcut to State Modem Done\n");
                     setState(STATE_MODEM_DONE); // Go to State B, which means in this case setting PWM
+                    tcpState = TCP_STATE_CLOSED; //if we dont close the TCP connection the  next replug wont work TODO is this the right place, the right way?
                 }
                 if (InitialSoC < 0) //not initialized yet
                     InitialSoC = ComputedSoC;
@@ -389,7 +390,8 @@ void decodeV2GTP(void) {
             global_streamEncPos = 0;
             projectExiConnector_encode_DinExiDocument();
             addV2GTPHeaderAndTransmit(global_streamEnc.data, global_streamEncPos);
-            fsmState = stateWaitForCableCheckRequest;
+            //fsmState = stateWaitForCableCheckRequest;
+            fsmState = stateWaitForSupportedApplicationProtocolRequest; //so we will request for SoC the next time we replug; we obviously dont know how to cleanly close a session TODO
 
         }
 
