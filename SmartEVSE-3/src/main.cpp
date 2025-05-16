@@ -2690,7 +2690,7 @@ void SendConfigToCH32() {
 
 
 void Handle_ESP32_Message(char *SerialBuf, uint8_t *CommState) {
-    static char *ret;
+    char *ret;
     //since we read per separation character we know we have only one token per message,
     //so we can return if we have found one
     //TODO malformed messages when -DDBG_CH32=1 still disturb it all.....
@@ -2731,8 +2731,6 @@ void Handle_ESP32_Message(char *SerialBuf, uint8_t *CommState) {
     SET_ON_RECEIVE(Pilot:, pilot)
     SET_ON_RECEIVE(Temp:, TempEVSE)
     SET_ON_RECEIVE(State:, State)
-    uint16_t Balanced0;
-    SET_ON_RECEIVE(Balanced0:, Balanced0); if (ret) Balanced[0] = Balanced0;
     SET_ON_RECEIVE(IsetBalanced:, IsetBalanced)
     SET_ON_RECEIVE(ChargeCurrent:, ChargeCurrent)
     SET_ON_RECEIVE(IsCurrentAvailable:, Shadow_IsCurrentAvailable)
@@ -2814,6 +2812,11 @@ void Handle_ESP32_Message(char *SerialBuf, uint8_t *CommState) {
         } else
             _LOG_A("Received corrupt %s, n=%d, message from WCH:%s.\n", token, n, SerialBuf);
         return;
+    }
+
+    ret = strstr(SerialBuf, "Balanced0:");
+    if (ret) {
+        Balanced[0] = atoi(ret+strlen("Balanced0:"));
     }
 
     int32_t temp;
