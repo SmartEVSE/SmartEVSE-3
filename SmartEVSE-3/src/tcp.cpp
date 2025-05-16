@@ -176,12 +176,10 @@ void decodeV2GTP(void) {
             //}
             n = dinDocDec.V2G_Message.Body.SessionSetupReq.EVCCID.bytesLen;
             if (n>6) n=6;       // out of range check
-            _LOG_I("EVCCID=");
             for (i=0; i<n; i++) {
                 EVCCID2[i]= dinDocDec.V2G_Message.Body.SessionSetupReq.EVCCID.bytes[i];
-                _LOG_I("%02x", EVCCID2[i] );
             }
-            _LOG_I("\n");
+            _LOG_I("EVCCID=%02x%02x%02x%02x%02x%02x\n", EVCCID2[0], EVCCID2[1],EVCCID2[2],EVCCID2[3],EVCCID2[4],EVCCID2[5]);
 
             sessionId[0] = 1;   // our SessionId is set up here, and used by _prepare_DinExiDocument
             sessionId[1] = 2;   // This SessionID will be used by the EV in future communication
