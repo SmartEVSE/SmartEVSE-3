@@ -391,9 +391,9 @@ void Meter::setTimeout(uint8_t NewTimeout) {
     Timeout = NewTimeout;
 #if SMARTEVSE_VERSION >= 40 //v4 ESP32
     if (Address == MainsMeter.Address) {
-        Serial1.printf("MainsMeterTimeout@%u\n", NewTimeout);
+        Serial1.printf("@MainsMeterTimeout:%u\n", NewTimeout);
     } else if (Address == EVMeter.Address) {
-        Serial1.printf("EVMeterTimeout@%u\n", NewTimeout);
+        Serial1.printf("@EVMeterTimeout:%u\n", NewTimeout);
     }
 #endif
 }

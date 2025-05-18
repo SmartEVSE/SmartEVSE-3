@@ -178,7 +178,7 @@ void setPilot(bool On);
 
 #define RCMFAULT digitalRead(PIN_RCM_FAULT) //TODO ok for v4?
 #if SMARTEVSE_VERSION >=40
-#define SEND_TO_CH32(X) Serial1.printf("%s@%u\n", #X, X); _LOG_V("[->] %s:%u\n", #X, X);
+#define SEND_TO_CH32(X) Serial1.printf("@%s:%u\n", #X, X); _LOG_V("[->] %s:%u\n", #X, X);
 #define SEND_TO_ESP32(X) //dummy
 #else //v3
 #define SEND_TO_CH32(X) //dummy

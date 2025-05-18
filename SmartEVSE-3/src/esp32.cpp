@@ -483,7 +483,7 @@ void getButtonState() {
 void mqtt_receive_callback(const String topic, const String payload) {
     if (topic == MQTTprefix + "/Set/Mode") {
         if (payload == "Off") {
-            Serial1.printf("ResetModemTimers\n");
+            Serial1.printf("@ResetModemTimers\n");
             setAccess(OFF);
         } else if (payload == "Normal") {
             setMode(MODE_NORMAL);
@@ -587,7 +587,7 @@ void mqtt_receive_callback(const String topic, const String payload) {
 #if MODEM
     } else if (topic == MQTTprefix + "/Set/RequiredEVCCID") {
         strncpy(RequiredEVCCID, payload.c_str(), sizeof(RequiredEVCCID));
-        Serial1.printf("RequiredEVCCID@%s\n", RequiredEVCCID);
+        Serial1.printf("@RequiredEVCCID:%s\n", RequiredEVCCID);
         write_settings();
 #endif
     } else if (topic == MQTTprefix + "/Set/ColorOff") {
@@ -1517,7 +1517,7 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
 
             switch(mode.toInt()) {
                 case 0: // OFF
-                    Serial1.printf("ResetModemTimers\n");
+                    Serial1.printf("@ResetModemTimers\n");
                     setAccess(OFF);
                     break;
                 case 1:
@@ -1612,7 +1612,7 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
             if (request->getParam("required_evccid")->value().length() <= 32) {
                 strncpy(RequiredEVCCID, request->getParam("required_evccid")->value().c_str(), sizeof(RequiredEVCCID));
                 doc["required_evccid"] = RequiredEVCCID;
-                Serial1.printf("RequiredEVCCID@%s\n", RequiredEVCCID);
+                Serial1.printf("@RequiredEVCCID:%s\n", RequiredEVCCID);
             } else {
                 doc["required_evccid"] = "EVCCID too long (max 32 char)";
             }
@@ -2098,11 +2098,11 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
         }
         if(request->hasParam("mainsmeter")) {
             MainsMeter.Type = strtol(request->getParam("mainsmeter")->value().c_str(),NULL,0);
-            Serial1.printf("MainsMeterType@%u\n", MainsMeter.Type);
+            Serial1.printf("@MainsMeterType:%u\n", MainsMeter.Type);
         }
         if(request->hasParam("evmeter")) {
             EVMeter.Type = strtol(request->getParam("evmeter")->value().c_str(),NULL,0);
-            Serial1.printf("EVMeterType@%u\n", EVMeter.Type);
+            Serial1.printf("@EVMeterType:%u\n", EVMeter.Type);
         }
         if(request->hasParam("config")) {
             Config = strtol(request->getParam("config")->value().c_str(),NULL,0);
@@ -2749,7 +2749,7 @@ void setup() {
     static char SerialBuf[512];
     bool gotVersion = false;
     do {
-        Serial1.print("version?\n");            // send command to WCH ic
+        Serial1.print("@version?\n");            // send command to WCH ic
         _LOG_V("[->] version?\n");
 
         vTaskDelay(100 / portTICK_PERIOD_MS);

@@ -330,7 +330,7 @@ void decodeV2GTP(void) {
             }
             _LOG_D("EVCCID=%s.\n", EVCCIDstr.c_str());
             strncpy(EVCCID, EVCCIDstr.c_str(), sizeof(EVCCID));
-            Serial1.printf("EVCCID@%s\n", EVCCID);  //send to CH32
+            Serial1.printf("@EVCCID:%s\n", EVCCID);  //send to CH32
 
             const char UnitStr[][4] = {"h" , "m" , "s" , "A" , "Ah" , "V" , "VA" , "W" , "W_s" , "Wh"};
             dinPhysicalValueType Temp;
