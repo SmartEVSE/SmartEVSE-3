@@ -11,10 +11,10 @@
 
 # All menu options on the LCD screen:
 ## MODE
-By default, you are in normal EVSE mode. You can also choose smart mode or solar mode, but these modes require configuring a [MAINS MET](#mains_met) to function.
+By default, you are in normal EVSE mode. You can also choose smart mode or solar mode, but these modes require configuring a [MAINS MET](#mains-met) to function.
 
 - **Normal**: The EV will charge with the current set at [MAX](#max).
-- **Smart**: The EV will charge with a dynamic charge current, depending on [MAINSMET](#mainsmet) data, [MAINS](#mains), [MAX](#max) and [MIN](#min) settings.
+- **Smart**: The EV will charge with a dynamic charge current, depending on [MAINSMET](#mains-met) data, [MAINS](#mains), [MAX](#max) and [MIN](#min) settings.
 - **Solar**: The EV will charge using solar power.
 
 ## CONFIG
@@ -30,7 +30,7 @@ Only appears when [CONFIG](#config) is set to **Socket**.
 - **Solenoid**: Dostar, DUOSIDA DSIEC-ELB / ELM, or Ratio lock.
 - **Motor**: Signal wire reversed, DUOSIDA DSIEC-EL or Phoenix Contact.
 
-## PWR SHARE  
+## PWR SHARE
 Power Share (formerly LOAD BAL). 2 Upto 8 SmartEVSE’s can be connected via Modbus, and the available power will be shared.
 
 - **Disabled**: Power sharing is not used (single SmartEVSE).
@@ -42,7 +42,7 @@ Only appears if [MODE](#mode) is **Smart** or **Solar**. Set the type of MAINS k
 
 - **Disabled**: No MAINS meter connected (only Normal mode possible).
 - **Sensorbox**: The Sensorbox sends measurement data to the SmartEVSE.
-- **API**: MAINS meter data is fed through the [REST API](REST_API.md) or [MQTT API](#mqtt_api).
+- **API**: MAINS meter data is fed through the [REST API](REST_API.md) or [MQTT API](#mqtt-api).
 - **Phoenix C** / **Finder** / **...** / **Custom**: A Modbus kWh meter is used.
 
 **Note**:  
@@ -74,26 +74,26 @@ If EV METER is not **Disabled** and not **API**, this setting appears:
 - **EV ADR**: Set the Modbus address for the EV Meter.
 
 ## MAINS
-Only appears when a [MAINS MET](#main_smet) is configured. Set max mains current (10-200A) per phase.
+Only appears when a [MAINS MET](#mains-met) is configured. Set max mains current (10-200A) per phase.
 
-## MIN  
-Only appears when a [MAINS MET](#main_smet) is configured. Set the min charge current for the EV (6-16A) per phase.
+## MIN
+Only appears when a [MAINS MET](#mains-met) is configured. Set the min charge current for the EV (6-16A) per phase.
 
 ## MAX
 Set the MAX charge current for the EV: (10-80A) per phase. If [CONFIG](#config) is set to **Fixed**, configure MAX to be lower than or equal to the maximum current that your fixed cable can carry.
 
 ## CIRCUIT
-Only appears when an [EV METER](#ev_meter) is configured, in **Smart** or **Solar** mode. Set the max current the EVSE circuit can handle (power sharing): 10-200A.  
+Only appears when an [EV METER](#ev-meter) is configured, in **Smart** or **Solar** mode. Set the max current the EVSE circuit can handle (power sharing): 10-200A.  
 
 ## START
-Only shown when [MODE](#mode) is set to **Solar** and [PWR SHARE](#pwr_share) is set to **Disabled** or **Master**. Set the current at which the EV should start solar charging: -0 to -48A (sum of all phases).
+Only shown when [MODE](#mode) is set to **Solar** and [PWR SHARE](#pwr-share) is set to **Disabled** or **Master**. Set the current at which the EV should start solar charging: -0 to -48A (sum of all phases).
 
 ## STOP  
-Only shown when [MODE](#mode) is set to **Solar** and [PWR SHARE](#pwr_share) is set to **Disabled** or **Master**. Stop charging when there is not enough solar power available. 1-60 minutes or
+Only shown when [MODE](#mode) is set to **Solar** and [PWR SHARE](#pwr-share) is set to **Disabled** or **Master**. Stop charging when there is not enough solar power available. 1-60 minutes or
   - **Disabled**: Never stop charging.  
  
 ## IMPORT
-Only shown when [MODE](#mode) is set to **Solar** and [PWR SHARE](#pwr_share) is set to **Disabled** or **Master**. Allow additional grid power when solar charging: 0-20A (sum of all phases). Use this when there is not enough solar power but you want to use as much solar power as possible.
+Only shown when [MODE](#mode) is set to **Solar** and [PWR SHARE](#pwr-share) is set to **Disabled** or **Master**. Allow additional grid power when solar charging: 0-20A (sum of all phases). Use this when there is not enough solar power but you want to use as much solar power as possible.
 
 **Important Note**: START and IMPORT are summed over all phases, and MIN is per phase!
 
@@ -176,7 +176,7 @@ Maximum allowed temperature for your SmartEVSE: 40-75°C (default 65°C).
 Charging will stop once the internal temperature reaches this threshold and resume once it drops to 55°C.
 
 ## CAPACITY
-Only appears when a [MAINSMET](#mainsmet) is configured. Maximum allowed mains current summed over all phases: 10-600A. Used for the EU Capacity rate limiting.
+Only appears when a [MAINSMET](#mains-met) is configured. Maximum allowed mains current summed over all phases: 10-600A. Used for the EU Capacity rate limiting.
 
 ## CAP STOP
 Only appears when [CAPACITY](#capacity) is configured. Timer in minutes. If CAPACITY is exceeded, charging will not immediately stop but will wait until the timer expires.  
@@ -195,7 +195,7 @@ Use a second contactor (C2) to switch phases L2 and L3.
 - **Solar Off**: C2 is always on except in Solar Mode, where it is always off.
 - **Auto**: SmartEVSE starts charging at 3-phase, but in Solar Mode, it will switch off C2 when there is not enough current for 3 phases, continuing on 1 phase.
 
-**Important**: Wire your C2 contactor according to the schematics in the [Hardware installation](docs/installation.md).
+**Important**: Wire your C2 contactor according to the schematics in the [Hardware installation](installation.md).
 
 # SINGLE PHASE CHARGING
 
