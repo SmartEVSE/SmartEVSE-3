@@ -234,14 +234,22 @@ void decodeV2GTP(void) {
             //dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceScope
             //dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceScope_isUsed
             dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.FreeService = 0; /* what ever this means. Just from example. */
-            /* dinEVSESupportedEnergyTransferType, e.g.
-            dinEVSESupportedEnergyTransferType_DC_combo_core or
-            dinEVSESupportedEnergyTransferType_DC_core or
-            dinEVSESupportedEnergyTransferType_DC_extended
-            dinEVSESupportedEnergyTransferType_AC_single_phase_core.
+/*          dinEVSESupportedEnergyTransferType
+            dinEVSESupportedEnergyTransferType_AC_single_phase_core = 0,
+            dinEVSESupportedEnergyTransferType_AC_three_phase_core = 1,
+            dinEVSESupportedEnergyTransferType_DC_core = 2,
+            dinEVSESupportedEnergyTransferType_DC_extended = 3,
+            dinEVSESupportedEnergyTransferType_DC_combo_core = 4,
+            dinEVSESupportedEnergyTransferType_DC_dual = 5,
+            dinEVSESupportedEnergyTransferType_AC_core1p_DC_extended = 6,
+            dinEVSESupportedEnergyTransferType_AC_single_DC_core = 7,
+            dinEVSESupportedEnergyTransferType_AC_single_phase_three_phase_core_DC_extended = 8,
+            dinEVSESupportedEnergyTransferType_AC_core3p_DC_extended = 9
+
             DC_extended means "extended pins of an IEC 62196-3 Configuration FF connector", which is
             the normal CCS connector https://en.wikipedia.org/wiki/IEC_62196#FF) */
-            dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.EnergyTransferType = dinEVSESupportedEnergyTransferType_DC_extended;
+            //dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.EnergyTransferType = dinEVSESupportedEnergyTransferType_DC_extended;
+            dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.EnergyTransferType = dinEVSESupportedEnergyTransferType_AC_single_phase_three_phase_core_DC_extended;
 
             // Send ServiceDiscoveryResponse to EV
             global_streamEncPos = 0;
