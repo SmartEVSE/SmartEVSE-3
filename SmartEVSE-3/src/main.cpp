@@ -2738,7 +2738,6 @@ void SendConfigToCH32() {
 #if MODEM
     Serial1.printf("@RequiredEVCCID:%s\n", RequiredEVCCID);
 #endif
-    SEND_TO_CH32(CardOffset)
     SEND_TO_CH32(Config)
     SEND_TO_CH32(EnableC2)
     SEND_TO_CH32(Grid)
