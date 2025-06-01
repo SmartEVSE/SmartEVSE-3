@@ -1835,18 +1835,21 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
         if(MainsMeter.Type == EM_API) {
             if(request->hasParam("L1") && request->hasParam("L2") && request->hasParam("L3")) {
                 if (LoadBl < 2) {
+#if SMARTEVSE_VERSION < 40 //v3
                     MainsMeter.Irms[0] = request->getParam("L1")->value().toInt();
                     MainsMeter.Irms[1] = request->getParam("L2")->value().toInt();
                     MainsMeter.Irms[2] = request->getParam("L3")->value().toInt();
 
                     CalcIsum();
+                    MainsMeter.setTimeout(COMM_TIMEOUT);
+#else  //v4
+                    Serial1.printf("@Irms:%03u,%d,%d,%d\n", MainsMeter.Address, (int16_t) request->getParam("L1")->value().toInt(), (int16_t) request->getParam("L2")->value().toInt(), (int16_t) request->getParam("L3")->value().toInt()); //Irms:011,312,123,124 means: the meter on address 11(dec) has Irms[0] 312 dA, Irms[1] of 123 dA, Irms[2] of 124 dA
+#endif
                     for (int x = 0; x < 3; x++) {
                         doc["original"]["L" + x] = IrmsOriginal[x];
                         doc["L" + x] = MainsMeter.Irms[x];
                     }
                     doc["TOTAL"] = Isum;
-
-                    MainsMeter.setTimeout(COMM_TIMEOUT);
 
                 } else
                     doc["TOTAL"] = "not allowed on slave";
