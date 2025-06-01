@@ -110,11 +110,6 @@ void setMacAt(uint8_t *mac, uint16_t offset) {
     for (uint8_t i=0; i<6; i++) txbuffer[offset+i]=mac[i];
 }
 
-void setRunId(uint16_t offset) {
-    // at the given offset in the transmit buffer, fill the 8-bytes-RunId.
-    for (uint8_t i=0; i<8; i++) txbuffer[offset+i]=pevRunId[i];
-}
-
 void setACVarField(uint16_t offset) {
     for (uint8_t i=0; i<58; i++) txbuffer[offset+i]=AvgACVar[i];
 }
@@ -222,7 +217,7 @@ void composeSlacParamCnf() {
     setMacAt(pevMac, 28); // 9-14 forwarding_sta, same as PEV MAC, plus 2 bytes 00 00
     txbuffer[34]=0x00; // 15 Application type = PEV-EVSE matching
     txbuffer[35]=0x00; // 16 Security type = No security
-    setRunId(36);  // 17-24 runid 8 bytes
+    memcpy(&txbuffer[36], pevRunId, 8); // 17-24 runid 8 bytes
     // rest is 00
 }
 
@@ -241,7 +236,7 @@ void composeSlacParamCnf() {
     txbuffer[19]=0x00; // apptype
     txbuffer[20]=0x00; // security
     setMacAt(pevMac, 21); // Mac address of the EV Host which initiates the SLAC process
-    setRunId(27); // RunId 8 bytes
+    memcpy(&txbuffer[27], pevRunId, 8); // RunId 8 bytes
     txbuffer[35]=0x00; // 35 - 51 source_id, 17 bytes 0x00 (defined in ISO15118-3 table A.4)
 
     txbuffer[52]=0x00; // 52 - 68 response_id, 17 bytes 0x00. (defined in ISO15118-3 table A.4)
@@ -272,7 +267,7 @@ void composeSlacMatchCnf() {
     setMacAt(pevMac, 40); // Pev Mac address
                           // 46 - 62: evse_id 17 bytes. All zero.
     setMacAt(myMac, 63);  // 63 - 68 evse_mac
-    setRunId(69);         // runid 8 bytes 69-76 run_id.
+    memcpy(&txbuffer[69], pevRunId, 8); // runid 8 bytes 69-76 run_id.
                           // 77 to 84 reserved 0
     memcpy(&txbuffer[85], NID, 7); // 85-91 NID. We can nearly freely choose this, but the upper two bits need to be zero
                           // 92 reserved 0
