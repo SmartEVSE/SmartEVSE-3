@@ -578,7 +578,11 @@ void mqtt_receive_callback(const String topic, const String payload) {
 
             if (W > -1) {
                 // Power measurement
+#if SMARTEVSE_VERSION < 40 //v3
                 EVMeter.PowerMeasured = W;
+#else //v4
+                Serial1.printf("@PowerMeasured:%03u,%d\n", EVMeter.Address, W);
+#endif
             }
 
             if (WH > -1) {
@@ -1892,8 +1896,11 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
 
                 EVMeter.Import_active_energy = request->getParam("import_active_energy")->value().toInt();
                 EVMeter.Export_active_energy = request->getParam("export_active_energy")->value().toInt();
-
+#if SMARTEVSE_VERSION < 40 //v3
                 EVMeter.PowerMeasured = request->getParam("import_active_power")->value().toInt();
+#else //v4
+                Serial1.printf("@PowerMeasured:%03u,%d\n", EVMeter.Address, (int16_t) request->getParam("import_active_power")->value().toInt());
+#endif
                 EVMeter.UpdateEnergies();
                 doc["ev_meter"]["import_active_power"] = EVMeter.PowerMeasured;
                 doc["ev_meter"]["import_active_energy"] = EVMeter.Import_active_energy;
