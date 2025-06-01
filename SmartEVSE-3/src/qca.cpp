@@ -110,10 +110,6 @@ void setMacAt(uint8_t *mac, uint16_t offset) {
     for (uint8_t i=0; i<6; i++) txbuffer[offset+i]=mac[i];
 }
 
-void setACVarField(uint16_t offset) {
-    for (uint8_t i=0; i<58; i++) txbuffer[offset+i]=AvgACVar[i];
-}
-
 uint16_t getManagementMessageType() {
     // calculates the MMTYPE (base value + lower two bits), see Table 11-2 of homeplug spec
     return rxbuffer[16]*256 + rxbuffer[15];
@@ -243,7 +239,7 @@ void composeSlacParamCnf() {
 
     txbuffer[69]=ReceivedSounds; // Number of sounds. 10 in normal case.
     txbuffer[70]=0x3A; // Number of groups = 58. (defined in ISO15118-3 table A.4)
-    setACVarField(71); // 71 to 128: The group attenuation for the 58 announced groups.
+    memcpy(&txbuffer[71], AvgACVar, 58); // 71 to 128: The group attenuation for the 58 announced groups.
  }
 
 
