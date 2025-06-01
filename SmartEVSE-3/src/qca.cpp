@@ -104,11 +104,6 @@ uint32_t qcaspi_read_burst(uint8_t *dst) {
     return 0;
 }
 
-void setNidAt(uint16_t index) {
-    // copies the network ID (NID, 7 bytes) into the wished position in the transmit buffer
-    for (uint8_t i=0; i<7; i++) txbuffer[index+i] = NID[i];
-}
-
 void setMacAt(uint8_t *mac, uint16_t offset) {
     // at offset 0 in the ethernet frame, we have the destination MAC
     // at offset 6 in the ethernet frame, we have the source MAC
@@ -173,7 +168,7 @@ void composeSetKey() {
     txbuffer[30]=0x00; // 11 PRN
     txbuffer[31]=0x00; // 12 PMN
     txbuffer[32]=0x00; // 13 CCo Capability
-    setNidAt(33);      // 14-20 NID  7 bytes from 33 to 39
+    memcpy(&txbuffer[33], NID, 7); // 14-20 NID  7 bytes from 33 to 39
                        // Network ID to be associated with the key distributed herein.
                        // The 54 LSBs of this field contain the NID (refer to Section 3.4.3.1). The
                        // two MSBs shall be set to 0b00.
@@ -279,7 +274,7 @@ void composeSlacMatchCnf() {
     setMacAt(myMac, 63);  // 63 - 68 evse_mac
     setRunId(69);         // runid 8 bytes 69-76 run_id.
                           // 77 to 84 reserved 0
-    setNidAt(85);         // 85-91 NID. We can nearly freely choose this, but the upper two bits need to be zero
+    memcpy(&txbuffer[85], NID, 7); // 85-91 NID. We can nearly freely choose this, but the upper two bits need to be zero
                           // 92 reserved 0
     memcpy(&txbuffer[93], NMK, 16); // 93 to 108 NMK. We can freely choose this. Normally we should use a random number.
 }
