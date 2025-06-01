@@ -395,6 +395,18 @@ void decodeV2GTP(void) {
 
         }
 
+        if (dinDocDec.V2G_Message.Body.ChargingStatusReq_isUsed) {
+            _LOG_A("Modem: ChargingStatusReq_isUsed!!\n");
+/*            auto& statusReq = dinDocDec.V2G_Message.Body.ChargingStatusReq;
+
+            if (statusReq.EVStatus_isUsed && statusReq.EVStatus.EVSOC_isUsed) {
+                int soc = statusReq.EVStatus.EVSOC;
+                std::cout << "EV SoC reported: " << soc << "%\n";
+            } else {
+                std::cout << "EVStatus present, but SoC not available.\n";
+            }*/
+        }
+
     }
 
 }
