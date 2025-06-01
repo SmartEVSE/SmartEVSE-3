@@ -396,6 +396,11 @@ void decodeV2GTP(void) {
             }
 
 
+            int8_t Transfer = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.EVRequestedEnergyTransferType;
+            const char EnergyTransferStr[][25] = {"AC_single_phase_core","AC_three_phase_core","DC_core","DC_extended","DC_combo_core","DC_unique"};
+
+            _LOG_A("Modem: Requested Energy Transfer Type =%s.\n", EnergyTransferStr[Transfer]);
+
             RecomputeSoC();
 
             // Now prepare the 'ChargeParameterDiscoveryResponse' message to send back to the EV
