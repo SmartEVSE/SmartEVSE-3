@@ -564,12 +564,16 @@ void mqtt_receive_callback(const String topic, const String payload) {
         // We expect 5 values (and accept -1 for unknown values)
         if (n == 5) {
             if ((L1 > -1 && L1 < 1000) && (L2 > -1 && L2 < 1000) && (L3 > -1 && L3 < 1000)) {
+#if SMARTEVSE_VERSION < 40 //v3
                 // RMS currents
                 EVMeter.Irms[0] = L1;
                 EVMeter.Irms[1] = L2;
                 EVMeter.Irms[2] = L3;
                 EVMeter.CalcImeasured();
                 EVMeter.Timeout = COMM_EVTIMEOUT;
+#else //v4
+                Serial1.printf("@Irms:%03u,%d,%d,%d\n", EVMeter.Address, L1, L2, L3); //Irms:011,312,123,124 means: the meter on address 11(dec) has Irms[0] 312 dA, Irms[1] of 123 dA, Irms[2] of 124 dA
+#endif
             }
 
             if (W > -1) {
@@ -1870,12 +1874,15 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
 
         if(EVMeter.Type == EM_API) {
             if(request->hasParam("L1") && request->hasParam("L2") && request->hasParam("L3")) {
-
+#if SMARTEVSE_VERSION < 40 //v3
                 EVMeter.Irms[0] = request->getParam("L1")->value().toInt();
                 EVMeter.Irms[1] = request->getParam("L2")->value().toInt();
                 EVMeter.Irms[2] = request->getParam("L3")->value().toInt();
                 EVMeter.CalcImeasured();
                 EVMeter.Timeout = COMM_EVTIMEOUT;
+#else //v4
+                Serial1.printf("@Irms:%03u,%d,%d,%d\n", EVMeter.Address, (int16_t) request->getParam("L1")->value().toInt(), (int16_t) request->getParam("L2")->value().toInt(), (int16_t) request->getParam("L3")->value().toInt()); //Irms:011,312,123,124 means: the meter on address 11(dec) has Irms[0] 312 dA, Irms[1] of 123 dA, Irms[2] of 124 dA
+#endif
                 for (int x = 0; x < 3; x++)
                     doc["ev_meter"]["currents"]["L" + x] = EVMeter.Irms[x];
                 doc["ev_meter"]["currents"]["TOTAL"] = EVMeter.Irms[0] + EVMeter.Irms[1] + EVMeter.Irms[2];
