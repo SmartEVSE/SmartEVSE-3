@@ -2182,6 +2182,30 @@ bool ReadIrms(char *SerialBuf) {
     }
     return false; //did not parse
 }
+
+
+bool ReadPowerMeasured(char *SerialBuf) {
+    char *ret;
+    char token[64];
+    strncpy(token, "PowerMeasured:", sizeof(token));
+    //printf("@PowerMeasured:%03u,%d\n", Address, PowerMeasured);
+    ret = strstr(SerialBuf, token);
+    if (ret != NULL) {
+        short unsigned int Address;
+        int16_t PowerMeasured;
+        int n = sscanf(ret,"PowerMeasured:%03hu,%hi", &Address, &PowerMeasured);
+        if (n == 2) {   //success
+            if (Address == MainsMeter.Address) {
+                MainsMeter.PowerMeasured = PowerMeasured;
+            } else if (Address == EVMeter.Address) {
+                EVMeter.PowerMeasured = PowerMeasured;
+            }
+            return true; //success
+        } else
+            _LOG_A("Received corrupt %s, n=%d, message from WCH:%s.\n", token, n, SerialBuf);
+    }
+    return false; //did not parse
+}
 #endif
 
 
@@ -2308,6 +2332,7 @@ void CheckSerialComm(void) {
     }
 
     ReadIrms(SerialBuf);
+    ReadPowerMeasured(SerialBuf);
 
     //if (LoadBl) {
     //    printf("Config@OK %u,Lock@%u,Mode@%u,Current@%u,Switch@%u,RCmon@%u,PwrPanic@%u,RFID@%u\n", Config, Lock, Mode, ChargeCurrent, Switch, RCmon, PwrPanic, RFIDReader);
@@ -2811,6 +2836,7 @@ void Handle_ESP32_Message(char *SerialBuf, uint8_t *CommState) {
     }
 
     if (ReadIrms(SerialBuf)) return;
+    if (ReadPowerMeasured(SerialBuf)) return;
 
     strncpy(token, "RFID:", sizeof(token));
     ret = strstr(SerialBuf, token);
@@ -2818,24 +2844,6 @@ void Handle_ESP32_Message(char *SerialBuf, uint8_t *CommState) {
         int n = sscanf(ret,"RFID:%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx", &RFID[0], &RFID[1], &RFID[2], &RFID[3], &RFID[4], &RFID[5], &RFID[6], &RFID[7]);
         if (n == 8) {   //success
             CheckRFID();
-        } else
-            _LOG_A("Received corrupt %s, n=%d, message from WCH:%s.\n", token, n, SerialBuf);
-        return;
-    }
-
-    strncpy(token, "PowerMeasured:", sizeof(token));
-    //printf("@PowerMeasured:%03u,%d\n", Address, PowerMeasured);
-    ret = strstr(SerialBuf, token);
-    if (ret != NULL) {
-        short unsigned int Address;
-        int16_t PowerMeasured;
-        int n = sscanf(ret,"PowerMeasured:%03hu,%hi", &Address, &PowerMeasured);
-        if (n == 2) {   //success
-            if (Address == MainsMeter.Address) {
-                MainsMeter.PowerMeasured = PowerMeasured;
-            } else if (Address == EVMeter.Address) {
-                EVMeter.PowerMeasured = PowerMeasured;
-            }
         } else
             _LOG_A("Received corrupt %s, n=%d, message from WCH:%s.\n", token, n, SerialBuf);
         return;
