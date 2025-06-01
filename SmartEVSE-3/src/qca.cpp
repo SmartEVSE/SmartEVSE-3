@@ -104,11 +104,6 @@ uint32_t qcaspi_read_burst(uint8_t *dst) {
     return 0;
 }
 
-void randomizeNmk() {
-    // randomize the Network Membership Key (NMK)
-    for (uint8_t i=0; i<16; i++) NMK[i] = random(256); // NMK
-}
-
 void setNmkAt(uint16_t index) {
     // sets the Network Membership Key (NMK) at a certain position in the transmit buffer
     for (uint8_t i=0; i<16; i++) txbuffer[index+i] = NMK[i]; // NMK
@@ -496,7 +491,7 @@ void Timer20ms(void * parameter) {
                 break;
 
             case MODEM_CM_SET_KEY_REQ:
-                randomizeNmk();       // randomize Nmk, so we start with a new key.
+                esp_fill_random(NMK, 16);
                 composeSetKey();      // set up buffer with CM_SET_KEY.REQ request data
                 qcaspi_write_burst(txbuffer, 60);    // write minimal 60 bytes according to an4_rev5.pdf
                 _LOG_I("transmitting SET_KEY.REQ, to configure the EVSE modem with random NMK\n");
