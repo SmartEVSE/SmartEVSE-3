@@ -2306,6 +2306,7 @@ void CheckSerialComm(void) {
 
     SET_ON_RECEIVE(Initialized:, Initialized)
     SET_ON_RECEIVE(ModemStage:, ModemStage)
+    SET_ON_RECEIVE(homeBatteryCurrent:, homeBatteryCurrent); if (ret) homeBatteryLastUpdate=time(NULL);
 
     //these variables are owned by CH32 and copies are sent to ESP32:
     SET_ON_RECEIVE(SolarStopTimer:, SolarStopTimer)
@@ -3467,7 +3468,7 @@ uint16_t getItemValue(uint8_t nav) {
     }
 }
 
-//#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40 //not on ESP32 v4
+#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40 //not on ESP32 v4
 /**
  * Returns the known battery charge rate if the data is not too old.
  * Returns 0 if data is too old.
@@ -3517,5 +3518,5 @@ void CalcIsum(void) {
     }
     MainsMeter.CalcImeasured();
 }
-//#endif
+#endif
 
