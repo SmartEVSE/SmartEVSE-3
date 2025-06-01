@@ -87,7 +87,9 @@ class Meter {
     int16_t Imeasured;                                                          // Max of all Phases (Amps *10) of mains power
     int16_t Power[3];
     int16_t PowerMeasured;                                                      // Measured Charge power in Watt by kWh meter (sum of all phases)
+#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40 //not on ESP32 v4
     uint8_t Timeout;
+#endif
     int32_t Import_active_energy;                                               // Imported active energy
     int32_t Export_active_energy;                                               // Exported active energy
     int32_t Energy;                                                             // Wh -> Import_active_energy - Export_active_energy

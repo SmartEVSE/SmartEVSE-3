@@ -54,7 +54,9 @@ Meter::Meter(uint8_t type, uint8_t address, uint8_t timeout) {
     Import_active_energy = 0;
     Export_active_energy = 0;
     Energy = 0;
+#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40 //not on ESP32 v4
     Timeout = timeout;
+#endif
     EnergyCharged = 0;                                                  // kWh meter value energy charged. (Wh) (will reset if state changes from A->B)
     EnergyMeterStart = 0;                                               // kWh meter value is stored once EV is connected to EVSE (Wh)
     PowerMeasured = 0;                                                  // Measured Charge power in Watt by kWh meter
@@ -388,13 +390,14 @@ void Meter::UpdateEnergies() {
 }
 
 void Meter::setTimeout(uint8_t NewTimeout) {
-    Timeout = NewTimeout;
 #if SMARTEVSE_VERSION >= 40 //v4 ESP32
     if (Address == MainsMeter.Address) {
         Serial1.printf("@MainsMeterTimeout:%u\n", NewTimeout);
     } else if (Address == EVMeter.Address) {
         Serial1.printf("@EVMeterTimeout:%u\n", NewTimeout);
     }
+#else
+    Timeout = NewTimeout;
 #endif
 }
 

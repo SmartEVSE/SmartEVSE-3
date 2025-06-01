@@ -1651,6 +1651,7 @@ printf("@MSG: DINGO State=%d, pilot=%d, AccessTimer=%d, PilotDisconnected=%d.\n"
         }
     } else AccessTimer = 0;                                             // Not in state A, then disable timer
 
+#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
     if ((TempEVSE < (maxTemp - 10)) && (ErrorFlags & TEMP_HIGH)) {                  // Temperature below limit?
         clearErrorFlags(TEMP_HIGH); // clear Error
     }
@@ -1701,7 +1702,6 @@ printf("@MSG: DINGO State=%d, pilot=%d, AccessTimer=%d, PilotDisconnected=%d.\n"
 
     if ((ErrorFlags & EV_NOCOMM) && EVMeter.Timeout) clearErrorFlags(EV_NOCOMM);
 
-
     if (TempEVSE > maxTemp && !(ErrorFlags & TEMP_HIGH))                // Temperature too High?
     {
         setErrorFlags(TEMP_HIGH);
@@ -1717,6 +1717,7 @@ printf("@MSG: DINGO State=%d, pilot=%d, AccessTimer=%d, PilotDisconnected=%d.\n"
         setStatePowerUnavailable();
         setChargeDelay(CHARGEDELAY);                                    // Set Chargedelay
     }
+#endif
 
     //_LOG_A("Timer1S task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
 
@@ -3328,7 +3329,7 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
             clearErrorFlags(0xFF);
             setErrorFlags(val);
             if (ErrorFlags) {                                                   // Is there an actual Error? Maybe the error got cleared?
-                if (ErrorFlags & CT_NOCOMM) MainsMeter.Timeout = 0;             // clear MainsMeter.Timeout on a CT_NOCOMM error, so the error will be immediate.
+                if (ErrorFlags & CT_NOCOMM) MainsMeter.setTimeout(0);           // clear MainsMeter.Timeout on a CT_NOCOMM error, so the error will be immediate.
                 setStatePowerUnavailable();
                 setChargeDelay(CHARGEDELAY);
                 _LOG_V("Error message received!\n");
