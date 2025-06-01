@@ -542,12 +542,17 @@ void mqtt_receive_callback(const String topic, const String payload) {
 
         // MainsMeter can measure -200A to +200A per phase
         if (n == 3 && (L1 > -2000 && L1 < 2000) && (L2 > -2000 && L2 < 2000) && (L3 > -2000 && L3 < 2000)) {
-            if (LoadBl < 2)
+#if SMARTEVSE_VERSION < 40 //v3
+            if (LoadBl < 2) {
                 MainsMeter.setTimeout(COMM_TIMEOUT);
-            MainsMeter.Irms[0] = L1;
-            MainsMeter.Irms[1] = L2;
-            MainsMeter.Irms[2] = L3;
-            CalcIsum();
+                MainsMeter.Irms[0] = L1;
+                MainsMeter.Irms[1] = L2;
+                MainsMeter.Irms[2] = L3;
+                CalcIsum();
+            }
+#else //v4
+            Serial1.printf("@Irms:%03u,%d,%d,%d\n", MainsMeter.Address, L1, L2, L3); //Irms:011,312,123,124 means: the meter on address 11(dec) has Irms[0] 312 dA, Irms[1] of 123 dA, Irms[2] of 124 dA
+#endif
         }
     } else if (topic == MQTTprefix + "/Set/EVMeter") {
         if (EVMeter.Type != EM_API)
@@ -2888,12 +2893,16 @@ bool fwNeedsUpdate(char * version) {
     lastCheck_homewizard = currentTime;
 
     const auto currents = getMainsFromHomeWizardP1();
+#if SMARTEVSE_VERSION < 40 //v3
     for (int i = 0; i < currents.first; i++)
         MainsMeter.Irms[i] = currents.second[i];
     if (currents.first) {
         CalcIsum();
         MainsMeter.setTimeout(COMM_TIMEOUT);
     }
+#else
+    Serial1.printf("@Irms:%03u,%d,%d,%d\n", MainsMeter.Address, currents.second[0], currents.second[1], currents.second[2]); //Irms:011,312,123,124 means: the meter on address 11(dec) has Irms[0] 312 dA, Irms[1] of 123 dA, Irms[2] of 124 dA
+#endif
 }
 
 void loop() {
