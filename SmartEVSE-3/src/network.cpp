@@ -886,12 +886,12 @@ void webServerRequest::setMessage(struct mg_http_message *hm) {
 }
 
 bool webServerRequest::hasParam(const char *param) {
-    return (mg_http_get_var(&hm_internal->query, param, temp, sizeof(temp)) > 0);
+    return (mg_http_get_var(&hm_internal->query, param, temp, sizeof(temp)) >= 0);
 }
 
 webServerRequest* webServerRequest::getParam(const char *param) {
     _value = ""; // Clear previous value
-    if (mg_http_get_var(&hm_internal->query, param, temp, sizeof(temp)) > 0) {
+    if (mg_http_get_var(&hm_internal->query, param, temp, sizeof(temp)) >= 0) {
         _value = temp;
     }
     return this; // Return pointer to self
