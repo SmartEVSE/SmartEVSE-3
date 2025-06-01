@@ -104,11 +104,6 @@ uint32_t qcaspi_read_burst(uint8_t *dst) {
     return 0;
 }
 
-void setNmkAt(uint16_t index) {
-    // sets the Network Membership Key (NMK) at a certain position in the transmit buffer
-    for (uint8_t i=0; i<16; i++) txbuffer[index+i] = NMK[i]; // NMK
-}
-
 void setNidAt(uint16_t index) {
     // copies the network ID (NID, 7 bytes) into the wished position in the transmit buffer
     for (uint8_t i=0; i<7; i++) txbuffer[index+i] = NID[i];
@@ -183,7 +178,8 @@ void composeSetKey() {
                        // The 54 LSBs of this field contain the NID (refer to Section 3.4.3.1). The
                        // two MSBs shall be set to 0b00.
     txbuffer[40]=0x01; // 21 NewEKS. Table A.8 01 is NMK.
-    setNmkAt(41);      // 22-37 NMK
+    memcpy(&txbuffer[41], NMK, 16); // 22-37 NMK
+
 }
 
 void composeGetSwReq() {
@@ -285,7 +281,7 @@ void composeSlacMatchCnf() {
                           // 77 to 84 reserved 0
     setNidAt(85);         // 85-91 NID. We can nearly freely choose this, but the upper two bits need to be zero
                           // 92 reserved 0
-    setNmkAt(93);         // 93 to 108 NMK. We can freely choose this. Normally we should use a random number.
+    memcpy(&txbuffer[93], NMK, 16); // 93 to 108 NMK. We can freely choose this. Normally we should use a random number.
 }
 
 void composeFactoryDefaults() {
