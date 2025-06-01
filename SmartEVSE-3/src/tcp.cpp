@@ -430,6 +430,8 @@ void decodeV2GTP(void) {
             }*/
         }
 
+    } else {
+        _LOG_A("Modem: fsmState=%u, unknown message received.\n", fsmState);
     }
 
 }
