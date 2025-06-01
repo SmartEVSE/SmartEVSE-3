@@ -586,7 +586,7 @@ void mqtt_receive_callback(const String topic, const String payload) {
             }
 
             if (WH > -1) {
-                // Energy measurement
+                // Energy measurement;  //we dont send the energies to CH32 because they are not used there
                 EVMeter.Import_active_energy = WH;
                 EVMeter.Export_active_energy = 0;
                 EVMeter.UpdateEnergies();
@@ -1901,7 +1901,7 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
 #else //v4
                 Serial1.printf("@PowerMeasured:%03u,%d\n", EVMeter.Address, (int16_t) request->getParam("import_active_power")->value().toInt());
 #endif
-                EVMeter.UpdateEnergies();
+                EVMeter.UpdateEnergies(); //we dont send the energies to CH32 because they are not used there
                 doc["ev_meter"]["import_active_power"] = EVMeter.PowerMeasured;
                 doc["ev_meter"]["import_active_energy"] = EVMeter.Import_active_energy;
                 doc["ev_meter"]["export_active_energy"] = EVMeter.Export_active_energy;
