@@ -423,6 +423,10 @@ void Button::HandleSwitch(void) {
                     } else if (Mode == MODE_SOLAR) {
                         setMode(MODE_SMART);
                     }
+                    ErrorFlags &= ~(LESS_6A);                       // Clear All errors
+                    ChargeDelay = 0;                                // Clear any Chargedelay
+                    setSolarStopTimer(0);                           // Also make sure the SolarTimer is disabled.
+                    MaxSumMainsTimer = 0;
                     LCDTimer = 0;
                 }
                 break;
@@ -547,8 +551,8 @@ void setMode(uint8_t NewMode) {
     lastMqttUpdate = 10;
 #endif
 
-    if (NewMode == MODE_SMART || NewMode == MODE_SOLAR) {                       // the smart-solar button used to clear all those flags toggling between those modes
-        clearErrorFlags(LESS_6A);                                      // Clear All errors
+    if (NewMode == MODE_SMART) {                                                // the smart-solar button used to clear all those flags toggling between those modes
+        clearErrorFlags(LESS_6A);                                               // Clear All errors
         setSolarStopTimer(0);                                                   // Also make sure the SolarTimer is disabled.
         MaxSumMainsTimer = 0;
     }
