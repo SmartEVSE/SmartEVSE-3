@@ -72,7 +72,7 @@ public:
     void disconnect(void) { mg_mqtt_disconnect(s_conn, &default_opts); };
 #else
     void connect(void);
-    void disconnect(void) { esp_mqtt_client_stop(client); };
+    void disconnect(void) { esp_mqtt_client_stop(client); connected = false; }; //we have to set connected because for some reason MQTT_EVENT_DISCONNECTED is not happening
 #endif
     void publish(const String &topic, const int32_t &payload, bool retained, int qos) { publish(topic, String(payload), retained, qos); };
     void publish(const String &topic, const String &payload, bool retained, int qos);
