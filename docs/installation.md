@@ -11,6 +11,7 @@ The following meters are directly supported as Mains or EV meter:
 - ABB B23 212-100
 - Sinotimer DTS6619
 - WAGO 879-30x0
+- Inepro PRO-380-Mod (should be configured as WAGO 879-30x0, seems to be identical)
 - Schneider iEM3x5x
 - Chint DTSU666
 - Carlo Gavazzi EM340
