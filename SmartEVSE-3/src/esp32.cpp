@@ -2166,7 +2166,7 @@ void ocppUpdateRfidReading(const unsigned char *uuid, size_t uuidLen) {
 }
 
 bool ocppIsConnectorPlugged() {
-    return OcppTrackCPvoltage >= PILOT_9V && OcppTrackCPvoltage <= PILOT_3V;
+    return OcppTrackCPvoltage >= PILOT_3V && OcppTrackCPvoltage <= PILOT_9V;
 }
 
 bool ocppHasTxNotification() {
@@ -2217,7 +2217,7 @@ void ocppInit() {
     });
 
     setEvReadyInput([] () { //Input if EV is ready to charge (= J1772 State C)
-        return OcppTrackCPvoltage >= PILOT_6V && OcppTrackCPvoltage <= PILOT_3V;
+        return OcppTrackCPvoltage >= PILOT_3V && OcppTrackCPvoltage <= PILOT_6V;
     });
 
     setEvseReadyInput([] () { //Input if EVSE allows charge (= PWM signal on)
@@ -2394,7 +2394,7 @@ void ocppDeinit() {
 
 void ocppLoop() {
 
-    if (pilot >= PILOT_12V && pilot <= PILOT_3V) {
+    if (pilot >= PILOT_3V && pilot <= PILOT_12V) {
         OcppTrackCPvoltage = pilot;
     }
 
@@ -2501,7 +2501,7 @@ void ocppLoop() {
     OcppForcesLock = false;
 
     if (transaction && transaction->isAuthorized() && (transaction->isActive() || transaction->isRunning()) && // Common tx ongoing
-            (OcppTrackCPvoltage >= PILOT_9V && OcppTrackCPvoltage <= PILOT_3V)) { // Connector plugged
+            (OcppTrackCPvoltage >= PILOT_3V && OcppTrackCPvoltage <= PILOT_9V)) { // Connector plugged
         OcppForcesLock = true;
     }
 
