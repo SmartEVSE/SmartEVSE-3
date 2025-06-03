@@ -670,6 +670,16 @@ void mqtt_receive_callback(const String topic, const String payload) {
 }
 
 
+//print RFID in hex format
+void printRFID(char *buf) {
+    if (RFID[0] == 0x01) {  // old reader 6 byte UID starts at RFID[1]
+        sprintf(buf, "%02X%02X%02X%02X%02X%02X", RFID[1], RFID[2], RFID[3], RFID[4], RFID[5], RFID[6]);
+    } else {
+        sprintf(buf, "%02X%02X%02X%02X%02X%02X%02X", RFID[0], RFID[1], RFID[2], RFID[3], RFID[4], RFID[5], RFID[6]);
+    }
+}
+
+
 void SetupMQTTClient() {
     // Set up subscriptions
     MQTTclient.subscribe(MQTTprefix + "/Set/#",1);
@@ -844,9 +854,9 @@ void mqttPublishData() {
         MQTTclient.publish(MQTTprefix + "/ChargeCurrentOverride", OverrideCurrent, true, 0);
         MQTTclient.publish(MQTTprefix + "/Access", AccessStatus == OFF ? "Deny" : AccessStatus == ON ? "Allow" : AccessStatus == PAUSE ? "Pause" : "N/A", true, 0);
         MQTTclient.publish(MQTTprefix + "/RFID", !RFIDReader ? "Not Installed" : RFIDstatus >= 8 ? "NOSTATUS" : StrRFIDStatusWeb[RFIDstatus], true, 0);
-        if (RFIDReader && RFIDReader != 6) { //RFIDLastRead not updated in Remote/OCPP mode
-            char buf[13];
-            sprintf(buf, "%02X%02X%02X%02X%02X%02X", RFID[1], RFID[2], RFID[3], RFID[4], RFID[5], RFID[6]);
+        if (RFIDReader) {
+            char buf[15];
+            printRFID(buf);
             MQTTclient.publish(MQTTprefix + "/RFIDLastRead", buf, true, 0);
         }
         MQTTclient.publish(MQTTprefix + "/State", getStateNameWeb(State), true, 0);
@@ -1292,11 +1302,7 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
         doc["evse"]["rfid"] = !RFIDReader ? "Not Installed" : RFIDstatus >= 8 ? "NOSTATUS" : StrRFIDStatusWeb[RFIDstatus];
         if (RFIDReader) {
             char buf[15];
-            if (RFID[0] == 0x01) {  // old reader 6 byte UID starts at RFID[1]
-                sprintf(buf, "%02X%02X%02X%02X%02X%02X", RFID[1], RFID[2], RFID[3], RFID[4], RFID[5], RFID[6]);
-            } else {
-                sprintf(buf, "%02X%02X%02X%02X%02X%02X%02X", RFID[0], RFID[1], RFID[2], RFID[3], RFID[4], RFID[5], RFID[6]);
-            }
+            printRFID(buf);
             doc["evse"]["rfid_lastread"] = buf;
         }
 
