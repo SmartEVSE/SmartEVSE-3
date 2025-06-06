@@ -211,11 +211,11 @@ void decodeV2GTP(void) {
         // Check if we have received the correct message
         if (dinDocDec.V2G_Message.Body.ServiceDiscoveryReq_isUsed) {
 
-            _LOG_D("ServiceDiscoveryReqest\n");
+            _LOG_I("ServiceDiscoveryReqest\n");
             n = dinDocDec.V2G_Message.Header.SessionID.bytesLen;
-            _LOG_D("SessionID:");
-            for (i=0; i<n; i++) _LOG_D("%02x", dinDocDec.V2G_Message.Header.SessionID.bytes[i] );
-            _LOG_D("\n");
+            _LOG_I("SessionID:");
+            for (i=0; i<n; i++) _LOG_I("%02x", dinDocDec.V2G_Message.Header.SessionID.bytes[i] );
+            _LOG_I("\n");
 
             // Now prepare the 'ServiceDiscoveryResponse' message to send back to the EV
             projectExiConnector_prepare_DinExiDocument();
@@ -268,10 +268,10 @@ void decodeV2GTP(void) {
         // Check if we have received the correct message
         if (dinDocDec.V2G_Message.Body.ServicePaymentSelectionReq_isUsed) {
 
-            _LOG_D("ServicePaymentSelectionReqest\n");
+            _LOG_I("ServicePaymentSelectionReqest\n");
 
             if (dinDocDec.V2G_Message.Body.ServicePaymentSelectionReq.SelectedPaymentOption == dinpaymentOptionType_ExternalPayment) {
-                _LOG_D("OK. External Payment Selected\n");
+                _LOG_I("OK. External Payment Selected\n");
 
                 // Now prepare the 'ServicePaymentSelectionResponse' message to send back to the EV
                 projectExiConnector_prepare_DinExiDocument();
@@ -297,7 +297,7 @@ void decodeV2GTP(void) {
         // Check if we have received the correct message
         if (dinDocDec.V2G_Message.Body.ContractAuthenticationReq_isUsed) {
 
-            _LOG_D("ContractAuthenticationRequest\n");
+            _LOG_I("ContractAuthenticationRequest\n");
 
             // Now prepare the 'ContractAuthenticationResponse' message to send back to the EV
             projectExiConnector_prepare_DinExiDocument();
@@ -323,18 +323,18 @@ void decodeV2GTP(void) {
         // Check if we have received the correct message
         if (dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq_isUsed) {
 
-            _LOG_D("ChargeParameterDiscoveryRequest\n");
+            _LOG_I("ChargeParameterDiscoveryRequest\n");
 
             // Read the SOC from the EVRESSOC data
             ComputedSoC = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.DC_EVStatus.EVRESSSOC;
 
-            _LOG_D("Current SoC %d%%\n", ComputedSoC);
+            _LOG_I("Current SoC %d%%\n", ComputedSoC);
             String EVCCIDstr = "";
             for (uint8_t i = 0; i < 6; i++) {
                 if (EVCCID2[i] < 0x10) EVCCIDstr += "0";  // pad with zero for values less than 0x10
                 EVCCIDstr += String(EVCCID2[i], HEX);
             }
-            _LOG_D("EVCCID=%s.\n", EVCCIDstr.c_str());
+            _LOG_I("EVCCID=%s.\n", EVCCIDstr.c_str());
             strncpy(EVCCID, EVCCIDstr.c_str(), sizeof(EVCCID));
             Serial1.printf("@EVCCID:%s\n", EVCCID);  //send to CH32
 
@@ -614,7 +614,7 @@ void evaluateTcpPacket(void) {
     /* It is no connection setup. We can have the following situations here: */
     if (tcpState != TCP_STATE_ESTABLISHED) {
         /* received something while the connection is closed. Just ignore it. */
-        _LOG_D("[TCP] ignore, not connected.\n");
+        _LOG_I("[TCP] ignore, not connected.\n");
         return;
     }
 

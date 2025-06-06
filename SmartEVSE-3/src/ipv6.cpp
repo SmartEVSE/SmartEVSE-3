@@ -261,7 +261,7 @@ void evaluateUdpPayload(void) {
         // 0x9001 SDP response message (SECC response to the EVCC)
         if (v2gptPayloadType == 0x9000) {
             // it is a SDP request from the car to the charger
-            _LOG_D("it is a SDP request from the car to the charger\n");
+            _LOG_I("it is a SDP request from the car to the charger\n");
             v2gptPayloadLen = (((uint32_t)udpPayload[4])<<24)  +
                               (((uint32_t)udpPayload[5])<<16) +
                               (((uint32_t)udpPayload[6])<<8) +
@@ -369,7 +369,7 @@ void evaluateNeighborSolicitation(void) {
     txbuffer[56] = checksum >> 8;
     txbuffer[57] = checksum & 0xFF;
 
-    _LOG_D("transmitting Neighbor Advertisement\n");
+    _LOG_I("transmitting Neighbor Advertisement\n");
     /* Length of the NeighborAdvertisement = 86*/
     qcaspi_write_burst(txbuffer, 86);
 }
@@ -391,7 +391,7 @@ void IPv6Manager(uint16_t rxbytes) {
         memcpy(sourceIp, rxbuffer+22, 16);
         nextheader = rxbuffer[20];
         if (nextheader == 0x11) { //  it is an UDP frame
-            _LOG_D("Its a UDP.\n");
+            _LOG_I("Its a UDP.\n");
             sourceport = rxbuffer[54]*256 + rxbuffer[55];
             destinationport = rxbuffer[56]*256 + rxbuffer[57];
             udplen = rxbuffer[58]*256 + rxbuffer[59];
@@ -400,7 +400,7 @@ void IPv6Manager(uint16_t rxbytes) {
             //# udplen is including 8 bytes header at the begin
             if (udplen>UDP_PAYLOAD_LEN) {
                 /* ignore long UDP */
-                _LOG_D("Ignoring too long UDP\n");
+                _LOG_I("Ignoring too long UDP\n");
                 return;
             }
             if (udplen>8) {
@@ -416,10 +416,10 @@ void IPv6Manager(uint16_t rxbytes) {
             evaluateTcpPacket();
         }
         if (nextheader == NEXT_ICMPv6) { // it is an ICMPv6 (NeighborSolicitation etc) frame
-            _LOG_D("ICMPv6 received\n");
+            _LOG_I("ICMPv6 received\n");
             icmpv6type = rxbuffer[54];
             if (icmpv6type == 0x87) { /* Neighbor Solicitation */
-                _LOG_D("Neighbor Solicitation received\n");
+                _LOG_I("Neighbor Solicitation received\n");
                 evaluateNeighborSolicitation();
             }
         }
