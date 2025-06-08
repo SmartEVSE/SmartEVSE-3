@@ -28,6 +28,12 @@ Below we use "<prefix>" for this.
 *  <prefix> "/Set/RequiredEVCCID" = [String]
 *  <prefix> "/Set/ColorOff" = [String: "R:G:B",
 	where R,G,B is integer value 0. .255]
+*  <prefix> "/Set/ColorNormal" = [String: "R:G:B",
+	where R,G,B is integer value 0. .255]
+*  <prefix> "/Set/ColorSmart" = [String: "R:G:B",
+	where R,G,B is integer value 0. .255]
+*  <prefix> "/Set/ColorSolar" = [String: "R:G:B",
+	where R,G,B is integer value 0. .255]
 
 # EVSE MQTT publish
 

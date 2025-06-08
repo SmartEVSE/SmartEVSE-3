@@ -262,7 +262,10 @@ char *downloadUrl = NULL;
 int downloadProgress = 0;
 int downloadSize = 0;
 // set by EXTERNAL logic through MQTT/REST (used to indicate cheap tariffs ahead until unix time indicated)
-uint8_t ColorOff[3]={0, 0, 0};
+uint8_t ColorOff[3] = {0, 0, 0};          // off
+uint8_t ColorNormal[3] = {0, 255, 0};   // Green
+uint8_t ColorSmart[3] = {0, 255, 0};    // Green
+uint8_t ColorSolar[3] = {255, 170, 0};    // Orange
 
 #define FW_UPDATE_DELAY 3600                                                    // time between detection of new version and actual update in seconds
 uint16_t firmwareUpdateTimer = 0;                                               // timer for firmware updates in seconds, max 0xffff = approx 18 hours
@@ -438,14 +441,19 @@ void BlinkLed(void * parameter) {
                 if (LedCount > 230) LedPwm = WAITING_LED_BRIGHTNESS;            // LED 10% of time on, full brightness
                 else LedPwm = 0;
 
-                if (Mode == MODE_SOLAR) {                                       // Orange
-                    RedPwm = LedPwm;
-                    GreenPwm = LedPwm * 2 / 3;
-                } else {                                                        // Green
-                    RedPwm = 0;
-                    GreenPwm = LedPwm;
+                if (Mode == MODE_SOLAR) {                                       // Orange for Solar, unless configured otherwise
+                    RedPwm = LedPwm * ColorSolar[0] / 255;
+                    GreenPwm = LedPwm * ColorSolar[1] / 255;
+                    BluePwm = LedPwm * ColorSolar[2] / 255;
+                } else if (Mode == MODE_SMART) {                                // Green for Smart, unless configured otherwise
+                    RedPwm = LedPwm * ColorNormal[0] / 255;
+                    GreenPwm = LedPwm * ColorNormal[1] / 255;
+                    BluePwm = LedPwm * ColorNormal[2] / 255;
+                } else {                                                        // Green for Normal, unless configured otherwise
+                    RedPwm = LedPwm * ColorNormal[0] / 255;
+                    GreenPwm = LedPwm * ColorNormal[1] / 255;
+                    BluePwm = LedPwm * ColorNormal[2] / 255;
                 }
-                BluePwm = 0;
             }
 
 #if ENABLE_OCPP
@@ -3059,6 +3067,36 @@ void mqtt_receive_callback(const String topic, const String payload) {
             ColorOff[1] = G;
             ColorOff[2] = B;
         }
+    } else if (topic == MQTTprefix + "/Set/ColorNormal") {
+        int32_t R, G, B;
+        int n = sscanf(payload.c_str(), "%d:%d:%d", &R, &G, &B);
+
+        // R,G,B is between 0..255
+        if (n == 3 && (R >= 0 && R < 256) && (G >= 0 && G < 256) && (B >= 0 && B < 256)) {
+            ColorNormal[0] = R;
+            ColorNormal[1] = G;
+            ColorNormal[2] = B;
+        }
+    } else if (topic == MQTTprefix + "/Set/ColorSmart") {
+        int32_t R, G, B;
+        int n = sscanf(payload.c_str(), "%d:%d:%d", &R, &G, &B);
+
+        // R,G,B is between 0..255
+        if (n == 3 && (R >= 0 && R < 256) && (G >= 0 && G < 256) && (B >= 0 && B < 256)) {
+            ColorSmart[0] = R;
+            ColorSmart[1] = G;
+            ColorSmart[2] = B;
+        }
+    } else if (topic == MQTTprefix + "/Set/ColorSolar") {
+        int32_t R, G, B;
+        int n = sscanf(payload.c_str(), "%d:%d:%d", &R, &G, &B);
+
+        // R,G,B is between 0..255
+        if (n == 3 && (R >= 0 && R < 256) && (G >= 0 && G < 256) && (B >= 0 && B < 256)) {
+            ColorSolar[0] = R;
+            ColorSolar[1] = G;
+            ColorSolar[2] = B;
+        }
     }
 
     // Make sure MQTT updates directly to prevent debounces
@@ -3440,6 +3478,9 @@ void mqttPublishData() {
         }
 #endif //ENABLE_OCPP
         MQTTclient.publish(MQTTprefix + "/LEDColorOff", String(ColorOff[0])+","+String(ColorOff[1])+","+String(ColorOff[2]), true, 0);
+        MQTTclient.publish(MQTTprefix + "/LEDColorNormal", String(ColorNormal[0])+","+String(ColorNormal[1])+","+String(ColorNormal[2]), true, 0);
+        MQTTclient.publish(MQTTprefix + "/LEDColorSmart", String(ColorSmart[0])+","+String(ColorSmart[1])+","+String(ColorSmart[2]), true, 0);
+        MQTTclient.publish(MQTTprefix + "/LEDColorSolar", String(ColorSolar[0])+","+String(ColorSolar[1])+","+String(ColorSolar[2]), true, 0);
 }
 #endif
 
@@ -5021,7 +5062,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
 
         boolean evConnected = pilot != PILOT_12V;                    //when access bit = 1, p.ex. in OFF mode, the STATEs are no longer updated
 
-        DynamicJsonDocument doc(1600); // https://arduinojson.org/v6/assistant/
+        DynamicJsonDocument doc(3072); // https://arduinojson.org/v6/assistant/
         doc["version"] = String(VERSION);
         doc["serialnr"] = serialnr;
         doc["mode"] = mode;
@@ -5174,9 +5215,18 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         doc["backlight"]["timer"] = BacklightTimer;
         doc["backlight"]["status"] = backlight;
 
-        doc["color_off"]["R"] = ColorOff[0];
-        doc["color_off"]["G"] = ColorOff[1];
-        doc["color_off"]["B"] = ColorOff[2];
+        doc["color"]["off"]["R"] = ColorOff[0];
+        doc["color"]["off"]["G"] = ColorOff[1];
+        doc["color"]["off"]["B"] = ColorOff[2];
+        doc["color"]["normal"]["R"] = ColorNormal[0];
+        doc["color"]["normal"]["G"] = ColorNormal[1];
+        doc["color"]["normal"]["B"] = ColorNormal[2];
+        doc["color"]["smart"]["R"] = ColorSmart[0];
+        doc["color"]["smart"]["G"] = ColorSmart[1];
+        doc["color"]["smart"]["B"] = ColorSmart[2];
+        doc["color"]["solar"]["R"] = ColorSolar[0];
+        doc["color"]["solar"]["G"] = ColorSolar[1];
+        doc["color"]["solar"]["B"] = ColorSolar[2];
 
         String json;
         serializeJson(doc, json);
@@ -5521,9 +5571,80 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
                 doc["color_off"]["R"] = ColorOff[0];
                 doc["color_off"]["G"] = ColorOff[1];
                 doc["color_off"]["B"] = ColorOff[2];
+                doc["color"]["off"]["R"] = ColorOff[0];
+                doc["color"]["off"]["G"] = ColorOff[1];
+                doc["color"]["off"]["B"] = ColorOff[2];
             }
         }
 
+        String json;
+        serializeJson(doc, json);
+        mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", json.c_str());    // Yes. Respond JSON
+
+    } else if (mg_http_match_uri(hm, "/color_normal") && !memcmp("POST", hm->method.buf, hm->method.len)) {
+        DynamicJsonDocument doc(200);
+
+        if (request->hasParam("R") && request->hasParam("G") && request->hasParam("B")) {
+            int32_t R = request->getParam("R")->value().toInt();
+            int32_t G = request->getParam("G")->value().toInt();
+            int32_t B = request->getParam("B")->value().toInt();
+
+            // R,G,B is between 0..255
+            if ((R >= 0 && R < 256) && (G >= 0 && G < 256) && (B >= 0 && B < 256)) {
+                ColorNormal[0] = R;
+                ColorNormal[1] = G;
+                ColorNormal[2] = B;
+                doc["color"]["normal"]["R"] = ColorNormal[0];
+                doc["color"]["normal"]["G"] = ColorNormal[1];
+                doc["color"]["normal"]["B"] = ColorNormal[2];
+            }
+        }
+
+        String json;
+        serializeJson(doc, json);
+        mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", json.c_str());    // Yes. Respond JSON
+
+    } else if (mg_http_match_uri(hm, "/color_smart") && !memcmp("POST", hm->method.buf, hm->method.len)) {
+        DynamicJsonDocument doc(200);
+
+        if (request->hasParam("R") && request->hasParam("G") && request->hasParam("B")) {
+            int32_t R = request->getParam("R")->value().toInt();
+            int32_t G = request->getParam("G")->value().toInt();
+            int32_t B = request->getParam("B")->value().toInt();
+
+            // R,G,B is between 0..255
+            if ((R >= 0 && R < 256) && (G >= 0 && G < 256) && (B >= 0 && B < 256)) {
+                ColorSmart[0] = R;
+                ColorSmart[1] = G;
+                ColorSmart[2] = B;
+                doc["color"]["smart"]["R"] = ColorSmart[0];
+                doc["color"]["smart"]["G"] = ColorSmart[1];
+                doc["color"]["smart"]["B"] = ColorSmart[2];
+            }
+        }
+
+        String json;
+        serializeJson(doc, json);
+        mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", json.c_str());    // Yes. Respond JSON
+
+    } else if (mg_http_match_uri(hm, "/color_solar") && !memcmp("POST", hm->method.buf, hm->method.len)) {
+        DynamicJsonDocument doc(200);
+
+        if (request->hasParam("R") && request->hasParam("G") && request->hasParam("B")) {
+            int32_t R = request->getParam("R")->value().toInt();
+            int32_t G = request->getParam("G")->value().toInt();
+            int32_t B = request->getParam("B")->value().toInt();
+
+            // R,G,B is between 0..255
+            if ((R >= 0 && R < 256) && (G >= 0 && G < 256) && (B >= 0 && B < 256)) {
+                ColorSolar[0] = R;
+                ColorSolar[1] = G;
+                ColorSolar[2] = B;
+                doc["color"]["solar"]["R"] = ColorSolar[0];
+                doc["color"]["solar"]["G"] = ColorSolar[1];
+                doc["color"]["solar"]["B"] = ColorSolar[2];
+            }
+        }
 
         String json;
         serializeJson(doc, json);
