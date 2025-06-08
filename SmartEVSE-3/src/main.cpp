@@ -688,7 +688,7 @@ void setPilot(bool On) {
         funDigitalWrite(CPOFF, FUN_HIGH);
 #endif
 #if SMARTEVSE_VERSION >=40 //ESP32 v4
-        Serial1.printf("@setPilot:%u\n", Switch);
+        Serial1.printf("@setPilot:%u\n", On);
     }
 #endif
 }
