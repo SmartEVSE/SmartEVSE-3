@@ -257,6 +257,7 @@ Valid topics you can publish to are:
 /Set/EVMeter
 /Set/HomeBatteryCurrent
 /Set/RequiredEVCCID
+/Set/ColorOff
 ```
 Your MainsMeter can be fed with:
 ```

@@ -26,6 +26,8 @@ Below we use "<prefix>" for this.
 *  <prefix> "/Set/HomeBatteryCurrent" = [Integer: Ampere]
 
 *  <prefix> "/Set/RequiredEVCCID" = [String]
+*  <prefix> "/Set/ColorOff" = [String: "R:G:B",
+	where R,G,B is integer value 0. .255]
 
 # EVSE MQTT publish
 
