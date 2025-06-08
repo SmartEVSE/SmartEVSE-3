@@ -1212,6 +1212,10 @@ void GLCDMenu(uint8_t Buttons) {
                             value = MenuNavInt(Buttons, value, MenuStr[LCDNav].Min, MenuStr[LCDNav].Max);
                         } while (LoadBl >=2 && value == 5);                     // do not allow GridRelay on Slave
                         setItemValue(LCDNav, value);
+                        if (value == 5)
+                            CheckSwitch(true);
+                        else
+                            GridRelayOpen = false;                              // so we don't have limiting current when not on GridRelay
                         break;
                     default:
                         value = MenuNavInt(Buttons, value, MenuStr[LCDNav].Min, MenuStr[LCDNav].Max);

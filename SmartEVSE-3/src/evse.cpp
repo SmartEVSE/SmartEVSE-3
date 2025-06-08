@@ -2240,10 +2240,17 @@ void CalcIsum(void) {
 
 // CheckSwitch (SW input)
 //
-void CheckSwitch(void)
+void CheckSwitch(bool force)
 {
-    static uint8_t RB2count = 0, RB2last = 1, RB2low = 0;
+    static uint8_t RB2count = 0, RB2last = 2, RB2low = 0;
     static unsigned long RB2Timer = 0;                                                 // 1500ms
+
+    if (force)                                                                  // force to read switch position
+        RB2last = 2;
+
+    if ((RB2last == 2) && (Switch == 1 || Switch == 3))                         // upon initialization we want the toggle switch to be read
+        RB2last = 1;                                                            // but not the push buttons, because this would toggle the state
+                                                                                // upon reboot
 
     // External switch changed state?
     if ( (digitalRead(PIN_SW_IN) != RB2last) || RB2low) {
