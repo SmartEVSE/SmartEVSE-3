@@ -221,7 +221,6 @@ uint8_t NoCurrent = 0;                                                      // c
 uint8_t TestState = 0;
 uint8_t ModbusRequest = 0;                                                  // Flag to request Modbus information
 uint8_t NodeNewMode = 0;
-uint8_t MenuItems[MENU_EXIT];
 uint8_t Access_bit = 0;                                                     // 0:No Access 1:Access to SmartEVSE
 uint16_t CardOffset = CARD_OFFSET;                                          // RFID card used in Enable One mode
 
