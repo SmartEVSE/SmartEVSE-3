@@ -2549,42 +2549,44 @@ void EVSEStates(void * parameter) {
  * @param bool    Export (if exported energy is requested)
  */
 void requestEnergyMeasurement(uint8_t Meter, uint8_t Address, bool Export) {
-   switch (Meter) {
-        case EM_SOLAREDGE:
-            // Note:
-            // - SolarEdge uses 16-bit values, except for this measurement it uses 32bit int format
-            // - EM_SOLAREDGE should not be used for EV Energy Measurements
-            if (Export) ModbusReadInputRequest(Address, EMConfig[Meter].Function, EMConfig[Meter].ERegister_Exp, 2);
-            else        ModbusReadInputRequest(Address, EMConfig[Meter].Function, EMConfig[Meter].ERegister, 2);
-            break;
-        case EM_ABB:
-            // Note:
-            // - ABB uses 64bit values for this register (size 2)
-            if (Export) requestMeasurement(Meter, Address, EMConfig[Meter].ERegister_Exp, 2);
-            else        requestMeasurement(Meter, Address, EMConfig[Meter].ERegister, 2);
-            break;
-        case EM_FINDER_7E:
-        case EM_EASTRON3P:
-        case EM_EASTRON1P:
-        case EM_WAGO:
-            if (Export) requestMeasurement(Meter, Address, EMConfig[Meter].ERegister_Exp, 1);
-            else        requestMeasurement(Meter, Address, EMConfig[Meter].ERegister, 1);
-            break;
-        case EM_EASTRON3P_INV:
-            if (Export) requestMeasurement(Meter, Address, EMConfig[Meter].ERegister, 1);
-            else        requestMeasurement(Meter, Address, EMConfig[Meter].ERegister_Exp, 1);
-            break;
-        case EM_SINOTIMER:
-            // Note:
-            // - Sinotimer uses 16-bit values, except for this measurement it uses 32bit int format
-            if (Export) ModbusReadInputRequest(Address, EMConfig[Meter].Function, EMConfig[Meter].ERegister_Exp, 2);
-            else        ModbusReadInputRequest(Address, EMConfig[Meter].Function, EMConfig[Meter].ERegister, 2);
-            break;
-        default:
-            if (!Export) //refuse to do a request on exported energy if the meter doesnt support it
-                requestMeasurement(Meter, Address, EMConfig[Meter].ERegister, 1);
-            break;
+    uint8_t Count = 1;  // by default it only takes 1 register to get the energy measurement
+    uint16_t Register = EMConfig[Meter].ERegister;
+    if (Export)
+        Register = EMConfig[Meter].ERegister_Exp;
+
+    switch (Meter) {
+    case EM_FINDER_7E:
+    case EM_EASTRON3P:
+    case EM_EASTRON1P:
+    case EM_WAGO:
+        break;
+    case EM_SOLAREDGE:
+        // Note:
+        // - SolarEdge uses 16-bit values, except for this measurement it uses 32bit int format
+        // - EM_SOLAREDGE should not be used for EV Energy Measurements
+        // fallthrough
+    case EM_SINOTIMER:
+        // Note:
+        // - Sinotimer uses 16-bit values, except for this measurement it uses 32bit int format
+        // fallthrough
+    case EM_ABB:
+        // Note:
+        // - ABB uses 64bit values for this register (size 2)
+        Count = 2;
+        break;
+    case EM_EASTRON3P_INV:
+        if (Export)
+            Register = EMConfig[Meter].ERegister;
+        else
+            Register = EMConfig[Meter].ERegister_Exp;
+        break;
+    default:
+        if (Export)
+            Count = 0; //refuse to do a request on exported energy if the meter doesnt support it
+        break;
     }
+    if (Count)
+        requestMeasurement(Meter, Address, Register, Count);
 }
 
 /**
@@ -2593,17 +2595,17 @@ void requestEnergyMeasurement(uint8_t Meter, uint8_t Address, bool Export) {
  * @param uint8_t Meter
  * @param uint8_t Address
  */
-void requestPowerMeasurement(uint8_t Meter, uint8_t Address, uint16_t PRegister) {
-   switch (Meter) {
-        case EM_SINOTIMER:
-            // Note:
-            // - Sinotimer does not output total power but only individual power of the 3 phases
-            requestMeasurement(Meter, Address, PRegister, 3);
-            break;
-        default:
-            requestMeasurement(Meter, Address, PRegister, 1);
-            break;
-   }
+void requestPowerMeasurement(uint8_t Meter, uint8_t Address, uint16_t PRegister)
+{
+    uint8_t Count = 1;  // by default it only takes 1 register to get power measurement
+    switch (Meter) {
+    case EM_SINOTIMER:
+        // Note:
+        // - Sinotimer does not output total power but only individual power of the 3 phases
+        Count = 3;
+        break;
+    }
+    requestMeasurement(Meter, Address, PRegister, Count);
 }
 
 bool isValidInput(String input) {
