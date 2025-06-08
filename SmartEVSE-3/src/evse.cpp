@@ -3066,6 +3066,7 @@ public:
         default_opts.retain = false;
     }
 
+    void publish(const String &topic, const int32_t &payload, bool retained, int qos) { publish(topic, String(payload), retained, qos); };
     void publish(const String &topic, const String &payload, bool retained, int qos);
     void subscribe(const String &topic, int qos);
     bool connected;
@@ -3269,9 +3270,9 @@ void mqttPublishData() {
             s_mm_irms[0] = MainsMeter.Irms[0];
             s_mm_irms[1] = MainsMeter.Irms[1];
             s_mm_irms[2] = MainsMeter.Irms[2];
-            MQTTclient.publish(MQTTprefix + "/MainsCurrentL1", String(MainsMeter.Irms[0]), false, 0);
-            MQTTclient.publish(MQTTprefix + "/MainsCurrentL2", String(MainsMeter.Irms[1]), false, 0);
-            MQTTclient.publish(MQTTprefix + "/MainsCurrentL3", String(MainsMeter.Irms[2]), false, 0);
+            MQTTclient.publish(MQTTprefix + "/MainsCurrentL1", MainsMeter.Irms[0], false, 0);
+            MQTTclient.publish(MQTTprefix + "/MainsCurrentL2", MainsMeter.Irms[1], false, 0);
+            MQTTclient.publish(MQTTprefix + "/MainsCurrentL3", MainsMeter.Irms[2], false, 0);
         }
         if (EVMeter.Type &&
             (s_evm_irms[0] != EVMeter.Irms[0] || s_evm_irms[1] != EVMeter.Irms[1] || s_evm_irms[2] != EVMeter.Irms[2]))
@@ -3279,17 +3280,17 @@ void mqttPublishData() {
             s_evm_irms[0] = EVMeter.Irms[0];
             s_evm_irms[1] = EVMeter.Irms[1];
             s_evm_irms[2] = EVMeter.Irms[2];
-            MQTTclient.publish(MQTTprefix + "/EVCurrentL1", String(EVMeter.Irms[0]), false, 0);
-            MQTTclient.publish(MQTTprefix + "/EVCurrentL2", String(EVMeter.Irms[1]), false, 0);
-            MQTTclient.publish(MQTTprefix + "/EVCurrentL3", String(EVMeter.Irms[2]), false, 0);
+            MQTTclient.publish(MQTTprefix + "/EVCurrentL1", EVMeter.Irms[0], false, 0);
+            MQTTclient.publish(MQTTprefix + "/EVCurrentL2", EVMeter.Irms[1], false, 0);
+            MQTTclient.publish(MQTTprefix + "/EVCurrentL3", EVMeter.Irms[2], false, 0);
         }
         if (s_uptime_10s != (u = (uint32_t)(esp_timer_get_time() / 10000000))) {
             s_uptime_10s = u; // publish no more often than every 10 s; perform 64-bit divide only once
-            MQTTclient.publish(MQTTprefix + "/ESPUptime", String(s_uptime_10s * 10), false, 0);
+            MQTTclient.publish(MQTTprefix + "/ESPUptime", s_uptime_10s * 10, false, 0);
         }
         if (s_temp_evse != TempEVSE) {
             s_temp_evse = TempEVSE;
-            MQTTclient.publish(MQTTprefix + "/ESPTemp", String(TempEVSE), false, 0);
+            MQTTclient.publish(MQTTprefix + "/ESPTemp", TempEVSE, false, 0);
         }
         if (s_access_mode != ((Access_bit << 4) | Mode)) {
             s_access_mode = (Access_bit << 4) | Mode;
@@ -3297,19 +3298,19 @@ void mqttPublishData() {
         }
         if (s_MaxCurrent != MaxCurrent) {
             s_MaxCurrent = MaxCurrent;
-            MQTTclient.publish(MQTTprefix + "/MaxCurrent", String(MaxCurrent * 10), true, 0);
+            MQTTclient.publish(MQTTprefix + "/MaxCurrent", MaxCurrent * 10, true, 0);
         }
         if (s_ChargeCurrent != Balanced[0]) {
             s_ChargeCurrent = Balanced[0];
-            MQTTclient.publish(MQTTprefix + "/ChargeCurrent", String(Balanced[0]), true, 0);
+            MQTTclient.publish(MQTTprefix + "/ChargeCurrent", Balanced[0], true, 0);
         }
         if (s_ChargeCurrentOverride != OverrideCurrent) {
             s_ChargeCurrentOverride = OverrideCurrent;
-            MQTTclient.publish(MQTTprefix + "/ChargeCurrentOverride", String(OverrideCurrent), true, 0);
+            MQTTclient.publish(MQTTprefix + "/ChargeCurrentOverride", OverrideCurrent, true, 0);
         }
         if (s_Access != Access_bit) {
             s_Access = Access_bit;
-            MQTTclient.publish(MQTTprefix + "/Access", String(StrAccessBit[Access_bit]), true, 0);
+            MQTTclient.publish(MQTTprefix + "/Access", StrAccessBit[Access_bit], true, 0);
         }
         if (s_RFIDstatus != ((RFIDReader << 4) | RFIDstatus)) {
             s_RFIDstatus = (RFIDReader << 4) | RFIDstatus;
@@ -3345,76 +3346,76 @@ void mqttPublishData() {
             // do not post _every_ change, but limit to every 10s
             s_wifirssi_update10s = 0;
             s_wifirssi = (int8_t)u;
-            MQTTclient.publish(MQTTprefix + "/WiFiRSSI", String(s_wifirssi), false, 0);
+            MQTTclient.publish(MQTTprefix + "/WiFiRSSI", s_wifirssi, false, 0);
         }
         if (s_SolarStopTimer != SolarStopTimer) {
             s_SolarStopTimer = SolarStopTimer;
-            MQTTclient.publish(MQTTprefix + "/SolarStopTimer", String(SolarStopTimer), false, 0);
+            MQTTclient.publish(MQTTprefix + "/SolarStopTimer", SolarStopTimer, false, 0);
         }
 
 #if MODEM
         if (s_cppwm != CurrentPWM) {
             s_cppwm = CurrentPWM;
-            MQTTclient.publish(MQTTprefix + "/CPPWM", String(CurrentPWM), false, 0);
+            MQTTclient.publish(MQTTprefix + "/CPPWM", CurrentPWM, false, 0);
         }
         if (s_cppwmoverride != ((CPDutyOverride << 15) | CurrentPWM)) {
             s_cppwmoverride = (CPDutyOverride << 15) | CurrentPWM;
-            MQTTclient.publish(MQTTprefix + "/CPPWMOverride", String(CPDutyOverride ? String(CurrentPWM) : "-1"), true, 0);
+            MQTTclient.publish(MQTTprefix + "/CPPWMOverride", CPDutyOverride ? String(CurrentPWM) : "-1", true, 0);
         }
         if (s_InitialSoC != InitialSoC) {
             s_InitialSoC = InitialSoC;
-            MQTTclient.publish(MQTTprefix + "/EVInitialSoC", String(InitialSoC), true, 0);
+            MQTTclient.publish(MQTTprefix + "/EVInitialSoC", InitialSoC, true, 0);
         }
         if (s_FullSoC != FullSoC) {
             s_FullSoC = FullSoC;
-            MQTTclient.publish(MQTTprefix + "/EVFullSoC", String(FullSoC), true, 0);
+            MQTTclient.publish(MQTTprefix + "/EVFullSoC", FullSoC, true, 0);
         }
         if (s_ComputedSoC != ComputedSoC) {
             s_ComputedSoC = ComputedSoC;
-            MQTTclient.publish(MQTTprefix + "/EVComputedSoC", String(ComputedSoC), true, 0);
+            MQTTclient.publish(MQTTprefix + "/EVComputedSoC", ComputedSoC, true, 0);
         }
         if (s_RemainingSoC != RemainingSoC) {
             s_RemainingSoC = RemainingSoC;
-            MQTTclient.publish(MQTTprefix + "/EVRemainingSoC", String(RemainingSoC), true, 0);
+            MQTTclient.publish(MQTTprefix + "/EVRemainingSoC", RemainingSoC, true, 0);
         }
         if (s_TimeUntilFull != TimeUntilFull) {
             s_TimeUntilFull = TimeUntilFull;
-            MQTTclient.publish(MQTTprefix + "/EVTimeUntilFull", String(TimeUntilFull), false, 0);
+            MQTTclient.publish(MQTTprefix + "/EVTimeUntilFull", TimeUntilFull, false, 0);
         }
         if (s_EnergyCapacity != EnergyCapacity) {
             s_EnergyCapacity = EnergyCapacity;
-            MQTTclient.publish(MQTTprefix + "/EVEnergyCapacity", String(EnergyCapacity), true, 0);
+            MQTTclient.publish(MQTTprefix + "/EVEnergyCapacity", EnergyCapacity, true, 0);
         }
         if (s_EnergyRequest != EnergyRequest) {
             s_EnergyRequest = EnergyRequest;
-            MQTTclient.publish(MQTTprefix + "/EVEnergyRequest", String(EnergyRequest), true, 0);
+            MQTTclient.publish(MQTTprefix + "/EVEnergyRequest", EnergyRequest, true, 0);
         }
         if (memcmp(s_EVCCID, EVCCID, sizeof(EVCCID)) != 0) {
             memcpy(s_EVCCID, EVCCID, sizeof(EVCCID));
-            MQTTclient.publish(MQTTprefix + "/EVCCID", String(EVCCID), true, 0);
+            MQTTclient.publish(MQTTprefix + "/EVCCID", EVCCID, true, 0);
         }
         if (memcmp(s_reqEVCCID, RequiredEVCCID, sizeof(RequiredEVCCID)) != 0) {
             memcpy(s_reqEVCCID, RequiredEVCCID, sizeof(RequiredEVCCID));
-            MQTTclient.publish(MQTTprefix + "/RequiredEVCCID", String(RequiredEVCCID), true, 0);
+            MQTTclient.publish(MQTTprefix + "/RequiredEVCCID", RequiredEVCCID, true, 0);
         }
 #endif
         if (EVMeter.Type) {
             if (s_evm_power != EVMeter.PowerMeasured) {
                 s_evm_power = EVMeter.PowerMeasured;
-                MQTTclient.publish(MQTTprefix + "/EVChargePower", String(EVMeter.PowerMeasured), false, 0);
+                MQTTclient.publish(MQTTprefix + "/EVChargePower", EVMeter.PowerMeasured, false, 0);
             }
             if (s_evm_energyCharged != EVMeter.EnergyCharged) {
                 s_evm_energyCharged = EVMeter.EnergyCharged;
-                MQTTclient.publish(MQTTprefix + "/EVEnergyCharged", String(EVMeter.EnergyCharged), true, 0);
+                MQTTclient.publish(MQTTprefix + "/EVEnergyCharged", EVMeter.EnergyCharged, true, 0);
             }
             if (s_evm_energyTotal != EVMeter.Energy) {
                 s_evm_energyTotal = EVMeter.Energy;
-                MQTTclient.publish(MQTTprefix + "/EVTotalEnergyCharged", String(EVMeter.Energy), false, 0);
+                MQTTclient.publish(MQTTprefix + "/EVTotalEnergyCharged", EVMeter.Energy, false, 0);
             }
         }
         if (homeBatteryLastUpdate && s_homeBatteryCurrent != homeBatteryCurrent) {
             s_homeBatteryCurrent = homeBatteryCurrent;
-            MQTTclient.publish(MQTTprefix + "/HomeBatteryCurrent", String(homeBatteryCurrent), false, 0);
+            MQTTclient.publish(MQTTprefix + "/HomeBatteryCurrent", homeBatteryCurrent, false, 0);
         }
 #if ENABLE_OCPP
         if (s_OcppMode != OcppMode) {
