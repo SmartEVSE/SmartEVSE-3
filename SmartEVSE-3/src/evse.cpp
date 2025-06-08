@@ -109,6 +109,14 @@ uint16_t MaxSumMains = MAX_SUMMAINS;                                        // M
                                                                             // 0 means disabled, allowed value 10 - 600 A
 uint8_t MaxSumMainsTime = MAX_SUMMAINSTIME;                                 // capacity rate limiting timelimit in minutes we wait when MaxSumMains is exceeded, before we stop charging
 uint16_t MaxSumMainsTimer = 0;                                              // Timer for capacity rate limiting timelimit
+uint16_t GridRelayMaxSumMains = GRID_RELAY_MAX_SUMMAINS;                    // Max Mains Amps summed over all 3 phases, switched by relay provided by energy provider
+                                                                            // Meant to obey par 14a of Energy Industry Act, where the provider can switch a device
+                                                                            // down to 4.2kW by a relay connected to the "switch" connectors.
+                                                                            // you will have to set the "Switch" setting to "GridRelay",
+                                                                            // and connect the relay to the switch terminals
+                                                                            // When the relay opens its contacts, power will be reduced to 4.2kW
+                                                                            // The relay is only allowed on the Master
+bool GridRelayOpen = false;                                                 // The read status of the relay
 uint16_t MaxCurrent = MAX_CURRENT;                                          // Max Charge current (A)
 uint16_t MinCurrent = MIN_CURRENT;                                          // Minimal current the EV is happy with (A)
 uint8_t Mode = MODE;                                                        // EVSE mode (0:Normal / 1:Smart / 2:Solar)
@@ -128,7 +136,8 @@ uint8_t Lock = LOCK;                                                        // C
 uint16_t MaxCircuit = MAX_CIRCUIT;                                          // Max current of the EVSE circuit (A)
 uint8_t Config = CONFIG;                                                    // Configuration (0:Socket / 1:Fixed Cable)
 uint8_t LoadBl = LOADBL;                                                    // Load Balance Setting (0:Disable / 1:Master / 2-8:Node)
-uint8_t Switch = SWITCH;                                                    // External Switch (0:Disable / 1:Access B / 2:Access S / 3:Smart-Solar B / 4:Smart-Solar S)
+uint8_t Switch = SWITCH;                                                    // External Switch (0:Disable / 1:Access B / 2:Access S /
+                                                                            // 3:Smart-Solar B / 4:Smart-Solar S / 5: Grid Relay)
                                                                             // B=momentary push <B>utton, S=toggle <S>witch
 uint8_t RCmon = RC_MON;                                                     // Residual Current Monitor (0:Disable / 1:Enable)
 uint8_t AutoUpdate = AUTOUPDATE;                                            // Automatic Firmware Update (0:Disable / 1:Enable)
@@ -1012,6 +1021,10 @@ char IsCurrentAvailable(void) {
         _LOG_D("#%d MaxSumMains. ActiveEVSE=%i, MinCurrent=%iA, Isum=%.1fA, MaxSumMains=%iA.\n", __LINE__, ActiveEVSE, MinCurrent,  (float)Isum/10, MaxSumMains);
         return 0;                                                           // Not enough current available!, return with error
     }
+    if (GridRelayOpen && ((Phases * ActiveEVSE * MinCurrent * 10) + Isum > 3 * GridRelayMaxSumMains * 10)) { // the GridRelayMaxSumMains is allowed on all 3 phases
+        _LOG_D("No current available GridRelay line %d. ActiveEVSE=%i, MinCurrent=%iA, Isum=%.1fA, GridRelayMaxSumMains=%iA.\n", __LINE__, ActiveEVSE, MinCurrent,  (float)Isum/10, GridRelayMaxSumMains);
+        return 0;                                                           // Not enough current available!, return with error
+    }
 
 // Use OCPP Smart Charging if Load Balancing is turned off
 #if ENABLE_OCPP
@@ -1286,6 +1299,12 @@ void CalcBalancedCurrent(char mod) {
     {
         IsetBalanced = (MaxCircuit * 10) - Baseload_EV;
         _LOG_V("Isetbalanced guard MaxCircuit %.1f A\n", (float)IsetBalanced/10.0);
+    }
+    // guard GridRelay
+    if (GridRelayOpen && ((int) IsetBalanced > (((GridRelayMaxSumMains * 10) - Isum)/3)))
+    {
+        IsetBalanced = ((GridRelayMaxSumMains * 10) - Isum)/3; //assume the current should be available on all 3 phases
+        _LOG_V("Isetbalanced guard GridRelay %.1f A\n", (float)IsetBalanced/10.0);
     }
     _LOG_V("Checkpoint 4 Isetbalanced=%.1f A.\n", (float)IsetBalanced/10);
 
@@ -2240,7 +2259,7 @@ void CheckSwitch(void)
                             if (State == STATE_C) {
                                 setState(STATE_C1);
                                 if (!TestState) ChargeDelay = 15;           // Keep in State B for 15 seconds, so the Charge cable can be removed.
-                            RB2low = 2;
+                                RB2low = 2;
                             }
                         }
                         break;
@@ -2248,6 +2267,9 @@ void CheckSwitch(void)
                         if (Mode == MODE_SOLAR) {
                             setMode(MODE_SMART);
                         }
+                        break;
+                    case 5: // Grid relay
+                        GridRelayOpen = false;
                         break;
                     default:
                         if (State == STATE_C) {                             // Menu option Access is set to Disabled
@@ -2289,6 +2311,9 @@ void CheckSwitch(void)
                         break;
                     case 4: // Smart-Solar Switch
                         if (Mode == MODE_SMART) setMode(MODE_SOLAR);
+                        break;
+                    case 5: // Grid relay
+                        GridRelayOpen = true;
                         break;
                     default:
                         break;
