@@ -22,8 +22,11 @@
  */
 
 #ifndef __EVSE_MAIN
-
 #define __EVSE_MAIN
+
+#ifndef SMARTEVSE_VERSION
+#define SMARTEVSE_VERSION 3
+#endif
 
 #ifndef DBG
 //the wifi-debugger is available by telnetting to your SmartEVSE device
@@ -56,13 +59,12 @@
 #define INJECT_CURRENT_L3 0
 #endif
 
-#ifndef MQTT
-#define MQTT 1  // Uncomment or set to 0 to disable MQTT support in code
-#endif
-
 #ifndef ENABLE_OCPP
 #define ENABLE_OCPP 0
 #endif
+
+#include <Arduino.h>
+#include "debug.h"
 
 #if ENABLE_OCPP
 #include <MicroOcpp/Model/ConnectorBase/Notification.h>
@@ -72,89 +74,6 @@
 //the wifi-debugger is available by telnetting to your SmartEVSE device
 #define MODEM 0  //0 = no modem 1 = modem
 #endif
-
-#ifndef VERSION
-// Please note that this version will only be displayed with the build time/date if the program is recompiled.
-// So the webserver will show this version if evse.cpp is recompiled.
-// The lcd display will show this version if glcd.cpp is recompiled.
-#define VERSION (__TIME__ " @" __DATE__)
-#endif
-
-
-#if DBG == 0
-//used to steer RemoteDebug
-#define DEBUG_DISABLED 1
-#define _LOG_W( ... ) //dummy
-#define _LOG_I( ... ) //dummy
-#define _LOG_D( ... ) //dummy
-#define _LOG_V( ... ) //dummy
-#define _LOG_A( ... ) //dummy
-#define _LOG_W_NO_FUNC( ... ) //dummy
-#define _LOG_I_NO_FUNC( ... ) //dummy
-#define _LOG_D_NO_FUNC( ... ) //dummy
-#define _LOG_V_NO_FUNC( ... ) //dummy
-#define _LOG_A_NO_FUNC( ... ) //dummy
-#endif
-
-#if DBG == 1
-#define _LOG_A(fmt, ...) {if (Debug.isActive(Debug.ANY))        { Debug.printf("(%s)(C%d) " fmt, __func__, xPortGetCoreID(), ##__VA_ARGS__);}} // Always = Errors!!!
-#define _LOG_P(fmt, ...) {if (Debug.isActive(Debug.PROFILER))   { Debug.printf("(%s)(C%d) " fmt, __func__, xPortGetCoreID(), ##__VA_ARGS__);}} // Profiler
-#define _LOG_V(fmt, ...) {if (Debug.isActive(Debug.VERBOSE))    { Debug.printf("(%s)(C%d) " fmt, __func__, xPortGetCoreID(), ##__VA_ARGS__);}} // Verbose
-#define _LOG_D(fmt, ...) {if (Debug.isActive(Debug.DEBUG))      { Debug.printf("(%s)(C%d) " fmt, __func__, xPortGetCoreID(), ##__VA_ARGS__);}} // Debug
-#define _LOG_I(fmt, ...) {if (Debug.isActive(Debug.INFO))       { Debug.printf("(%s)(C%d) " fmt, __func__, xPortGetCoreID(), ##__VA_ARGS__);}} // Info
-#define _LOG_W(fmt, ...) {if (Debug.isActive(Debug.WARNING))    { Debug.printf("(%s)(C%d) " fmt, __func__, xPortGetCoreID(), ##__VA_ARGS__);}} // Warning
-#define _LOG_E(fmt, ...) {if (Debug.isActive(Debug.ERROR))      { Debug.printf("(%s)(C%d) " fmt, __func__, xPortGetCoreID(), ##__VA_ARGS__);}} // Error not used!
-#define _LOG_A_NO_FUNC(fmt, ...) {if (Debug.isActive(Debug.ANY))        { Debug.printf(fmt, ##__VA_ARGS__);}}
-#define _LOG_P_NO_FUNC(fmt, ...) {if (Debug.isActive(Debug.PROFILER))   { Debug.printf(fmt, ##__VA_ARGS__);}}
-#define _LOG_V_NO_FUNC(fmt, ...) {if (Debug.isActive(Debug.VERBOSE))    { Debug.printf(fmt, ##__VA_ARGS__);}}
-#define _LOG_D_NO_FUNC(fmt, ...) {if (Debug.isActive(Debug.DEBUG))      { Debug.printf(fmt, ##__VA_ARGS__);}}
-#define _LOG_I_NO_FUNC(fmt, ...) {if (Debug.isActive(Debug.INFO))       { Debug.printf(fmt, ##__VA_ARGS__);}}
-#define _LOG_W_NO_FUNC(fmt, ...) {if (Debug.isActive(Debug.WARNING))    { Debug.printf(fmt, ##__VA_ARGS__);}}
-#define _LOG_E_NO_FUNC(fmt, ...) {if (Debug.isActive(Debug.ERROR))      { Debug.printf(fmt, ##__VA_ARGS__);}}
-#include "RemoteDebug.h"  //https://github.com/JoaoLopesF/RemoteDebug
-extern RemoteDebug Debug;
-#endif
-
-#define EVSE_LOG_FORMAT(letter, format) "[%6u][" #letter "][%s:%u] %s(): " format , (uint32_t) (esp_timer_get_time() / 1000ULL), pathToFileName(__FILE__), __LINE__, __FUNCTION__
-
-#if DBG == 2
-#define DEBUG_DISABLED 1
-#if LOG_LEVEL >= 1  // Errors
-#define _LOG_A(fmt, ... ) Serial.printf(EVSE_LOG_FORMAT(E, fmt), ##__VA_ARGS__)
-#define _LOG_A_NO_FUNC( ... ) Serial.printf ( __VA_ARGS__ )
-#else
-#define _LOG_A( ... )
-#define _LOG_A_NO_FUNC( ... )
-#endif
-#if LOG_LEVEL >= 2  // Warnings
-#define _LOG_W(fmt, ... ) Serial.printf(EVSE_LOG_FORMAT(W, fmt), ##__VA_ARGS__)
-#define _LOG_W_NO_FUNC( ... ) Serial.printf ( __VA_ARGS__ )
-#else
-#define _LOG_W( ... )
-#define _LOG_W_NO_FUNC( ... )
-#endif
-#if LOG_LEVEL >= 3  // Info
-#define _LOG_I(fmt, ... ) Serial.printf(EVSE_LOG_FORMAT(I, fmt), ##__VA_ARGS__)
-#define _LOG_I_NO_FUNC( ... ) Serial.printf ( __VA_ARGS__ )
-#else
-#define _LOG_I( ... )
-#define _LOG_I_NO_FUNC( ... )
-#endif
-#if LOG_LEVEL >= 4  // Debug
-#define _LOG_D(fmt, ... ) Serial.printf(EVSE_LOG_FORMAT(D, fmt), ##__VA_ARGS__)
-#define _LOG_D_NO_FUNC( ... ) Serial.printf ( __VA_ARGS__ )
-#else
-#define _LOG_D( ... )
-#define _LOG_D_NO_FUNC( ... )
-#endif
-#if LOG_LEVEL >= 5  // Verbose
-#define _LOG_V(fmt, ... ) Serial.printf(EVSE_LOG_FORMAT(V, fmt), ##__VA_ARGS__)
-#define _LOG_V_NO_FUNC( ... ) Serial.printf ( __VA_ARGS__ )
-#else
-#define _LOG_V( ... )
-#define _LOG_V_NO_FUNC( ... )
-#endif
-#endif  // if DBG == 2
 
 // Pin definitions left side ESP32
 #define PIN_TEMP 36
@@ -204,7 +123,7 @@ extern RemoteDebug Debug;
 #define MAX_MAINS 25                                                            // max Current the Mains connection can supply
 #define MAX_SUMMAINS 0                                                          // only used for capacity rate limiting, max current over the sum of all phases
 #define MAX_SUMMAINSTIME 0                                                      // timelimit in minutes for capacity rate limiting
-#define GRID_RELAY_MAX_SUMMAINS 6                                               // only used for rate limiting by grid switched relay,
+#define GRID_RELAY_MAX_SUMMAINS 18                                              // only used for rate limiting by grid switched relay,
                                                                                 // max current over the sum of all phases
                                                                                 // 6A * 3 phases * 230V = 4140W, law says 4.2kW ...
 #define MAX_CURRENT 13                                                          // max charging Current for the EV
@@ -255,6 +174,7 @@ extern RemoteDebug Debug;
 #define SOLARSTARTTIME 40                                                       // Seconds to keep chargecurrent at 6A
 #define OCPP_MODE 0
 #define AUTOUPDATE 0                                                            // default for Automatic Firmware Update: 0 = disabled, 1 = enabled
+#define SB2_WIFI_MODE 0
 
 // Mode settings
 #define MODE_NORMAL 0
@@ -332,8 +252,6 @@ extern RemoteDebug Debug;
 #define ACTUATOR_OFF { digitalWrite(PIN_ACTB, HIGH); digitalWrite(PIN_ACTA, HIGH); }
 
 #define RCMFAULT digitalRead(PIN_RCM_FAULT)
-#define FREE(x) free(x); x = NULL;
-#define FW_DOWNLOAD_PATH "http://smartevse-3.s3.eu-west-2.amazonaws.com"
 
 #define MODBUS_INVALID 0
 #define MODBUS_OK 1
@@ -385,7 +303,7 @@ extern RemoteDebug Debug;
 #define MENU_MODE 12                                                            // 0x0200: EVSE mode
 #define MENU_CIRCUIT 13                                                         // 0x0201: EVSE Circuit max Current
 #define MENU_GRID 14                                                            // 0x0202: Grid type to which the Sensorbox is connected
-#define MENU_UNUSED 15                                                          // 0x0203: Unused
+#define MENU_SB2_WIFI 15                                                        // 0x0203: WiFi mode of the Sensorbox 2
 #define MENU_MAINS 16                                                           // 0x0204: Max Mains Current
 #define MENU_START 17                                                           // 0x0205: Surplus energy start Current
 #define MENU_STOP 18                                                            // 0x0206: Stop solar charging at 6A after this time
@@ -439,11 +357,6 @@ extern RemoteDebug Debug;
 #define EM_UNUSED_SLOT4 16
 #define EM_CUSTOM 17
 
-#define OWNER_FACT "SmartEVSE"
-#define REPO_FACT "SmartEVSE-3"
-#define OWNER_COMM "rob040"
-#define REPO_COMM "SmartEVSE-3"
-
 typedef enum mb_datatype {
     MB_DATATYPE_INT32 = 0,
     MB_DATATYPE_FLOAT32 = 1,
@@ -465,6 +378,7 @@ extern struct tm timeinfo;
 extern uint8_t Mode;                                                            // EVSE mode
 extern uint8_t LoadBl;                                                          // Load Balance Setting (Disable, Master or Node)
 extern uint8_t Grid;
+extern uint8_t SB2_WIFImode;
 #if FAKE_RFID
 extern uint8_t Show_RFID;
 #endif
@@ -550,7 +464,7 @@ const struct {
     {"ENE REGI","Register for Energy (kWh) of custom electric meter", 0, 65534, EMCUSTOM_EREGISTER},
     {"ENE DIVI","Divisor for Energy (kWh) of custom electric meter",  0, 7, EMCUSTOM_EDIVISOR},
     {"READ MAX","Max register read at once of custom electric meter", 3, 255, 3},
-    {"WIFI",    "Use ESPTouch APP on your phone",                       0, 2, WIFI_MODE},
+    {"WIFI",    "Connect SmartEVSE to WiFi",                          0, 2, WIFI_MODE},
     {"AUTOUPDAT","Automatic Firmware Update",                         0, 1, AUTOUPDATE},
     {"CONTACT 2","Contactor2 (C2) behaviour",                          0, sizeof(StrEnableC2) / sizeof(StrEnableC2[0])-1, ENABLE_C2},
     {"MAX TEMP","Maximum temperature for the EVSE module",            40, 75, MAX_TEMPERATURE},
@@ -588,6 +502,15 @@ struct DelayedTimeStruct {
     int32_t diff;           // StartTime minus current time in seconds
 };
 
+struct Sensorbox {
+    uint8_t SoftwareVer;        // Sensorbox 2 software version
+    uint8_t WiFiConnected;      // 0:not connected / 1:connected to WiFi
+    uint8_t WiFiAPSTA;          // 0:no portal /  1: portal active
+    uint8_t WIFImode;           // 0:Wifi Off / 1:WiFi On / 2: Portal Start
+    uint8_t IP[4];
+    uint8_t APpassword[9];      // 8 characters + null termination
+};
+
 #define EPOCH2_OFFSET 1672531200
 
 extern struct DelayedTimeStruct DelayedStartTime;
@@ -602,7 +525,6 @@ uint16_t getItemValue(uint8_t nav);
 void ConfigureModbusMode(uint8_t newmode);
 
 void setMode(uint8_t NewMode) ;
-void handleWIFImode(void);
 void CheckSwitch(bool force = false);
 
 #if ENABLE_OCPP

@@ -22,7 +22,6 @@
 ; THE SOFTWARE.
  */
 
-#include <Arduino.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -85,6 +84,8 @@ uint8_t GLCDbuf[512];                                                       // G
 tm DelayedStartTimeTM;
 time_t DelayedStartTime_Old;
 uint8_t MenuItems[MENU_EXIT];
+extern void handleWIFImode(void *s  = &Serial);
+extern char SmartConfigKey[16];
 
 void st7565_command(unsigned char data) {
     _A0_0;

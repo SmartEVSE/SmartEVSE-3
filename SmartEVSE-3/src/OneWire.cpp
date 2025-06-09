@@ -22,7 +22,6 @@
 ; THE SOFTWARE.
 */
 
-#include <Arduino.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -206,6 +205,7 @@ unsigned char StoreRFID(void) {
         memcpy(RFIDlist + offset, RFID, 7);                                     // Store 7 byte UID
     }
 
+
     _LOG_I("\nRFIDlist:");
     for (r=0; r<RFIDSIZE; r++) _LOG_I_NO_FUNC("%02x",RFIDlist[r]);
 
@@ -257,7 +257,7 @@ void CheckRFID(void) {
                 // Use OCPP
                 if (!RFIDstatus) {
                     if (RFID[0] == 0x01) {
-                        ocppUpdateRfidReading(RFID + 1, 6); // UUID starts at RFID+1; Pad / truncate UUID to 6-bytes for now
+                        ocppUpdateRfidReading(RFID + 1, 6); // UID starts at RFID+1; Pad / truncate UID to 6-bytes for now
                     } else {
                         ocppUpdateRfidReading(RFID, 7); // UID starts at RFID; 7 byte UID
                     }

@@ -6,6 +6,7 @@
 #include <FS.h>
 
 #include <WiFi.h>
+#include "network.h"
 #include "esp_ota_ops.h"
 #include "mbedtls/md_internal.h"
 
@@ -32,23 +33,6 @@
 #include "modbus.h"
 #include "meter.h"
 
-#ifndef DEBUG_DISABLED
-RemoteDebug Debug;
-#endif
-
-#define CSV_OUT 1 // enable for serial CSV data out
-
-#define SNTP_GET_SERVERS_FROM_DHCP 1
-#include <esp_sntp.h>
-
-struct tm timeinfo;
-
-//mongoose stuff
-#include "mongoose.h"
-#include "esp_log.h"
-struct mg_mgr mgr;  // Mongoose event manager. Holds all connections
-// end of mongoose stuff
-
 //OCPP includes
 #if ENABLE_OCPP
 #include <MicroOcpp.h>
@@ -56,25 +40,6 @@ struct mg_mgr mgr;  // Mongoose event manager. Holds all connections
 #include <MicroOcpp/Core/Configuration.h>
 #include <MicroOcpp/Core/Context.h>
 #endif //ENABLE_OCPP
-
-String APhostname = "SmartEVSE-" + String( MacId() & 0xffff, 10);           // SmartEVSE access point Name = SmartEVSE-xxxxx
-
-#if MQTT
-// MQTT connection info
-String MQTTuser;
-String MQTTpassword;
-String MQTTprefix;
-String MQTTHost = "";
-uint16_t MQTTPort;
-mg_timer *MQTTtimer;
-//uint8_t lastMqttUpdate = 0;
-#endif
-
-// SSID and PW for your Router
-String Router_SSID;
-String Router_Pass;
-
-mg_connection *HttpListener80, *HttpListener443;
 
 // Create a ModbusRTU server, client and bridge instance on Serial1
 ModbusServerRTU MBserver(2000, PIN_RS485_DIR);     // TCP timeout set to 2000 ms
@@ -97,7 +62,6 @@ const char StrErrorNameWeb[9][20] = {"None", "No Power Available", "Communicatio
 const char StrMode[3][8] = {"Normal", "Smart", "Solar"};
 const char StrAccessBit[2][6] = {"Deny", "Allow"};
 const char StrRFIDStatusWeb[8][20] = {"Ready to read card","Present", "Card Stored", "Card Deleted", "Card already stored", "Card not in storage", "Card Storage full", "Invalid" };
-bool shouldReboot = false;
 
 // Global data
 
@@ -152,9 +116,6 @@ uint8_t RFIDReader = RFID_READER;                                           // R
 #if FAKE_RFID
 uint8_t Show_RFID = 0;
 #endif
-uint8_t WIFImode = WIFI_MODE;                                               // WiFi Mode (0:Disabled / 1:Enabled / 2:Start Portal)
-char SmartConfigKey[] = "0000000000000000";                                 // SmartConfig / EspTouch AES key, used to encyrypt the WiFi password.
-String TZinfo = "";                                                         // contains POSIX time string
 
 EnableC2_t EnableC2 = ENABLE_C2;                                            // Contactor C2
 uint16_t maxTemp = MAX_TEMPERATURE;
@@ -234,7 +195,6 @@ uint8_t Access_bit = 0;                                                     // 0
 uint16_t CardOffset = CARD_OFFSET;                                          // RFID card used in Enable One mode
 
 uint8_t ConfigChanged = 0;
-uint32_t serialnr = 0;
 uint8_t GridActive = 0;                                                     // When the CT's are used on Sensorbox2, it enables the GRID menu option.
 
 uint16_t SolarStopTimer = 0;    // Timer starts when charge drops below MinCurrent to stop charging on timeout. Starttime is 'StopTime' minutes.
@@ -247,7 +207,6 @@ volatile uint16_t adcsample = 0;
 volatile uint16_t ADCsamples[25];                                           // declared volatile, as they are used in a ISR
 volatile uint8_t sampleidx = 0;
 char str[20];
-bool LocalTimeSet = false;
 
 uint32_t phasesLastUpdate; // Time in milliseconds
 uint32_t phasesLastUpdateDelay;
@@ -258,9 +217,6 @@ int homeBatteryCurrent = 0;
 uint32_t homeBatteryLastUpdate; // Time in milliseconds
 uint32_t homeBatteryLastUpdateDelay;
 uint32_t homeBatteryLastUpdateInterval;
-char *downloadUrl = NULL;
-int downloadProgress = 0;
-int downloadSize = 0;
 // set by EXTERNAL logic through MQTT/REST (used to indicate cheap tariffs ahead until unix time indicated)
 uint8_t ColorOff[3] = {0, 0, 0};          // off
 uint8_t ColorNormal[3] = {0, 255, 0};   // Green
@@ -446,9 +402,9 @@ void BlinkLed(void * parameter) {
                     GreenPwm = LedPwm * ColorSolar[1] / 255;
                     BluePwm = LedPwm * ColorSolar[2] / 255;
                 } else if (Mode == MODE_SMART) {                                // Green for Smart, unless configured otherwise
-                    RedPwm = LedPwm * ColorNormal[0] / 255;
-                    GreenPwm = LedPwm * ColorNormal[1] / 255;
-                    BluePwm = LedPwm * ColorNormal[2] / 255;
+                    RedPwm = LedPwm * ColorSmart[0] / 255;
+                    GreenPwm = LedPwm * ColorSmart[1] / 255;
+                    BluePwm = LedPwm * ColorSmart[2] / 255;
                 } else {                                                        // Green for Normal, unless configured otherwise
                     RedPwm = LedPwm * ColorNormal[0] / 255;
                     GreenPwm = LedPwm * ColorNormal[1] / 255;
@@ -511,14 +467,19 @@ void BlinkLed(void * parameter) {
                 LedPwm = ease8InOutQuad(triwave8(LedCount));                    // pre calculate new LedPwm value
             }
 
-            if (Mode == MODE_SOLAR) {                                           // Orange/Yellow for Solar mode
-                RedPwm = LedPwm;
-                GreenPwm = LedPwm * 2 / 3;
-            } else {
-                RedPwm = 0;                                                     // Green for Normal/Smart mode
-                GreenPwm = LedPwm;
-            }
-            BluePwm = 0;
+            if (Mode == MODE_SOLAR) {                                       // Orange for Solar, unless configured otherwise
+                RedPwm = LedPwm * ColorSolar[0] / 255;
+                GreenPwm = LedPwm * ColorSolar[1] / 255;
+                BluePwm = LedPwm * ColorSolar[2] / 255;
+            } else if (Mode == MODE_SMART) {                                // Green for Smart, unless configured otherwise
+                RedPwm = LedPwm * ColorSmart[0] / 255;
+                GreenPwm = LedPwm * ColorSmart[1] / 255;
+                BluePwm = LedPwm * ColorSmart[2] / 255;
+            } else {                                                        // Green for Normal, unless configured otherwise
+                RedPwm = LedPwm * ColorNormal[0] / 255;
+                GreenPwm = LedPwm * ColorNormal[1] / 255;
+                BluePwm = LedPwm * ColorNormal[2] / 255;
+            }    
 
         }
         ledcWrite(RED_CHANNEL, RedPwm);
@@ -2649,95 +2610,6 @@ void requestPowerMeasurement(uint8_t Meter, uint8_t Address, uint16_t PRegister)
     requestMeasurement(Meter, Address, PRegister, Count);
 }
 
-bool isValidInput(String input) {
-  // Check if the input contains only alphanumeric characters, underscores, and hyphens
-  for (char c : input) {
-    if (!isalnum(c) && c != '_' && c != '-') {
-      return false;
-    }
-  }
-  return true;
-}
-
-
-static uint8_t CliState = 0;
-void ProvisionCli() {
-
-    static char CliBuffer[64];
-    static uint8_t idx = 0;
-    static bool entered = false;
-    char ch;
-
-    if (CliState == 0) {
-        Serial.println("Enter WiFi access point name:");
-        CliState++;
-
-    } else if (CliState == 1 && entered) {
-        Router_SSID = String(CliBuffer);
-        Router_SSID.trim();
-        if (!isValidInput(Router_SSID)) {
-            Serial.println("Invalid characters in SSID.");
-            Router_SSID = "";
-            CliState = 0;
-        } else CliState++;              // All OK, now request password.
-        idx = 0;
-        entered = false;
-
-    } else if (CliState == 2) {
-        Serial.println("Enter WiFi password:");
-        CliState++;
-
-    } else if (CliState == 3 && entered) {
-        Router_Pass = String(CliBuffer);
-        Router_Pass.trim();
-        if (idx < 8) {
-            Serial.println("Password should be min 8 characters.");
-            Router_Pass = "";
-            CliState = 2;
-        } else CliState++;             // All OK
-        idx = 0;
-        entered = false;
-
-    } else if (CliState == 4) {
-        Serial.println("WiFi credentials stored.");
-        CliState++;
-
-    } else if (CliState == 5) {
-
-        //WiFi.stopSmartConfig();             // Stop SmartConfig //TODO necessary?
-        WiFi.mode(WIFI_STA);                // Set Station Mode
-        WiFi.begin(Router_SSID, Router_Pass);   // Configure Wifi with credentials
-        CliState++;
-    }
-
-
-    // read input, and store in buffer until we read a \n
-    while (Serial.available()) {
-        ch = Serial.read();
-
-        // When entering a password, replace last character with a *
-        if (CliState == 3 && idx) Serial.printf("\b*");
-        Serial.print(ch);
-
-        // check for CR/LF, and make sure the contents of the buffer is atleast 1 character
-        if (ch == '\n' || ch == '\r') {
-            if (idx) {
-                CliBuffer[idx] = 0;         // null terminate
-                entered = true;
-            } else if (CliState == 1 || CliState == 3) CliState--; // Reprint the last message
-        } else if (idx < 63) {              // Store in buffer
-            if (ch == '\b' && idx) {
-                idx--;
-                Serial.print(" \b");        // erase character from terminal
-            } else {
-                CliBuffer[idx++] = ch;
-            }
-        }
-    }
-}
-
-
-
 
 // Task that handles the Cable Lock and modbus
 //
@@ -3066,7 +2938,7 @@ void mqtt_receive_callback(const String topic, const String payload) {
         }
     } else if (topic == MQTTprefix + "/Set/ColorOff") {
         int32_t R, G, B;
-        int n = sscanf(payload.c_str(), "%d:%d:%d", &R, &G, &B);
+        int n = sscanf(payload.c_str(), "%d,%d,%d", &R, &G, &B);
 
         // R,G,B is between 0..255
         if (n == 3 && (R >= 0 && R < 256) && (G >= 0 && G < 256) && (B >= 0 && B < 256)) {
@@ -3076,7 +2948,7 @@ void mqtt_receive_callback(const String topic, const String payload) {
         }
     } else if (topic == MQTTprefix + "/Set/ColorNormal") {
         int32_t R, G, B;
-        int n = sscanf(payload.c_str(), "%d:%d:%d", &R, &G, &B);
+        int n = sscanf(payload.c_str(), "%d,%d,%d", &R, &G, &B);
 
         // R,G,B is between 0..255
         if (n == 3 && (R >= 0 && R < 256) && (G >= 0 && G < 256) && (B >= 0 && B < 256)) {
@@ -3086,7 +2958,7 @@ void mqtt_receive_callback(const String topic, const String payload) {
         }
     } else if (topic == MQTTprefix + "/Set/ColorSmart") {
         int32_t R, G, B;
-        int n = sscanf(payload.c_str(), "%d:%d:%d", &R, &G, &B);
+        int n = sscanf(payload.c_str(), "%d,%d,%d", &R, &G, &B);
 
         // R,G,B is between 0..255
         if (n == 3 && (R >= 0 && R < 256) && (G >= 0 && G < 256) && (B >= 0 && B < 256)) {
@@ -3096,7 +2968,7 @@ void mqtt_receive_callback(const String topic, const String payload) {
         }
     } else if (topic == MQTTprefix + "/Set/ColorSolar") {
         int32_t R, G, B;
-        int n = sscanf(payload.c_str(), "%d:%d:%d", &R, &G, &B);
+        int n = sscanf(payload.c_str(), "%d,%d,%d", &R, &G, &B);
 
         // R,G,B is between 0..255
         if (n == 3 && (R >= 0 && R < 256) && (G >= 0 && G < 256) && (B >= 0 && B < 256)) {
@@ -3110,47 +2982,6 @@ void mqtt_receive_callback(const String topic, const String payload) {
     //lastMqttUpdate = 10;
 }
 
-//wrapper so MQTTClient::Publish works
-static struct mg_connection *s_conn;              // Client connection
-class MQTTclient_t {
-private:
-    struct mg_mqtt_opts default_opts;
-public:
-    //constructor
-    MQTTclient_t () {
-        memset(&default_opts, 0, sizeof(default_opts));
-        default_opts.qos = 0;
-        default_opts.retain = false;
-    }
-
-    void publish(const String &topic, const int32_t &payload, bool retained, int qos) { publish(topic, String(payload), retained, qos); };
-    void publish(const String &topic, const String &payload, bool retained, int qos);
-    void subscribe(const String &topic, int qos);
-    bool connected;
-    void disconnect(void) { mg_mqtt_disconnect(s_conn, &default_opts); };
-};
-
-void MQTTclient_t::publish(const String &topic, const String &payload, bool retained, int qos) {
-  if (s_conn && connected) {
-    struct mg_mqtt_opts opts = default_opts;
-    opts.topic = mg_str(topic.c_str());
-    opts.message = mg_str(payload.c_str());
-    opts.qos = qos;
-    opts.retain = retained;
-    mg_mqtt_pub(s_conn, &opts);
-  }
-}
-
-void MQTTclient_t::subscribe(const String &topic, int qos) {
-  if (s_conn && connected) {
-    struct mg_mqtt_opts opts = default_opts;
-    opts.topic = mg_str(topic.c_str());
-    opts.qos = qos;
-    mg_mqtt_sub(s_conn, &opts);
-  }
-}
-
-MQTTclient_t MQTTclient;
 
 void SetupMQTTClient() {
     // Set up subscriptions
@@ -3245,6 +3076,16 @@ void SetupMQTTClient() {
     announce("State", "sensor");
     announce("RFID", "sensor");
     announce("RFIDLastRead", "sensor");
+
+    optional_payload = jsna("state_topic", String(MQTTprefix + "/LEDColorOff")) + jsna("command_topic", String(MQTTprefix + "/Set/ColorOff"));
+    announce("LED Color Off", "text");
+    optional_payload = jsna("state_topic", String(MQTTprefix + "/LEDColorNormal")) + jsna("command_topic", String(MQTTprefix + "/Set/ColorNormal"));
+    announce("LED Color Normal", "text");
+    optional_payload = jsna("state_topic", String(MQTTprefix + "/LEDColorSmart")) + jsna("command_topic", String(MQTTprefix + "/Set/ColorSmart"));
+    announce("LED Color Smart", "text");
+    optional_payload = jsna("state_topic", String(MQTTprefix + "/LEDColorSolar")) + jsna("command_topic", String(MQTTprefix + "/Set/ColorSolar"));
+    announce("LED Color Solar", "text");
+
 #if ENABLE_OCPP
     announce("OCPP", "sensor");
     announce("OCPPConnection", "sensor");
@@ -3373,7 +3214,7 @@ void mqttPublishData() {
             s_RFIDstatus = (RFIDReader << 4) | RFIDstatus;
             MQTTclient.publish(MQTTprefix + "/RFID", !RFIDReader ? "Not Installed" : RFIDstatus >= 8 ? "NOSTATUS" : StrRFIDStatusWeb[RFIDstatus], true, 0);
         }
-        if (RFIDReader && RFIDReader != 6 && memcmp(s_RFIDtag, RFID, sizeof(s_RFIDtag)) == 0) { //RFIDLastRead not updated in Remote/OCPP mode
+        if (RFIDReader && RFIDReader != 6 && memcmp(s_RFIDtag, RFID, sizeof(s_RFIDtag)) != 0) { //RFIDLastRead not updated in Remote/OCPP mode
             char buf[13];
             memcpy(s_RFIDtag, RFID, sizeof(s_RFIDtag));
             sprintf(buf, "%02X%02X%02X%02X%02X%02X", RFID[1], RFID[2], RFID[3], RFID[4], RFID[5], RFID[6]);
@@ -3484,6 +3325,7 @@ void mqttPublishData() {
             MQTTclient.publish(MQTTprefix + "/OCPPConnection", (OcppWsClient && OcppWsClient->isConnected()) ? "Connected" : "Disconnected", false, 0);
         }
 #endif //ENABLE_OCPP
+      //[rob040] TODO: limit publish on change
         MQTTclient.publish(MQTTprefix + "/LEDColorOff", String(ColorOff[0])+","+String(ColorOff[1])+","+String(ColorOff[2]), true, 0);
         MQTTclient.publish(MQTTprefix + "/LEDColorNormal", String(ColorNormal[0])+","+String(ColorNormal[1])+","+String(ColorNormal[2]), true, 0);
         MQTTclient.publish(MQTTprefix + "/LEDColorSmart", String(ColorSmart[0])+","+String(ColorSmart[1])+","+String(ColorSmart[2]), true, 0);
@@ -4142,14 +3984,6 @@ void read_settings() {
         strncpy(RequiredEVCCID, preferences.getString("RequiredEVCCID", "").c_str(), sizeof(RequiredEVCCID));
         maxTemp = preferences.getUShort("maxTemp", MAX_TEMPERATURE);
 
-#if MQTT
-        MQTTpassword = preferences.getString("MQTTpassword");
-        MQTTuser = preferences.getString("MQTTuser");
-        MQTTprefix = preferences.getString("MQTTprefix", APhostname);
-        MQTTHost = preferences.getString("MQTTHost", "");
-        MQTTPort = preferences.getUShort("MQTTPort", 1883);
-#endif
-
 #if ENABLE_OCPP
         OcppMode = preferences.getUChar("OcppMode", OCPP_MODE);
 #endif //ENABLE_OCPP
@@ -4214,14 +4048,6 @@ void write_settings(void) {
     preferences.putUShort("maxTemp", maxTemp);
     preferences.putUChar("AutoUpdate", AutoUpdate);
 
-#if MQTT
-    preferences.putString("MQTTpassword", MQTTpassword);
-    preferences.putString("MQTTuser", MQTTuser);
-    preferences.putString("MQTTprefix", MQTTprefix);
-    preferences.putString("MQTTHost", MQTTHost);
-    preferences.putUShort("MQTTPort", MQTTPort);
-#endif
-
 #if ENABLE_OCPP
     preferences.putUChar("OcppMode", OcppMode);
 #endif //ENABLE_OCPP
@@ -4247,409 +4073,6 @@ void write_settings(void) {
     ConfigChanged = 1;
 }
 
-//github.com L1
-    const char* root_ca_github = R"ROOT_CA(
------BEGIN CERTIFICATE-----
-MIID0zCCArugAwIBAgIQVmcdBOpPmUxvEIFHWdJ1lDANBgkqhkiG9w0BAQwFADB7
-MQswCQYDVQQGEwJHQjEbMBkGA1UECAwSR3JlYXRlciBNYW5jaGVzdGVyMRAwDgYD
-VQQHDAdTYWxmb3JkMRowGAYDVQQKDBFDb21vZG8gQ0EgTGltaXRlZDEhMB8GA1UE
-AwwYQUFBIENlcnRpZmljYXRlIFNlcnZpY2VzMB4XDTE5MDMxMjAwMDAwMFoXDTI4
-MTIzMTIzNTk1OVowgYgxCzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpOZXcgSmVyc2V5
-MRQwEgYDVQQHEwtKZXJzZXkgQ2l0eTEeMBwGA1UEChMVVGhlIFVTRVJUUlVTVCBO
-ZXR3b3JrMS4wLAYDVQQDEyVVU0VSVHJ1c3QgRUNDIENlcnRpZmljYXRpb24gQXV0
-aG9yaXR5MHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEGqxUWqn5aCPnetUkb1PGWthL
-q8bVttHmc3Gu3ZzWDGH926CJA7gFFOxXzu5dP+Ihs8731Ip54KODfi2X0GHE8Znc
-JZFjq38wo7Rw4sehM5zzvy5cU7Ffs30yf4o043l5o4HyMIHvMB8GA1UdIwQYMBaA
-FKARCiM+lvEH7OKvKe+CpX/QMKS0MB0GA1UdDgQWBBQ64QmG1M8ZwpZ2dEl23OA1
-xmNjmjAOBgNVHQ8BAf8EBAMCAYYwDwYDVR0TAQH/BAUwAwEB/zARBgNVHSAECjAI
-MAYGBFUdIAAwQwYDVR0fBDwwOjA4oDagNIYyaHR0cDovL2NybC5jb21vZG9jYS5j
-b20vQUFBQ2VydGlmaWNhdGVTZXJ2aWNlcy5jcmwwNAYIKwYBBQUHAQEEKDAmMCQG
-CCsGAQUFBzABhhhodHRwOi8vb2NzcC5jb21vZG9jYS5jb20wDQYJKoZIhvcNAQEM
-BQADggEBABns652JLCALBIAdGN5CmXKZFjK9Dpx1WywV4ilAbe7/ctvbq5AfjJXy
-ij0IckKJUAfiORVsAYfZFhr1wHUrxeZWEQff2Ji8fJ8ZOd+LygBkc7xGEJuTI42+
-FsMuCIKchjN0djsoTI0DQoWz4rIjQtUfenVqGtF8qmchxDM6OW1TyaLtYiKou+JV
-bJlsQ2uRl9EMC5MCHdK8aXdJ5htN978UeAOwproLtOGFfy/cQjutdAFI3tZs4RmY
-CV4Ks2dH/hzg1cEo70qLRDEmBDeNiXQ2Lu+lIg+DdEmSx/cQwgwp+7e9un/jX9Wf
-8qn0dNW44bOwgeThpWOjzOoEeJBuv/c=
------END CERTIFICATE-----
-)ROOT_CA";
-
-
-// get version nr. of latest release of off github
-// input:
-// owner_repo format: rob040/SmartEVSE-3
-// asset name format: one of firmware.bin, firmware.debug.bin, firmware.signed.bin, firmware.debug.signed.bin
-// output:
-// version -- null terminated string with latest version of this repo
-// downloadUrl -- global pointer to null terminated string with the url where this version can be downloaded
-bool getLatestVersion(String owner_repo, String asset_name, char *version) {
-    HTTPClient httpClient;
-    String useURL = String("https://api.github.com/repos/") + owner_repo + "/releases/latest";
-    httpClient.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-
-    const char* url = useURL.c_str();
-    _LOG_A("Connecting to: %s.\n", url );
-    if( String(url).startsWith("https") ) {
-        httpClient.begin(url, root_ca_github);
-    } else {
-        httpClient.begin(url);
-    }
-    httpClient.addHeader("User-Agent", "SmartEVSE-v3");
-    httpClient.addHeader("Accept", "application/vnd.github+json");
-    httpClient.addHeader("X-GitHub-Api-Version", "2022-11-28" );
-    const char* get_headers[] = { "Content-Length", "Content-type", "Accept-Ranges" };
-    httpClient.collectHeaders( get_headers, sizeof(get_headers)/sizeof(const char*) );
-    int httpCode = httpClient.GET();  //Make the request
-
-    // only handle 200/301, fail on everything else
-    if( httpCode != HTTP_CODE_OK && httpCode != HTTP_CODE_MOVED_PERMANENTLY ) {
-        // This error may be a false positive or a consequence of the network being disconnected.
-        // Since the network is controlled from outside this class, only significant error messages are reported.
-        _LOG_A("Error on HTTP request (httpCode=%i)\n", httpCode);
-        httpClient.end();
-        return false;
-    }
-    // The filter: it contains "true" for each value we want to keep
-    DynamicJsonDocument  filter(100);
-    filter["tag_name"] = true;
-    filter["assets"][0]["browser_download_url"] = true;
-    filter["assets"][0]["name"] = true;
-
-    // Deserialize the document
-    DynamicJsonDocument doc2(1500);
-    DeserializationError error = deserializeJson(doc2, httpClient.getStream(), DeserializationOption::Filter(filter));
-
-    if (error) {
-        _LOG_A("deserializeJson() failed: %s\n", error.c_str());
-        httpClient.end();  // We're done with HTTP - free the resources
-        return false;
-    }
-    const char* tag_name = doc2["tag_name"]; // "v3.6.1"
-    if (!tag_name) {
-        //no version found
-        _LOG_A("ERROR: LatestVersion of repo %s not found.\n", owner_repo.c_str());
-        httpClient.end();  // We're done with HTTP - free the resources
-        return false;
-    }
-    else
-        //duplicate value so it won't get lost out of scope
-        strlcpy(version, tag_name, 32);
-        //strlcpy(version, tag_name, sizeof(version));
-    _LOG_V("Found latest version:%s.\n", version);
-
-    httpClient.end();  // We're done with HTTP - free the resources
-    return true;
-/*    for (JsonObject asset : doc2["assets"].as<JsonArray>()) {
-        String name = asset["name"] | "";
-        if (name == asset_name) {
-            const char* asset_browser_download_url = asset["browser_download_url"];
-            if (!asset_browser_download_url) {
-                // no download url found
-                _LOG_A("ERROR: Downloadurl of asset %s in repo %s not found.\n", asset_name.c_str(), owner_repo.c_str());
-                httpClient.end();  // We're done with HTTP - free the resources
-                return false;
-            } else {
-                asprintf(&downloadUrl, "%s", asset_browser_download_url);        //will be freed in FirmwareUpdate()
-                _LOG_V("Found asset: name=%s, url=%s.\n", name.c_str(), downloadUrl);
-                httpClient.end();  // We're done with HTTP - free the resources
-                return true;
-            }
-        }
-    }
-    _LOG_A("ERROR: could not find asset %s in repo %s at version %s.\n", asset_name.c_str(), owner_repo.c_str(), version);
-    httpClient.end();  // We're done with HTTP - free the resources
-    return false;*/
-}
-
-
-unsigned char *signature = NULL;
-#define SIGNATURE_LENGTH 512
-
-// SHA-Verify the OTA partition after it's been written
-// https://techtutorialsx.com/2018/05/10/esp32-arduino-mbed-tls-using-the-sha-256-algorithm/
-// https://github.com/ARMmbed/mbedtls/blob/development/programs/pkey/rsa_verify.c
-bool validate_sig( const esp_partition_t* partition, unsigned char *signature, int size )
-{
-    const char* rsa_key_pub = R"RSA_KEY_PUB(
------BEGIN PUBLIC KEY-----
-MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAtjEWhkfKPAUrtX1GueYq
-JmDp4qSHBG6ndwikAHvteKgWQABDpwaemZdxh7xVCuEdjEkaecinNOZ0LpSCF3QO
-qflnXkvpYVxjdTpKBxo7vP5QEa3I6keJfwpoMzGuT8XOK7id6FHJhtYEXcaufALi
-mR/NXT11ikHLtluATymPdoSscMiwry0qX03yIek91lDypBNl5uvD2jxn9smlijfq
-9j0lwtpLBWJPU8vsU0uzuj7Qq5pWZFKsjiNWfbvNJXuLsupOazf5sh0yeQzL1CBL
-RUsBlYVoChTmSOyvi6kO5vW/6GLOafJF0FTdOQ+Gf3/IB6M1ErSxlqxQhHq0pb7Y
-INl7+aFCmlRjyLlMjb8xdtuedlZKv8mLd37AyPAihrq9gV74xq6c7w2y+h9213p8
-jgcmo/HvOlGaXEIOVCUu102teOckXjTni2yhEtFISCaWuaIdb5P9e0uBIy1e+Bi6
-/7A3aut5MQP07DO99BFETXyFF6EixhTF8fpwVZ5vXeIDvKKEDUGuzAziUEGIZpic
-UQ2fmTzIaTBbNlCMeTQFIpZCosM947aGKNBp672wdf996SRwg9E2VWzW2Z1UuwWV
-BPVQkHb1Hsy7C9fg5JcLKB9zEfyUH0Tm9Iur1vsuA5++JNl2+T55192wqyF0R9sb
-YtSTUJNSiSwqWt1m0FLOJD0CAwEAAQ==
------END PUBLIC KEY-----
-)RSA_KEY_PUB";
-
-    if( !partition ) {
-        _LOG_A( "Could not find update partition!.\n");
-        return false;
-    }
-    _LOG_D("Creating mbedtls context.\n");
-    mbedtls_pk_context pk;
-    mbedtls_md_context_t rsa;
-    mbedtls_pk_init( &pk );
-    _LOG_D("Parsing public key.\n");
-
-    int ret;
-    if( ( ret = mbedtls_pk_parse_public_key( &pk, (const unsigned char*)rsa_key_pub, strlen(rsa_key_pub)+1 ) ) != 0 ) {
-        _LOG_A( "Parsing public key failed! mbedtls_pk_parse_public_key %d (%d bytes)\n%s", ret, strlen(rsa_key_pub)+1, rsa_key_pub);
-        return false;
-    }
-    if( !mbedtls_pk_can_do( &pk, MBEDTLS_PK_RSA ) ) {
-        _LOG_A( "Public key is not an rsa key -0x%x", -ret );
-        return false;
-    }
-    _LOG_D("Initing mbedtls.\n");
-    const mbedtls_md_info_t *mdinfo = mbedtls_md_info_from_type( MBEDTLS_MD_SHA256 );
-    mbedtls_md_init( &rsa );
-    mbedtls_md_setup( &rsa, mdinfo, 0 );
-    mbedtls_md_starts( &rsa );
-    int bytestoread = SPI_FLASH_SEC_SIZE;
-    int bytesread = 0;
-    uint8_t *_buffer = (uint8_t*)malloc(SPI_FLASH_SEC_SIZE);
-    if(!_buffer){
-        _LOG_A( "malloc failed.\n");
-        return false;
-    }
-    _LOG_D("Parsing content.\n");
-    _LOG_V( "Reading partition (%i sectors, sec_size: %i)", size, bytestoread );
-    while( bytestoread > 0 ) {
-        _LOG_V( "Left: %i (%i)               \r", size, bytestoread );
-
-        if( ESP.partitionRead( partition, bytesread, (uint32_t*)_buffer, bytestoread ) ) {
-            mbedtls_md_update( &rsa, (uint8_t*)_buffer, bytestoread );
-            bytesread = bytesread + bytestoread;
-            size = size - bytestoread;
-            if( size <= SPI_FLASH_SEC_SIZE ) {
-                bytestoread = size;
-            }
-        } else {
-            _LOG_A( "partitionRead failed!.\n");
-            return false;
-        }
-    }
-    free( _buffer );
-
-    unsigned char *hash = (unsigned char*)malloc( mdinfo->size );
-    if(!hash){
-        _LOG_A( "malloc failed.\n");
-        return false;
-    }
-    mbedtls_md_finish( &rsa, hash );
-    ret = mbedtls_pk_verify( &pk, MBEDTLS_MD_SHA256, hash, mdinfo->size, (unsigned char*)signature, SIGNATURE_LENGTH );
-    free( hash );
-    mbedtls_md_free( &rsa );
-    mbedtls_pk_free( &pk );
-    if( ret == 0 ) {
-        return true;
-    }
-
-    // validation failed, overwrite the first few bytes so this partition won't boot!
-    log_w( "Validation failed, erasing the invalid partition.\n");
-    ESP.partitionEraseRange( partition, 0, ENCRYPTED_BLOCK_SIZE);
-    return false;
-}
-
-
-bool forceUpdate(const char* firmwareURL, bool validate) {
-    HTTPClient httpClient;
-    //WiFiClientSecure _client;
-    int partition = U_FLASH;
-
-    httpClient.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-    _LOG_A("Connecting to: %s.\n", firmwareURL );
-    if( String(firmwareURL).startsWith("https") ) {
-        //_client.setCACert(root_ca_github); // OR
-        //_client.setInsecure(); //not working for github
-        httpClient.begin(firmwareURL, root_ca_github);
-    } else {
-        httpClient.begin(firmwareURL);
-    }
-    httpClient.addHeader("User-Agent", "SmartEVSE-v3");
-    httpClient.addHeader("Accept", "application/vnd.github+json");
-    httpClient.addHeader("X-GitHub-Api-Version", "2022-11-28" );
-    const char* get_headers[] = { "Content-Length", "Content-type", "Accept-Ranges" };
-    httpClient.collectHeaders( get_headers, sizeof(get_headers)/sizeof(const char*) );
-
-    int updateSize = 0;
-    int httpCode = httpClient.GET();
-    String contentType;
-
-    if( httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY ) {
-        updateSize = httpClient.getSize();
-        contentType = httpClient.header( "Content-type" );
-        String acceptRange = httpClient.header( "Accept-Ranges" );
-        if( acceptRange == "bytes" ) {
-            _LOG_V("This server supports resume!\n");
-        } else {
-            _LOG_V("This server does not support resume!\n");
-        }
-    } else {
-        _LOG_A("ERROR: Server responded with HTTP Status %i.\n", httpCode );
-        return false;
-    }
-
-    _LOG_D("updateSize : %i, contentType: %s.\n", updateSize, contentType.c_str());
-    Stream * stream = httpClient.getStreamPtr();
-    if( updateSize<=0 || stream == nullptr ) {
-        _LOG_A("HTTP Error.\n");
-        return false;
-    }
-
-    // some network streams (e.g. Ethernet) can be laggy and need to 'breathe'
-    if( ! stream->available() ) {
-        uint32_t timeout = millis() + 10000;
-        while( ! stream->available() ) {
-            if( millis()>timeout ) {
-                _LOG_A("Stream timed out.\n");
-                return false;
-            }
-            vTaskDelay(1);
-        }
-    }
-
-    if( validate ) {
-        if( updateSize == UPDATE_SIZE_UNKNOWN || updateSize <= SIGNATURE_LENGTH ) {
-            _LOG_A("Malformed signature+fw combo.\n");
-            return false;
-        }
-        updateSize -= SIGNATURE_LENGTH;
-    }
-
-    if( !Update.begin(updateSize, partition) ) {
-        _LOG_A("ERROR Not enough space to begin OTA, partition size mismatch? Update failed!\n");
-        Update.abort();
-        return false;
-    }
-
-    Update.onProgress( [](uint32_t progress, uint32_t size) {
-      _LOG_V("Firmware update progress %i/%i.\n", progress, size);
-      //move this data to global var
-      downloadProgress = progress;
-      downloadSize = size;
-      //give background tasks some air
-      //vTaskDelay(100 / portTICK_PERIOD_MS);
-    });
-
-    // read signature
-    if( validate ) {
-        signature = (unsigned char *) malloc(SIGNATURE_LENGTH);                       //tried to free in in all exit scenarios, RISK of leakage!!!
-        stream->readBytes( signature, SIGNATURE_LENGTH );
-    }
-
-    _LOG_I("Begin %s OTA. This may take 2 - 5 mins to complete. Things might be quiet for a while.. Patience!\n", partition==U_FLASH?"Firmware":"Filesystem");
-
-    // Some activity may appear in the Serial monitor during the update (depends on Update.onProgress)
-    int written = Update.writeStream(*stream);                                 // although writeStream returns size_t, we don't expect >2Gb
-
-    if ( written == updateSize ) {
-        _LOG_D("Written : %d successfully", written);
-        updateSize = written; // flatten value to prevent overflow when checking signature
-    } else {
-        _LOG_A("Written only : %u/%u Premature end of stream?", written, updateSize);
-        Update.abort();
-        FREE(signature);
-        return false;
-    }
-
-    if (!Update.end()) {
-        _LOG_A("An Update Error Occurred. Error #: %d", Update.getError());
-        FREE(signature);
-        return false;
-    }
-
-    if( validate ) { // check signature
-        _LOG_I("Checking partition %d to validate", partition);
-
-        //getPartition( partition ); // updated partition => '_target_partition' pointer
-        const esp_partition_t* _target_partition = esp_ota_get_next_update_partition(NULL);
-
-        #define CHECK_SIG_ERROR_PARTITION_NOT_FOUND -1
-        #define CHECK_SIG_ERROR_VALIDATION_FAILED   -2
-
-        if( !_target_partition ) {
-            _LOG_A("Can't access partition #%d to check signature!", partition);
-            FREE(signature);
-            return false;
-        }
-
-        _LOG_D("Checking signature for partition %d...", partition);
-
-        const esp_partition_t* running_partition = esp_ota_get_running_partition();
-
-        if( partition == U_FLASH ) {
-            // /!\ An OTA partition is automatically set as bootable after being successfully
-            // flashed by the Update library.
-            // Since we want to validate before enabling the partition, we need to cancel that
-            // by temporarily reassigning the bootable flag to the running-partition instead
-            // of the next-partition.
-            esp_ota_set_boot_partition( running_partition );
-            // By doing so the ESP will NOT boot any unvalidated partition should a reset occur
-            // during signature validation (crash, oom, power failure).
-        }
-
-        if( !validate_sig( _target_partition, signature, updateSize ) ) {
-            FREE(signature);
-            // erase partition
-            esp_partition_erase_range( _target_partition, _target_partition->address, _target_partition->size );
-            _LOG_A("Signature check failed!.\n");
-            return false;
-        } else {
-            FREE(signature);
-            _LOG_D("Signature check successful!.\n");
-            if( partition == U_FLASH ) {
-                // Set updated partition as bootable now that it's been verified
-                esp_ota_set_boot_partition( _target_partition );
-            }
-        }
-    }
-    _LOG_D("OTA Update complete!.\n");
-    if (Update.isFinished()) {
-        _LOG_V("Update successfully completed at %s partition\n", partition==U_SPIFFS ? "spiffs" : "firmware" );
-        return true;
-    } else {
-        _LOG_A("ERROR: Update not finished! Something went wrong!.\n");
-    }
-    return false;
-}
-
-
-// put firmware update in separate task so we can feed progress to the html page
-void FirmwareUpdate(void *parameter) {
-    //_LOG_A("FWU: url=%s.\n", downloadUrl);
-    if (forceUpdate(downloadUrl, 1)) {
-        _LOG_A("Firmware update successful; rebooting as soon as no EV is connected.\n");
-        downloadProgress = -1;
-        shouldReboot = true;
-    } else {
-        _LOG_A("ERROR: Firmware update failed.\n");
-        //_http.end();
-        downloadProgress = -2;
-    }
-    if (downloadUrl) free(downloadUrl);
-    vTaskDelete(NULL);                                                        //end this task so it will not take up resources
-}
-
-void RunFirmwareUpdate(void) {
-    _LOG_V("Starting firmware update from downloadUrl=%s.\n", downloadUrl);
-    downloadProgress = 0;                                                       // clear errors, if any
-    xTaskCreate(
-        FirmwareUpdate, // Function that should be called
-        "FirmwareUpdate",// Name of the task (for debugging)
-        4096,           // Stack size (bytes)
-        NULL,           // Parameter to pass
-        3,              // Task priority - high
-        NULL            // Task handle
-    );
-}
-
 
 /* Takes TimeString in format
  * String = "2023-04-14T11:31"
@@ -4673,371 +4096,13 @@ int StoreTimeString(String DelayedTimeStr, DelayedTimeStruct *DelayedTime) {
     return 1;
 }
 
-void setTimeZone(void) {
-    HTTPClient httpClient;
-    // lookup current timezone
-    httpClient.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-    httpClient.begin("http://worldtimeapi.org/api/ip");
-    int httpCode = httpClient.GET();  //Make the request
-
-    // only handle 200/301, fail on everything else
-    if( httpCode != HTTP_CODE_OK && httpCode != HTTP_CODE_MOVED_PERMANENTLY ) {
-        _LOG_A("Error on HTTP request (httpCode=%i)\n", httpCode);
-        httpClient.end();
-        return;
-    }
-
-    // The filter: it contains "true" for each value we want to keep
-    DynamicJsonDocument  filter(16);
-    filter["timezone"] = true;
-    DynamicJsonDocument doc2(80);
-    DeserializationError error = deserializeJson(doc2, httpClient.getStream(), DeserializationOption::Filter(filter));
-    httpClient.end();
-    if (error) {
-        _LOG_A("deserializeJson() failed: %s\n", error.c_str());
-        return;
-    }
-    String tzname = doc2["timezone"];
-    if (tzname == "") {
-        _LOG_A("Could not detect Timezone.\n");
-        return;
-    }
-    _LOG_A("Timezone detected: tz=%s.\n", tzname.c_str());
-
-    // takes TZname (format: Europe/Berlin) , gets TZ_INFO (posix string, format: CET-1CEST,M3.5.0,M10.5.0/3) and sets and stores timezonestring accordingly
-    //httpClient.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-    WiFiClient * stream = httpClient.getStreamPtr();
-    String l;
-    char *URL;
-    asprintf(&URL, "%s/zones.csv", FW_DOWNLOAD_PATH); //will be freed
-    httpClient.begin(URL);
-    httpCode = httpClient.GET();  //Make the request
-
-    // only handle 200/301, fail on everything else
-    if( httpCode != HTTP_CODE_OK && httpCode != HTTP_CODE_MOVED_PERMANENTLY ) {
-        _LOG_A("Error on HTTP request (httpCode=%i)\n", httpCode);
-        httpClient.end();
-        FREE(URL);
-        return;
-    }
-
-    stream = httpClient.getStreamPtr();
-    while(httpClient.connected() && stream->available()) {
-        l = stream->readStringUntil('\n');
-        if (l.indexOf(tzname) > 0) {
-            int from = l.indexOf("\",\"") + 3;
-            TZinfo = l.substring(from, l.length() - 1);
-            _LOG_A("Detected Timezone info: TZname = %s, tz_info=%s.\n", tzname.c_str(), TZinfo.c_str());
-            setenv("TZ",TZinfo.c_str(),1);
-            tzset();
-            if (preferences.begin("settings", false) ) {
-                preferences.putString("TimezoneInfo", TZinfo);
-                preferences.end();
-            }
-            break;
-        }
-    }
-    httpClient.end();
-    FREE(URL);
-}
-
-
-// wrapper so hasParam and getParam still work
-class webServerRequest {
-private:
-    struct mg_http_message *hm_internal;
-    String _value;
-    char temp[64];
-
-public:
-    void setMessage(struct mg_http_message *hm);
-    bool hasParam(const char *param);
-    webServerRequest* getParam(const char *param); // Return pointer to self
-    const String& value(); // Return the string value
-};
-
-void webServerRequest::setMessage(struct mg_http_message *hm) {
-    hm_internal = hm;
-}
-
-bool webServerRequest::hasParam(const char *param) {
-    return (mg_http_get_var(&hm_internal->query, param, temp, sizeof(temp)) > 0);
-}
-
-webServerRequest* webServerRequest::getParam(const char *param) {
-    _value = ""; // Clear previous value
-    if (mg_http_get_var(&hm_internal->query, param, temp, sizeof(temp)) > 0) {
-        _value = temp;
-    }
-    return this; // Return pointer to self
-}
-
-const String& webServerRequest::value() {
-    return _value; // Return the string value
-}
-//end of wrapper
-
-struct mg_str empty = mg_str_n("", 0UL);
-
-#if MQTT
-char s_mqtt_url[80];
-//TODO perhaps integrate multiple fn callback functions?
-static void fn_mqtt(struct mg_connection *c, int ev, void *ev_data) {
-    if (ev == MG_EV_OPEN) {
-        _LOG_V("%lu CREATED\n", c->id);
-        // c->is_hexdumping = 1;
-    } else if (ev == MG_EV_ERROR) {
-        // On error, log error message
-        _LOG_A("%lu ERROR %s\n", c->id, (char *) ev_data);
-    } else if (ev == MG_EV_CONNECT) {
-        // If target URL is SSL/TLS, command client connection to use TLS
-        if (mg_url_is_ssl(s_mqtt_url)) {
-            struct mg_tls_opts opts = {.ca = empty, .cert = empty, .key = empty, .name = mg_url_host(s_mqtt_url), .skip_verification = 0};
-            //struct mg_tls_opts opts = {.ca = empty};
-            mg_tls_init(c, &opts);
-        }
-    } else if (ev == MG_EV_MQTT_OPEN) {
-        // MQTT connect is successful
-        _LOG_V("%lu CONNECTED to %s\n", c->id, s_mqtt_url);
-        MQTTclient.connected = true;
-        SetupMQTTClient();
-    } else if (ev == MG_EV_MQTT_MSG) {
-        // When we get echo response, print it
-        struct mg_mqtt_message *mm = (struct mg_mqtt_message *) ev_data;
-        _LOG_V("%lu RECEIVED %.*s <- %.*s\n", c->id, (int) mm->data.len, mm->data.buf, (int) mm->topic.len, mm->topic.buf);
-        //somehow topic is not null terminated
-        String topic2 = String(mm->topic.buf).substring(0,mm->topic.len);
-        mqtt_receive_callback(topic2, mm->data.buf);
-    } else if (ev == MG_EV_CLOSE) {
-        _LOG_V("%lu CLOSED\n", c->id);
-        MQTTclient.connected = false;
-        s_conn = NULL;  // Mark that we're closed
-    }
-}
-
-// Timer function - recreate client connection if it is closed
-static void timer_fn(void *arg) {
-    struct mg_mgr *mgr = (struct mg_mgr *) arg;
-    struct mg_mqtt_opts opts;
-    memset(&opts, 0, sizeof(opts));
-    opts.clean = false;
-    // set will topic
-    String temp = MQTTprefix + "/connected";
-    opts.topic = mg_str(temp.c_str());
-    opts.message = mg_str("offline");
-    opts.retain = true;
-    opts.keepalive = 15;                                                          // so we will timeout after 15s
-    opts.version = 4;
-    opts.client_id=mg_str(MQTTprefix.c_str());
-    opts.user=mg_str(MQTTuser.c_str());
-    opts.pass=mg_str(MQTTpassword.c_str());
-
-    //prepare MQTT url
-    //mqtt[s]://[username][:password]@host.domain[:port]
-    snprintf(s_mqtt_url, sizeof(s_mqtt_url), "mqtt://%s:%i", MQTTHost.c_str(), MQTTPort);
-
-    if (s_conn == NULL) s_conn = mg_mqtt_connect(mgr, s_mqtt_url, &opts, fn_mqtt, NULL);
-}
-#endif
-
-// Connection event handler function
-// indenting lower level two spaces to stay compatible with old StartWebServer
-// We use the same event handler function for HTTP and HTTPS connections
-// fn_data is NULL for plain HTTP, and non-NULL for HTTPS
-static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
-  if (ev == MG_EV_ACCEPT && c->fn_data != NULL) {
-    struct mg_tls_opts opts = { .ca = empty, .cert = mg_unpacked("/data/cert.pem"), .key = mg_unpacked("/data/key.pem"), .name = empty, .skip_verification = 0};
-    mg_tls_init(c, &opts);
-  } else if (ev == MG_EV_CLOSE) {
-    if (c == HttpListener80) {
-        _LOG_A("Free HTTP port 80");
-        HttpListener80 = nullptr;
-    }
-    if (c == HttpListener443) {
-        _LOG_A("Free HTTP port 443");
-        HttpListener443 = nullptr;
-    }
-  } else if (ev == MG_EV_HTTP_MSG) {  // New HTTP request received
-    struct mg_http_message *hm = (struct mg_http_message *) ev_data;            // Parsed HTTP request
-    webServerRequest* request = new webServerRequest();
-    request->setMessage(hm);
 //make mongoose 7.14 compatible with 7.13
 #define mg_http_match_uri(X,Y) mg_match(X->uri, mg_str(Y), NULL)
-    if (mg_match(hm->uri, mg_str("/erasesettings"), NULL)) {
-        mg_http_reply(c, 200, "Content-Type: text/plain\r\n", "Erasing settings, rebooting");
-        if ( preferences.begin("settings", false) ) {         // our own settings
-          preferences.clear();
-          preferences.end();
-        }
-        if (preferences.begin("nvs.net80211", false) ) {      // WiFi settings used by ESP
-          preferences.clear();
-          preferences.end();
-        }
-        ESP.restart();
-#if AUTOUPDATE //[rob040: don't autoupdate]
-    } else if (mg_http_match_uri(hm, "/autoupdate")) {
-        char owner[40];
-        char buf[8];
-        int debug;
-        mg_http_get_var(&hm->query, "owner", owner, sizeof(owner));
-        mg_http_get_var(&hm->query, "debug", buf, sizeof(buf));
-        debug = strtol(buf, NULL, 0);
-        if (!memcmp(owner, OWNER_FACT, sizeof(OWNER_FACT)) || (!memcmp(owner, OWNER_COMM, sizeof(OWNER_COMM)))) {
-            asprintf(&downloadUrl, "%s/%s_firmware.%ssigned.bin", FW_DOWNLOAD_PATH, owner, debug ? "debug.": ""); //will be freed in FirmwareUpdate() ; format: http://s3.com/fact_firmware.debug.signed.bin
-            RunFirmwareUpdate();
-        }                                                                       // after the first call we just report progress
-        DynamicJsonDocument doc(64); // https://arduinojson.org/v6/assistant/
-        doc["progress"] = downloadProgress;
-        doc["size"] = downloadSize;
-        String json;
-        serializeJson(doc, json);
-        mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\n", json.c_str());    // Yes. Respond JSON
- #endif
-    } else if (mg_http_match_uri(hm, "/update")) {
-        //modified version of mg_http_upload
-        char buf[20] = "0", file[40];
-        size_t max_size = 0x1B0000;                                             //from partition_custom.csv
-        long res = 0, offset, size;
-        mg_http_get_var(&hm->query, "offset", buf, sizeof(buf));
-        mg_http_get_var(&hm->query, "file", file, sizeof(file));
-        offset = strtol(buf, NULL, 0);
-        buf[0] = '0';
-        mg_http_get_var(&hm->query, "size", buf, sizeof(buf));
-        size = strtol(buf, NULL, 0);
-        if (hm->body.len == 0) {
-          struct mg_http_serve_opts opts = {.root_dir = "/data", .ssi_pattern = NULL, .extra_headers = NULL, .mime_types = NULL, .page404 = NULL, .fs = &mg_fs_packed };
-          mg_http_serve_file(c, hm, "/data/update2.html", &opts);
-        } else if (file[0] == '\0') {
-          mg_http_reply(c, 400, "", "file required");
-          res = -1;
-        } else if (offset < 0) {
-          mg_http_reply(c, 400, "", "offset required");
-          res = -3;
-        } else if ((size_t) offset + hm->body.len > max_size) {
-          mg_http_reply(c, 400, "", "over max size of %lu", (unsigned long) max_size);
-          res = -4;
-        } else if (size <= 0) {
-          mg_http_reply(c, 400, "", "size required");
-          res = -5;
-        } else {
-            if (!memcmp(file,"firmware.bin", sizeof("firmware.bin")) || !memcmp(file,"firmware.debug.bin", sizeof("firmware.debug.bin"))) {
-                if(!offset) {
-                    _LOG_A("Update Start: %s\n", file);
-                    if(!Update.begin((ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000), U_FLASH) {
-                            Update.printError(Serial);
-                    }
-                }
-                if(!Update.hasError()) {
-                    if(Update.write((uint8_t*) hm->body.buf, hm->body.len) != hm->body.len) {
-                        Update.printError(Serial);
-                    } else {
-                        _LOG_A("bytes written %lu\r", offset + hm->body.len);
-                    }
-                }
-                if (offset + hm->body.len >= size) {                                           //EOF
-                    if(Update.end(true)) {
-                        _LOG_A("\nUpdate Success\n");
-                        delay(1000);
-                        ESP.restart();
-                    } else {
-                        Update.printError(Serial);
-                    }
-                }
-            } else //end of firmware.bin
-            if (!memcmp(file,"firmware.signed.bin", sizeof("firmware.signed.bin")) || !memcmp(file,"firmware.debug.signed.bin", sizeof("firmware.debug.signed.bin"))) {
-#define dump(X)   for (int i= 0; i< SIGNATURE_LENGTH; i++) _LOG_A_NO_FUNC("%02x", X[i]); _LOG_A_NO_FUNC(".\n");
-                if(!offset) {
-                    _LOG_A("Update Start: %s\n", file);
-                    signature = (unsigned char *) malloc(SIGNATURE_LENGTH);                       //tried to free in in all exit scenarios, RISK of leakage!!!
-                    memcpy(signature, hm->body.buf, SIGNATURE_LENGTH);          //signature is prepended to firmware.bin
-                    hm->body.buf = hm->body.buf + SIGNATURE_LENGTH;
-                    hm->body.len = hm->body.len - SIGNATURE_LENGTH;
-                    _LOG_A("Firmware signature:");
-                    dump(signature);
-                    if(!Update.begin((ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000), U_FLASH) {
-                            Update.printError(Serial);
-                    }
-                }
-                if(!Update.hasError()) {
-                    if(Update.write((uint8_t*) hm->body.buf, hm->body.len) != hm->body.len) {
-                        Update.printError(Serial);
-                        FREE(signature);
-                    } else {
-                        _LOG_A("bytes written %lu\r", offset + hm->body.len);
-                    }
-                }
-                if (offset + hm->body.len >= size) {                                           //EOF
-                    //esp_err_t err;
-                    const esp_partition_t* target_partition = esp_ota_get_next_update_partition(NULL);              // the newly updated partition
-                    if (!target_partition) {
-                        _LOG_A("ERROR: Can't access firmware partition to check signature!");
-                        mg_http_reply(c, 400, "", "firmware.signed.bin update failed!");
-                    }
-                    const esp_partition_t* running_partition = esp_ota_get_running_partition();
-                    _LOG_V("Running off of partition %s, trying to update partition %s.\n", running_partition->label, target_partition->label);
-                    esp_ota_set_boot_partition( running_partition );            // make sure we have not switched boot partitions
 
-                    bool verification_result = false;
-                    if(Update.end(true)) {
-                        verification_result = validate_sig( target_partition, signature, size - SIGNATURE_LENGTH);
-                        FREE(signature);
-                        if (verification_result) {
-                            _LOG_A("Signature is valid!\n");
-                            esp_ota_set_boot_partition( target_partition );
-                            _LOG_A("\nUpdate Success\n");
-                            shouldReboot = true;
-                            //ESP.restart(); does not finish the call to fn_http_server, so the last POST of apps.js gets no response....
-                            //which results in a "verify failed" message on the /update screen AFTER the reboot :-)
-                        }
-                    }
-                    if (!verification_result) {
-                        _LOG_A("Update failed!\n");
-                        Update.printError(Serial);
-                        //Update.abort(); //not sure this does anything in this stage
-                        //Update.rollBack();
-                        _LOG_V("Running off of partition %s, erasing partition %s.\n", running_partition->label, target_partition->label);
-                        esp_partition_erase_range( target_partition, target_partition->address, target_partition->size );
-                        esp_ota_set_boot_partition( running_partition );
-                        mg_http_reply(c, 400, "", "firmware.signed.bin update failed!");
-                    }
-                    FREE(signature);
-                }
-            } else //end of firmware.signed.bin
-            if (!memcmp(file,"rfid.txt", sizeof("rfid.txt"))) {
-                if (offset != 0) {
-                    mg_http_reply(c, 400, "", "rfid.txt too big, only 120 rfid's allowed!");
-                }
-                else {
-                    //we are overwriting all stored RFID's with the ones uploaded
-                    DeleteAllRFID();
-                    res = offset + hm->body.len;
-                    unsigned int RFID_UID[8] = {1, 0, 0, 0, 0, 0, 0, 0};
-                    char RFIDtxtstring[18];                                     // 17 characters + NULL terminator
-                    int r, pos = 0;
-                    int beginpos = 0;
-                    while (pos <= hm->body.len) {
-                        char c;
-                        c = *(hm->body.buf + pos);
-                        //_LOG_A_NO_FUNC("%c", c);
-                        if (c == '\n' || pos == hm->body.len) {
-                            strncpy(RFIDtxtstring, hm->body.buf + beginpos, 17);         // in case of DOS the 0x0D is stripped off here
-                            RFIDtxtstring[17] = '\0';
-                            r = sscanf(RFIDtxtstring,"%02x%02x%02x%02x%02x%02x", &RFID_UID[1], &RFID_UID[2], &RFID_UID[3], &RFID_UID[4], &RFID_UID[5], &RFID_UID[6]);
-                            RFID_UID[7]=crc8((unsigned char *) RFID_UID,7);
-                            if (r == 6) {
-                                _LOG_A("Store RFID_UID %02x%02x%02x%02x%02x%02x, crc=%02x.\n", RFID_UID[1], RFID_UID[2], RFID_UID[3], RFID_UID[4], RFID_UID[5], RFID_UID[6], RFID_UID[7]);
-                                LoadandStoreRFID(RFID_UID);
-                            }
-                            beginpos = pos + 1;
-                        }
-                        pos++;
-                    }
-                }
-            } else //end of rfid.txt
-                mg_http_reply(c, 400, "", "only allowed to flash firmware.bin, firmware.debug.bin, firmware.signed.bin, firmware.debug.signed.bin or rfid.txt");
-            mg_http_reply(c, 200, "", "%ld", res);
-        }
-    } else if (mg_http_match_uri(hm, "/settings")) {                            // REST API call?
+// handles URI, returns true if handled, false if not
+bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerRequest* request) {
+
+    if (mg_http_match_uri(hm, "/settings")) {                            // REST API call?
       if (!memcmp("GET", hm->method.buf, hm->method.len)) {                     // if GET
         String mode = "N/A";
         int modeId = -1;
@@ -5108,8 +4173,12 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         doc["evse"]["error_id"] = errorId;
         doc["evse"]["rfid"] = !RFIDReader ? "Not Installed" : RFIDstatus >= 8 ? "NOSTATUS" : StrRFIDStatusWeb[RFIDstatus];
         if (RFIDReader && RFIDReader != 6) { //RFIDLastRead not updated in Remote/OCPP mode
-            char buf[13];
-            sprintf(buf, "%02X%02X%02X%02X%02X%02X", RFID[1], RFID[2], RFID[3], RFID[4], RFID[5], RFID[6]);
+            char buf[15];
+            if (RFID[0] == 0x01) {  // old reader 6 byte UID starts at RFID[1]
+                sprintf(buf, "%02X%02X%02X%02X%02X%02X", RFID[1], RFID[2], RFID[3], RFID[4], RFID[5], RFID[6]);
+            } else {
+                sprintf(buf, "%02X%02X%02X%02X%02X%02X%02X", RFID[0], RFID[1], RFID[2], RFID[3], RFID[4], RFID[5], RFID[6]);
+            }
             doc["evse"]["rfid_lastread"] = buf;
         }
 
@@ -5238,7 +4307,11 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         String json;
         serializeJson(doc, json);
         mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\n", json.c_str());    // Yes. Respond JSON
+        return true;
       } else if (!memcmp("POST", hm->method.buf, hm->method.len)) {                     // if POST
+        if(request->hasParam("mqtt_update")) {
+            return false;                                                       // handled in network.cpp
+        }
         DynamicJsonDocument doc(512); // https://arduinojson.org/v6/assistant/
 
         if(request->hasParam("backlight")) {
@@ -5447,49 +4520,6 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
             }
         }
 
-#if MQTT
-        if(request->hasParam("mqtt_update")) {
-            if (request->getParam("mqtt_update")->value().toInt() == 1) {
-
-                if(request->hasParam("mqtt_host")) {
-                    MQTTHost = request->getParam("mqtt_host")->value();
-                    doc["mqtt_host"] = MQTTHost;
-                }
-
-                if(request->hasParam("mqtt_port")) {
-                    MQTTPort = request->getParam("mqtt_port")->value().toInt();
-                    if (MQTTPort == 0) MQTTPort = 1883;
-                    doc["mqtt_port"] = MQTTPort;
-                }
-
-                if(request->hasParam("mqtt_topic_prefix")) {
-                    MQTTprefix = request->getParam("mqtt_topic_prefix")->value();
-                    if (!MQTTprefix || MQTTprefix == "") {
-                        MQTTprefix = APhostname;
-                    }
-                    doc["mqtt_topic_prefix"] = MQTTprefix;
-                }
-
-                if(request->hasParam("mqtt_username")) {
-                    MQTTuser = request->getParam("mqtt_username")->value();
-                    if (!MQTTuser || MQTTuser == "") {
-                        MQTTuser.clear();
-                    }
-                    doc["mqtt_username"] = MQTTuser;
-                }
-
-                if(request->hasParam("mqtt_password")) {
-                    MQTTpassword = request->getParam("mqtt_password")->value();
-                    if (!MQTTpassword || MQTTpassword == "") {
-                        MQTTpassword.clear();
-                    }
-                    doc["mqtt_password_set"] = (MQTTpassword != "");
-                }
-                write_settings();
-            }
-        }
-#endif
-
 #if ENABLE_OCPP
         if(request->hasParam("ocpp_update")) {
             if (request->getParam("ocpp_update")->value().toInt() == 1) {
@@ -5559,8 +4589,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         String json;
         serializeJson(doc, json);
         mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\n", json.c_str());    // Yes. Respond JSON
-      } else {
-        mg_http_reply(c, 404, "", "Not Found\n");
+        return true;
       }
     } else if (mg_http_match_uri(hm, "/color_off") && !memcmp("POST", hm->method.buf, hm->method.len)) {
         DynamicJsonDocument doc(200);
@@ -5575,9 +4604,6 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
                 ColorOff[0] = R;
                 ColorOff[1] = G;
                 ColorOff[2] = B;
-                doc["color_off"]["R"] = ColorOff[0];
-                doc["color_off"]["G"] = ColorOff[1];
-                doc["color_off"]["B"] = ColorOff[2];
                 doc["color"]["off"]["R"] = ColorOff[0];
                 doc["color"]["off"]["G"] = ColorOff[1];
                 doc["color"]["off"]["B"] = ColorOff[2];
@@ -5587,7 +4613,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         String json;
         serializeJson(doc, json);
         mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", json.c_str());    // Yes. Respond JSON
-
+        return true;
     } else if (mg_http_match_uri(hm, "/color_normal") && !memcmp("POST", hm->method.buf, hm->method.len)) {
         DynamicJsonDocument doc(200);
 
@@ -5610,7 +4636,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         String json;
         serializeJson(doc, json);
         mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", json.c_str());    // Yes. Respond JSON
-
+        return true;
     } else if (mg_http_match_uri(hm, "/color_smart") && !memcmp("POST", hm->method.buf, hm->method.len)) {
         DynamicJsonDocument doc(200);
 
@@ -5633,7 +4659,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         String json;
         serializeJson(doc, json);
         mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", json.c_str());    // Yes. Respond JSON
-
+        return true;
     } else if (mg_http_match_uri(hm, "/color_solar") && !memcmp("POST", hm->method.buf, hm->method.len)) {
         DynamicJsonDocument doc(200);
 
@@ -5656,7 +4682,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         String json;
         serializeJson(doc, json);
         mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", json.c_str());    // Yes. Respond JSON
-
+        return true;
     } else if (mg_http_match_uri(hm, "/currents") && !memcmp("POST", hm->method.buf, hm->method.len)) {
         DynamicJsonDocument doc(200);
 
@@ -5697,7 +4723,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         String json;
         serializeJson(doc, json);
         mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", json.c_str());    // Yes. Respond JSON
-
+        return true;
     } else if (mg_http_match_uri(hm, "/ev_meter") && !memcmp("POST", hm->method.buf, hm->method.len)) {
         DynamicJsonDocument doc(200);
 
@@ -5735,17 +4761,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         String json;
         serializeJson(doc, json);
         mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", json.c_str());    // Yes. Respond JSON
-
-    } else if (mg_http_match_uri(hm, "/reboot") && !memcmp("POST", hm->method.buf, hm->method.len)) {
-        DynamicJsonDocument doc(20);
-
-        ESP.restart();
-        doc["reboot"] = true;
-
-        String json;
-        serializeJson(doc, json);
-        mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", json.c_str());    // Yes. Respond JSON
-
+        return true;
 #if MODEM
     } else if (mg_http_match_uri(hm, "/ev_state") && !memcmp("POST", hm->method.buf, hm->method.len)) {
         DynamicJsonDocument doc(200);
@@ -5801,6 +4817,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         String json;
         serializeJson(doc, json);
         mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", json.c_str());    // Yes. Respond JSON
+        return true;
 #endif // MODEM
 
 #if FAKE_RFID
@@ -5811,6 +4828,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         }
         _LOG_A("DEBUG: Show_RFID=%u.\n",Show_RFID);
         mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", ""); //json request needs json response
+        return true;
 #endif
 
 #if AUTOMATED_TESTING
@@ -5844,180 +4862,12 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
             LoadBl = LBL;
         }
         mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", ""); //json request needs json response
+        return true;
 #endif
-    } else {                                                                    // if everything else fails, serve static page
-        struct mg_http_serve_opts opts = {.root_dir = "/data", .ssi_pattern = NULL, .extra_headers = NULL, .mime_types = NULL, .page404 = NULL, .fs = &mg_fs_packed };
-        //opts.fs = NULL;
-        mg_http_serve_dir(c, hm, &opts);
-    }
-    delete request;
   }
+  return false;
 }
 
-void onWifiEvent(WiFiEvent_t event) {
-    switch (event) {
-        case WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP:
-#if LOG_LEVEL >= 1
-            _LOG_A("Connected to AP: %s Local IP: %s\n", WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
-#else
-            Serial.printf("Connected to AP: %s Local IP: %s\n", WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
-#endif
-            //load dhcp dns ip4 address into mongoose
-            static char dns4url[]="udp://123.123.123.123:53";
-            sprintf(dns4url, "udp://%s:53", WiFi.dnsIP().toString().c_str());
-            mgr.dns4.url = dns4url;
-            if (TZinfo == "") {
-                setTimeZone();
-            }
-
-            // Start the mDNS responder so that the SmartEVSE can be accessed using a local hostame: http://SmartEVSE-xxxxxx.local
-            if (!MDNS.begin(APhostname.c_str())) {
-                _LOG_A("Error setting up MDNS responder!\n");
-            } else {
-                _LOG_A("mDNS responder started. http://%s.local\n",APhostname.c_str());
-                MDNS.addService("http", "tcp", 80);   // announce Web server
-            }
-
-            break;
-        case WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_CONNECTED:
-            _LOG_A("Connected or reconnected to WiFi\n");
-
-#if MQTT
-            if (!MQTTtimer) {
-               MQTTtimer = mg_timer_add(&mgr, 3000, MG_TIMER_REPEAT | MG_TIMER_RUN_NOW, timer_fn, &mgr);
-            }
-#endif
-            mg_log_set(MG_LL_NONE);
-            //mg_log_set(MG_LL_VERBOSE);
-
-            if (!HttpListener80) {
-                HttpListener80 = mg_http_listen(&mgr, "http://0.0.0.0:80", fn_http_server, NULL);  // Setup listener
-            }
-            if (!HttpListener443) {
-                HttpListener443 = mg_http_listen(&mgr, "http://0.0.0.0:443", fn_http_server, (void *) 1);  // Setup listener
-            }
-            _LOG_A("HTTP server started\n");
-
-#if DBG == 1
-            // if we start RemoteDebug with no wifi credentials installed we get in a bootloop
-            // so we start it here
-            // Initialize the server (telnet or web socket) of RemoteDebug
-            Debug.begin(APhostname, 23, 1);
-            Debug.showColors(true); // Colors
-#endif
-            break;
-        case WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
-            if (WIFImode == 1) {
-#if MQTT
-                //mg_timer_free(&mgr);
-#endif
-                WiFi.reconnect();                                               // recommended reconnection strategy by ESP-IDF manual
-            }
-            break;
-        default: break;
-  }
-}
-
-// turns out getLocalTime only checks if the current year > 2016, and if so, decides NTP must have synced;
-// this callback function actually checks if we are synced!
-void timeSyncCallback(struct timeval *tv)
-{
-    LocalTimeSet = true;
-    _LOG_A("Synced clock to NTP server!");    // somehow adding a \n here hangs the telnet server after printing this message ?!?
-}
-
-// Setup Wifi
-void WiFiSetup(void) {
-    mg_mgr_init(&mgr);  // Initialise event manager
-
-    WiFi.setAutoReconnect(true);                                                //actually does nothing since this is the default value
-    //WiFi.persistent(true);
-    WiFi.onEvent(onWifiEvent);
-    handleWIFImode();                                                           //go into the mode that was saved in nonvolatile memory
-
-    // Init and get the time
-    // First option to get time from local ntp server blocks the second fallback option since 2021:
-    // See https://github.com/espressif/arduino-esp32/issues/4964
-    //sntp_servermode_dhcp(1);                                                    //try to get the ntp server from dhcp
-    sntp_setservername(1, "europe.pool.ntp.org");                               //fallback server
-    sntp_set_time_sync_notification_cb(timeSyncCallback);
-    sntp_init();
-
-    // Set random AES Key for SmartConfig provisioning, first 8 positions are 0
-    // This key is displayed on the LCD, and should be entered when using the EspTouch app.
-    for (uint8_t i=0; i<8 ;i++) {
-        SmartConfigKey[i+8] = random(9) + '1';
-    }
-}
-
-void SetupPortalTask(void * parameter) {
-    _LOG_A("Start Portal...\n");
-    WiFi.disconnect(true);
-
-    // Close Mongoose HTTP Server
-    if (HttpListener80) {
-        HttpListener80->is_closing = 1;
-    }
-    if (HttpListener443) {
-        HttpListener443->is_closing = 1;
-    }
-
-    while (HttpListener80 || HttpListener443) {
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-        _LOG_A("Waiting for Mongoose Server to terminate\n");
-    }
-
-    //Init WiFi as Station, start SmartConfig
-    WiFi.mode(WIFI_AP_STA);
-    WiFi.beginSmartConfig(SC_TYPE_ESPTOUCH_V2, SmartConfigKey);
-
-    //Wait for SmartConfig packet from mobile.
-    _LOG_V("Waiting for SmartConfig.\n");
-    while (!WiFi.smartConfigDone() && (WIFImode == 2) && (WiFi.status() != WL_CONNECTED)) {
-        // Also start Serial CLI for entering AP and password.
-        ProvisionCli();
-        delay(100);
-    }                       // loop until connected or Wifi setup menu is exited.
-
-    delay(2000);            // give smartConfig time to send provision status back to the users phone.
-
-    if (WiFi.status() == WL_CONNECTED) {
-        _LOG_V("\nWiFi Connected, IP Address:%s.\n", WiFi.localIP().toString().c_str());
-        WIFImode = 1;
-        write_settings();
-        LCDNav = 0;
-    }
-
-    CliState = 0;
-    WiFi.stopSmartConfig(); // this makes sure repeated SmartConfig calls are succesfull
-
-    vTaskDelete(NULL);                                                          //end this task so it will not take up resources
-}
-
-void handleWIFImode() {
-
-    if (WIFImode == 2 && WiFi.getMode() != WIFI_AP_STA)
-        //now start the portal in the background, so other tasks keep running
-        xTaskCreate(
-            SetupPortalTask,     // Function that should be called
-            "SetupPortalTask",   // Name of the task (for debugging)
-            10000,                // Stack size (bytes)                              // printf needs atleast 1kb
-            NULL,                 // Parameter to pass
-            1,                    // Task priority
-            NULL                  // Task handleCTReceive
-        );
-
-    if (WIFImode == 1 && WiFi.getMode() == WIFI_OFF) {
-        _LOG_A("Starting WiFi..\n");
-        WiFi.mode(WIFI_STA);
-        WiFi.begin();
-    }
-
-    if (WIFImode == 0 && WiFi.getMode() != WIFI_OFF) {
-        _LOG_A("Stopping WiFi..\n");
-        WiFi.disconnect(true);
-    }
-}
 
 /*
  * OCPP-related function definitions
@@ -6501,28 +5351,6 @@ void setup() {
         _LOG_A_NO_FUNC("not programmed!!!\n");
     }
 
-    // We might need some sort of authentication in the future.
-    // SmartEVSE v3 have programmed ECDSA-256 keys stored in nvs
-    // Unused for now.
-    if (preferences.begin("KeyStorage", true) ) {                               // true = readonly
-//prevent compiler warning
-#if DBG == 1 || (DBG == 2 && LOG_LEVEL != 0)
-        uint16_t hwversion = preferences.getUShort("hwversion");                // 0x0101 (01 = SmartEVSE,  01 = hwver 01)
-#endif
-        serialnr = preferences.getUInt("serialnr");
-        String ec_private = preferences.getString("ec_private");
-        String ec_public = preferences.getString("ec_public");
-        preferences.end();
-
-        _LOG_A("hwversion %04x serialnr:%u \n",hwversion, serialnr);
-        //_LOG_A(ec_public);
-    } else {
-        _LOG_A("No KeyStorage found in nvs!\n");
-        if (!serialnr) serialnr = MacId() & 0xffff;                             // when serialnr is not programmed (anymore), we use the Mac address
-    }
-    // overwrite APhostname if serialnr is programmed
-    APhostname = "SmartEVSE-" + String( serialnr & 0xffff, 10);                 // SmartEVSE access point Name = SmartEVSE-xxxxx
-    WiFi.setHostname(APhostname.c_str());
 
     // Read all settings from non volatile memory; MQTTprefix will be overwritten if stored in NVS
     read_settings();                                                            // initialize with default data when starting for the first time
@@ -6616,16 +5444,14 @@ bool fwNeedsUpdate(char * version) {
     return false;
 }
 
+
 void loop() {
 
+    network_loop();
     static unsigned long lastCheck = 0;
     if (millis() - lastCheck >= 1000) {
         lastCheck = millis();
         //this block is for non-time critical stuff that needs to run approx 1 / second
-        getLocalTime(&timeinfo, 1000U);
-        if (!LocalTimeSet && WIFImode == 1) {
-            _LOG_A("Time not synced with NTP yet.\n");
-        }
 
         // a reboot is requested, but we kindly wait until no EV connected
         if (shouldReboot && State == STATE_A) {                                 //slaves in STATE_C continue charging when Master reboots
@@ -6698,8 +5524,6 @@ void loop() {
         /////end of non-time critical stuff
     }
 
-    mg_mgr_poll(&mgr, 100);                                                     // TODO increase this parameter to up to 1000 to make loop() less greedy
-
     //OCPP lifecycle management
 #if ENABLE_OCPP
     if (OcppMode && !getOcppContext()) {
@@ -6712,10 +5536,5 @@ void loop() {
         ocppLoop();
     }
 #endif //ENABLE_OCPP
-
-#ifndef DEBUG_DISABLED
-    // Remote debug over WiFi
-    Debug.handle();
-#endif
 
 }

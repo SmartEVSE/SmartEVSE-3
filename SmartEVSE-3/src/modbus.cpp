@@ -24,7 +24,6 @@
 #ifdef DBG
 #undef DBG // no DEBUG in modbus for now // FIXME: remove this
 #endif
-#include <Arduino.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "driver/uart.h"
