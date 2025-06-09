@@ -26,7 +26,7 @@
 
 #include <soc/rtc_io_struct.h>
 
-#include "evse.h"
+#include "main.h"
 #include "glcd.h"
 #include "utils.h"
 #include "OneWire.h"
@@ -479,7 +479,7 @@ void BlinkLed(void * parameter) {
                 RedPwm = LedPwm * ColorNormal[0] / 255;
                 GreenPwm = LedPwm * ColorNormal[1] / 255;
                 BluePwm = LedPwm * ColorNormal[2] / 255;
-            }    
+            }
 
         }
         ledcWrite(RED_CHANNEL, RedPwm);
@@ -2387,7 +2387,7 @@ void EVSEStates(void * parameter) {
                 && State != STATE_MODEM_REQUEST && State != STATE_MODEM_WAIT && State != STATE_MODEM_DONE   // switch to State B ?
 #endif
                     )
-            {                                                                    // Allow to switch to state C directly if STATE_A_TO_C is set to PILOT_6V (see EVSE.h)
+            {                                                                    // Allow to switch to state C directly if STATE_A_TO_C is set to PILOT_6V (see main.h)
                 DiodeCheck = 0;
 
                 ProximityPin();                                                 // Sample Proximity Pin

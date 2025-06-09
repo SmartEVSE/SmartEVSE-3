@@ -14,7 +14,7 @@
 #include <ArduinoJson.h>
 #include <Preferences.h>
 
-#include "evse.h"
+#include "main.h"
 #if SMARTEVSE_VERSION == 3
 #include "OneWire.h"
 #endif
