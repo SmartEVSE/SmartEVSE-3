@@ -111,6 +111,7 @@ uint16_t ImportCurrent = IMPORT_CURRENT;
 struct DelayedTimeStruct DelayedStartTime;
 struct DelayedTimeStruct DelayedStopTime;
 uint8_t DelayedRepeat;                                                      // 0 = no repeat, 1 = daily repeat
+bool LCDlock = false;                                                       // Lock buttons on LCD display if true
 uint8_t Grid = GRID;                                                        // Type of Grid connected to Sensorbox (0:4Wire / 1:3Wire )
 uint8_t RFIDReader = RFID_READER;                                           // RFID Reader (0:Disabled / 1:Enabled / 2:Enable One / 3:Learn / 4:Delete / 5:Delete All / 6: Remote via OCPP)
 #if FAKE_RFID
@@ -2361,7 +2362,7 @@ void EVSEStates(void * parameter) {
 
 
         // When one or more button(s) are pressed, we call GLCDMenu
-        if ((ButtonState != 0x07) || (ButtonState != OldButtonState)) GLCDMenu(ButtonState);
+        if (((ButtonState != 0x07) || (ButtonState != OldButtonState)) && !LCDlock) GLCDMenu(ButtonState);
 
         // Update/Show Helpmenu
         if (LCDNav > MENU_ENTER && LCDNav < MENU_EXIT && (ScrollTimer + 5000 < millis() ) && (!SubMenu)) GLCDHelp();
@@ -4007,6 +4008,8 @@ void read_settings() {
         WIFImode = preferences.getUChar("WIFImode",WIFI_MODE);
         DelayedStartTime.epoch2 = preferences.getULong("DelayedStartTim", DELAYEDSTARTTIME); //epoch2 is 4 bytes long on arduino; NVS key has reached max size
         DelayedStopTime.epoch2 = preferences.getULong("DelayedStopTime", DELAYEDSTOPTIME);    //epoch2 is 4 bytes long on arduino
+        DelayedRepeat = preferences.getUShort("DelayedRepeat", 0);
+        LCDlock = preferences.getUShort("LCDlock", 0);
         TZinfo = preferences.getString("TimezoneInfo","");
         if (TZinfo != "") {
             setenv("TZ",TZinfo.c_str(),1);
@@ -4078,9 +4081,6 @@ void write_settings(void) {
     preferences.putUChar("EMDataType", EMConfig[EM_CUSTOM].DataType);
     preferences.putUChar("EMFunction", EMConfig[EM_CUSTOM].Function);
     preferences.putUChar("WIFImode", WIFImode);
-    preferences.putULong("DelayedStartTim", DelayedStartTime.epoch2); //epoch2 only needs 4 bytes; NVS key has reached max size
-    preferences.putULong("DelayedStopTime", DelayedStopTime.epoch2);   //epoch2 only needs 4 bytes
-
     preferences.putUShort("EnableC2", EnableC2);
     preferences.putString("RequiredEVCCID", String(RequiredEVCCID));
     preferences.putUShort("maxTemp", maxTemp);
@@ -4236,6 +4236,7 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
         doc["settings"]["starttime"] = (DelayedStartTime.epoch2 ? DelayedStartTime.epoch2 + EPOCH2_OFFSET : 0);
         doc["settings"]["stoptime"] = (DelayedStopTime.epoch2 ? DelayedStopTime.epoch2 + EPOCH2_OFFSET : 0);
         doc["settings"]["repeat"] = DelayedRepeat;
+        doc["settings"]["LCDlock"] = LCDlock;
 #if MODEM
             doc["settings"]["required_evccid"] = RequiredEVCCID;
             doc["settings"]["modem"] = "Experiment";
@@ -4555,6 +4556,18 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
                 write_settings();
             } else {
                 doc["required_evccid"] = "EVCCID too long (max 32 char)";
+            }
+        }
+
+        if (request->hasParam("LCDlock")) {
+            int lock = request->getParam("LCDlock")->value().toInt();
+            if (lock >= 0 && lock <= 1) {                                   //boundary check
+                LCDlock = lock;
+                doc["LCDlock"] = lock;
+                if (preferences.begin("settings", false)) {
+                    preferences.putUShort("LCDlock", LCDlock);
+                    preferences.end();
+                }
             }
         }
 

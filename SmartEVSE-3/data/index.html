@@ -74,6 +74,8 @@
 
               let minCurrent=parseInt(data.settings.current_min.toFixed(1));
               let maxCurrent=parseInt(data.settings.current_max.toFixed(1));
+              let lcdlock=parseInt(data.settings.LCDlock);
+              document.getElementById("lcdlock").checked = lcdlock;
 
               // Initialize at page load
               // value 0 = no override
@@ -1000,6 +1002,10 @@
 
                         event.preventDefault();
                     }
+                    function toggleLCDlock() {
+                      var LCDlockCheckbox = document.getElementById("lcdlock");
+                      $.post( "/settings?LCDlock=" + (LCDlockCheckbox.checked == true ? 1 : 0));
+                    }
                     function toggleEnableOcpp() {
                       var enableOcppCheckbox = document.getElementById("enable_ocpp");
                       $.post( "/settings?ocpp_update=1&ocpp_mode=" + (enableOcppCheckbox.checked == true ? 1 : 0));
@@ -1159,13 +1165,17 @@
                                         </div>
                                     </div>
                                     <div class="row no-gutters align-items-center">
-                                      <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
+                                        <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
                                           Actions:
                                         </div>
                                         <div class="col">
                                           <button onclick="reboot()" style="width: 100px; display:inline-block;">Reboot</button>
                                           <button onclick="update()" style="width: 100px; display:inline-block;">Update</button>
                                           <button onclick="rawData()" style="width: 120px; display:inline-block;">Raw Data</button>
+                                        </div>
+                                        <div class="col">
+                                          <label for="lcdlock" style="width: 140px; display:inline-block;" title="Lock buttons on LCD screen">LCD Lock</label>
+                                          <input type="checkbox" id="lcdlock" value="lcdlock" onclick="toggleLCDlock()">
                                         </div>
                                     </div>
                                     <div class="row no-gutters align-items-center with_modem">
