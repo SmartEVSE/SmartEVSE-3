@@ -1,17 +1,12 @@
 #include <WiFi.h>
 //#include "esp_ota_ops.h"
 #include "mbedtls/md_internal.h"
-#ifdef SENSORBOX_VERSION
-#include "radix.h"
-#else
 #include "utils.h"
-#endif
 #include "network.h"
 
 #include <HTTPClient.h>
 #include <ESPmDNS.h>
 #include <Update.h>
-#include <ArduinoJson.h>
 #include <Preferences.h>
 
 #include "main.h"
@@ -45,7 +40,7 @@ String MQTTprefix;
 String MQTTHost = "";
 uint16_t MQTTPort;
 mg_timer *MQTTtimer;
-uint8_t lastMqttUpdate = 0;
+//uint8_t lastMqttUpdate = 0;
 #endif
 
 mg_connection *HttpListener80, *HttpListener443;
@@ -83,13 +78,16 @@ bool isValidInput(String input) {
 }
 
 static uint8_t CliState = 0;
-#ifdef SENSORBOX_VERSION
+#ifdef SENSORBOX_VERSION // SB2
 void ProvisionCli(HardwareSerial &s) {
 //void ProvisionCli(HardwareSerial &s = &Serial) {
 #else
+#if SMARTEVSE_VERSION == 3
 void ProvisionCli(void) {
     HardwareSerial &s = Serial;
-//void ProvisionCli(HWCDC &s = &Serial) {
+#else // SMARTEVSE_VERSION == 4
+void ProvisionCli(HWCDC &s = Serial) {
+#endif
 #endif
     // SSID and PW for your Router
     static String Router_SSID, Router_Pass;
@@ -850,6 +848,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
             }
             shouldReboot = true;
             mg_http_reply(c, 200, "Content-Type: text/plain\r\n", "Erasing settings, rebooting");
+#if AUTOUPDATE
         } else if (mg_http_match_uri(hm, "/autoupdate")) {
             char owner[40];
             char buf[8];
@@ -867,6 +866,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
             String json;
             serializeJson(doc, json);
             mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\n", json.c_str());    // Yes. Respond JSON
+#endif
         } else if (mg_http_match_uri(hm, "/update")) {
             //modified version of mg_http_upload
             char buf[20] = "0", file[40];

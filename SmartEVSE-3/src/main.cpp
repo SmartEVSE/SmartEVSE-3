@@ -1533,7 +1533,7 @@ Regis   Access  Description                                           Unit  Valu
 0x0200  R/W   EVSE mode                                                     0:Normal / 1:Smart / 2:Solar
 0x0201  R/W   EVSE Circuit max Current                                  A   10 - 160
 0x0202  R/W   Grid type to which the Sensorbox is connected                 0:4Wire / 1:3Wire
-0x0203  R/W   CT calibration value                                          0.01  Multiplier
+0x0203 	R/W 	Sensorbox 2 WiFi Mode                                         0:Disabled / 1:Enabled / 2:Portal
 0x0204  R/W   Max Mains Current                                         A   10 - 200
 0x0205  R/W   Surplus energy start Current                              A   1 - 16
 0x0206  R/W   Stop solar charging at 6A after this time                 min   0:Disable / 1 - 60
@@ -1874,6 +1874,11 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
         case MENU_GRID:
             Grid = val;
             break;
+#ifdef SENSORBOX_VERSION // SB2
+        case MENU_SB2_WIFI:
+            SB2_WIFImode = val;
+            break;    
+#endif
         case MENU_MAINSMETER:
             MainsMeter.Type = val;
             break;
@@ -2017,6 +2022,10 @@ uint16_t getItemValue(uint8_t nav) {
             return RCmon;
         case MENU_GRID:
             return Grid;
+#ifdef SENSORBOX_VERSION // SB2
+        case MENU_SB2_WIFI:
+            return SB2_WIFImode;
+#endif
         case MENU_MAINSMETER:
             return MainsMeter.Type;
         case MENU_MAINSMETERADDRESS:
@@ -3085,6 +3094,10 @@ void SetupMQTTClient() {
     announce("RFID", "sensor");
     announce("RFIDLastRead", "sensor");
 
+#if ENABLE_OCPP
+    announce("OCPP", "sensor");
+    announce("OCPPConnection", "sensor");
+#endif //ENABLE_OCPP
     optional_payload = jsna("state_topic", String(MQTTprefix + "/LEDColorOff")) + jsna("command_topic", String(MQTTprefix + "/Set/ColorOff"));
     announce("LED Color Off", "text");
     optional_payload = jsna("state_topic", String(MQTTprefix + "/LEDColorNormal")) + jsna("command_topic", String(MQTTprefix + "/Set/ColorNormal"));
@@ -3094,13 +3107,7 @@ void SetupMQTTClient() {
     optional_payload = jsna("state_topic", String(MQTTprefix + "/LEDColorSolar")) + jsna("command_topic", String(MQTTprefix + "/Set/ColorSolar"));
     announce("LED Color Solar", "text");
 
-#if ENABLE_OCPP
-    announce("OCPP", "sensor");
-    announce("OCPPConnection", "sensor");
-#endif //ENABLE_OCPP
-
-    // announce SolarStopTimer sensor
-    optional_payload = jsna("device_class", "duration") + jsna("unit_of_measurement", "s");
+    optional_payload = jsna("device_class","duration") + jsna("unit_of_measurement","s");
     announce("SolarStopTimer", "sensor");
     //set the parameters for and announce diagnostic sensor entities:
     optional_payload = jsna("entity_category","diagnostic");
@@ -3514,6 +3521,9 @@ void Timer1S(void * parameter) {
                 // but in Normal mode we just want to charge ChargeCurrent, irrespective of communication problems.
                 ErrorFlags |= CT_NOCOMM;
                 setStatePowerUnavailable();
+#ifdef SENSORBOX_VERSION // SB2
+                SB2.SoftwareVer = 0;
+#endif
                 _LOG_W("Error, MainsMeter communication error!\n");
             } else {
                 if (MainsMeter.Timeout) MainsMeter.Timeout--;
@@ -3960,6 +3970,9 @@ void read_settings() {
         StopTime = preferences.getUShort("StopTime", STOP_TIME);
         ImportCurrent = preferences.getUShort("ImportCurrent",IMPORT_CURRENT);
         Grid = preferences.getUChar("Grid",GRID);
+#ifdef SENSORBOX_VERSION // SB2
+        SB2_WIFImode = preferences.getUChar("SB2WIFImode",SB2_WIFI_MODE);
+#endif
         RFIDReader = preferences.getUChar("RFIDReader",RFID_READER);
 
         MainsMeter.Type = preferences.getUChar("MainsMeter", MAINS_METER);
@@ -4030,6 +4043,9 @@ void write_settings(void) {
     preferences.putUShort("StopTime", StopTime);
     preferences.putUShort("ImportCurrent", ImportCurrent);
     preferences.putUChar("Grid", Grid);
+#ifdef SENSORBOX_VERSION // SB2
+    preferences.putUChar("SB2WIFImode", SB2_WIFImode);
+#endif
     preferences.putUChar("RFIDReader", RFIDReader);
 
     preferences.putUChar("MainsMeter", MainsMeter.Type);
@@ -5183,14 +5199,22 @@ void ocppLoop() {
             // Access_bit has been set
             OcppTrackAccessBit = true;
             _LOG_A("OCPP detected Access_bit set\n");
-            char buf[13];
-            sprintf(buf, "%02X%02X%02X%02X%02X%02X", RFID[1], RFID[2], RFID[3], RFID[4], RFID[5], RFID[6]);
+            char buf[15];
+            if (RFID[0] == 0x01) {  // old reader 6 byte UID starts at RFID[1]
+                sprintf(buf, "%02X%02X%02X%02X%02X%02X", RFID[1], RFID[2], RFID[3], RFID[4], RFID[5], RFID[6]);
+            } else {
+                sprintf(buf, "%02X%02X%02X%02X%02X%02X%02X", RFID[0], RFID[1], RFID[2], RFID[3], RFID[4], RFID[5], RFID[6]);
+            }
             beginTransaction_authorized(buf);
         } else if (!Access_bit && (OcppTrackAccessBit || (getTransaction() && getTransaction()->isActive()))) {
             OcppTrackAccessBit = false;
             _LOG_A("OCPP detected Access_bit unset\n");
-            char buf[13];
-            sprintf(buf, "%02X%02X%02X%02X%02X%02X", RFID[1], RFID[2], RFID[3], RFID[4], RFID[5], RFID[6]);
+            char buf[15];
+            if (RFID[0] == 0x01) {  // old reader 6 byte UID starts at RFID[1]
+                sprintf(buf, "%02X%02X%02X%02X%02X%02X", RFID[1], RFID[2], RFID[3], RFID[4], RFID[5], RFID[6]);
+            } else {
+                sprintf(buf, "%02X%02X%02X%02X%02X%02X%02X", RFID[0], RFID[1], RFID[2], RFID[3], RFID[4], RFID[5], RFID[6]);
+            }
             endTransaction_authorized(buf);
         }
     }
@@ -5379,7 +5403,7 @@ void setup() {
     xTaskCreate(
         BlinkLed,       // Function that should be called
         "BlinkLed",     // Name of the task (for debugging)
-        1024,           // Stack size (bytes)                              // printf needs atleast 1kb
+        2048,           // Stack size (bytes)                              // printf needs atleast 1kb
         NULL,           // Parameter to pass
         1,              // Task priority - low
         NULL            // Task handle
@@ -5421,6 +5445,7 @@ void setup() {
 
     firmwareUpdateTimer = random(FW_UPDATE_DELAY, 0xffff);
 }
+
 
 // returns true if current and latest version can be detected correctly and if the latest version is newer then current
 // this means that ANY home compiled version, which has version format "11:20:03@Jun 17 2024", will NEVER be automatically updated!!

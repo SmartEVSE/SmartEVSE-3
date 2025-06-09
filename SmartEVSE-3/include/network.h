@@ -26,6 +26,7 @@
 #define __EVSE_NETWORK
 
 #include "mongoose.h"
+#include <ArduinoJson.h>
 
 #ifndef MQTT
 #define MQTT 1  // Uncomment or set to 0 to disable MQTT support in code
@@ -53,7 +54,7 @@ extern String MQTTpassword;
 extern String MQTTprefix;
 extern String MQTTHost;
 extern uint16_t MQTTPort;
-extern uint8_t lastMqttUpdate;
+//extern uint8_t lastMqttUpdate;
 
 class MQTTclient_t {
 #if MQTT_ESP == 0

@@ -434,7 +434,7 @@ const struct {
     {"MIN",     "MIN Charge Current the EV will accept (per phase)",  MIN_CURRENT, 16, MIN_CURRENT},
     {"MAX",     "MAX Charge Current for this EVSE (per phase)",       6, 80, MAX_CURRENT},
     {"PWR SHARE", "Share Power between multiple SmartEVSEs (2-8)",    0, NR_EVSES, LOADBL},
-    {"SWITCH",  "Switch function control on pin SW",                  0, 4, SWITCH},
+    {"SWITCH",  "Switch function control on pin SW",                  0, 5, SWITCH},
     {"RCMON",   "Residual Current Monitor on pin RCM",                0, 1, RC_MON},
     {"RFID",    "RFID reader, learn/remove cards",                    0, 5 + (ENABLE_OCPP ? 1 : 0), RFID_READER},
     {"EV METER","Type of EV electric meter",                          0, EM_CUSTOM, EV_METER},
@@ -445,7 +445,11 @@ const struct {
     {"MODE",    "Normal, Smart or Solar EVSE mode",                   0, 2, MODE},
     {"CIRCUIT", "EVSE Circuit max Current",                           10, 160, MAX_CIRCUIT},
     {"GRID",    "Grid type to which the Sensorbox is connected",      0, 1, GRID},
+#ifdef SENSORBOX_VERSION // SB2
+    {"SB2 WIFI","Connect Sensorbox-2 to WiFi",                        0, 2, SB2_WIFI_MODE},
+#else
     {"Unused",  "Unused",                                             0, 1, 0},
+#endif
     {"MAINS",   "Max MAINS Current (per phase)",                      10, 200, MAX_MAINS},
     {"START",   "Surplus energy start Current (sum of phases)",       0, 48, START_CURRENT},
     {"STOP",    "Stop solar charging at 6A after this time",          0, 60, STOP_TIME},

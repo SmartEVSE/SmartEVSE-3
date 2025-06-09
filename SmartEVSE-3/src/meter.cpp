@@ -32,6 +32,9 @@ struct EMstruct EMConfig[EM_CUSTOM + 1] = {
     {"Custom",    ENDIANESS_LBF_LWF, 4, MB_DATATYPE_INT32,        0, 0,      0, 0,      0, 0,      0, 0,     0, 0}  // Last entry!
 };
 
+#ifdef SENSORBOX_VERSION // SB2
+struct Sensorbox SB2;
+#endif
 
 Meter::Meter(uint8_t type, uint8_t address, uint8_t timeout) {
     for (int x = 1; x < 3; x++) {
@@ -179,6 +182,40 @@ uint8_t Meter::receiveCurrentMeasurement(uint8_t *buf) {
                     if ((var[x] > -1) && (var[x] < 1)) var[x] = 0;
                 }
             }
+#ifdef SENSORBOX_VERSION // SB2
+            // Store Sensorbox software version
+            SB2.SoftwareVer = buf[0];
+            // Make sure the version and datalength are correct before processing the data.
+            // the version alone does not indicate that we have read the extended registers.
+            if (SB2.SoftwareVer == 1 && MB.DataLength == 64) {
+                // Read Status, IP, AP Password from Sensorbox
+                SB2.WiFiConnected = buf[40]>>1 & 1;
+                SB2.WiFiAPSTA = buf[40]>>2 & 1;
+                SB2.WIFImode = buf[41];
+                _LOG_I("SB2 WiFiMode:%u\n",SB2.WIFImode);
+                SB2.IP[0] = buf[48];
+                SB2.IP[1] = buf[49];
+                SB2.IP[2] = buf[50];
+                SB2.IP[3] = buf[51];
+                for (x = 0; x < 8; x++) {
+                    SB2.APpassword[7-x] = buf[56 + x];
+                }
+                SB2.APpassword[8] = '\0';
+
+                if (SB2_WIFImode == 2 && SB2.WiFiConnected && !SubMenu) {
+                    SB2_WIFImode = 1;                                       // Portal active and connected? Switch back to Enabled.
+                    write_settings();
+                    LCDNav = 0;
+                }
+
+                // Send new mode to Sensorbox 2 when mode differs from local SB2_WiFimode
+                // for mode "SetupWifi" only send mode when -not- in Submenu.
+                if ( (SB2.WIFImode != SB2_WIFImode) && (SB2_WIFImode != 2 || !SubMenu) ) {
+                    _LOG_I("New SB2 mode:%u\n", SB2_WIFImode);
+                    ModbusWriteSingleRequest(0x0A, 0x801, SB2_WIFImode);        // Send new WiFi mode to Sensorbox
+                }
+            }
+#endif
             // Set Sensorbox 2 to 3/4 Wire configuration (and phase Rotation) (v2.16)
             if (buf[1] >= 0x10 && offset == 7) {
                 GridActive = 1;                                                 // Enable the GRID menu option
