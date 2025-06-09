@@ -455,7 +455,7 @@ void GLCD(void) {
                     sprintf(Str, "Now connect to portal");
                     GLCD_write_buf_str(0, 0, Str, GLCD_ALIGN_LEFT);
                 }
-            }        
+            }
 #endif // SENSORBOX_VERSION
         } else {
             // When connected to Wifi, display IP and time in top row
@@ -615,6 +615,7 @@ void GLCD(void) {
         if (ErrorFlags & LESS_6A) {
             GLCD_print_buf2(2, (const char *) "WAITING");
             GLCD_print_buf2(4, (const char *) "FOR POWER");
+#if MODEM
         } else if (State == STATE_MODEM_REQUEST || State == STATE_MODEM_WAIT || State == STATE_MODEM_DONE) {                                          // Modem states
 
             BacklightTimer = BACKLIGHT;
@@ -627,6 +628,7 @@ void GLCD(void) {
 
             GLCD_print_buf2(2, (const char *) "MODEM");
             GLCD_print_buf2(4, (const char *) "DENIED");
+#endif
         } else if (State == STATE_C) {                                          // STATE C
 
             BacklightTimer = BACKLIGHT;
@@ -846,8 +848,10 @@ void GLCD(void) {
             if (!LCDToggle) {
                 GLCD_print_buf2(5, (const char *) "WAITING");
             } else GLCD_print_buf2(5, (const char *) "FOR SOLAR");
+#if MODEM
         } else if (State == STATE_MODEM_REQUEST || State == STATE_MODEM_WAIT || State == STATE_MODEM_DONE) {                                          // Modem states
             GLCD_print_buf2(5, (const char *) "MODEM");
+#endif
         } else if (State != STATE_C) {
                 switch (Switching_Phases_C2) {
                     case NO_SWITCH:
