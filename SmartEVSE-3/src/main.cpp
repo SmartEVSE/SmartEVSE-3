@@ -75,7 +75,6 @@ extern void CheckRS485Comm(void);
 #define RETURN return;
 extern void RecomputeSoC(void);
 extern uint8_t modem_state;
-static bool ModemFound = false;                                                 //signals if the modem is found
 #include <qca.h>
 #else
 #define RETURN
@@ -987,7 +986,7 @@ uint8_t Pilot() {
         if (sample > Max) Max = sample;                                   // store highest value
     }
 
-    //printf("MSG: min:%u max:%u\n",Min ,Max);
+    //printf("@MSG: min:%u max:%u\n",Min ,Max);
 
     // test Min/Max against fixed levels    (needs testing)
     ret = PILOT_NOK;                                                        // Pilot NOT ok
@@ -1447,36 +1446,6 @@ printf("@MSG: DINGO State=%d, pilot=%d, AccessTimer=%d, PilotDisconnected=%d.\n"
     if (ActivationTimer) ActivationTimer--;                             // Decrease ActivationTimer every second.
 #if MODEM
     if (State == STATE_MODEM_REQUEST){
-#if SMARTEVSE_VERSION >=40 //v4
-        //ModemReset();
-                                   //or perhaps we can funDigitalRead the power status?
-        if (!ModemFound) {
-            // Search for QCA modem
-            digitalWrite(PIN_QCA700X_RESETN, HIGH);         // get modem out of reset
-            _LOG_D("Searching for modem.. \n");
-            qcaspi_read_register16(SPI_REG_SIGNATURE);      // applicatation note says to ignore
-                                                            // the first result
-            ModemFound = (qcaspi_read_register16(SPI_REG_SIGNATURE) == QCASPI_GOOD_SIGNATURE);
-            if (ModemFound) {
-                _LOG_D("QCA700X modem found\n");
-                extern void Timer20ms(void * parameter);
-                extern uint8_t modem_state;
-                extern void setSeccIp();
-                    esp_read_mac(myMac, ESP_MAC_ETH); // select the Ethernet MAC
-                    setSeccIp();  // use myMac to create link-local IPv6 address.
-                    modem_state = MODEM_WRITESPACE;
-                    // Create Task 20ms Timer
-                    xTaskCreate(
-                        Timer20ms,      // Function that should be called
-                        "Timer20ms",    // Name of the task (for debugging)
-                        3072,           // Stack size (bytes)
-                        NULL,           // Parameter to pass
-                        1,              // Task priority
-                        NULL            // Task handle
-                    );
-            }
-        }
-#endif
 #if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
         if (ToModemWaitStateTimer) ToModemWaitStateTimer--;
         else {
@@ -1536,11 +1505,6 @@ printf("@MSG: DINGO State=%d, pilot=%d, AccessTimer=%d, PilotDisconnected=%d.\n"
             _GLCD;                                     // Re-init LCD (200ms delay)
         }
     }
-#else //ESP32v4
-    if (State == STATE_MODEM_DONE || State == STATE_MODEM_DENIED) {
-        ModemFound = false;                                       // so we start looking for the modem next time
-        modem_state = MODEM_POWERDOWN;                            // so we end the 20ms loop on the CH32
-    }
 #endif
 
 #endif
@@ -1587,6 +1551,8 @@ printf("@MSG: DINGO State=%d, pilot=%d, AccessTimer=%d, PilotDisconnected=%d.\n"
 #endif
 #if SMARTEVSE_VERSION >=40
     if (RFIDReader) Serial1.printf("@OneWireReadCardId\n");
+    if (State == STATE_A && modem_state > MODEM_CONFIGURED && modem_state < MODEM_PRESET_NMK)
+        modem_state = MODEM_PRESET_NMK;                                  // if we are not connected and the modem still thinks we are, we force the modem to start the NMK set procedure
 #endif
     // When Solar Charging, once the current drops to MINcurrent a timer is started.
     // Charging is stopped when the timer reaches the time set in 'StopTime' (in minutes)

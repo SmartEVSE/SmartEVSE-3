@@ -2748,6 +2748,22 @@ void setup() {
     ledcAttachPin(LCD_LED, LCD_CHANNEL);
     ledcWrite(LCD_CHANNEL, 255);                // Set LCD backlight brightness 0-255
 
+    digitalWrite(PIN_QCA700X_RESETN, HIGH);         // get modem out of reset
+    esp_read_mac(myMac, ESP_MAC_ETH); // select the Ethernet MAC
+extern void setSeccIp();
+    setSeccIp();  // use myMac to create link-local IPv6 address.
+extern uint8_t modem_state;
+    modem_state = MODEM_POWERUP;
+    // Create Task 20ms Timer
+extern void Timer20ms(void * parameter);
+    xTaskCreate(
+        Timer20ms,      // Function that should be called
+        "Timer20ms",    // Name of the task (for debugging)
+        3072,           // Stack size (bytes)
+        NULL,           // Parameter to pass
+        1,              // Task priority
+        NULL            // Task handle
+    );
 #endif //SMARTEVSE_VERSION
 
     // Read all settings from non volatile memory; MQTTprefix will be overwritten if stored in NVS

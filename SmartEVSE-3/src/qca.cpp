@@ -411,6 +411,8 @@ void SlacManager(uint16_t rxbytes) {
 
 }
 
+static bool Modem_NMK_Is_Preset = false;
+static unsigned long lastSearch = millis();
 
 // Task
 //
@@ -463,12 +465,19 @@ void Timer20ms(void * parameter) {
         switch(modem_state) {
 
             case MODEM_POWERUP:
-                _LOG_I("Searching for local modem.. ");
-                reg16 = qcaspi_read_register16(SPI_REG_SIGNATURE);
-                reg16 = qcaspi_read_register16(SPI_REG_SIGNATURE); //do it twice following the application notes
-                if (reg16 == QCASPI_GOOD_SIGNATURE) {
-                    _LOG_I("QCA700X modem found\n");
-                    modem_state = MODEM_WRITESPACE;
+                if (millis() - lastSearch > 2000) {  //only search every 500ms
+                    _LOG_I("Searching for local modem.. ");
+                    lastSearch = millis();
+                    reg16 = qcaspi_read_register16(SPI_REG_SIGNATURE);
+                    reg16 = qcaspi_read_register16(SPI_REG_SIGNATURE); //do it twice following the application notes
+                    if (reg16 == QCASPI_GOOD_SIGNATURE) {
+                        _LOG_I("QCA700X modem found\n");
+                        if (Modem_NMK_Is_Preset) {
+                            Modem_NMK_Is_Preset = false;
+                            modem_state = MODEM_CONFIGURED;
+                        } else
+                            modem_state = MODEM_WRITESPACE;
+                    }
                 }
                 break;
 
@@ -552,8 +561,9 @@ void Timer20ms(void * parameter) {
                 modem_state = MODEM_WAIT_SW;
                 break;
 
-            case MODEM_POWERDOWN:
-                vTaskDelete(NULL);                    // end this task
+            case MODEM_PRESET_NMK:
+                Modem_NMK_Is_Preset = true;
+                modem_state = MODEM_CM_SET_KEY_REQ;   // request a new key before powering down
                 break;
 
             default:
