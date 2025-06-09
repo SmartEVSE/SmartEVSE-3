@@ -111,7 +111,7 @@ uint16_t ImportCurrent = IMPORT_CURRENT;
 struct DelayedTimeStruct DelayedStartTime;
 struct DelayedTimeStruct DelayedStopTime;
 uint8_t DelayedRepeat;                                                      // 0 = no repeat, 1 = daily repeat
-bool LCDlock = false;                                                       // Lock buttons on LCD display if true
+uint8_t LCDlock = LCD_LOCK;                                                 // 0 = LCD buttons operational, 1 = LCD buttons disabled
 uint8_t Grid = GRID;                                                        // Type of Grid connected to Sensorbox (0:4Wire / 1:3Wire )
 uint8_t RFIDReader = RFID_READER;                                           // RFID Reader (0:Disabled / 1:Enabled / 2:Enable One / 3:Learn / 4:Delete / 5:Delete All / 6: Remote via OCPP)
 #if FAKE_RFID
@@ -4009,7 +4009,7 @@ void read_settings() {
         DelayedStartTime.epoch2 = preferences.getULong("DelayedStartTim", DELAYEDSTARTTIME); //epoch2 is 4 bytes long on arduino; NVS key has reached max size
         DelayedStopTime.epoch2 = preferences.getULong("DelayedStopTime", DELAYEDSTOPTIME);    //epoch2 is 4 bytes long on arduino
         DelayedRepeat = preferences.getUShort("DelayedRepeat", 0);
-        LCDlock = preferences.getUShort("LCDlock", 0);
+        LCDlock = preferences.getUChar("LCDlock", LCD_LOCK);
         TZinfo = preferences.getString("TimezoneInfo","");
         if (TZinfo != "") {
             setenv("TZ",TZinfo.c_str(),1);
@@ -4085,6 +4085,7 @@ void write_settings(void) {
     preferences.putString("RequiredEVCCID", String(RequiredEVCCID));
     preferences.putUShort("maxTemp", maxTemp);
     preferences.putUChar("AutoUpdate", AutoUpdate);
+    preferences.putUChar("LCDlock", LCDlock);
 
 #if ENABLE_OCPP
     preferences.putUChar("OcppMode", OcppMode);
@@ -4236,7 +4237,7 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
         doc["settings"]["starttime"] = (DelayedStartTime.epoch2 ? DelayedStartTime.epoch2 + EPOCH2_OFFSET : 0);
         doc["settings"]["stoptime"] = (DelayedStopTime.epoch2 ? DelayedStopTime.epoch2 + EPOCH2_OFFSET : 0);
         doc["settings"]["repeat"] = DelayedRepeat;
-        doc["settings"]["LCDlock"] = LCDlock;
+        doc["settings"]["lcdlock"] = LCDlock;
 #if MODEM
             doc["settings"]["required_evccid"] = RequiredEVCCID;
             doc["settings"]["modem"] = "Experiment";
@@ -4559,15 +4560,12 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
             }
         }
 
-        if (request->hasParam("LCDlock")) {
-            int lock = request->getParam("LCDlock")->value().toInt();
+        if (request->hasParam("lcdlock")) {
+            int lock = request->getParam("lcdlock")->value().toInt();
             if (lock >= 0 && lock <= 1) {                                   //boundary check
                 LCDlock = lock;
-                doc["LCDlock"] = lock;
-                if (preferences.begin("settings", false)) {
-                    preferences.putUShort("LCDlock", LCDlock);
-                    preferences.end();
-                }
+                doc["lcdlock"] = lock;
+                write_settings();
             }
         }
 
@@ -5415,6 +5413,18 @@ void setup() {
     read_settings();                                                            // initialize with default data when starting for the first time
     validate_settings();
     ReadRFIDlist();                                                             // Read all stored RFID's from storage
+
+    // Sample middle+right button, and lock/unlock LCD buttons.
+    pinMatrixOutDetach(PIN_LCD_SDO_B3, false, false);                           // disconnect MOSI pin
+    pinMode(PIN_LCD_SDO_B3, INPUT);
+    pinMode(PIN_LCD_A0_B2, INPUT);
+    if ((digitalRead(PIN_LCD_A0_B2) == 0) && (digitalRead(PIN_LCD_SDO_B3) == 0)) {
+        LCDlock = !LCDlock;
+        write_settings();
+    }
+    pinMode(PIN_LCD_SDO_B3, OUTPUT);
+    pinMatrixOutAttach(PIN_LCD_SDO_B3, VSPID_IN_IDX, false, false);             // re-attach MOSI pin
+    pinMode(PIN_LCD_A0_B2, OUTPUT);
 
     // Create Task EVSEStates, that handles changes in the CP signal
     xTaskCreate(
