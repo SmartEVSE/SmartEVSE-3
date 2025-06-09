@@ -1877,7 +1877,7 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
 #ifdef SENSORBOX_VERSION // SB2
         case MENU_SB2_WIFI:
             SB2_WIFImode = val;
-            break;    
+            break;
 #endif
         case MENU_MAINSMETER:
             MainsMeter.Type = val;
@@ -3143,29 +3143,37 @@ void SetupMQTTClient() {
 
 void mqttPublishData() {
     //lastMqttUpdate = 0;
+    #define COLORARR2ULONG(arr)  ((uint32_t)((uint32_t)(arr[0]<<16)|(uint32_t)(arr[1]<<8)|(uint32_t)(arr[2])))
+    #define IRMSARR2ULONG(arr)   ((uint32_t)((uint32_t)(arr[0]<<20)|(uint32_t)(arr[1]<<10)|(uint32_t)(arr[2])))
     uint32_t u; // temporary value
-    static uint32_t s_uptime_10s;
-    static int16_t s_mm_irms[3]={-1,-1,-1};
-    static int16_t s_evm_irms[3]={-1,-1,-1};
-    static int16_t s_SolarStopTimer;
-    static int16_t s_MaxCurrent;
-    static int16_t s_ChargeCurrent;
-    static int16_t s_ChargeCurrentOverride;
-    static int8_t s_Access;
-    static int8_t s_RFIDstatus;
+    // Static data to store previous values, in order to publish only data changes
+    // The '-1' initialization is to ensure that after boot all appliccable items are published at least once.
+    static uint32_t s_uptime_30s;
+    static uint32_t s_mm_irms=-1;
+    static uint32_t s_evm_irms=-1;
+    static int16_t s_SolarStopTimer=-1;
+    static int16_t s_MaxCurrent=-1;
+    static int16_t s_ChargeCurrent=-1;
+    static int16_t s_ChargeCurrentOverride=-1;
+    static int8_t s_Access=-1;
+    static int8_t s_RFIDstatus=-1;
     static int8_t s_RFIDtag[8];
-    static int8_t s_temp_evse;
+    static int8_t s_temp_evse=-1;
     static int8_t s_access_mode = -1;
-    static int8_t s_state;
+    static int8_t s_state=-1;
     static int8_t s_error=-1;
-    static int8_t s_plugstate;
+    static int8_t s_plugstate=-1;
     static int8_t s_wifirssi;
-    static int s_wifirssi_update10s;
+    static int s_wifirssi_update30s;
     static String s_wifissid, s_wifiBssid;
     static int s_homeBatteryCurrent=-1;
     static int s_evm_power;
     static int32_t s_evm_energyCharged=-1;
-    static int32_t s_evm_energyTotal;
+    static int32_t s_evm_energyTotal=-1;
+    static uint32_t s_color_off=-1;
+    static uint32_t s_color_normal=-1;
+    static uint32_t s_color_smart=-1;
+    static uint32_t s_color_solar=-1;
 #if MODEM
     static int s_cppwm;
     static int32_t s_cppwmoverride;
@@ -3177,29 +3185,23 @@ void mqttPublishData() {
     static uint8_t s_OcppMode, s_OcppWsClientConnected;
 #endif
 
-        if (MainsMeter.Type &&
-            (s_mm_irms[0] != MainsMeter.Irms[0] || s_mm_irms[1] != MainsMeter.Irms[1] || s_mm_irms[2] != MainsMeter.Irms[2]))
+        if (MainsMeter.Type && (s_mm_irms != IRMSARR2ULONG(MainsMeter.Irms)))
         {
-            s_mm_irms[0] = MainsMeter.Irms[0];
-            s_mm_irms[1] = MainsMeter.Irms[1];
-            s_mm_irms[2] = MainsMeter.Irms[2];
+            s_mm_irms = IRMSARR2ULONG(MainsMeter.Irms);
             MQTTclient.publish(MQTTprefix + "/MainsCurrentL1", MainsMeter.Irms[0], false, 0);
             MQTTclient.publish(MQTTprefix + "/MainsCurrentL2", MainsMeter.Irms[1], false, 0);
             MQTTclient.publish(MQTTprefix + "/MainsCurrentL3", MainsMeter.Irms[2], false, 0);
         }
-        if (EVMeter.Type &&
-            (s_evm_irms[0] != EVMeter.Irms[0] || s_evm_irms[1] != EVMeter.Irms[1] || s_evm_irms[2] != EVMeter.Irms[2]))
+        if (EVMeter.Type && (s_evm_irms != IRMSARR2ULONG(EVMeter.Irms)))
         {
-            s_evm_irms[0] = EVMeter.Irms[0];
-            s_evm_irms[1] = EVMeter.Irms[1];
-            s_evm_irms[2] = EVMeter.Irms[2];
+            s_evm_irms = IRMSARR2ULONG(EVMeter.Irms);
             MQTTclient.publish(MQTTprefix + "/EVCurrentL1", EVMeter.Irms[0], false, 0);
             MQTTclient.publish(MQTTprefix + "/EVCurrentL2", EVMeter.Irms[1], false, 0);
             MQTTclient.publish(MQTTprefix + "/EVCurrentL3", EVMeter.Irms[2], false, 0);
         }
-        if (s_uptime_10s != (u = (uint32_t)(esp_timer_get_time() / 10000000))) {
-            s_uptime_10s = u; // publish no more often than every 10 s; perform 64-bit divide only once
-            MQTTclient.publish(MQTTprefix + "/ESPUptime", s_uptime_10s * 10, false, 0);
+        if (s_uptime_30s != (u = (uint32_t)(esp_timer_get_time() / 30000000ul))) {
+            s_uptime_30s = u; // publish no more often than every 30 s; perform 64-bit divide only once per loop
+            MQTTclient.publish(MQTTprefix + "/ESPUptime", s_uptime_30s * 30, false, 0);
         }
         if (s_temp_evse != TempEVSE) {
             s_temp_evse = TempEVSE;
@@ -3255,9 +3257,9 @@ void mqttPublishData() {
             s_wifiBssid = WiFi.BSSIDstr();
             MQTTclient.publish(MQTTprefix + "/WiFiBSSID", WiFi.BSSIDstr(), true, 0);
         }
-        if ((++s_wifirssi_update10s >= 10) && s_wifirssi != (u = WiFi.RSSI())) {
-            // do not post _every_ change, but limit to every 10s
-            s_wifirssi_update10s = 0;
+        if ((++s_wifirssi_update30s >= 30) && s_wifirssi != (int8_t)(u = WiFi.RSSI())) {
+            // do not post _every_ change, but limit to every 30s
+            s_wifirssi_update30s = 0;
             s_wifirssi = (int8_t)u;
             MQTTclient.publish(MQTTprefix + "/WiFiRSSI", s_wifirssi, false, 0);
         }
@@ -3340,11 +3342,22 @@ void mqttPublishData() {
             MQTTclient.publish(MQTTprefix + "/OCPPConnection", (OcppWsClient && OcppWsClient->isConnected()) ? "Connected" : "Disconnected", false, 0);
         }
 #endif //ENABLE_OCPP
-      //[rob040] TODO: limit publish on change
-        MQTTclient.publish(MQTTprefix + "/LEDColorOff", String(ColorOff[0])+","+String(ColorOff[1])+","+String(ColorOff[2]), true, 0);
-        MQTTclient.publish(MQTTprefix + "/LEDColorNormal", String(ColorNormal[0])+","+String(ColorNormal[1])+","+String(ColorNormal[2]), true, 0);
-        MQTTclient.publish(MQTTprefix + "/LEDColorSmart", String(ColorSmart[0])+","+String(ColorSmart[1])+","+String(ColorSmart[2]), true, 0);
-        MQTTclient.publish(MQTTprefix + "/LEDColorSolar", String(ColorSolar[0])+","+String(ColorSolar[1])+","+String(ColorSolar[2]), true, 0);
+        if (s_color_off != COLORARR2ULONG(ColorOff)) {
+            s_color_off = COLORARR2ULONG(ColorOff);
+            MQTTclient.publish(MQTTprefix + "/LEDColorOff", String(ColorOff[0])+","+String(ColorOff[1])+","+String(ColorOff[2]), true, 0);
+        }
+        if (s_color_normal != COLORARR2ULONG(ColorNormal)) {
+            s_color_normal = COLORARR2ULONG(ColorNormal);
+            MQTTclient.publish(MQTTprefix + "/LEDColorNormal", String(ColorNormal[0])+","+String(ColorNormal[1])+","+String(ColorNormal[2]), true, 0);
+        }
+        if (s_color_smart != COLORARR2ULONG(ColorSmart)) {
+            s_color_smart = COLORARR2ULONG(ColorSmart);
+            MQTTclient.publish(MQTTprefix + "/LEDColorSmart", String(ColorSmart[0])+","+String(ColorSmart[1])+","+String(ColorSmart[2]), true, 0);
+        }
+        if (s_color_solar != COLORARR2ULONG(ColorSolar)) {
+            s_color_solar = COLORARR2ULONG(ColorSolar);
+            MQTTclient.publish(MQTTprefix + "/LEDColorSolar", String(ColorSolar[0])+","+String(ColorSolar[1])+","+String(ColorSolar[2]), true, 0);
+        }
 }
 #endif
 
