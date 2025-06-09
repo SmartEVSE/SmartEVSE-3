@@ -1060,7 +1060,7 @@
                       else if (last_evse_state_id>2 && !confirm("Reboot? Car is possibly charging!\nReboot will stop charging!"))
                         doit=false;
                       if (doit)
-                        $.post("/reboot");
+                        window.location.href = "/reboot";
                     }
                     function update() {
                       var doit=true;
