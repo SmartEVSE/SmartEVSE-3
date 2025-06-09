@@ -7,7 +7,7 @@
 
 //TODO: check if I need all this:
 uint8_t txbuffer[3164], rxbuffer[3164];
-uint8_t modem_state;
+uint8_t modem_state, old_modem_state;
 uint8_t myMac[6]; // the MAC of the EVSE (derived from the ESP32's MAC).
 uint8_t pevMac[6]; // the MAC of the PEV (most likely the same as EVCCID?) //YES for Volkswagen's rotating EVCCID equals pevMac every time
 uint8_t myModemMac[6]; // our own modem's MAC (this is different from myMAC !). Unused.
@@ -400,12 +400,16 @@ void SlacManager(uint16_t rxbytes) {
             // Store the Pev modem MAC, as long as it is not random, we can use it for identifying the EV (Autocharge / Plug N Charge)
             memcpy(pevModemMac, rxbuffer+6, 6);
         }
-        _LOG_I("received GET_SW.CNF\n");
         ModemsFound++;
+        _LOG_I("received GET_SW.CNF, ModemsFound=%u.\n", ModemsFound);
     }
+
+    if (modem_state != old_modem_state) {
+        _LOG_D("SlacManager: modem_state %u -> %u.\n", old_modem_state, modem_state);
+        old_modem_state = modem_state;
+    }
+
 }
-
-
 
 
 // Task
@@ -449,6 +453,11 @@ void Timer20ms(void * parameter) {
                 ModemReset();
                 modem_state = MODEM_POWERUP;
             }
+        }
+
+        if (modem_state != old_modem_state) {
+            _LOG_D("modem_state %u -> %u.\n", old_modem_state, modem_state);
+            old_modem_state = modem_state;
         }
 
         switch(modem_state) {
@@ -536,7 +545,7 @@ void Timer20ms(void * parameter) {
             case MODEM_GET_SW_REQ:
                 composeGetSwReq();
                 qcaspi_write_burst(txbuffer, 60); // Send data to modem
-                _LOG_I("Modem Search..\n");
+                _LOG_I("Modem Search on Network..\n");
                 //SetLED(CRGB::Amethyst);
                 ModemsFound = 0;
                 ModemSearchTimer = millis();        // start timer
@@ -551,6 +560,10 @@ void Timer20ms(void * parameter) {
                 break;
         }
 
+        if (modem_state != old_modem_state) {
+            _LOG_D("modem_state2 %u -> %u.\n", old_modem_state, modem_state);
+            old_modem_state = modem_state;
+        }
 
         if (modem_state == MODEM_WAIT_LINK && (LinkStatusTimer + 200) < millis() ) {
 
@@ -593,6 +606,10 @@ void Timer20ms(void * parameter) {
             modem_state = MODEM_POWERUP;
         }
 
+        if (modem_state != old_modem_state) {
+            _LOG_D("modem_state3 %u -> %u.\n", old_modem_state, modem_state);
+            old_modem_state = modem_state;
+        }
 
         // Pause the task for 20ms
         vTaskDelay(20 / portTICK_PERIOD_MS);
