@@ -571,6 +571,7 @@ void GLCD(void) {
         if (OcppMode &&                                          // OCPP enabled
                 (getItemValue(MENU_RFIDREADER) == 6 || getItemValue(MENU_RFIDREADER) == 0) && // RFID in OCPP mode or disabled
                 ocppHasTxNotification()) {                                      // There is an OCPP event to display
+            BacklightTimer = BACKLIGHT;
             switch(ocppGetTxNotification()) {
                 case MicroOcpp::TxNotification::Authorized:
                     GLCD_print_buf2(2, (const char *) "ACCEPTED");
