@@ -728,6 +728,7 @@ void setMode(uint8_t NewMode) {
         preferences.putUChar("Mode", Mode);
         preferences.putULong("DelayedStartTim", DelayedStartTime.epoch2); //epoch2 only needs 4 bytes
         preferences.putULong("DelayedStopTime", DelayedStopTime.epoch2);   //epoch2 only needs 4 bytes
+        preferences.putUShort("DelayedRepeat", DelayedRepeat);
         preferences.end();
     }
 }
