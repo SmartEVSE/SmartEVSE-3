@@ -1035,9 +1035,6 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
 
                 if(request->hasParam("mqtt_host")) {
                     MQTTHost = request->getParam("mqtt_host")->value();
-#if MQTT_ESP == 1
-                    MQTTclient.connect();
-#endif
                     doc["mqtt_host"] = MQTTHost;
                 }
 
@@ -1070,6 +1067,11 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
                     }
                     doc["mqtt_password_set"] = (MQTTpassword != "");
                 }
+
+                // disconnect mqtt so it will automatically reconnect with then new params
+                MQTTclient.disconnect();
+                MQTTclient.connect();
+
                 if (preferences.begin("settings", false) ) {
                     preferences.putString("MQTTpassword", MQTTpassword);
                     preferences.putString("MQTTuser", MQTTuser);
@@ -1355,9 +1357,7 @@ void WiFiSetup(void) {
         preferences.end();
     }
 
-#if MQTT_ESP == 1
     MQTTclient.connect();
-#endif
 
 #endif //MQTT
 }
