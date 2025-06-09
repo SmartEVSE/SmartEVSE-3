@@ -2526,7 +2526,15 @@ void EVSEStates(void * parameter) {
                 DiodeCheck = 0;
                 GLCD_init();                                                    // Re-init LCD (200ms delay); necessary because switching contactors can cause LCD to mess up
                                                                                 // Mark EVSE as inactive (still State B)
-            }
+            } else if (pilot != PILOT_6V) {                                     // Pilot level at anything else is an error
+                if (++StateTimer > 50) {                                        // make sure it's not a glitch, by delaying by 500mS (re-using StateTimer here)
+                    StateTimer = 0;                                             // Reset StateTimer for use in State B
+                    setState(STATE_B);
+                    DiodeCheck = 0;
+                    GLCD_init();                                                // Re-init LCD (200ms delay); necessary because switching contactors can cause LCD to mess up
+                }
+
+            } else StateTimer = 0;
 
         } // end of State C code
 
