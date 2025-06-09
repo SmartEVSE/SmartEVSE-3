@@ -733,6 +733,7 @@ void setup(void) {
     funDigitalWrite(SWDIO, FUN_HIGH);               // SWDIO High (pull up) unused
 
 
+    ModemPower(1);
     RCmonCtrl(DISABLE);
     PowerPanicCtrl(DISABLE);
 

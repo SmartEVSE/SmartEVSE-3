@@ -295,7 +295,6 @@ EXT int8_t TemperatureSensor();
 uint8_t OneWireReadCardId();
 EXT uint8_t ProximityPin();
 EXT void PowerPanicCtrl(uint8_t enable);
-EXT void ModemPower(uint8_t enable);
 EXT uint8_t ReadESPdata(char *buf);
 
 extern void requestEnergyMeasurement(uint8_t Meter, uint8_t Address, bool Export);
@@ -766,9 +765,6 @@ void setState(uint8_t NewState) { //c
             }
             break;
         case STATE_MODEM_REQUEST: // After overriding PWM, and resetting the safe state is 10% PWM. To make sure communication recovers after going to normal, we do this. Ugly and temporary
-#ifndef SMARTEVSE_VERSION //CH32
-            ModemPower(1);                                                      // switch on modem
-#endif
             ToModemWaitStateTimer = 5;
             PILOT_DISCONNECTED;                                                 // CP 0V = STATE E
             DisconnectTimeCounter = -1;                                         // Disable Disconnect timer. Car is connected
@@ -783,9 +779,6 @@ void setState(uint8_t NewState) { //c
             break;
         //TODO how about STATE_MODEM_DENIED?
         case STATE_MODEM_DONE:  // This state is reached via STATE_MODEM_WAIT after 60s (timeout condition, nothing received) or after REST/MODEM request (success, shortcut to immediate charging).
-#ifndef SMARTEVSE_VERSION //CH32
-            ModemPower(0);                                                      // switch off modem
-#endif
             PILOT_DISCONNECTED;
             DisconnectTimeCounter = -1;                                         // Disable Disconnect timer. Car is connected
             LeaveModemDoneStateTimer = 5;                                       // Disconnect CP for 5 seconds, restart charging cycle but this time without the modem steps.
