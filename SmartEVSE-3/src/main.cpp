@@ -893,7 +893,7 @@ void setAccess(bool Access) {
     //make mode and start/stoptimes persistent on reboot
     if (preferences.begin("settings", false) ) {                        //false = write mode
         preferences.putUChar("Access", Access_bit);
-        preferences.putUChar("CardOffset", CardOffset);
+        preferences.putUShort("CardOffs16", CardOffset);
         preferences.end();
     }
 
@@ -3971,7 +3971,7 @@ void read_settings() {
         Lock = preferences.getUChar("Lock", LOCK);
         Mode = preferences.getUChar("Mode", MODE);
         Access_bit = preferences.getUChar("Access", ACCESS_BIT);
-        CardOffset = preferences.getUChar("CardOffset", CARD_OFFSET);
+        CardOffset = preferences.getUShort("CardOffs16", CARD_OFFSET);
         LoadBl = preferences.getUChar("LoadBl", LOADBL);
         MaxMains = preferences.getUShort("MaxMains", MAX_MAINS);
         MaxSumMains = preferences.getUShort("MaxSumMains", MAX_SUMMAINS);
@@ -4046,7 +4046,7 @@ void write_settings(void) {
     preferences.putUChar("Lock", Lock);
     preferences.putUChar("Mode", Mode);
     preferences.putUChar("Access", Access_bit);
-    preferences.putUChar("CardOffset", CardOffset);
+    preferences.putUShort("CardOffs16", CardOffset);
     preferences.putUChar("LoadBl", LoadBl);
     preferences.putUShort("MaxMains", MaxMains);
     preferences.putUShort("MaxSumMains", MaxSumMains);
