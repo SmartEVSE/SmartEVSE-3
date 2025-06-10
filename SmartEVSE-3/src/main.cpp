@@ -1335,17 +1335,21 @@ void CalcBalancedCurrent(char mod) {
                 }
             }
 
-            //the expiring of both SolarStopTimer and MaxSumMinsTimer is handled in the Timer1s loop
+            // check for HARD shortage of power
+            // with HARD shortage we stop charging
+            // with SOFT shortage we have a timer running
             // IsetBalanced is already set to the minimum needed power to charge all Nodes
             bool hardShortage = false;
             // guard MaxMains
-            if (MainsMeter.Type && Mode != MODE_NORMAL)
-                if (IsetBalanced > (MaxMains * 10) - Baseload)
-                    hardShortage = true;
+            if ((MainsMeter.Type && Mode != MODE_NORMAL)
+                && (IsetBalanced > (MaxMains * 10) - Baseload))
+                hardShortage = true;
             // guard MaxCircuit
             if (((LoadBl == 0 && EVMeter.Type && Mode != MODE_NORMAL) || LoadBl == 1) // Conditions in which MaxCircuit has to be considered
                 && (IsetBalanced > (MaxCircuit * 10) - Baseload_EV))
-                    hardShortage = true;
+                hardShortage = true;
+            if (!MaxSumMainsTime && LimitedByMaxSumMains)                       // if we don't use the Capacity timer, we want a hard stop
+                hardShortage = true;
             if (hardShortage && Switching_Phases_C2 != GOING_TO_SWITCH_1F) { // because switching to single phase might solve the shortage
                 // ############ HARD shortage of power
                 NoCurrent++;                                                    // Flag NoCurrent left
