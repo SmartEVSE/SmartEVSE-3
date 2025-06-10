@@ -17,6 +17,6 @@ while true; do
         OLD_CURRENT=$CURRENT
     fi
     echo $FEED-CURRENT=$CURRENT.
-    mosquitto_pub  -h 127.0.0.1 -t "SmartEVSE-$1/Set/$FEED" -m $CURRENT:$CURRENT:$CURRENT:11000:$ENERGY
+    mosquitto_pub  -h 127.0.0.1 -t "SmartEVSE/$1/Set/$FEED" -m $CURRENT:$CURRENT:$CURRENT:11000:$ENERGY
     ENERGY=$((ENERGY + 100))
 done

@@ -15,6 +15,6 @@ while true; do
         OLD_CURRENT=$CURRENT
     fi
     echo $FEED-CURRENT=$CURRENT.
-    mosquitto_pub  -h 127.0.0.1 -t "SmartEVSE-$1/Set/$FEED" -m $CURRENT:$CURRENT:$CURRENT
+    mosquitto_pub  -h 127.0.0.1 -t "SmartEVSE/$1/Set/$FEED" -m $CURRENT:$CURRENT:$CURRENT
     sleep 1
 done
