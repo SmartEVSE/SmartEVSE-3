@@ -47,6 +47,7 @@ void ModbusSend8(uint8_t address, uint8_t function, uint16_t reg, uint16_t data)
     token = reg;
     token += address << 24;
     token += function << 16;
+#if SMARTEVSE_VERSION ==3
     Error err = MBclient.addRequest(token, address, function, reg, data);
     if (err!=SUCCESS) {
         ModbusError e(err);
@@ -55,6 +56,7 @@ void ModbusSend8(uint8_t address, uint8_t function, uint16_t reg, uint16_t data)
     else {
         _LOG_V("Sent packet");
     }
+#endif //SMARTEVSE_VERSION
     _LOG_V_NO_FUNC(" address: 0x%02x, function: 0x%02x, reg: 0x%04x, token:0x%08x, data: 0x%04x.\n", address, function, reg, token, data);
 }
 
@@ -125,6 +127,7 @@ void ModbusWriteMultipleRequest(uint8_t address, uint16_t reg, uint16_t *values,
     token = reg;
     token += address << 24;
     token += 0x10 << 16;
+#if SMARTEVSE_VERSION ==3
     Error err = MBclient.addRequest(token, address, 0x10, reg, (uint16_t) count, count * 2u, values);
     if (err!=SUCCESS) {
       ModbusError e(err);
@@ -134,6 +137,7 @@ void ModbusWriteMultipleRequest(uint8_t address, uint16_t reg, uint16_t *values,
     for (uint16_t i = 0; i < count; i++) {
         _LOG_V_NO_FUNC(" %04x", values[i]);
     }
+#endif
     _LOG_V_NO_FUNC("\n");
 }
 

@@ -129,7 +129,7 @@ void ReadRFIDlist(void) {
     uint8_t initialized = 0;
     unsigned char RFIDold[600];                                                 // old RFID buffer
 
-    if (preferences.begin("RFIDlist", false) ) {                                 // read only
+    if (preferences.begin("RFIDlist", false) ) {                                // read/write
         initialized = preferences.getUChar("RFIDinit", 0);
         switch (initialized) {
             case 1:                                                             // we were initialized to old 120 bytes mode

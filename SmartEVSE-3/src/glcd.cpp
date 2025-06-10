@@ -40,6 +40,9 @@
 #include <MicroOcpp.h>
 #endif
 
+#if SMARTEVSE_VERSION == 4
+//#include "Melopero_RV3028.h"
+#endif //SMARTEVSE_VERSION
 
 const unsigned char LCD_Flow [] = {
 0x00, 0x00, 0x98, 0xCC, 0x66, 0x22, 0x22, 0x22, 0xF2, 0xAA, 0x26, 0x2A, 0xF2, 0x22, 0x22, 0x22,
@@ -87,6 +90,8 @@ uint8_t MenuItems[MENU_EXIT];
 extern void handleWIFImode(void *s  = &Serial);
 extern char SmartConfigKey[16];
 
+#if SMARTEVSE_VERSION == 3
+
 void st7565_command(unsigned char data) {
     _A0_0;
     SPI.transfer(data);
@@ -96,6 +101,9 @@ void st7565_data(unsigned char data) {
     _A0_1;
     SPI.transfer(data);
 }
+#else //SMARTEVSE_VERSION V4
+#error "SMARTEVSE_VERSION V4 unsupported"
+#endif //SMARTEVSE_VERSION
 
 void goto_row(unsigned char y) {
     unsigned char pattern;
@@ -149,6 +157,7 @@ void GLCD_buffer_clr(void) {
     } while (x != 0);
 }
 
+#if SMARTEVSE_VERSION == 3
 void GLCD_sendbuf(unsigned char RowAdr, unsigned char Rows) {
     unsigned char i, y = 0;
     unsigned int x = 0;
@@ -158,6 +167,9 @@ void GLCD_sendbuf(unsigned char RowAdr, unsigned char Rows) {
         for (i = 0; i < 128; i++) st7565_data(GLCDbuf[x++]);                    // put data on data port
     } while (++y < Rows);
 }
+#else //SMARTEVSE_VERSION V4
+#error "SMARTEVSE_VERSION V4 unsupported"
+#endif //SMARTEVSE_VERSION
 
 void GLCD_font_condense(unsigned char c, unsigned char *start, unsigned char *end, unsigned char space) {
     if(c >= '0' && c <= '9') return;
@@ -516,6 +528,7 @@ void GLCD(void) {
                 // a mainsMeter timeout is not "SERIAL COMM"
                 //GLCD_print_buf2(0, (const char *) "ERROR NO");
                 //GLCD_print_buf2(2, (const char *) "SERIAL COM");
+                //[rob040] Serial? replace "ERROR NO SERIAL COM" with clearer message:
                 GLCD_print_buf2(0, (const char *) "ERR MAINS");
                 GLCD_print_buf2(2, (const char *) "METER DATA");
             }
@@ -741,7 +754,7 @@ void GLCD(void) {
                         }
                     } else {
                         // The "ACCESS DENIED" is only appliccable when RFID is used to gain access, but then it shows "PRESENT RFID CARD".
-                        // For normal use, just say "OFF", much more friendlier statement
+                        // [rob040] For normal use, just say "OFF", much more friendlier statement
                         //GLCD_print_buf2(2, (const char *) "ACCESS");
                         //GLCD_print_buf2(4, (const char *) "DENIED");
 
@@ -1356,6 +1369,7 @@ void GLCDMenu(uint8_t Buttons) {
 
 
 void GLCD_init(void) {
+#if SMARTEVSE_VERSION == 3
     delay(200);                                                                 // transients on the line could have garbled the LCD, wait 200ms then re-init.
     _A0_0;                                                                      // A0=0
     _RSTB_0;                                                                    // Reset GLCD module
@@ -1385,6 +1399,8 @@ void GLCD_init(void) {
     goto_col(0x00);                                                             // (4) Set column addr LSB
 
     st7565_command(0xAF);                                                       // (1) ON command
-
+#else //SMARTEVSE_VERSION V4
+#error "SMARTEVSE_VERSION V4 unsupported"
+#endif
 }
 

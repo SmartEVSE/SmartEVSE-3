@@ -1369,7 +1369,6 @@ void WiFiSetup(void) {
             tzset();
         }
 #if MQTT == 1
-        preferences.end();
         MQTTpassword = preferences.getString("MQTTpassword");
         MQTTuser = preferences.getString("MQTTuser");
 #ifdef SENSORBOX_VERSION
@@ -1395,6 +1394,7 @@ void WiFiSetup(void) {
 // called by loop() in the main program
 void network_loop() {
     static unsigned long lastCheck_net = 0;
+    static int seconds = 0;
     if (millis() - lastCheck_net >= 1000) {
         lastCheck_net = millis();
         //this block is for non-time critical stuff that needs to run approx 1 / second
@@ -1402,10 +1402,12 @@ void network_loop() {
         if (!LocalTimeSet && WIFImode == 1) {
             _LOG_A("Time not synced with NTP yet.\n");
         }
-#if MQTT
-        MQTTclient.publish(MQTTprefix + "/ESPUptime", esp_timer_get_time() / 1000000, false, 0);
-        MQTTclient.publish(MQTTprefix + "/WiFiRSSI", String(WiFi.RSSI()), false, 0);
-#endif
+        //this block is for non-time critical stuff that needs to run approx 1 / 10 seconds
+        if (seconds++ >= 9) {
+            seconds = 0;
+            /* nothing todo */
+            /* MQTT stuff removed; is in mqttPublishData() */
+        }
     }
 
     mg_mgr_poll(&mgr, 100);                                                     // TODO increase this parameter to up to 1000 to make loop() less greedy

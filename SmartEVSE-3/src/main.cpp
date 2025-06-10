@@ -41,9 +41,15 @@
 #include <MicroOcpp/Core/Context.h>
 #endif //ENABLE_OCPP
 
+#if SMARTEVSE_VERSION == 4
+#error "SMARTEVSE_VERSION V4 unsupported"
+#endif //SMARTEVSE_VERSION
+
+#if SMARTEVSE_VERSION == 3
 // Create a ModbusRTU server, client and bridge instance on Serial1
 ModbusServerRTU MBserver(2000, PIN_RS485_DIR);     // TCP timeout set to 2000 ms
 ModbusClientRTU MBclient(PIN_RS485_DIR);
+#endif //SMARTEVSE_VERSION
 
 hw_timer_t * timerA = NULL;
 Preferences preferences;
@@ -123,7 +129,7 @@ uint16_t maxTemp = MAX_TEMPERATURE;
 
 Meter MainsMeter(MAINS_METER, MAINS_METER_ADDRESS, COMM_TIMEOUT);
 Meter EVMeter(EV_METER, EV_METER_ADDRESS, COMM_EVTIMEOUT);
-uint8_t Nr_Of_Phases_Charging = 0;                                          // 0 = Undetected, 1,2,3 = nr of phases that was detected at the start of this charging session [rob] requires EV meter! only valid in SOLAR mode
+uint8_t Nr_Of_Phases_Charging = 0;                                          // 0 = Undetected, 1,2,3 = nr of phases that was detected at the start of this charging session [rob040] requires EV meter! only valid in SOLAR mode
 Switch_Phase_t Switching_Phases_C2 = NO_SWITCH;                             // switching phases only used in SOLAR mode with Contactor C2 = AUTO
 
 uint8_t State = STATE_A;
@@ -179,7 +185,6 @@ uint8_t OldButtonState = 0x0f;                                              // H
 uint8_t LCDNav = 0;
 uint8_t SubMenu = 0;
 uint32_t ScrollTimer = 0;
-uint8_t LCDupdate = 0;                                                      // flag to update the LCD every 1000ms
 uint8_t ChargeDelay = 0;                                                    // Delays charging at least 60 seconds in case of not enough current available.
 uint8_t C1Timer = 0;
 uint8_t ModemStage = 0;                                                     // 0: Modem states will be executed when Modem is enabled 1: Modem stages will be skipped, as SoC is already extracted
@@ -280,6 +285,7 @@ t_csvout csvout;
 #if CSV_OUT
 #endif
 
+#if SMARTEVSE_VERSION == 3
 // Some low level stuff here to setup the ADC, and perform the conversion.
 //
 //
@@ -348,6 +354,7 @@ void IRAM_ATTR onTimerA() {
   if (sampleidx == 25) sampleidx = 0;
 }
 
+#endif //SMARTEVSE_VERSION
 
 // --------------------------- END of ISR's -----------------------------------------------------
 
@@ -496,7 +503,7 @@ void BlinkLed(void * parameter) {
 // Set Charge Current
 // Current in Amps * 10 (160 = 16A)
 void SetCurrent(uint16_t current) {
-    /* old, inaccurate FP code
+    /* old, inaccurate FP-integer mix code
     uint32_t DutyCycle;
     if ((current >= (MIN_CURRENT * 10)) && (current <= 510)) {
                                                                             // calculate DutyCycle from current
@@ -511,7 +518,7 @@ void SetCurrent(uint16_t current) {
     DutyCycle = DutyCycle * 1024 / 1000;                                    // conversion to 1024 = 100%
     SetCPDuty(DutyCycle);
     */
-// [ROB] use integer calculations for higher accuracy
+// [rob040] use integer calculations for higher accuracy
     uint32_t pwm1k;
     if ((current >= (MIN_CURRENT * 10)) && (current <= 510)) {
         // calculate DutyCycle from current in dA (deci-Ampere), without FP
@@ -555,6 +562,7 @@ uint16_t GetCurrent() {
 #endif //ENABLE_OCPP
 
 
+#if SMARTEVSE_VERSION == 3
 // Sample the Temperature sensor.
 //
 signed char TemperatureSensor() {
@@ -632,6 +640,7 @@ uint8_t Pilot() {
     if ((Min > 100) && (Max < 300)) return PILOT_DIODE;                     // Diode Check OK
     return PILOT_NOK;                                                       // Pilot NOT ok
 }
+#endif
 
 
 /**
@@ -700,7 +709,7 @@ void setMode(uint8_t NewMode) {
             switchOnLater = true;
         }
     }
-    /* rob040: similar to the above, when solar charging at 1F and mode change, we need to switch back to 3F */
+    /* [rob040]: similar to the above, when solar charging at 1F and mode change, we need to switch back to 3F */
     if ((EnableC2 == AUTO) && (Mode != NewMode) && (Mode == MODE_SOLAR) /* && solar 1F*/) {
         setAccess(0);                                                       //switch to OFF
         switchOnLater = true;
@@ -1016,7 +1025,7 @@ char IsCurrentAvailable(void) {
 
 // Set global var Nr_Of_Phases_Charging
 // 0 = undetected, 1 - 3 nr of phases we are charging
-//[rob] disabled this function as it is not working, see below
+//[rob040] disabled this function as it is not working, see below
 /*void Set_Nr_of_Phases_Charging(void) {
     uint32_t Max_Charging_Prob = 0;
     uint32_t Charging_Prob=0;                                        // Per phase, the probability that Charging is done at this phase
@@ -1026,7 +1035,7 @@ char IsCurrentAvailable(void) {
     _LOG_D("Detected Charging Phases: ChargeCurrent=%u, Balanced[0]=%u, IsetBalanced=%u.\n", ChargeCurrent, Balanced[0],IsetBalanced);
     for (int i=0; i<3; i++) {
         if (EVMeter.Type) {
-//[rob] Charging Probability calculation does not work at all!
+//[rob040] Charging Probability calculation does not work at all!
 //  Ev meter should report 0A on non active phases! offsetting it with IsetBalanced is wrong! abs() is even worse.
 //  without ev meter, on only mains meter could tell but largely depends in installation, so this is harder
 // better solution is use surplus power/current from MainsMeter en decide when to switch 3F to 1F and BACK!
@@ -1250,8 +1259,7 @@ void CalcBalancedCurrent(char mod) {
 
     // ############### make sure the calculated IsetBalanced doesnt exceed any boundaries #################
 
-
-    // guard MaxCircuit
+    // Note: all boundary rules must be duplicated to check for HARD shortage of power
     // HARD shortage of power: boundaries are exceeded, we must stop charging!
     // SOFT shortage of power: we have timers running to stop charging in the future
 
@@ -1843,7 +1851,9 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
             ImportCurrent = val;
             break;
         case MENU_LOADBL:
+#if SMARTEVSE_VERSION == 3
             ConfigureModbusMode(val);
+#endif
             LoadBl = val;
             break;
         case MENU_MAINS:
@@ -2327,20 +2337,8 @@ void CheckSwitch(bool force)
 
 }
 
-
-
-// Task that handles EVSE State Changes
-// Reads buttons, and updates the LCD.
-//
-// called every 10ms
-void EVSEStates(void * parameter) {
-
-    uint8_t DiodeCheck = 0;
-    uint16_t StateTimer = 0;                                                 // When switching from State B to C, make sure pilot is at 6v for 100ms
-
-    // infinite loop
-    while(1) {
-
+#if SMARTEVSE_VERSION == 3
+void getButtonState() {
 
         // Sample the three < o > buttons.
         // As the buttons are shared with the SPI lines going to the LCD,
@@ -2359,7 +2357,27 @@ void EVSEStates(void * parameter) {
         pinMode(PIN_LCD_SDO_B3, OUTPUT);
         pinMatrixOutAttach(PIN_LCD_SDO_B3, VSPID_IN_IDX, false, false); // re-attach MOSI pin
         pinMode(PIN_LCD_A0_B2, OUTPUT);
+}
+#else //SMARTEVSE_VERSION V4
+#error "SMARTEVSE_VERSION V4 unsupported"
+#endif
 
+// Task that handles EVSE State Changes
+// Reads buttons, and updates the LCD.
+//
+// called every 10ms
+void Timer10ms(void * parameter) {
+    uint16_t old_sec = 0;
+#if SMARTEVSE_VERSION == 3
+    uint8_t DiodeCheck = 0;
+    uint16_t StateTimer = 0;                                                 // When switching from State B to C, make sure pilot is at 6v for 100ms
+#else //SMARTEVSE_VERSION V4
+#error "SMARTEVSE_VERSION V4 unsupported"
+#endif
+    // infinite loop
+    while(1) {
+
+        getButtonState();
 
         // When one or more button(s) are pressed, we call GLCDMenu
         if (((ButtonState != 0x07) || (ButtonState != OldButtonState)) && !LCDlock) GLCDMenu(ButtonState);
@@ -2367,6 +2385,13 @@ void EVSEStates(void * parameter) {
         // Update/Show Helpmenu
         if (LCDNav > MENU_ENTER && LCDNav < MENU_EXIT && (ScrollTimer + 5000 < millis() ) && (!SubMenu)) GLCDHelp();
 
+        // update LCD every second when not in the setup menu
+        if (timeinfo.tm_sec != old_sec) {
+            old_sec = timeinfo.tm_sec;
+            GLCD();
+        }
+
+#if SMARTEVSE_VERSION == 3
         // Check the external switch and RCM sensor
         CheckSwitch();
 
@@ -2549,14 +2574,9 @@ void EVSEStates(void * parameter) {
 
         } // end of State C code
 
-        // update LCD (every 1000ms) when not in the setup menu
-        if (LCDupdate) {
-            // This is also the ideal place for debug messages that should not be printed every 10ms
-            //_LOG_A("EVSEStates task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
-            GLCD();
-            LCDupdate = 0;
-        }
-
+#else //SMARTEVSE_VERSION V4
+#error "SMARTEVSE_VERSION V4 unsupported"
+#endif //SMARTEVSE_VERSION
         // Pause the task for 10ms
         vTaskDelay(10 / portTICK_PERIOD_MS);
     } // while(1) loop
@@ -3459,7 +3479,6 @@ void Timer1S(void * parameter) {
         }
 
         if (DisconnectTimeCounter > 3){
-            pilot = Pilot();
             if (pilot == PILOT_12V){
                 DisconnectTimeCounter = -1;
                 DisconnectEvent();
@@ -3469,10 +3488,12 @@ void Timer1S(void * parameter) {
         }
 #endif
 
+#if SMARTEVSE_VERSION == 3
         // once a second, measure temperature
         // range -40 .. +125C
         TempEVSE = TemperatureSensor();
 
+#endif
 
         // Check if there is a RFID card in front of the reader
         CheckRFID();
@@ -3579,9 +3600,6 @@ void Timer1S(void * parameter) {
             ChargeDelay = CHARGEDELAY;                                      // Set Chargedelay
         }
 
-        // set flag to update the LCD once every second
-        LCDupdate = 1;
-
         // Every two seconds request measurement data from sensorbox/kwh meters.
         // and send broadcast to Node controllers.
         if (LoadBl < 2 && !Broadcast--) {                                   // Load Balancing mode: Master or Disabled
@@ -3590,8 +3608,10 @@ void Timer1S(void * parameter) {
             Broadcast = 1;                                                  // repeat every two seconds
         }
 
+#if SMARTEVSE_VERSION == 3
         // for Slave modbusrequest loop is never called, so we have to show debug info here...
         if (LoadBl > 1)
+#endif
             printStatus();  //for debug purposes
 
         //_LOG_A("Timer1S task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
@@ -3854,7 +3874,7 @@ void MBhandleError(Error error, uint32_t token)
 }
 
 
-
+#if SMARTEVSE_VERSION == 3
 void ConfigureModbusMode(uint8_t newmode) {
 
     _LOG_A("changing LoadBl from %u to %u\n",LoadBl, newmode);
@@ -3904,6 +3924,7 @@ void ConfigureModbusMode(uint8_t newmode) {
 
 }
 
+#endif
 
 /**
  * Validate setting ranges and dependencies
@@ -3952,10 +3973,12 @@ void validate_settings(void) {
         EMConfig[EM_CUSTOM].ERegister = 0;
     }
 
+#if SMARTEVSE_VERSION == 3
     // If the address of the MainsMeter or EVmeter on a Node has changed, we must re-register the Modbus workers.
     if (LoadBl > 1) {
         if (EVMeter.Type && EVMeter.Type != EM_API) MBserver.registerWorker(EVMeter.Address, ANY_FUNCTION_CODE, &MBEVMeterResponse);
     }
+#endif
     MainsMeter.Timeout = COMM_TIMEOUT;
     EVMeter.Timeout = COMM_TIMEOUT;                                             // Short Delay, to clear the error message for ~10 seconds.
 
@@ -3971,7 +3994,14 @@ void read_settings() {
         Lock = preferences.getUChar("Lock", LOCK);
         Mode = preferences.getUChar("Mode", MODE);
         Access_bit = preferences.getUChar("Access", ACCESS_BIT);
-        CardOffset = preferences.getUShort("CardOffs16", CARD_OFFSET);
+        if (preferences.isKey("CardOffset")) {
+            CardOffset = preferences.getUChar("CardOffset", CARD_OFFSET);
+            //write the old 8 bits value to the new 16 bits value
+            preferences.putUShort("CardOffs16", CardOffset);
+            preferences.remove("CardOffset");
+        }
+        else
+            CardOffset = preferences.getUShort("CardOffs16", CARD_OFFSET);
         LoadBl = preferences.getUChar("LoadBl", LOADBL);
         MaxMains = preferences.getUShort("MaxMains", MAX_MAINS);
         MaxSumMains = preferences.getUShort("MaxSumMains", MAX_SUMMAINS);
@@ -4282,7 +4312,7 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
 #endif //ENABLE_OCPP
 
         doc["home_battery"]["current"] = homeBatteryCurrent;
-        doc["home_battery"]["last_update"] = homeBatteryLastUpdate;   // [rob040] used in index.html/js
+        doc["home_battery"]["last_update"] = homeBatteryLastUpdate;   // [rob040] used in index.html/js: homebattery is updating (true/false)
         uint32_t hbage = 0;
         if (homeBatteryLastUpdate != 0) {
             hbage = millis()-homeBatteryLastUpdate;
@@ -4314,9 +4344,9 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
         doc["phase_currents"]["L1"] = MainsMeter.Irms[0];
         doc["phase_currents"]["L2"] = MainsMeter.Irms[1];
         doc["phase_currents"]["L3"] = MainsMeter.Irms[2];
-        //doc["phase_currents"]["last_data_update"] = phasesLastUpdate;      // [rob040] used in index.html/js
+        //doc["phase_currents"]["last_data_update"] = phasesLastUpdate;      // [rob040] was used in index.html/js
         uint32_t age = millis()-phasesLastUpdate;
-        doc["phase_currents"]["age"] = max(age, phasesLastUpdateInterval); // [rob] MainsMeter age is more important than 10-digit timestamp
+        doc["phase_currents"]["age"] = max(age, phasesLastUpdateInterval); // [rob040] MainsMeter age is more important than 10-digit timestamp
         doc["phase_currents"]["delay"] = phasesLastUpdateDelay;
         doc["phase_currents"]["original_data"]["TOTAL"] = IrmsOriginal[0] + IrmsOriginal[1] + IrmsOriginal[2];
         doc["phase_currents"]["original_data"]["L1"] = IrmsOriginal[0];
@@ -4749,9 +4779,10 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
                     MainsMeter.Irms[2] = request->getParam("L3")->value().toInt();
 
                     CalcIsum();
+                    //[rob040] fix malformed JSON, and L number (was L0..2, now L1..3)
                     char ln[4] = "L0";
                     for (int x = 0; x < 3; x++) {
-                        ln[1] = '0' + x;
+                        ln[1] = '1' + x;
                         doc["original"][ln] = IrmsOriginal[x];
                         doc[ln] = MainsMeter.Irms[x];
                     }
@@ -4779,9 +4810,10 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
                 EVMeter.Irms[2] = request->getParam("L3")->value().toInt();
                 EVMeter.CalcImeasured();
                 EVMeter.Timeout = COMM_EVTIMEOUT;
+                //[rob040] fix malformed JSON, and L number (was L0..2, now L1..3)
                 char ln[4] = "L0";
                 for (int x = 0; x < 3; x++) {
-                    ln[1] = '0' + x;
+                    ln[1] = '1' + x;
                     doc["ev_meter"]["currents"][ln] = EVMeter.Irms[x];
                 }
                 doc["ev_meter"]["currents"]["TOTAL"] = EVMeter.Irms[0] + EVMeter.Irms[1] + EVMeter.Irms[2];
@@ -4902,7 +4934,9 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
         }
         if(request->hasParam("loadbl")) {
             int LBL = strtol(request->getParam("loadbl")->value().c_str(),NULL,0);
+#if SMARTEVSE_VERSION == 3
             ConfigureModbusMode(LBL);
+#endif
             LoadBl = LBL;
         }
         mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", ""); //json request needs json response
@@ -5157,8 +5191,6 @@ void ocppDeinit() {
 
 void ocppLoop() {
 
-    // Update pilot tracking variable (last measured positive part)
-    auto pilot = Pilot();
     if (pilot >= PILOT_12V && pilot <= PILOT_3V) {
         OcppTrackCPvoltage = pilot;
     }
@@ -5279,6 +5311,7 @@ void ocppLoop() {
 
 
 void setup() {
+#if SMARTEVSE_VERSION == 3
 
     pinMode(PIN_CP_OUT, OUTPUT);            // CP output
     //pinMode(PIN_SW_IN, INPUT);            // SW Switch input, handled by OneWire32 class
@@ -5402,35 +5435,33 @@ void setup() {
     } else {
         _LOG_A_NO_FUNC("not programmed!!!\n");
     }
-
+#else //SMARTEVSE_VERSION V4
+#error "SMARTEVSE_VERSION V4 unsupported"
+#endif //SMARTEVSE_VERSION
 
     // Read all settings from non volatile memory; MQTTprefix will be overwritten if stored in NVS
     read_settings();                                                            // initialize with default data when starting for the first time
     validate_settings();
     ReadRFIDlist();                                                             // Read all stored RFID's from storage
 
+    getButtonState();
     // Sample middle+right button, and lock/unlock LCD buttons.
-    pinMatrixOutDetach(PIN_LCD_SDO_B3, false, false);                           // disconnect MOSI pin
-    pinMode(PIN_LCD_SDO_B3, INPUT);
-    pinMode(PIN_LCD_A0_B2, INPUT);
-    if ((digitalRead(PIN_LCD_A0_B2) == 0) && (digitalRead(PIN_LCD_SDO_B3) == 0)) {
+    if (ButtonState == 1) {
         LCDlock = !LCDlock;
         write_settings();
     }
-    pinMode(PIN_LCD_SDO_B3, OUTPUT);
-    pinMatrixOutAttach(PIN_LCD_SDO_B3, VSPID_IN_IDX, false, false);             // re-attach MOSI pin
-    pinMode(PIN_LCD_A0_B2, OUTPUT);
 
     // Create Task EVSEStates, that handles changes in the CP signal
     xTaskCreate(
-        EVSEStates,     // Function that should be called
-        "EVSEStates",   // Name of the task (for debugging)
+        Timer10ms,      // Function that should be called
+        "Timer10ms",    // Name of the task (for debugging)
         4096,           // Stack size (bytes)                              // printf needs atleast 1kb
         NULL,           // Parameter to pass
         5,              // Task priority - high
         NULL            // Task handle
     );
 
+#if SMARTEVSE_VERSION == 3
     // Create Task BlinkLed (10ms)
     xTaskCreate(
         BlinkLed,       // Function that should be called
@@ -5450,6 +5481,9 @@ void setup() {
         3,              // Task priority - medium
         NULL            // Task handle
     );
+#else //SMARTEVSE_VERSION V4
+#error "SMARTEVSE_VERSION V4 unsupported"
+#endif //SMARTEVSE_VERSION
 
     // Create Task Second Timer (1000ms)
     xTaskCreate(
@@ -5464,16 +5498,21 @@ void setup() {
     // Setup WiFi, webserver and firmware OTA
     // Please be aware that after doing a OTA update, its possible that the active partition is set to OTA1.
     // Uploading a new firmware through USB will however update OTA0, and you will not notice any changes...
+    // hence, when uploading new firmware, BOTH partitions must be updated.
     WiFiSetup();
 
+#if SMARTEVSE_VERSION == 3
     // Set eModbus LogLevel to 1, to suppress possible E5 errors
     MBUlogLvl = LOG_LEVEL_CRITICAL;
     ConfigureModbusMode(255);
+#endif
 
     BacklightTimer = BACKLIGHT;
     GLCD_init();
 
+#if SMARTEVSE_VERSION == 3
     CP_ON;           // CP signal ACTIVE
+#endif
 
     firmwareUpdateTimer = random(FW_UPDATE_DELAY, 0xffff);
 }
@@ -5519,11 +5558,16 @@ void loop() {
         //this block is for non-time critical stuff that needs to run approx 1 / second
 
         // a reboot is requested, but we kindly wait until no EV connected
+#if SMARTEVSE_VERSION == 3 //TODO
         if (shouldReboot && State == STATE_A) {                                 //slaves in STATE_C continue charging when Master reboots
+#else  //SMARTEVSE_VERSION V4
+        if (shouldReboot) {
+#endif //SMARTEVSE_VERSION
             delay(5000);                                                        //give user some time to read any message on the webserver
             ESP.restart();
         }
 
+#if SMARTEVSE_VERSION == 3 //TODO
         // TODO move this to a once a minute loop?
         if (DelayedStartTime.epoch2 && LocalTimeSet) {
             // Compare the times
@@ -5586,6 +5630,7 @@ void loop() {
             }
         } // AutoUpdate
 #endif // AUTOUPDATE
+#endif //SMARTEVSE_VERSION
         /////end of non-time critical stuff
     }
 
