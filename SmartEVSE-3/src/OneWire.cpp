@@ -258,10 +258,18 @@ void CheckRFID(void) {
             if (OcppMode && RFIDReader == 6) {                                      // Remote authorization via OCPP?
                 // Use OCPP
                 if (!RFIDstatus) {
-                    if (RFID[0] == 0x01) {
-                        ocppUpdateRfidReading(RFID + 1, 6); // UID starts at RFID+1; Pad / truncate UID to 6-bytes for now
-                    } else {
-                        ocppUpdateRfidReading(RFID, 7); // UID starts at RFID; 7 byte UID
+                    if (RFID[0] == 0x01) {                                      // old 6 byte reader
+                        if (RFID[5] == 0 && RFID[6] == 0) {                     // so we have 4 byte UID
+                            ocppUpdateRfidReading(RFID + 1, 4); // UID starts at RFID+1; Pad / truncate UID to 4 bytes
+                        } else {                                                // 7 byte UID
+                            ocppUpdateRfidReading(RFID + 1, 6); // UID starts at RFID+1; Pad / truncate UID to 6 bytes for now since 7th byte is missing
+                        }
+                    } else {                                                    // new 7 byte reader
+                        if (RFID[4] == 0 && RFID[5] == 0 && RFID[6] == 0) {     // so we have 4 byte UID
+                            ocppUpdateRfidReading(RFID, 4); // UID starts at RFID; 4 byte UID
+                        } else {                                                // 7 byte UID
+                            ocppUpdateRfidReading(RFID, 7); // UID starts at RFID; 7 byte UID
+                        }
                     }
                 }
                 RFIDstatus = 1;
