@@ -4010,11 +4010,6 @@ void read_settings() {
         DelayedStopTime.epoch2 = preferences.getULong("DelayedStopTime", DELAYEDSTOPTIME);    //epoch2 is 4 bytes long on arduino
         DelayedRepeat = preferences.getUShort("DelayedRepeat", 0);
         LCDlock = preferences.getUChar("LCDlock", LCD_LOCK);
-        TZinfo = preferences.getString("TimezoneInfo","");
-        if (TZinfo != "") {
-            setenv("TZ",TZinfo.c_str(),1);
-            tzset();
-        }
         AutoUpdate = preferences.getUChar("AutoUpdate", AUTOUPDATE);
 
 

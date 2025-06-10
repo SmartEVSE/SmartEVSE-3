@@ -660,16 +660,35 @@ void RunFirmwareUpdate(void) {
 
 void setTimeZone(void * parameter) {
     HTTPClient httpClient;
+    //we use lambda function because normal function collides with HTTPClient class
+    auto onErrorCloseTask = [&httpClient]() {
+        _LOG_A("Could not detect timezone, set it to CEST and retry next reboot.\n");
+        setenv("TZ","CET-1CEST,M3.5.0,M10.5.0/3",1);                            // CEST tzinfo string
+        tzset();
+        httpClient.end();
+        vTaskDelete(NULL);                                                      //end this task so it will not take up resources
+    };
     // lookup current timezone
     httpClient.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-    httpClient.begin("http://worldtimeapi.org/api/ip");
-    int httpCode = httpClient.GET();  //Make the request
+    String host[2] = { "http://worldtimeapi.org/api/ip", "http://ip-api.com/json"};
+    int httpCode;
+    for (int i=0; i<15; i++) {
+        httpClient.begin(host[i%2]);
+        httpCode = httpClient.GET();  //Make the request
+        // only handle 200/301, fail on everything else
+        if ( httpCode != HTTP_CODE_OK && httpCode != HTTP_CODE_MOVED_PERMANENTLY ) { //fail
+            httpClient.end();
+            _LOG_A("Error on HTTP request (httpCode=%i), host=%s, try=%i.\n", httpCode, host[i%2].c_str(), i);
+            delay(1000);
+        } else {
+            break;
+        }
+    }
 
     // only handle 200/301, fail on everything else
     if( httpCode != HTTP_CODE_OK && httpCode != HTTP_CODE_MOVED_PERMANENTLY ) {
         _LOG_A("Error on HTTP request (httpCode=%i)\n", httpCode);
-        httpClient.end();
-        vTaskDelete(NULL);                                                          //end this task so it will not take up resources
+        onErrorCloseTask();
     }
 
     // The filter: it contains "true" for each value we want to keep
@@ -677,16 +696,16 @@ void setTimeZone(void * parameter) {
     filter["timezone"] = true;
     DynamicJsonDocument doc2(80);
     DeserializationError error = deserializeJson(doc2, httpClient.getStream(), DeserializationOption::Filter(filter));
-    httpClient.end();
     if (error) {
         _LOG_A("deserializeJson() failed: %s\n", error.c_str());
-        vTaskDelete(NULL);                                                          //end this task so it will not take up resources
+        onErrorCloseTask();
     }
     String tzname = doc2["timezone"];
     if (tzname == "") {
         _LOG_A("Could not detect Timezone.\n");
-        vTaskDelete(NULL);                                                          //end this task so it will not take up resources
+        onErrorCloseTask();
     }
+    httpClient.end();
     _LOG_A("Timezone detected: tz=%s.\n", tzname.c_str());
 
     // takes TZname (format: Europe/Berlin) , gets TZ_INFO (posix string, format: CET-1CEST,M3.5.0,M10.5.0/3) and sets and stores timezonestring accordingly
@@ -700,10 +719,9 @@ void setTimeZone(void * parameter) {
 
     // only handle 200/301, fail on everything else
     if( httpCode != HTTP_CODE_OK && httpCode != HTTP_CODE_MOVED_PERMANENTLY ) {
-        _LOG_A("Error on HTTP request (httpCode=%i)\n", httpCode);
-        httpClient.end();
+        _LOG_A("Error on zones.csv HTTP request (httpCode=%i)\n", httpCode);
         FREE(URL);
-        vTaskDelete(NULL);                                                          //end this task so it will not take up resources
+        onErrorCloseTask();
     }
 
     stream = httpClient.getStreamPtr();
@@ -721,6 +739,11 @@ void setTimeZone(void * parameter) {
             }
             break;
         }
+    }
+    if (TZinfo == "") {
+        _LOG_A("Could not find TZname %s in zones.csv.\n", tzname.c_str());
+        FREE(URL);
+        onErrorCloseTask();
     }
     httpClient.end();
     FREE(URL);
@@ -1322,7 +1345,6 @@ void WiFiSetup(void) {
     WiFi.setAutoReconnect(true);                                                //actually does nothing since this is the default value
     //WiFi.persistent(true);
     WiFi.onEvent(onWifiEvent);
-    handleWIFImode();                                                           //go into the mode that was saved in nonvolatile memory
 
     // Init and get the time
     // First option to get time from local ntp server blocks the second fallback option since 2021:
@@ -1341,10 +1363,13 @@ void WiFiSetup(void) {
 #endif
 
     if (preferences.begin("settings", false) ) {
-#if MQTT == 0
+        TZinfo = preferences.getString("TimezoneInfo","");
+        if (TZinfo != "") {
+            setenv("TZ",TZinfo.c_str(),1);
+            tzset();
+        }
+#if MQTT == 1
         preferences.end();
-    }
-#else
         MQTTpassword = preferences.getString("MQTTpassword");
         MQTTuser = preferences.getString("MQTTuser");
 #ifdef SENSORBOX_VERSION
@@ -1354,12 +1379,16 @@ void WiFiSetup(void) {
 #endif
         MQTTHost = preferences.getString("MQTTHost", "");
         MQTTPort = preferences.getUShort("MQTTPort", 1883);
+#endif //MQTT
         preferences.end();
     }
 
-    MQTTclient.connect();
+    handleWIFImode();                                                           //go into the mode that was saved in nonvolatile memory
 
+#if MQTT == 1
+    MQTTclient.connect();
 #endif //MQTT
+
 }
 
 
