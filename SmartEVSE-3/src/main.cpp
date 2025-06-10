@@ -985,7 +985,7 @@ char IsCurrentAvailable(void) {
     if (Baseload_EV < 0) Baseload_EV = 0;                                   // so Baseload_EV = 0 when no EVMeter installed
 
     // Check if the lowest charge current(6A) x ActiveEV's + baseload would be higher then the MaxMains.
-    if ((ActiveEVSE * (MinCurrent * 10) + Baseload) > (MaxMains * 10)) {
+    if ((Mode != MODE_NORMAL) && (ActiveEVSE * (MinCurrent * 10) + Baseload) > (MaxMains * 10)) {
         _LOG_D("#%d MaxMains. ActiveEVSE=%i, Baseload=%.1fA, MinCurrent=%iA, MaxMains=%iA.\n", __LINE__, ActiveEVSE, (float) Baseload/10, MinCurrent, MaxMains);
         return 0;                                                           // Not enough current available!, return with error
     }
@@ -999,7 +999,7 @@ char IsCurrentAvailable(void) {
     bool must_be_single_phase_charging = (EnableC2 == ALWAYS_OFF || (Mode == MODE_SOLAR && EnableC2 == SOLAR_OFF) ||
             (Mode == MODE_SOLAR && EnableC2 == AUTO && Nr_Of_Phases_Charging == 1));
     int Phases = must_be_single_phase_charging ? 1 : 3;
-    if ((MaxSumMains != 0) && (((Phases * ActiveEVSE * MinCurrent * 10) + Isum) > (MaxSumMains * 10))) {
+    if ((Mode != MODE_NORMAL) && (MaxSumMains != 0) && (((Phases * ActiveEVSE * MinCurrent * 10) + Isum) > (MaxSumMains * 10))) {
         _LOG_D("#%d MaxSumMains. ActiveEVSE=%i, MinCurrent=%iA, Isum=%.1fA, MaxSumMains=%iA.\n", __LINE__, ActiveEVSE, MinCurrent,  (float)Isum/10, MaxSumMains);
         return 0;                                                           // Not enough current available!, return with error
     }
@@ -1143,7 +1143,7 @@ void CalcBalancedCurrent(char mod) {
     if (Mode == MODE_NORMAL)                                                    // Normal Mode
     {
         if (LoadBl == 1)                                                        // Load Balancing = Master? MaxCircuit is max current for all active EVSE's;
-            IsetBalanced = min((MaxMains * 10) - Baseload, (MaxCircuit * 10 ) - Baseload_EV);
+            IsetBalanced = (MaxCircuit * 10 ) - Baseload_EV;
                                                                                 // limiting is per phase so no Nr_Of_Phases_Charging here!
         else
             IsetBalanced = ChargeCurrent;                                       // No Load Balancing in Normal Mode. Set current to ChargeCurrent (fix: v2.05)
