@@ -3,7 +3,7 @@
 Below is a list of MQTT topics the Smart EVSE v 3.6 can use.
 
 Each MQTT topic starts with the topic prefix, which can be set in the MQTT config section of html UI, accessible via http://SmartEVSE-xxxx/
-The default topic prefix is SmartEVSE-xxxx, where xxxx is your EVSE serial number.
+The default topic prefix is SmartEVSE/xxxx, where xxxx is your EVSE serial number.
 Below we use "<prefix>" for this.
 
 # EVSE MQTT settable
@@ -15,10 +15,10 @@ Below we use "<prefix>" for this.
 
 *  <prefix> "/Set/CPPWMOverride" = [Integer: <pwmvalue>, -1...1024]
 
-*  <prefix> "/Set/MainsMeter" = [String: "l1:L2:l3",
+*  <prefix> "/Set/MainsMeter" = [String: "L1:L2:L3",
 	where L1..L3 is integer value in deciAmpere, -2000...+2000]
 
-*  <prefix> "/Set/EVMeter" = [String: "l1:L2:l3:W:WH",
+*  <prefix> "/Set/EVMeter" = [String: "L1:L2:L3:W:WH",
 	where L1..L3 is integer value in deciAmpere, -2000...+2000,
 	where W is integer value in Watt (power), use -1 when unknown,
 	where WH is integer value in WhatHour (Energy), use -1 when unknown.]
@@ -43,15 +43,15 @@ Below we use "<prefix>" for this.
 
 * <prefix> "/MainsCurrentL1" = [Integer: Ampere]
 
-* <prefix> "/MainsCurrentL1" = [Integer: Ampere]
+* <prefix> "/MainsCurrentL2" = [Integer: Ampere]
 
-* <prefix> "/MainsCurrentL1" = [Integer: Ampere]
-
-* <prefix> "/EVCurrentL1" = [Integer: Ampere]
+* <prefix> "/MainsCurrentL3" = [Integer: Ampere]
 
 * <prefix> "/EVCurrentL1" = [Integer: Ampere]
 
-* <prefix> "/EVCurrentL1" = [Integer: Ampere]
+* <prefix> "/EVCurrentL2" = [Integer: Ampere]
+
+* <prefix> "/EVCurrentL3" = [Integer: Ampere]
 
 * <prefix> "/ESPUptime" = [Integer: Seconds]
 
