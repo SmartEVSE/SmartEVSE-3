@@ -2,6 +2,21 @@
 
 We refer to [this wiring diagram](SmartEVSEv3_build.pdf) for wiring the SmartEVSE.
 
+# Supported modbus kWh meters
+The following meters are directly supported as Mains or EV meter:
+- PHOENIX CONTACT EEM-350-D-MCB
+- Finder 7E.78.8.400.0212
+- Finder 7M.38.8.400.0212
+- Eastron SDM630, SDM230, SDM72D
+- ABB B23 212-100
+- Sinotimer DTS6619
+- WAGO 879-30x0
+
+If your meter is not listed, you might be able to use the Custom option in the menu, that let's you enter each register manually.<br>
+Connect the A and B of your meter to the A and B terminals of the SmartEVSE.<br>
+Note that the ABB meter has the A/B signals reversed, you should connect A to B, and B to A on the ABB meter.<br>
+You can use Cat5 network cable for the wiring between SmartEVSE(s), kWh meter(s) and Sensorbox.<br>
+Make sure to use one twisted pair for A and B, so for example A=Green, B=Green/White
 
 # Inverted wiring of kWh meter
 If you are using a 3 phase Eastron kWh meter, you can feed it from below (like in most Dutch power panels). Now the polarity of currents is reversed, so in the MainsMeter or EVMeter configuration you should choose kWh meter type "Inverted Eastron".
@@ -60,8 +75,11 @@ One can add a second contactor (C2) that switches off 2 of the 3 phases of a thr
 
 # Multiple SmartEVSE controllers on one mains supply (Power Share)
 Up to eight SmartEVSE modules can share one mains supply.
-Hardware connections
+
+Hardware connections:
 * Connect the A, B and GND connections from the Master to the Node(s).
 * So A connects to A, B goes to B etc.
-* If you are using Smart/Solar mode, you should connect the A, B , +12V and GND wires from the sensorbox to the same screw terminals of the SmartEVSE! Make sure that the +12V  wire from the sensorbox is connected to only  -one– SmartEVSE.
+* If you are using the Sensorbox, you should connect the A, B, +12V and GND wires from the sensorbox to the same screw terminals of the SmartEVSE!
+Make sure that the +12V wire from the sensorbox is connected to only -one– SmartEVSE.
+
 

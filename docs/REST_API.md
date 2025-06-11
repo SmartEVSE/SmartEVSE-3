@@ -129,17 +129,15 @@ to your curl POST command. -d ''
 * current_max_sum_mains
 
 &emsp;&emsp;The Maximum allowed Mains Current summed over all phases: 10-600A
-<br>&emsp;&emsp;This is used for the EU Capacity rate limiting, currently only in Belgium.
+<br>&emsp;&emsp;This is used for the EU Capacity rate limiting.
 <br>&emsp;&emsp;Usually you should leave this setting at its default value (600A)
 <br>&emsp;&emsp;since your electricity provider probably does not supports this.
-
 
 # POST: /color_off
 
 * R, G, B
 
-&emsp;&emsp;Set the RGB LED color in EVSE 'Off' mode, overrides the default setting (0, 0, 0)
-&emsp;&emsp;Sets the color of the connected switch while the EVSE is in Off mode (and .
+&emsp;&emsp;Sets the color of the connected switch while the EVSE is in Off mode (and overrides the default setting (0, 0, 0).
 <br>&emsp;&emsp;R, G and B must be send all together otherwise the data won't be registered.
 ```
     curl -X POST 'http://ipaddress/color_off?R=0&G=0&B=255' -d ''
@@ -149,7 +147,7 @@ to your curl POST command. -d ''
 
 * R, G, B
 
-&emsp;&emsp;Set the RGB LED color in EVSE 'Normal' mode, overrides the default green setting (0, 255, 0).
+&emsp;&emsp;Sets the color of the connected switch while the EVSE is in Normal mode (and overrides the default green setting (0, 255, 0).
 <br>&emsp;&emsp;R, G and B must be send all together otherwise the data won't be registered.
 ```
     curl -X POST 'http://ipaddress/color_normal?R=0&G=0&B=255' -d ''
@@ -159,7 +157,7 @@ to your curl POST command. -d ''
 
 * R, G, B
 
-&emsp;&emsp;Set the RGB LED color in EVSE 'Smart' mode, overrides the default green setting (0, 255, 0).
+&emsp;&emsp;Sets the color of the connected switch while the EVSE is in Smart mode (and overrides the default green setting (0, 255, 0).
 <br>&emsp;&emsp;R, G and B must be send all together otherwise the data won't be registered.
 ```
     curl -X POST 'http://ipaddress/color_smart?R=0&G=0&B=255' -d ''
@@ -169,7 +167,7 @@ to your curl POST command. -d ''
 
 * R, G, B
 
-&emsp;&emsp;Set the RGB LED color in EVSE 'Solar' mode, overrides the default yellow setting (255, 170, 0).
+&emsp;&emsp;Sets the color of the connected switch while the EVSE is in Solar mode (and overrides the default yellow setting (255, 170, 0).
 <br>&emsp;&emsp;R, G and B must be send all together otherwise the data won't be registered.
 ```
     curl -X POST 'http://ipaddress/color_solar?R=0&G=0&B=255' -d ''
