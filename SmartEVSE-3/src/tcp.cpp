@@ -3,7 +3,16 @@
 #include "qca.h"
 #include "ipv6.h"
 #include "tcp.h"
-#include "exi/projectExiConnector.h"
+
+// External project headers
+#include "exi2/exi_basetypes.h"
+#include "exi2/iso20_AC_Datatypes.h"
+#include "exi2/iso20_AC_Decoder.h"
+#include "exi2/iso20_AC_Encoder.h"
+//#include "exi2/appHand_Datatypes.h"
+//#include "src/exi2/appHand_Decoder.h"
+//#include "src/exi2/appHand_Encoder.h"
+
 #include "debug.h"
 #include "esp32.h"
 
@@ -62,6 +71,7 @@ extern int8_t InitialSoC, ComputedSoC, FullSoC;
 extern void setState(uint8_t NewState);
 extern void RecomputeSoC(void);
 extern int32_t EnergyCapacity, EnergyRequest;
+exi_bitstream_t stream;
 
 void routeDecoderInputData(void) {
     /* connect the data from the TCP to the exiDecoder */
@@ -69,8 +79,13 @@ void routeDecoderInputData(void) {
         The decoder wants only the EXI stream, so we skip the V2GTP header.
         In best case, we would check also the consistency of the V2GTP header here.
     */
-    global_streamDec.data = &tcp_rxdata[V2GTP_HEADER_SIZE];
-    global_streamDec.size = tcp_rxdataLen - V2GTP_HEADER_SIZE;
+    stream.data = &tcp_rxdata[V2GTP_HEADER_SIZE];
+    stream.data_size = tcp_rxdataLen - V2GTP_HEADER_SIZE;
+    stream.bit_count = 0;
+    stream.byte_pos = 0;
+    stream._init_called = 1;
+    stream._flag_byte_pos = 0;
+    stream.status_callback = NULL; // Can assign a real callback if needed
 
     /* We have something to decode, this is a good sign that the connection is fine.
         Inform the ConnectionManager that everything is fine. */
@@ -126,40 +141,59 @@ void decodeV2GTP(void) {
     uint16_t NamespaceLen;
 
     routeDecoderInputData();
-    if (fsmState) projectExiConnector_decode_DinExiDocument();      // Decode DIN EXI
-    else projectExiConnector_decode_appHandExiDocument();           // Decode Handshake EXI (on first state only)
+    uint8_t g_errn;
+    struct appHand_exiDocument exiDoc;
+    if (fsmState) g_errn = decode_appHand_exiDocument(&stream, &exiDoc);
+    ///struct iso20_ac_exiDocument exiDoc;
+    ///if (fsmState) decode_iso20_ac_exiDocument(&stream, &exiDoc);
+    //if (fsmState) decode_iso20_ac_exiDocument(&stream, &exiDoc);
+
+//    if (fsmState) projectExiConnector_decode_DinExiDocument();      // Decode DIN EXI
+//    else projectExiConnector_decode_appHandExiDocument();           // Decode Handshake EXI (on first state only)
     tcp_rxdataLen = 0; /* mark the input data as "consumed" */
 
     if (fsmState == stateWaitForSupportedApplicationProtocolRequest) {
 
         // Check if we have received the correct message
-        if (aphsDoc.supportedAppProtocolReq_isUsed) {
+        if (exiDoc.supportedAppProtocolReq_isUsed) {
+        //if (exiDoc.supportedAppProtocolReq_isUsed) {
 
             _LOG_I("SupportedApplicationProtocolRequest\n");
             // process data when no errors occured during decoding
             if (g_errn == 0) {
-                arrayLen = aphsDoc.supportedAppProtocolReq.AppProtocol.arrayLen;
+                arrayLen = exiDoc.supportedAppProtocolReq.AppProtocol.arrayLen;
                 _LOG_I("The car supports %u schemas.\n", arrayLen);
 
                 // check all schemas for DIN
                 for(n=0; n<arrayLen; n++) {
 
                     memset(strNamespace, 0, 50);
-                    NamespaceLen = aphsDoc.supportedAppProtocolReq.AppProtocol.array[n].ProtocolNamespace.charactersLen;
-                    SchemaID = aphsDoc.supportedAppProtocolReq.AppProtocol.array[n].SchemaID;
+                    NamespaceLen = exiDoc.supportedAppProtocolReq.AppProtocol.array[n].ProtocolNamespace.charactersLen;
+                    SchemaID = exiDoc.supportedAppProtocolReq.AppProtocol.array[n].SchemaID;
                     for (i=0; i< NamespaceLen; i++) {
-                        strNamespace[i] = aphsDoc.supportedAppProtocolReq.AppProtocol.array[n].ProtocolNamespace.characters[i];
+                        strNamespace[i] = exiDoc.supportedAppProtocolReq.AppProtocol.array[n].ProtocolNamespace.characters[i];
                     }
                     _LOG_I("strNameSpace %s SchemaID: %u\n", strNamespace, SchemaID);
 
                     if (memmem((const char*)strNamespace, NamespaceLen, ":din:70121:", 11) != NULL) {
                         _LOG_I("Detected DIN\n");
-                        projectExiConnector_encode_appHandExiDocument(SchemaID);
+                        projectExiConnector_encode_appHandExiDocumen(SchemaID);
+                        g_errn = encode_appHand_exiDocument(&stream, &exiDoc);
                         // Send supportedAppProtocolRes to EV
                         addV2GTPHeaderAndTransmit(global_streamEnc.data, global_streamEncPos);
                         fsmState = stateWaitForSessionSetupRequest;
                     }
-                }
+/*
+                    if (memmem((const char*)strNamespace, NamespaceLen, ":iso:15118:2:", 11) != NULL) {
+                    //or: if (memmem((const char*)strNamespace, NamespaceLen, ":iso:15118:", 11) != NULL) {
+                        _LOG_I("Detected ISO15118:2\n");
+                        projectExiConnector_encode_appHandExiDocument(SchemaID);
+                        g_errn = decode_appHand_exiDocument(&stream, &exiDoc);
+                        // Send supportedAppProtocolRes to EV
+                        addV2GTPHeaderAndTransmit(global_streamEnc.data, global_streamEncPos);
+                        fsmState = stateWaitForSessionSetupRequest;
+                    }
+                }*/
             }
         }
 
