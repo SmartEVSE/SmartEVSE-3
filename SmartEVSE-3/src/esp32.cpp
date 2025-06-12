@@ -1379,20 +1379,22 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
         doc["home_battery"]["current"] = homeBatteryCurrent;
         doc["home_battery"]["last_update"] = homeBatteryLastUpdate;
 
+        //[rob040 20240819] Fixed: the net effect of "round(float/100)/10" is a Json value like 235.6999969 or 1.600000024; i.e. result in many decimals, i.s.o. just one.
+        // When using FP constants, like "round(float/100.0)/10.0", no such rounding errors do occurr.
         doc["ev_meter"]["description"] = EMConfig[EVMeter.Type].Desc;
         doc["ev_meter"]["address"] = EVMeter.Address;
-        doc["ev_meter"]["import_active_power"] = round((float)EVMeter.PowerMeasured / 100)/10; //in kW, precision 1 decimal
-        doc["ev_meter"]["total_kwh"] = round((float)EVMeter.Energy / 100)/10; //in kWh, precision 1 decimal
-        doc["ev_meter"]["charged_kwh"] = round((float)EVMeter.EnergyCharged / 100)/10; //in kWh, precision 1 decimal
+        doc["ev_meter"]["import_active_power"] = round((float)EVMeter.PowerMeasured / 100.0)/10.0; //in kW, precision 1 decimal
+        doc["ev_meter"]["total_kwh"] = round((float)EVMeter.Energy / 100.0)/10.0; //in kWh, precision 1 decimal
+        doc["ev_meter"]["charged_kwh"] = round((float)EVMeter.EnergyCharged / 100.0)/10.0; //in kWh, precision 1 decimal
         doc["ev_meter"]["currents"]["TOTAL"] = EVMeter.Irms[0] + EVMeter.Irms[1] + EVMeter.Irms[2];
         doc["ev_meter"]["currents"]["L1"] = EVMeter.Irms[0];
         doc["ev_meter"]["currents"]["L2"] = EVMeter.Irms[1];
         doc["ev_meter"]["currents"]["L3"] = EVMeter.Irms[2];
-        doc["ev_meter"]["import_active_energy"] = round((float)EVMeter.Import_active_energy / 100)/10; //in kWh, precision 1 decimal
-        doc["ev_meter"]["export_active_energy"] = round((float)EVMeter.Export_active_energy / 100)/10; //in kWh, precision 1 decimal
+        doc["ev_meter"]["import_active_energy"] = round((float)EVMeter.Import_active_energy / 100.0)/10.0; //in kWh, precision 1 decimal
+        doc["ev_meter"]["export_active_energy"] = round((float)EVMeter.Export_active_energy / 100.0)/10.0; //in kWh, precision 1 decimal
 
-        doc["mains_meter"]["import_active_energy"] = round((float)MainsMeter.Import_active_energy / 100)/10; //in kWh, precision 1 decimal
-        doc["mains_meter"]["export_active_energy"] = round((float)MainsMeter.Export_active_energy / 100)/10; //in kWh, precision 1 decimal
+        doc["mains_meter"]["import_active_energy"] = round((float)MainsMeter.Import_active_energy / 100.0)/10.0; //in kWh, precision 1 decimal
+        doc["mains_meter"]["export_active_energy"] = round((float)MainsMeter.Export_active_energy / 100.0)/10.0; //in kWh, precision 1 decimal
         if (MainsMeter.Type == EM_HOMEWIZARD_P1) {
             doc["mains_meter"]["host"] = !homeWizardHost.isEmpty() ? homeWizardHost : "HomeWizard P1 Not Found";
         }
