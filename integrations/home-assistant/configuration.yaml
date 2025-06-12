@@ -1,10 +1,10 @@
 #lines to integrate SmartEVSE with HASS through native rest-API; no NodeRed or MQTT needed.
-#adapt lines 6,145,146 to the url or ip-address of your SmartEVSE 
-#NOTE: this .yaml is deprecated; it is easier to use the HACS integration, just search for smartevse or look at https://github.com/dingo35/ha-SmartEVSEv3
+#adapt the line below to the url or ip-address of your SmartEVSE
+SmartEVSE_IP=SmartEVSE-xxxxx.lan
 
 sensor:
   - platform: rest
-    resource: http://SmartEVSE-xxxxx.lan/settings
+    resource: http://${SmartEVSE_IP}/settings
     name: smartevse
     scan_interval: 300
     timeout: 20
@@ -143,6 +143,6 @@ switch:
   - platform: command_line
     switches:
       smartevse_mode_switch:
-        command_on: "curl -s -X POST http://SmartEVSE-xxxxx.lan/settings?mode=3 -H 'accept: application/json' -H 'Content-Type: application/json' -d '{}'"
-        command_off: "curl -s -X POST http://SmartEVSE-xxxxx.lan/settings?mode=0 -H 'accept: application/json' -H 'Content-Type: application/json' -d '{}'"
+        command_on: "curl -s -X POST http://${SmartEVSE_IP}/settings?mode=3 -H 'accept: application/json' -H 'Content-Type: application/json' -d '{}'"
+        command_off: "curl -s -X POST http://${SmartEVSE_IP}/settings?mode=0 -H 'accept: application/json' -H 'Content-Type: application/json' -d '{}'"
         value_template: '{{value_json.mode_id == "3"}}'
