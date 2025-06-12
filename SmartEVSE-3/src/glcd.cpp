@@ -90,6 +90,7 @@ extern void handleWIFImode(void *s  = &Serial);
 extern char SmartConfigKey[16];
 extern Button ExtSwitch;
 unsigned char activeRow;
+extern Switch_Phase_t Switching_Phases_C2;
 
 #if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
 
@@ -881,15 +882,20 @@ void GLCD(void) {
         } else if (AccessStatus == PAUSE) {
                     GLCD_print_buf2(5, "PAUSE");
         } else if (State != STATE_C) {
-                switch (Switching_To_Single_Phase) {
-                    case FALSE:
-                    case AFTER_SWITCH:
+                switch (Switching_Phases_C2) {
+                    case NO_SWITCH:
                         sprintf(Str, "READY %u", ChargeDelay);
                         if (!ChargeDelay) Str[5] = '\0';
                         break;
-                    case GOING_TO_SWITCH:
+                    case GOING_TO_SWITCH_1P:
                         sprintf(Str, "3P -> 1P %u", ChargeDelay);
-                        if (!ChargeDelay) Str[7] = '\0';
+                        if (!ChargeDelay) Str[8] = '\0';
+                        break;
+                    case GOING_TO_SWITCH_3P:
+                        sprintf(Str, "1P -> 3P %u", ChargeDelay);
+                        if (!ChargeDelay) Str[8] = '\0';
+                        break;
+                    case AFTER_SWITCH:
                         break;
                 }
                 GLCD_print_buf2(5, Str);

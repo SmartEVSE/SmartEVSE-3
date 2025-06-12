@@ -130,7 +130,7 @@ extern bool LocalTimeSet;
 extern uint32_t serialnr;
 
 extern const char StrEnableC2[5][12];
-extern Single_Phase_t Switching_To_Single_Phase;
+//extern Single_Phase_t Switching_To_Single_Phase;
 extern uint8_t Nr_Of_Phases_Charging;
 
 extern uint16_t EMConfigSize;
