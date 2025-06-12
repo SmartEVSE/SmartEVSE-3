@@ -1357,7 +1357,7 @@ void CalcBalancedCurrent(char mod) {
                 // Check for EVSE's that are starting with Solar charging
                 if ((Mode == MODE_SOLAR) && (Node[n].IntTimer < SOLARSTARTTIME)) {
                     Balanced[n] = MinCurrent * 10;                              // Set to MinCurrent
-                    _LOG_V("[S]Node %u = %u.%u A", n, Balanced[n]/10, Balanced[n]%10);
+                    _LOG_V("[S]Node %u = %u.%u A\n", n, Balanced[n]/10, Balanced[n]%10);
                     CurrentSet[n] = 1;                                          // mark this EVSE as set.
                     ActiveEVSE--;                                               // decrease counter of active EVSE's
                     MaxBalanced -= Balanced[n];                                 // Update total current to new (lower) value
@@ -1368,7 +1368,7 @@ void CalcBalancedCurrent(char mod) {
                 // Check for EVSE's that have a Max Current that is lower then the average
                 } else if (Average >= BalancedMax[n]) {
                     Balanced[n] = BalancedMax[n];                               // Set current to Maximum allowed for this EVSE
-                    _LOG_V("[L]Node %u = %u.%u A", n, Balanced[n]/10, Balanced[n]%10);
+                    _LOG_V("[L]Node %u = %u.%u A\n", n, Balanced[n]/10, Balanced[n]%10);
                     CurrentSet[n] = 1;                                          // mark this EVSE as set.
                     ActiveEVSE--;                                               // decrease counter of active EVSE's
                     MaxBalanced -= Balanced[n];                                 // Update total current to new (lower) value
