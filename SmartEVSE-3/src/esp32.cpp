@@ -756,7 +756,15 @@ void SetupMQTTClient() {
         announce("Required EVCCID", "text");
 #endif
 
+    optional_payload = jsna("device_class","energy") + jsna("unit_of_measurement","Wh") + jsna("state_class","total_increasing");
+    if (MainsMeter.Type) {
+        announce("Mains Import Active Energy", "sensor");
+        announce("Mains Export Active Energy", "sensor");
+    }
+
     if (EVMeter.Type) {
+        announce("EV Import Active Energy", "sensor");
+        announce("EV Export Active Energy", "sensor");
         //set the parameters for and announce other sensor entities:
         optional_payload = jsna("device_class","power") + jsna("unit_of_measurement","W");
         announce("EV Charge Power", "sensor");
@@ -840,11 +848,15 @@ void mqttPublishData() {
             MQTTclient.publish(MQTTprefix + "/MainsCurrentL1", MainsMeter.Irms[0], false, 0);
             MQTTclient.publish(MQTTprefix + "/MainsCurrentL2", MainsMeter.Irms[1], false, 0);
             MQTTclient.publish(MQTTprefix + "/MainsCurrentL3", MainsMeter.Irms[2], false, 0);
+            MQTTclient.publish(MQTTprefix + "/MainsImportActiveEnergy", MainsMeter.Import_active_energy, false, 0);
+            MQTTclient.publish(MQTTprefix + "/MainsExportActiveEnergy", MainsMeter.Export_active_energy, false, 0);
         }
         if (EVMeter.Type) {
             MQTTclient.publish(MQTTprefix + "/EVCurrentL1", EVMeter.Irms[0], false, 0);
             MQTTclient.publish(MQTTprefix + "/EVCurrentL2", EVMeter.Irms[1], false, 0);
             MQTTclient.publish(MQTTprefix + "/EVCurrentL3", EVMeter.Irms[2], false, 0);
+            MQTTclient.publish(MQTTprefix + "/EVImportActiveEnergy", EVMeter.Import_active_energy, false, 0);
+            MQTTclient.publish(MQTTprefix + "/EVExportActiveEnergy", EVMeter.Export_active_energy, false, 0);
         }
         MQTTclient.publish(MQTTprefix + "/ESPTemp", TempEVSE, false, 0);
         MQTTclient.publish(MQTTprefix + "/Mode", AccessStatus == OFF ? "Off" : AccessStatus == PAUSE ? "Pause" : Mode > 3 ? "N/A" : StrMode[Mode], true, 0);
