@@ -3443,9 +3443,7 @@ uint16_t getItemValue(uint8_t nav) {
  */
 // 
 int getBatteryCurrent(void) {
-    int currentTime = time(NULL) - 60; // The data should not be older than 1 minute
-    
-    if (Mode == MODE_SOLAR && homeBatteryLastUpdate > (currentTime)) {
+    if (Mode == MODE_SOLAR && (homeBatteryLastUpdate > (millis()-60000))) {
         return homeBatteryCurrent;
     } else {
         homeBatteryCurrent = 0;
