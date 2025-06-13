@@ -14,6 +14,33 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
 
   <link href="styling.css" rel="stylesheet">
+  <style>
+    .tooltip {
+      position: relative;
+      display: inline-block;
+      border-bottom: 1px dotted black;
+      opacity: unset;
+      font-size: inherit;
+    }
+    .tooltip .tooltiptext {
+      visibility: hidden;
+      width: 220px;
+      background-color: black;
+      color: #fff;
+      text-align: center;
+      border-radius: 6px;
+      padding: 5px 0;
+      position: absolute;
+      z-index: 1;
+      bottom: 100%;
+      left: 50%;
+      margin-left: -110px;
+      font-size: .875rem;
+    }
+    .tooltip:hover .tooltiptext {
+      visibility: visible;
+    }
+  </style>
 </head>
 
 <body>
@@ -26,6 +53,7 @@
       let initiated=false;
       let mqttEditMode = false;
       let ocppEditMode = false;
+      let last_evse_state_id=0;
 
       $(document).ready(loadData());
 
@@ -39,6 +67,7 @@
               $('#version').append(data.version);
               sessionStorage.setItem("version",JSON.stringify(data.version));
               $('#serialnr').append(data.serialnr);
+              sessionStorage.setItem("serialnr",JSON.stringify(data.serialnr));
 
               let minCurrent=parseInt(data.settings.current_min.toFixed(1));
               let maxCurrent=parseInt(data.settings.current_max.toFixed(1));
@@ -60,16 +89,31 @@
               $('#required_evccid').val(data.settings.required_evccid || "");
             }
             for(let x=0; x<=4; x++) {
+              //mode = 'mode'+x;
               if(x == data.mode_id) {
-                $('#mode_' + x).css("background-color", "#1CC88A");
+                $('#mode_' + x).css("background-color", "#1CC88A"); // active mode: GREEN
+                //document.getElementById(mode).classList.add("ui-btn-active");
+                //$('#mode_' + x).classList.add("ui-btn-active");
               } else {
-                $('#mode_' + x).css("background-color", "#EDEDED");
+                $('#mode_' + x).css("background-color", ""); //remove background-color style, so that mouseover works! was "#EDEDED"
+                //document.getElementById(mode).classList.delete("ui-btn-active");
+                //$('#mode_' + x).classList.delete("ui-btn-active");
               }
             }
-            $('#mode_' + data.mode_id).css("background-color", "#1CC88A");
+            //todo: iso above change style, do change class list and add "ui-btn-active"
+            //$('#mode_' + data.mode_id).css("background-color", "#1CC88A");
 
             $('#mode').text(data.mode);
             $('#dutycycle').text((data.evse.pwm*100/1024).toFixed(0) + " %");
+            if(data.mode_id == 2) { //SOLAR MODE
+              $('.with_solar').show();
+              $('[id=override_current_box]').hide();
+              $('[id=override_current_box2]').hide();
+            } else {
+              $('.with_solar').hide();
+              $('[id=override_current_box]').show();
+              $('[id=override_current_box2]').show();
+            }
 
             if (data.ev_state) {
               let full_soc = data.ev_state.full_soc;
@@ -109,6 +153,7 @@
               //$('[id=form_mode] :input').prop('disabled',true);
               $('[id=mode_2]').show();
               $('[id=mode_3]').show();
+              $('.with_solar').hide();
               //$('[id=mode_override_current]').prop('disabled',true);
               $('[id=override_current_box]').hide();
               $('[id=override_current_box2]').hide();
@@ -123,6 +168,7 @@
               //$('[id=form_mode] :input').prop('disabled',false);
               $('[id=mode_2]').show();
               $('[id=mode_3]').show();
+              $('.with_solar').hide();
               //$('[id=mode_override_current]').prop('disabled',false);
               $('[id=form_pwm] :input').prop('disabled',false);
             } else {
@@ -137,9 +183,9 @@
               //$('[id=mode_override_current]').prop('disabled',false);
               $('[id=form_pwm] :input').prop('disabled',false);
             }
-
             $('#car_connected').text(data.car_connected ? "Yes" : "No");
             $('#state').text(data.evse.state);
+            last_evse_state_id = data.evse.last_state_id;
             $('#temp').text(data.evse.temp + " °C / " + data.evse.temp_max + " °C");
             if(data.evse.error != "None") {
               $('#error').text(data.evse.error);
@@ -166,18 +212,14 @@
             $('#override_current').text((data.settings.override_current/10).toFixed(1) + " A");
             $('#enable_C2').text(data.settings.enable_C2);
             if (data.settings.starttime) {
-                $('#starttime_date').text(new Date(data.settings.starttime * 1000).toLocaleDateString());
-                $('#starttime_time').text(new Date(data.settings.starttime * 1000).toLocaleTimeString());
+                $('#starttime_date_time').text(new Date(data.settings.starttime * 1000).toLocaleDateString() + " " + new Date(data.settings.starttime * 1000).toLocaleTimeString());
             } else {
-                $('#starttime_date').text("none");
-                $('#starttime_time').text("");
+                $('#starttime_date_time').text("none");
             }
             if (data.settings.stoptime) {
-                $('#stoptime_date').text(new Date(data.settings.stoptime * 1000).toLocaleDateString());
-                $('#stoptime_time').text(new Date(data.settings.stoptime * 1000).toLocaleTimeString());
+                $('#stoptime_date_time').text(new Date(data.settings.stoptime * 1000).toLocaleDateString() + " " + new Date(data.settings.stoptime * 1000).toLocaleTimeString());
             } else {
-                $('#stoptime_date').text("none");
-                $('#stoptime_time').text("");
+                $('#stoptime_date_time').text("none");
             }
             if (data.settings.repeat == 1) {
                 $('#repeat').text("Daily");
@@ -185,9 +227,7 @@
             else {
                 $('#repeat').text("none");
             }
-            $('#battery_current').text((data.home_battery.current/10).toFixed(1) + "A");
-            $('#battery_last_update_time').text(new Date(data.home_battery.last_update * 1000).toLocaleTimeString());
-            $('#battery_last_update_date').text(new Date(data.home_battery.last_update * 1000).toLocaleDateString());
+            $('#battery_current').text((data.home_battery.current/10).toFixed(1) + " A");
 
             $('#phase_total').text((data.phase_currents.TOTAL/10).toFixed(1) + " A");
             $('#phase_1').text((data.phase_currents.L1/10).toFixed(1) + " A");
@@ -241,6 +281,10 @@
               $('#evmeter_total_kwh').text(data.ev_meter.total_kwh.toFixed(1) + " kWh");
               $('#evmeter_charged_kwh').text(data.ev_meter.charged_kwh.toFixed(1) + " kWh");
             }
+
+            $('#solar_start_current').val(data.settings.solar_start_current);
+            $('#solar_max_import_current').val(data.settings.solar_max_import);
+            $('#solar_stop_time').val(data.settings.solar_stop_time);
 
             if(data.settings.modem == "Experiment" || data.settings.modem == "QCA7000") {
               $('.with_modem').show();
@@ -445,10 +489,7 @@
                                               StartTime:
                                             </div>
                                             <div class="col">
-                                              <div class="h5 mb-0 mr-3 text-gray-800" id="starttime_date"></div>
-                                            </div>
-                                            <div class="col">
-                                              <div class="h5 mb-0 mr-3 text-gray-800" id="starttime_time"></div>
+                                              <div class="h5 mb-0 mr-3 text-gray-800" id="starttime_date_time"></div>
                                             </div>
                                         </div>
                                         <div class="row no-gutters align-items-center">
@@ -456,10 +497,7 @@
                                               StopTime:
                                             </div>
                                             <div class="col">
-                                              <div class="h5 mb-0 mr-3 text-gray-800" id="stoptime_date"></div>
-                                            </div>
-                                            <div class="col">
-                                              <div class="h5 mb-0 mr-3 text-gray-800" id="stoptime_time"></div>
+                                              <div class="h5 mb-0 mr-3 text-gray-800" id="stoptime_date_time"></div>
                                             </div>
                                         </div>
                                         <div class="row no-gutters align-items-center">
@@ -730,7 +768,7 @@
                         <div class="card-body">
                             <div class="row no-gutters align-items-center">
                                 <div class="col mr-2">
-                                    <div class="text-xl font-weight-bold text-info text-uppercase mb-1">Phase Details</div>
+                                    <div class="text-xl font-weight-bold text-info text-uppercase mb-1">Mains Phase Details</div>
                                     <div class="row no-gutters align-items-center">
                                       <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 100px;">
                                           Total:
@@ -1003,6 +1041,19 @@
               <div class="row">
 
                 <script>
+                    function SolStartCurr() {
+                      let val = $('#solar_start_current').val();
+                      $.post( "/settings?solar_start_current=" + val);
+                    }
+                    function SolImportCurr() {
+                      let val = $('#solar_max_import_current').val();
+                      $.post( "/settings?solar_max_import=" + val);
+                    }
+                    function SolStopTime() {
+                      let val = $('#solar_stop_time').val();
+                      $.post( "/settings?stop_timer=" + val);
+                    }
+
                     function activate(mode) {
                       var starttime = document.querySelector('input[name="starttime"]').value;
                       var stoptime = document.querySelector('input[name="stoptime"]').value;
@@ -1103,10 +1154,10 @@
                         event.preventDefault();
                     }
                     function reboot() {
-                      window.location.href = "/reboot";
+                        window.location.href = "/reboot";
                     }
                     function update() {
-                      window.location.href = "/update";
+                        window.location.href = "/update";
                     }
                     function rawData() {
                       window.location.href = "/settings";
@@ -1141,8 +1192,11 @@
                                     </div>
 -->                                    
                                     <div class="row no-gutters align-items-center">
-                                      <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
-                                          Mode:
+                                        <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width:120px;">
+                                          <div class="tooltip font-weight-bold text-gray-800">
+                                            Mode:
+                                            <span class="tooltiptext" style="margin-left:-50%;font-weight:normal;text-align:left;">NORMAL: basic charging<br>SOLAR: Use Solar surplus power<br>SMART: Take home consumers into account</span>
+                                          </div>
                                         </div>
                                         <div class="col">
                                           <form class="form-inline" id="form_mode">
@@ -1154,16 +1208,24 @@
                                               <button id="mode_3" onclick="activate('3')" style="width: 100px; display:inline-block;">SMART</button>
                                             </div>
                                             <div class="form-group">
-                                              <label for="starttime">...STARTING: </label>
-                                              <div class="input-group">
-                                                <input type="datetime-local" id="starttime" name="starttime" class="form-control" style="max-width: 220px;">
-                                              </div>
+                                                <label for="starttime" style="min-width:100px;">
+                                                  <div class="tooltip">...STARTING:
+                                                  <span class="tooltiptext">For delayed start, fill START and END date and time, then press NORMAL/SOLAR/SMART button to initiate.</span>
+                                                  </div>
+                                                </label>
+                                                <div class="input-group">
+                                                  <input type="datetime-local" id="starttime" name="starttime" class="form-control" style="max-width: 220px;">
+                                                </div>
                                             </div>
                                             <div class="form-group" id="stoptime_group">
-                                              <label for="stoptime"> ENDING:</label>
-                                              <div class="input-group">
-                                                <input type="datetime-local" id="stoptime" name="stoptime" class="form-control" style="max-width: 220px;">
-                                              </div>
+                                                <label for="stoptime" style="min-width:100px;">
+                                                  <div class="tooltip">...ENDING:
+                                                  <span class="tooltiptext">For programmed stop, fill START and END date and time, then press NORMAL/SOLAR/SMART button to initiate.</span>
+                                                  </div>
+                                                </label>
+                                                <div class="input-group">
+                                                  <input type="datetime-local" id="stoptime" name="stoptime" class="form-control" style="max-width: 220px;">
+                                                </div>
                                             </div>
                                             <div class="form-group" id="daily_repeat_group">
                                               <label for="daily_repeat"> Daily</label>
@@ -1174,13 +1236,24 @@
                                           </form>
                                         </div>
                                     </div>
+                                    <div class="row no-gutters align-items-center with_solar">
+                                      <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">Solar:</div>
+                                      <div class="col">
+                                        <div class="mb-0"><div class="d-inline-flex align-items-center"><label style="width:100px;" for="solar_start_current">Start Current   </label><input type="number" onchange="SolStartCurr()" id="solar_start_current" name="solar_start_current" min="0" max="16" style="width:80px;" class="ui-corner-all ui-shadow-inset"/>&nbsp;A</div></div>
+                                        <div class="mb-0"><div class="d-inline-flex align-items-center"><label style="width:100px;" for="solar_max_import_current">Max Import </label><input type="number" onchange="SolImportCurr()" id="solar_max_import_current" name="solar_max_import_current" min="0" max="16" style="width:80px;" class="ui-corner-all ui-shadow-inset"/>&nbsp;A</div></div>
+                                        <div class="mb-0"><div class="d-inline-flex align-items-center"><label style="width:100px;" for="solar_stop_time">Stop Time           </label><input type="number" onchange="SolStopTime()" id="solar_stop_time" name="solar_stop_time" min="0" style="width:80px;" class="ui-corner-all ui-shadow-inset"/>&nbsp;minutes</div></div>
+                                      </div>
+                                    </div>
                                     <div class="row no-gutters align-items-center">
-                                      <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;" id="override_current_box">
-                                          Current:
+                                      <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width:120px;" id="override_current_box">
+                                        <div class="tooltip font-weight-bold text-gray-800">
+                                          Override:
+                                          <span class="tooltiptext" style="margin-left:-50%;font-weight:normal;text-align:left;">Override (limit) output current.<br>Select one and press NORMAL / SMART to set.</span>
                                         </div>
-                                        <div class="col" id="override_current_box2">
+                                      </div>
+                                        <div class="col" id="override_current_box2" style="max-width:425px;">
                                           <select id="mode_override_current">
-                                              <option id="mode_overide_current_text" value="0">Ampere (press NORMAL/SMART to set)</option>
+                                              <!--<option value="0">No Override</option>-->
                                           </select>
                                         </div>
                                     </div>
