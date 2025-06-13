@@ -906,9 +906,7 @@ void GLCD(void) {
                     if (Mode != MODE_NORMAL) {
                         if (Mode == MODE_SOLAR) sprintf(Str, "SOLAR");
                             else sprintf(Str, "SMART");
-                        if (Nr_Of_Phases_Charging != 0) {
                             sprintf(Str+5," %uP", Nr_Of_Phases_Charging);
-                        }
                         GLCD_print_buf2(5, Str);
                         break;
                     } else LCDText++;

@@ -159,7 +159,7 @@ uint16_t maxTemp = MAX_TEMPERATURE;
 
 Meter MainsMeter(MAINS_METER, MAINS_METER_ADDRESS, COMM_TIMEOUT);
 Meter EVMeter(EV_METER, EV_METER_ADDRESS, COMM_EVTIMEOUT);
-uint8_t Nr_Of_Phases_Charging = 0;                                          // 0 = Undetected, 1,2,3 = nr of phases that was detected at the start of this charging session; requires EV meter, only valid in SOLAR mode
+uint8_t Nr_Of_Phases_Charging = 3;                                          // nr of phases, only valid in SOLAR mode
 Switch_Phase_t Switching_Phases_C2 = NO_SWITCH;                             // switching phases only used in SOLAR mode with Contactor C2 = AUTO
 
 uint8_t State = STATE_A;
@@ -1168,17 +1168,16 @@ void CalcBalancedCurrent(char mod) {
     else { // start MODE_SOLAR || MODE_SMART
         // adapt IsetBalanced in Smart Mode, and ensure the MaxMains/MaxCircuit settings for Solar
 
-        uint8_t Temp_Phases;
-        Temp_Phases = (Nr_Of_Phases_Charging ? Nr_Of_Phases_Charging : 3);      // in case nr of phases not detected, assume 3
         if ((LoadBl == 0 && EVMeter.Type) || LoadBl == 1)                       // Conditions in which MaxCircuit has to be considered;
                                                                                 // mode = Smart/Solar so don't test for that
             Idifference = min((MaxMains * 10) - MainsMeter.Imeasured, (MaxCircuit * 10) - EVMeter.Imeasured);
         else
             Idifference = (MaxMains * 10) - MainsMeter.Imeasured;
-        if (MaxSumMains && (Idifference > ((MaxSumMains * 10) - Isum)/Temp_Phases)) {
-            Idifference = ((MaxSumMains * 10) - Isum)/Temp_Phases;
+        int ExcessMaxSumMains = ((MaxSumMains * 10) - Isum)/Nr_Of_Phases_Charging;
+        if (MaxSumMains && (Idifference > ExcessMaxSumMains)) {
+            Idifference = ExcessMaxSumMains;
             LimitedByMaxSumMains = true;
-            _LOG_V("Current is limited by MaxSumMains: MaxSumMains=%uA, Isum=%d.%dA, Temp_Phases=%u.\n", MaxSumMains, Isum/10, abs(Isum%10), Temp_Phases);
+            _LOG_V("Current is limited by MaxSumMains: MaxSumMains=%uA, Isum=%d.%dA, Nr_Of_Phases_Charging=%u.\n", MaxSumMains, Isum/10, abs(Isum%10), Nr_Of_Phases_Charging);
         }
 
         if (!mod) {                                                             // no new EVSE's charging

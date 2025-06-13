@@ -1185,10 +1185,9 @@ void RecomputeSoC(void) {
                 if (EVMeter.PowerMeasured > 0) {
                     // Use real-time PowerMeasured data if available
                     TimeToGo = (3600 * EnergyRemaining) / EVMeter.PowerMeasured;
-                } else if ((Nr_Of_Phases_Charging > 0)||(Mode != MODE_SOLAR)) {
+                } else if (Mode != MODE_SOLAR) {
                     // Else, fall back on the theoretical maximum of the cable + nr of phases
-                    u_int8_t phases = (Nr_Of_Phases_Charging > 0) ? Nr_Of_Phases_Charging : 3;
-                    TimeToGo = (3600 * EnergyRemaining) / (MaxCapacity * (phases * 230));
+                    TimeToGo = (3600 * EnergyRemaining) / (MaxCapacity * (Nr_Of_Phases_Charging * 230));
                 }
 
                 // Wait until we have a somewhat sensible estimation while still respecting granny chargers
