@@ -1282,7 +1282,7 @@ void CalcBalancedCurrent(char mod) {
                             if (IsumImport < (10 * MinCurrent)) {
                                 setSolarStopTimer(StopTime * 60); // Convert minutes into seconds
                             }
-                            if (SolarStopTimer == 0) setSolarStopTimer(30); // minimum stop time
+                            if (SolarStopTimer == 0) setSolarStopTimer(30); // timer goes off when switching 3P->1P
                         }
                         // near end of solar stop timer, instruct to go to 1P charging and restart
                         if (SolarStopTimer <= 2) {
@@ -1293,8 +1293,7 @@ void CalcBalancedCurrent(char mod) {
                         }
                     }
                     else {
-                        //if (SolarStopTimer == 0) setSolarStopTimer(StopTime * 60); // Convert minutes into seconds
-                        if (SolarStopTimer == 0) setSolarStopTimer(30); // minimum stop time 
+                        if (SolarStopTimer == 0) setSolarStopTimer(StopTime * 60); // timer that expires when 1P not enough power
                     }
                 } else {
                     _LOG_D("Checkpoint a: Resetting SolarStopTimer, IsetBalanced=%d.%dA, ActiveEVSE=%u.\n", IsetBalanced/10, abs(IsetBalanced%10), ActiveEVSE);
