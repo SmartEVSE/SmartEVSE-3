@@ -1144,11 +1144,17 @@ void CalcBalancedCurrent(char mod) {
             // determine if enough current is available for 3-phase or 1-phase charging
             // TODO: deal with strong fluctuations in startup
             if (-Isum >= (30*MinCurrent+30)) { // 30x for 3-phase and 0.1A resolution; +30 to have 3x1.0A room for regulation
-                Switching_Phases_C2 = GOING_TO_SWITCH_3P;
-                _LOG_D("Solar starting in 3-phase mode\n");
+                if (Nr_Of_Phases_Charging != 3) {
+                    Switching_Phases_C2 = GOING_TO_SWITCH_3P;
+                    _LOG_D("Solar starting in 3-phase mode\n");
+                } else
+                    _LOG_D("Solar continuing in 3-phase mode\n");
             } else /*if (-Isum >= (10*MinCurrent+2))*/ {
-                Switching_Phases_C2 = GOING_TO_SWITCH_1P;
-                _LOG_D("Solar starting in 1-phase mode\n");
+                if (Nr_Of_Phases_Charging != 1) {
+                    Switching_Phases_C2 = GOING_TO_SWITCH_1P;
+                    _LOG_D("Solar starting in 1-phase mode\n");
+                } else
+                    _LOG_D("Solar continuing in 1-phase mode\n");
             } /*else {
                 Switching_Phases_C2 = NO_SWITCH;
                 // Not enough current;
