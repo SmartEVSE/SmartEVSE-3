@@ -159,7 +159,7 @@ uint16_t maxTemp = MAX_TEMPERATURE;
 
 Meter MainsMeter(MAINS_METER, MAINS_METER_ADDRESS, COMM_TIMEOUT);
 Meter EVMeter(EV_METER, EV_METER_ADDRESS, COMM_EVTIMEOUT);
-uint8_t Nr_Of_Phases_Charging = 3;                                          // nr of phases, only valid in SOLAR mode
+uint8_t Nr_Of_Phases_Charging = 3;                                          // nr of phases
 Switch_Phase_t Switching_Phases_C2 = NO_SWITCH;                             // switching phases only used in SOLAR mode with Contactor C2 = AUTO
 
 uint8_t State = STATE_A;
@@ -619,7 +619,7 @@ uint8_t Force_Single_Phase_Charging() {                                         
         case SOLAR_OFF:
             return (Mode == MODE_SOLAR); //1P solar charging
         case AUTO:
-            return (Mode == MODE_SOLAR && Nr_Of_Phases_Charging == 1);
+            return (Nr_Of_Phases_Charging == 1);
         case ALWAYS_ON:
             return 0;   //3P charging
     }
@@ -1155,15 +1155,16 @@ void CalcBalancedCurrent(char mod) {
                 // TODO: we should return to STATE_A
                 //setState(STATE_A);
             }*/
-        } else {
-            if (Force_Single_Phase_Charging() && (Nr_Of_Phases_Charging != 1)) {
+        }
+    }
+    else { // start MODE_SOLAR || MODE_SMART
+        if (EnableC2 != AUTO) {
+            if (Force_Single_Phase_Charging()) {
                 Nr_Of_Phases_Charging = 1;
             } else {
                 Nr_Of_Phases_Charging = 3;
             }
         }
-    }
-    else { // start MODE_SOLAR || MODE_SMART
         // adapt IsetBalanced in Smart Mode, and ensure the MaxMains/MaxCircuit settings for Solar
 
         if ((LoadBl == 0 && EVMeter.Type) || LoadBl == 1)                       // Conditions in which MaxCircuit has to be considered;
