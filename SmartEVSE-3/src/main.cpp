@@ -1164,11 +1164,17 @@ void CalcBalancedCurrent(char mod) {
         }
     }
     else { // start MODE_SOLAR || MODE_SMART
+        // we want to obey EnableC2 settings at all times, after switching modes and/or C2 settings
+        // TODO move this to setMode and glcd.cpp C2_MENU?
         if (EnableC2 != AUTO) {
             if (Force_Single_Phase_Charging()) {
-                Nr_Of_Phases_Charging = 1;
+                if (Nr_Of_Phases_Charging != 1) {
+                    Switching_Phases_C2 = GOING_TO_SWITCH_1P;
+                }
             } else {
-                Nr_Of_Phases_Charging = 3;
+                if (Nr_Of_Phases_Charging != 3) {
+                    Switching_Phases_C2 = GOING_TO_SWITCH_3P;
+                }
             }
         }
         // adapt IsetBalanced in Smart Mode, and ensure the MaxMains/MaxCircuit settings for Solar
