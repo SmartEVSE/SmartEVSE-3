@@ -607,8 +607,8 @@ void setSolarStopTimer(uint16_t Timer) {
  * we are going to force single phase charging
  * Returns true if we are going to do single phase charging
  * Returns false if we are going to do (traditional) 3 phase charing
- * This is only relevant on a 3f mains and 3f car installation!
- * 1f car will always charge 1f undetermined by CONTACTOR2
+ * This is only relevant on a 3P mains and 3P car installation!
+ * 1P car will always charge 1P undetermined by CONTACTOR2
  */
 uint8_t Force_Single_Phase_Charging() {                                         // abbreviated to FSPC
     switch (EnableC2) {
@@ -1274,7 +1274,7 @@ void CalcBalancedCurrent(char mod) {
                     //TODO maybe enable solar switching for loadbl = 1
                     //if (EnableC2 == AUTO && LoadBl == 0)
                     //    Set_Nr_of_Phases_Charging();
-                    if (Nr_Of_Phases_Charging > 1 && EnableC2 == AUTO && LoadBl == 0 && State == STATE_C) {
+                    if (Nr_Of_Phases_Charging > 1 && EnableC2 == AUTO) {
                         // not enough current for 3-phase operation; we can switch to 1-phase after some time
                         // start solar stop timer
                         if (SolarStopTimer == 0) {
@@ -1332,9 +1332,7 @@ void CalcBalancedCurrent(char mod) {
             // ############### no shortage of power  #################
 
             // Solar mode with C2=AUTO and enough power for switching from 1P to 3P solar charge?
-            if (Mode == MODE_SOLAR && Nr_Of_Phases_Charging == 1 && EnableC2 == AUTO && LoadBl == 0 && State == STATE_C &&
-                (IsetBalanced+8) >= MaxCurrent*10)
-            {
+            if (Mode == MODE_SOLAR && Nr_Of_Phases_Charging == 1 && EnableC2 == AUTO && IsetBalanced + 8 >= MaxCurrent * 10) {
                     // are we at max regulation at 1P (Iset hovers at 15.2-16.0A on 16A MaxCurrent)(warning: Iset can also be at max when EV limits current)
                     // and is there enough spare that we can go to 3P charging?
                     // Can it take the step from 1x16A to 3x7A (in regular config)?
