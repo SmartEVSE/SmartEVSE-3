@@ -2725,29 +2725,20 @@ void setup() {
     pinMode(WCH_NRST, INPUT);               // WCH NRST
 
 
-    delay(1000); //this delay is necessary for the modem to be reliably found
     // shutdown QCA is done by the WCH32V, we set all IO pins low, so no current is flowing into the powered down chip.
     digitalWrite(PIN_QCA700X_CS, LOW);
     digitalWrite(PIN_QCA700X_RESETN, LOW);
     digitalWrite(SPI_SCK, LOW);
     digitalWrite(SPI_MOSI, LOW);
 
-
-    delay(1000); //this delay is necessary for the modem to be reliably found
-    //digitalWrite(PIN_QCA700X_RESETN, HIGH);     // Active Low
-    //digitalWrite(PIN_QCA700X_CS, HIGH);
-
     // configure SPI connection to QCA modem
     QCA_SPI1.begin(SPI_SCK, SPI_MISO, SPI_MOSI, PIN_QCA700X_CS);
     // SPI mode is MODE3 (Idle = HIGH, clock in on rising edge), we use a 10Mhz SPI clock
     QCA_SPI1.beginTransaction(SPISettings(10000000, MSBFIRST, SPI_MODE3));
     //attachInterrupt(digitalPinToInterrupt(PIN_QCA700X_INT), SPI_InterruptHandler, RISING);
-    delay(1000); //this delay is necessary for the modem to be reliably found
-
 
     // Setup SWDIO pin as Power Panic interrupt received from the WCH uC. (unused, we use serial comm)
     //attachInterrupt(WCH_SWDIO, PowerPanicESP, FALLING);
-
 
     Serial.begin();                                                     // Debug output on USB
     Serial.setTxTimeoutMs(1);                                           // Workaround for Serial.print while unplugged USB.
@@ -2762,7 +2753,6 @@ void setup() {
     _LOG_D("Flash Size: %u.\n", ESP.getFlashChipSize());
     _LOG_D("Total PSRAM: %u.\n", ESP.getPsramSize());
     _LOG_D("Free PSRAM: %u.\n", ESP.getFreePsram());
-
 
 
     // configure SPI connection to LCD
