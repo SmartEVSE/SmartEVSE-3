@@ -331,7 +331,9 @@ uint8_t WchFirmwareUpdate(unsigned long WCHRunningVersion) {
         glcd_clrln(6, 0x10);                                                // horizontal line
         glcd_clrln(7, 0x00);
 
+        Serial1.updateBaudRate(115200);//  Set Uart baudrate to 115200 before entering bootloader of WCH chip
         WchProgram(fp, filelen);                                                       	// Program Chip
+        Serial1.updateBaudRate(FUNCONF_UART_PRINTF_BAUD); // Reset baudrate
     } else {
         _LOG_A("NOT Flashing WCHfirmware version %lu over %lu.\n", WCHfirmware_timestamp, WCHRunningVersion);
     }

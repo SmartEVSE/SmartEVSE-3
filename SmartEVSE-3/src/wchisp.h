@@ -18,7 +18,7 @@
 #define WCH_TX_HEADER       0x57
 #define WCH_RX_HEADER       0x5A
 
-#define WCHDEBUG           // Display serial comm
+//#define WCHDEBUG           // Display serial comm
 
 
 void WchEnterBootloader(void);

@@ -2543,9 +2543,9 @@ void WCHUPDATE(unsigned long RunningVersion) {
         WchReset();
         if (WchFirmwareUpdate(RunningVersion)) {
             _LOG_A("Firmware update failed.\n");
-        } else _LOG_D("WCH programming done\n");
-
-        Serial1.begin(FUNCONF_UART_PRINTF_BAUD, SERIAL_8N1, USART_RX, USART_TX, false);       // Serial connection to main board microcontroller
+        } else { 
+            _LOG_D("WCH programming done\n");
+        }    
         // should not be needed to reset the WCH ic at powerup/reset on the production version.
         _LOG_D("reset WCH ic\n");
         WchReset();
@@ -2776,8 +2776,7 @@ void setup() {
     Serial.begin();                                                     // Debug output on USB
     Serial.setTxTimeoutMs(1);                                           // Workaround for Serial.print while unplugged USB.
                                                                         // log_d does not have this issue?
-    Serial.setTxBufferSize(1024);                                       // prevent error message: [HWCDC.cpp:467] write(): write failed due to waiting USB Host - timeout
-    Serial1.begin(115200, SERIAL_8N1, USART_RX, USART_TX, false);       // Serial connection to main board microcontroller
+    Serial1.begin(FUNCONF_UART_PRINTF_BAUD, SERIAL_8N1, USART_RX, USART_TX, false);       // Serial connection to main board microcontroller
     //Serial2.begin(115200, SERIAL_8N1, USART_TX, -1, false);
     Serial.printf("\nSmartEVSE v4 powerup\n");
 
@@ -2843,15 +2842,13 @@ extern void Timer20ms(void * parameter);
     GLCD_init();
 
 #if SMARTEVSE_VERSION >=40 //v4
-    // since reflashing the ESP32 is not working when the ESP32 is flashing the WCH, we delay for 3s so in case of WCHflash loop we can use these 3s to reflash the ESP32
-    delay(3000);
 
     // After powerup request WCH version (version?)
     // then send Configuration to WCH
-    static unsigned long FlashTimeout = millis();
+    unsigned long FlashTimeout = millis();
     uint16_t RXbyte, idx = 0;
-    static char *ret;
-    static char SerialBuf[512];
+    char *ret;
+    char RxBuf[512];
     bool gotVersion = false;
     do {
         Serial1.print("@version?\n");            // send command to WCH ic
@@ -2859,36 +2856,36 @@ extern void Timer20ms(void * parameter);
 
         vTaskDelay(100 / portTICK_PERIOD_MS);
 
-        //ESP32 receives info from CH32; we need to do this outside of the ESP32 10ms routines because
-        //the timer routines disturb the WCH flashing process
+        // ESP32 requests version info from CH32; we need to do this outside of the ESP32 10ms routines because
+        // we can not communicate with the CH32 and simultaneously reprogram it.
         if (Serial1.available()) {
-            while (Serial1.available()) {
+            while (Serial1.available() && idx<sizeof(RxBuf)) {      // make sure buffer does not overflow
                 RXbyte = Serial1.read();
-                SerialBuf[idx] = RXbyte;
+                RxBuf[idx] = RXbyte;
                 idx++;
             }
-            _LOG_D("[(%u)<-] %.*s.\n", idx, idx, SerialBuf);
+            _LOG_D("[(%u)<-] %.*s.\n", idx, idx, RxBuf);
         }
 
         // process data from mainboard
         if (idx > 5) {
             char token[64];
             strncpy(token, "version:", sizeof(token));
-            ret = strstr(SerialBuf, token);
+            ret = strstr(RxBuf, token);
             if (ret != NULL) {
                 unsigned long WCHRunningVersion = atoi(ret+strlen(token));
                 _LOG_V("version %lu received\n", WCHRunningVersion);
                 WCHUPDATE(WCHRunningVersion);
                 gotVersion = true;
             }
-            memset(SerialBuf,0,idx);                                       // Clear buffer
+            memset(RxBuf,0,idx);                                    // Clear buffer
             idx = 0;
         }
 
-    } while (!gotVersion && millis() - FlashTimeout < 10000);              //only try for 10s, then release so ESP32 can boot and OTA updates are possible
-    memset(SerialBuf, 0, sizeof(SerialBuf));                               // clear SerialBuffer
+    } while (!gotVersion && millis() - FlashTimeout < 10000);       // only try for 10s, then release so ESP32 can boot and OTA updates are possible
+    memset(RxBuf, 0, sizeof(RxBuf));                                // clear SerialBuffer
 
-    if (!gotVersion) {                                                     // we timed out
+    if (!gotVersion) {                                              // we timed out
         WCHUPDATE(0);
     }
 #endif
