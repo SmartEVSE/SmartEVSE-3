@@ -351,7 +351,7 @@ void UsartInit(void)
     RCC->APB1PRSTR &= ~RCC_APB1Periph_USART2;
 
     USART2->BRR = FUNCONF_SYSTEM_CORE_CLOCK / 9600 / 2;           // USART2 9600bps RS485
-    // Enable Uart2, TX, RX, Receive and Transmissopn Complete interrupt
+    // Enable Uart2, TX, RX, Receive and Transmission Complete interrupt
     USART2->CTLR1 = USART_CTLR1_UE  | USART_CTLR1_TE | USART_CTLR1_RE | USART_CTLR1_RXNEIE | USART_CTLR1_TCIE;
 
     // Enable interrupts for USART2
@@ -657,10 +657,10 @@ void uart_start_dma_transfer(void)
             DMA1_Channel4->CNTR = TxBuffer.head - TxBuffer.tail;        // Set number of bytes to transfer
         } else {
             // Wrap-around segment
-            DMA1_Channel4->CNTR = 256 - TxBuffer.tail;                  // Set number of bytes to transfer
+            DMA1_Channel4->CNTR = CIRCULARBUFFER - TxBuffer.tail;       // Set number of bytes to transfer
         }
 
-        TxBuffer.tail = (TxBuffer.tail + DMA1_Channel4->CNTR) & 0xff;   //% 256; Update tail for next potential transfer
+        TxBuffer.tail = (TxBuffer.tail + DMA1_Channel4->CNTR) & (CIRCULARBUFFER-1);   // Update tail for next potential transfer
         DMA1_Channel4->CFGR |= DMA_CFG4_EN;                             // Enable DMA channel
 
     }

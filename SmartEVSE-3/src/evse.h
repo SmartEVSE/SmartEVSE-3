@@ -27,9 +27,11 @@
 
 #include "main_c.h"
 
+#define CIRCULARBUFFER 2048     // Must be a power of 2
+
 // USART Circular buffers
 typedef struct {
-    char buffer[256];
+    char buffer[CIRCULARBUFFER];
     volatile uint16_t head;
     volatile uint16_t tail;
 } CircularBuffer;
