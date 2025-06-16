@@ -2773,9 +2773,12 @@ void setup() {
     // Setup SWDIO pin as Power Panic interrupt received from the WCH uC. (unused, we use serial comm)
     //attachInterrupt(WCH_SWDIO, PowerPanicESP, FALLING);
 
+    Serial.setTxBufferSize(2048);                                       // prevent error message: [HWCDC.cpp:467] write(): write failed due to waiting USB Host - timeout
     Serial.begin();                                                     // Debug output on USB
     Serial.setTxTimeoutMs(1);                                           // Workaround for Serial.print while unplugged USB.
                                                                         // log_d does not have this issue?
+    Serial1.setRxBufferSize(2048);                                      // increase RX/TX buffers, prevent buffer overruns
+    Serial1.setTxBufferSize(2048);
     Serial1.begin(FUNCONF_UART_PRINTF_BAUD, SERIAL_8N1, USART_RX, USART_TX, false);       // Serial connection to main board microcontroller
     //Serial2.begin(115200, SERIAL_8N1, USART_TX, -1, false);
     Serial.printf("\nSmartEVSE v4 powerup\n");
