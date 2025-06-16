@@ -3159,11 +3159,23 @@ void Timer10ms_singlerun(void) {
     //ESP32 receives info from CH32
     //each message starts with @, : separates variable name from value, ends with \n
     //so @State:2\n would be a valid message
-    idx = Serial1.readBytesUntil('@', SerialBuf, sizeof(SerialBuf));
-    if (idx > 0) {
-        _LOG_D("[(%u)<-] %.*s", idx, idx, SerialBuf);
-        Handle_ESP32_Message(SerialBuf, &CommState);
+    while (Serial1.available()) {       // Process ALL available messages in one cycle
+        idx = Serial1.readBytesUntil('\n', SerialBuf, sizeof(SerialBuf)-1);
+        if (idx > 0) {
+            SerialBuf[idx++] = '\n';
+            SerialBuf[idx] = '\0';  // Null terminate for safety
+            
+            if (SerialBuf[0] == '@') {
+                _LOG_D("[(%u)<-] %.*s", idx, idx, SerialBuf);
+                Handle_ESP32_Message(SerialBuf, &CommState);
+            } else {
+                _LOG_W("Invalid message\n");
+            }
+        } else {
+            break; // No more complete messages
+        }
     }
+
     // process data from mainboard
     if (CommTimeout == 0 && CommState != COMM_STATUS_RSP) {
         switch (CommState) {
