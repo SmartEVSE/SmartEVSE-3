@@ -235,11 +235,11 @@ uint8_t buffer_full(CircularBuffer *cb) {
 
 // Function to add an element to the buffer
 uint8_t buffer_enqueue(CircularBuffer *cb, char data) {
-    if ( ((cb->head + 1) & 0xff ) == cb->tail ) {
+    if ( ((cb->head + 1) & (CIRCULARBUFFER - 1) ) == cb->tail ) {
         return 0; // Buffer is full
     }
     cb->buffer[cb->head] = data;
-    cb->head = (cb->head + 1) % sizeof(cb->buffer);
+    cb->head = (cb->head + 1) & (CIRCULARBUFFER - 1);
     return 1;
 }
 
@@ -250,7 +250,7 @@ uint8_t buffer_dequeue(CircularBuffer *cb, char *data) {
         return 0; // Buffer is empty
     }
     *data = cb->buffer[cb->tail];
-    cb->tail = (cb->tail + 1) % sizeof(cb->buffer);
+    cb->tail = (cb->tail + 1) & (CIRCULARBUFFER - 1);
     return 1;
 }
 
@@ -672,7 +672,12 @@ void uart_start_dma_transfer(void)
 //
 int _write(int fd, const char *buffer, int size)
 {
+    NVIC_DisableIRQ(DMA1_Channel4_IRQn);                // Disable DMA interrupt during buffer write
+
     int ret = buffer_write(&TxBuffer, (char *) buffer, size);
+
+    NVIC_EnableIRQ(DMA1_Channel4_IRQn);                 // Re-enable interrupt before starting DMA
+
     if (ret) uart_start_dma_transfer();
     return ret;
 }
@@ -681,9 +686,14 @@ int _write(int fd, const char *buffer, int size)
 //
 int putchar(int c)
 {
-    if(!buffer_enqueue(&TxBuffer, c)) return 0;      // Buffer full?
-    uart_start_dma_transfer();
-    return 1;
+    NVIC_DisableIRQ(DMA1_Channel4_IRQn);
+    
+    int ret = buffer_enqueue(&TxBuffer, c);
+    
+    NVIC_EnableIRQ(DMA1_Channel4_IRQn);
+    
+    if (ret) uart_start_dma_transfer();
+    return ret;
 }
 
 
