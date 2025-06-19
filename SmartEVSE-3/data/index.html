@@ -64,7 +64,10 @@
           }).then(function(data) {
             if(!initiated) {
               initiated = true;
-              $('#version').append(data.version);
+              // Set the text and the data-version attribute dynamically
+              $('#version')
+                .text(data.version)         // fill visible text with version string
+                .attr('data-version', data.version); // update data-version attribute
               sessionStorage.setItem("version",JSON.stringify(data.version));
               $('#serialnr').append(data.serialnr);
               sessionStorage.setItem("serialnr",JSON.stringify(data.serialnr));
@@ -381,7 +384,10 @@
                     <div class="card bg-success text-white shadow">
                         <div class="card-body">
                           <h1 class="h3 mb-0 text-white-800">Smart EVSE V3</h1>
-                          <h1 id="version" class="h5 mb-0 text-white-800">Version: </h1>
+                          <h1 class="h5 mb-0 text-white-800">
+                            <span id="version-label">Version:</span>
+                            <span id="version" data-version=""></span>
+                          </h1>
                           <h1 id="serialnr" class="h5 mb-0 text-white-800">SmartEVSE-</h1>
                         </div>
                     </div>
@@ -1162,6 +1168,14 @@
                     function rawData() {
                       window.location.href = "/settings";
                     }
+                    function gotoDoc() {
+                      const version = $('#version').data('version'); // get version from attribute
+                      if (version && version.startsWith('v')) {
+                        window.location.href = 'https://github.com/dingo35/SmartEVSE-3.5/tree/' + version + '#documentation';
+                      } else {
+                        window.location.href = 'https://github.com/dingo35/SmartEVSE-3.5/tree/master?tab=readme-ov-file#documentation';
+                      }
+                    }
                     function postPWM(value) {
                        $.post("/settings?override_pwm=" + value);
                        event.preventDefault();
@@ -1265,6 +1279,7 @@
                                           <button onclick="reboot()" style="width: 100px; display:inline-block;" title="Reboot your device">Reboot</button>
                                           <button onclick="update()" style="width: 100px; display:inline-block;" title="Update your firmware">Update</button>
                                           <button onclick="rawData()" style="width: 120px; display:inline-block;" title="Display your settings in JSON format">Raw Data</button>
+                                          <button onclick="gotoDoc()" style="width: 120px; display:inline-block;" title="Show the online documentation">Help</button>
                                         </div>
                                     </div>
                                     <div class="row no-gutters align-items-center">
