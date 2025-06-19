@@ -212,12 +212,15 @@ Currently the most reliable way to get the correct behaviour at Solar mode is:
 
 If you are at Smart mode you just set CONTACT2 to the appropriate setting as documented above.
 
-# OCPP
+# OCPP (you want your company to pay for your electricity charges, or you want to exploit your SmartEVSE as a public charger)
+To charge a company or a user for your electricity cost, you need a Backend Provider (BP). The BP will monitor your charger usage and will bill the appropriate user and/or company, and will pay you your part.
+Your SmartEVSE can be connected to any BP by the OCPP protocol.
 See the OCPP section in the SmartEVSE dashboard for setting up identifiers and configuring the OCPP interface.
 Connect to the OCPP server using the credentials set up in the SmartEVSE dashboard. To use
 the RFID reader with OCPP, set the mode Rmt/OCPP in the RFID menu. Note that the other
 RFID modes overrule the OCPP access control. OCPP SmartCharging requires the SmartEVSE
-internal load balancing means to be turned off.
+internal load balancing needs to be turned off.
+For user experiences with back-end providers, see [OCPP Backends](ocpp.md)
 
 # REST API
 
