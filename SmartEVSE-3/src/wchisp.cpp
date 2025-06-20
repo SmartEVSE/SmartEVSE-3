@@ -42,7 +42,6 @@
 
 
 #include <Arduino.h>
-#include <SPIFFS.h>
 #include <stdio.h>
 #include <string.h>
 
