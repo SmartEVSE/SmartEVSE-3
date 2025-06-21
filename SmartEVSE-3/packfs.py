@@ -32,3 +32,6 @@ except Exception as e:
 if shutil.rmtree("pack.tmp"):
     print("Failed to clean up temporary files")
     sys.exit(9)
+# cleanup CH32 bin file if it was generated:
+if os.path.isfile("data/CH32V203.bin"):
+    os.remove("data/CH32V203.bin")
