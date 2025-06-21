@@ -824,7 +824,7 @@ void setState(uint8_t NewState) { //c
                     setSolarStopTimer(0);
                     MaxSumMainsTimer = 0;
                     Nr_Of_Phases_Charging = 1;                                  // switch to 1F
-                    Switching_Phases_C2 = AFTER_SWITCH;                         // we finished the switching process,
+                    Switching_Phases_C2 = NO_SWITCH;                            // we finished the switching process,
                                                                                 // BUT we don't know which is the single phase
             }
 
@@ -832,7 +832,7 @@ void setState(uint8_t NewState) { //c
                     setSolarStopTimer(0);
                     MaxSumMainsTimer = 0;
                     Nr_Of_Phases_Charging = 3;                                  // switch to 3P
-                    Switching_Phases_C2 = AFTER_SWITCH;                         // we finished the switching process,
+                    Switching_Phases_C2 = NO_SWITCH;                            // we finished the switching process,
             }
 
             CONTACTOR1_ON;

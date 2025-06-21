@@ -311,7 +311,7 @@ extern void getButtonState();
 extern void PowerPanicESP();
 
 extern uint8_t LCDlock;
-enum Switch_Phase_t { NO_SWITCH, GOING_TO_SWITCH_1P, GOING_TO_SWITCH_3P, AFTER_SWITCH };
+enum Switch_Phase_t { NO_SWITCH, GOING_TO_SWITCH_1P, GOING_TO_SWITCH_3P };
 enum AccessStatus_t { OFF, ON, PAUSE };
 extern void CalcBalancedCurrent(char mod);
 extern void write_settings(void);

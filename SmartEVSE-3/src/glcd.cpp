@@ -895,8 +895,6 @@ void GLCD(void) {
                         sprintf(Str, "1P -> 3P %u", ChargeDelay);
                         if (!ChargeDelay) Str[8] = '\0';
                         break;
-                    case AFTER_SWITCH:
-                        break;
                 }
                 GLCD_print_buf2(5, Str);
         } else if (State == STATE_C) {
