@@ -640,7 +640,7 @@ void GLCD(void) {
             }
         } else
 #endif //ENABLE_OCPP
-        if (ErrorFlags & LESS_6A) {
+        if (ErrorFlags & LESS_6A && AccessStatus == ON) {
             GLCD_print_buf2(2, (const char *) "WAITING");
             GLCD_print_buf2(4, (const char *) "FOR POWER");
 #if MODEM
