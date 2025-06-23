@@ -337,6 +337,10 @@ void CheckRFID(void) {
                         break;
                 }
             }
+            if (RFIDstatus <= 3)
+                BuzzConfirmation();
+            else
+                BuzzError();
 }
 #else //CH32
 

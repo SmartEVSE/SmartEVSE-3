@@ -218,8 +218,9 @@ void SetCPDuty(uint32_t DutyCycle);
 uint8_t setItemValue(uint8_t nav, uint16_t val);
 uint16_t getItemValue(uint8_t nav);
 void ConfigureModbusMode(uint8_t newmode);
-
 void setMode(uint8_t NewMode) ;
+void BuzzConfirmation(void);
+void BuzzError(void);
 
 #if ENABLE_OCPP && defined(SMARTEVSE_VERSION) //run OCPP only on ESP32
 void ocppUpdateRfidReading(const unsigned char *uuid, size_t uuidLen);

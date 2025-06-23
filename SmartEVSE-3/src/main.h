@@ -345,4 +345,5 @@ struct Node_t {
     uint8_t Mode;
 };
 
+extern bool BuzzerPresent;
 #endif

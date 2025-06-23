@@ -139,9 +139,7 @@ const char StrStateNameWeb[15][17] = {"Ready to Charge", "Connected to EV", "Cha
 const char StrErrorNameWeb[9][20] = {"None", "No Power Available", "Communication Error", "Temperature High", "EV Meter Comm Error", "RCM Tripped", "Waiting for Solar", "Test IO", "Flash Error"};
 const char StrMode[3][8] = {"Normal", "Smart", "Solar"};
 const char StrRFIDStatusWeb[8][20] = {"Ready to read card","Present", "Card Stored", "Card Deleted", "Card already stored", "Card not in storage", "Card Storage full", "Invalid" };
-
-// Global data
-
+bool BuzzerPresent = false;
 
 // The following data will be updated by eeprom/storage data at powerup:
 extern uint16_t MaxMains;
@@ -2552,6 +2550,33 @@ void WCHUPDATE(unsigned long RunningVersion) {
 }
 #endif
 
+
+void BuzzConfirmation (void) {
+    if (!BuzzerPresent) return;
+    ledcWriteTone(6, 2637); // E7
+    ledcWrite(6, 128);      // Buzzer: 50% duty cycle
+    delay(100);
+    ledcWriteTone(6, 2794); // F7
+    delay(100);
+    ledcWriteTone(6, 3136); // G7
+    delay(100);
+    ledcWrite(6, 0);       // Buzzer off
+}
+
+
+void BuzzError (void) {
+    if (!BuzzerPresent) return;
+    ledcWriteTone(6, 3136); // G7
+    ledcWrite(6, 128);      // Buzzer: 50% duty cycle
+    delay(100);
+    ledcWriteTone(6, 2794); // F7
+    delay(100);
+    ledcWriteTone(6, 2637); // E7
+    delay(100);
+    ledcWrite(6, 0);       // Buzzer off
+}
+
+
 void setup() {
     //detect if we are on 3.1 hardware version:
     uint8_t chip_ver = (( *(volatile uint32_t *) 0x3ff5A00c) >> 9 ) & 7 ;       // Read chip version directly from Efuses. 0=ESP32D0WDQ6 4=ESP32U4WDH
@@ -2565,6 +2590,10 @@ void setup() {
         pinMode(PIN_EXT_V31, INPUT);
         pinMode(PIN_BUZZER_V31, OUTPUT);
         digitalWrite(PIN_BUZZER_V31, LOW);
+        ledcSetup(6, 4186, 8);                      // channel 6, 4kHz, 8bit
+        ledcAttachPin(PIN_BUZZER_V31, 6);
+        BuzzerPresent = true;
+        BuzzConfirmation();
     } else { //SmartEVSE hw version 3.0 or 4.0
         PIN_SW_IN = PIN_SW_IN_V30;
         PIN_ACTA = PIN_ACTA_V30;
