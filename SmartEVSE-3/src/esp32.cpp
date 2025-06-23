@@ -44,6 +44,7 @@ char RequiredEVCCID[32] = "";                                               // R
 #include "glcd.h"
 #include "utils.h"
 #include "OneWire.h"
+#include "OneWireESP32.h"
 #include "modbus.h"
 #include "meter.h"
 
@@ -239,6 +240,7 @@ extern uint16_t firmwareUpdateTimer;
                                                                                 // 0 < timer < FW_UPDATE_DELAY means we are in countdown for an actual update
                                                                                 // FW_UPDATE_DELAY <= timer <= 0xffff means we are in countdown for checking
                                                                                 //                                              whether an update is necessary
+extern OneWire32& ds();
 
 #if ENABLE_OCPP && defined(SMARTEVSE_VERSION) //run OCPP only on ESP32
 extern unsigned char OcppRfidUuid [7];
@@ -2550,7 +2552,6 @@ void WCHUPDATE(unsigned long RunningVersion) {
 }
 #endif
 
-
 void setup() {
     //detect if we are on 3.1 hardware version:
     uint8_t chip_ver = (( *(volatile uint32_t *) 0x3ff5A00c) >> 9 ) & 7 ;       // Read chip version directly from Efuses. 0=ESP32D0WDQ6 4=ESP32U4WDH
@@ -2571,6 +2572,7 @@ void setup() {
         PIN_RCM_FAULT = PIN_RCM_FAULT_V30;
         PIN_RS485_RX = PIN_RS485_RX_V30;
     }
+    ds(); // initialize OneWire32 object on use, to avoid static initialization order fiasco
 
 #if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
 
