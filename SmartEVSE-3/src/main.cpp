@@ -54,6 +54,7 @@ struct DelayedTimeStruct DelayedStartTime;
 struct DelayedTimeStruct DelayedStopTime;
 extern unsigned char RFID[8];
 extern uint16_t LCDPin;
+extern uint8_t PIN_SW_IN, PIN_ACTA, PIN_ACTB, PIN_RCM_FAULT; //these pins have to be assigned dynamically because of hw version v3.1
 #else //CH32
 #define EXT extern "C"
 #define _GLCD                                                                   // the GLCD doesnt have to be updated on the CH32

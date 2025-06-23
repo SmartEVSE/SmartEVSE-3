@@ -39,6 +39,7 @@ unsigned char RFID[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
 unsigned char RFIDlist[RFIDSIZE];                                               // holds up to 100 RFIDs
 
+extern uint8_t PIN_SW_IN;
 OneWire32 ds(PIN_SW_IN, 0, 1, 0);                                               //gpio pin, tx, rx, parasite power
 
 // ############################# OneWire functions #############################

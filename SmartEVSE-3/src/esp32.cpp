@@ -124,7 +124,8 @@ extern ModbusMessage MBEVMeterResponse(ModbusMessage request);
 hw_timer_t * timerA = NULL;
 Preferences preferences;
 
-uint16_t LCDPin = 0;                                                        // PIN to operate LCD keys from web-interface
+uint16_t LCDPin = 0;                                                        // PINcode to operate LCD keys from web-interface
+uint8_t PIN_SW_IN, PIN_ACTA, PIN_ACTB, PIN_RCM_FAULT, PIN_RS485_RX; //these pins have to be assigned dynamically because of hw version v3.1
 
 extern esp_adc_cal_characteristics_t * adc_chars_CP;
 extern void setStatePowerUnavailable(void);
@@ -2551,6 +2552,26 @@ void WCHUPDATE(unsigned long RunningVersion) {
 
 
 void setup() {
+    //detect if we are on 3.1 hardware version:
+    uint8_t chip_ver = (( *(volatile uint32_t *) 0x3ff5A00c) >> 9 ) & 7 ;       // Read chip version directly from Efuses. 0=ESP32D0WDQ6 4=ESP32U4WDH
+    // change default pins in case ESP32-MINI-1 is detected
+    if (chip_ver == 4) { //SmartEVSE hw version 3.1
+        PIN_SW_IN = PIN_SW_IN_V31;
+        PIN_ACTA = PIN_ACTA_V31;
+        PIN_ACTB = PIN_ACTB_V31;
+        PIN_RCM_FAULT = PIN_RCM_FAULT_V31;
+        PIN_RS485_RX = PIN_RS485_RX_V31;
+        pinMode(PIN_EXT_V31, INPUT);
+        pinMode(PIN_BUZZER_V31, OUTPUT);
+        digitalWrite(PIN_BUZZER_V31, LOW);
+    } else { //SmartEVSE hw version 3.0 or 4.0
+        PIN_SW_IN = PIN_SW_IN_V30;
+        PIN_ACTA = PIN_ACTA_V30;
+        PIN_ACTB = PIN_ACTB_V30;
+        PIN_RCM_FAULT = PIN_RCM_FAULT_V30;
+        PIN_RS485_RX = PIN_RS485_RX_V30;
+    }
+
 #if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
 
     pinMode(PIN_CP_OUT, OUTPUT);            // CP output
