@@ -2980,12 +2980,6 @@ void Timer10ms_singlerun(void) {
 
     // ############### EVSE State B #################
 
-    if (State == STATE_B1 && !ErrorFlags) {
-        if (pilot == PILOT_12V) {                                           // Disconnected?
-            setState(STATE_A);                                              // switch to STATE_A
-        } else setState(STATE_B);
-    }
-
     if (State == STATE_B || State == STATE_COMM_C) {
 
         if (pilot == PILOT_12V) {                                           // Disconnected?
