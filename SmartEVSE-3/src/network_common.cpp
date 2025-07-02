@@ -1274,6 +1274,14 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
   } //HTTP request received
 }
 
+// turns out getLocalTime only checks if the current year > 2016, and if so, decides NTP must have synced;
+// this callback function actually checks if we are synced!
+void timeSyncCallback(struct timeval *tv)
+{
+    LocalTimeSet = true;
+    _LOG_A("Synced clock to NTP server!");    // somehow adding a \n here hangs the telnet server after printing this message ?!?
+}
+
 void onWifiEvent(WiFiEvent_t event, WiFiEventInfo_t info) {
     switch (event) {
         case WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP:
@@ -1286,6 +1294,17 @@ void onWifiEvent(WiFiEvent_t event, WiFiEventInfo_t info) {
             static char dns4url[]="udp://123.123.123.123:53";
             sprintf(dns4url, "udp://%s:53", WiFi.dnsIP().toString().c_str());
             mgr.dns4.url = dns4url;
+
+            // Init and get the time
+            // First option to get time from local ntp server blocks the second fallback option since 2021:
+            // See https://github.com/espressif/arduino-esp32/issues/4964
+            //sntp_servermode_dhcp(1);                                                    //try to get the ntp server from dhcp
+
+            // Configure time after WiFi is connected
+            esp_sntp_setservername(1, "europe.pool.ntp.org");
+            sntp_set_time_sync_notification_cb(timeSyncCallback);
+            esp_sntp_init();
+            
             if (TZinfo == "") {
                 xTaskCreate(
                     setTimeZone, // Function that should be called
@@ -1360,14 +1379,6 @@ void onWifiEvent(WiFiEvent_t event, WiFiEventInfo_t info) {
         break;
         default: break;                                                         // prevent compiler warnings
   }
-}
-
-// turns out getLocalTime only checks if the current year > 2016, and if so, decides NTP must have synced;
-// this callback function actually checks if we are synced!
-void timeSyncCallback(struct timeval *tv)
-{
-    LocalTimeSet = true;
-    _LOG_A("Synced clock to NTP server!");    // somehow adding a \n here hangs the telnet server after printing this message ?!?
 }
 
 
@@ -1510,17 +1521,10 @@ void WiFiSetup(void) {
 
     mg_mgr_init(&mgr);  // Initialise event manager
 
-    WiFi.setAutoReconnect(true);                                                //actually does nothing since this is the default value
+    WiFi.setAutoReconnect(true);                                                // Required for Arduino 3
     //WiFi.persistent(true);
     WiFi.onEvent(onWifiEvent);
 
-    // Init and get the time
-    // First option to get time from local ntp server blocks the second fallback option since 2021:
-    // See https://github.com/espressif/arduino-esp32/issues/4964
-    //sntp_servermode_dhcp(1);                                                    //try to get the ntp server from dhcp
-    sntp_setservername(1, "europe.pool.ntp.org");                               //fallback server
-    sntp_set_time_sync_notification_cb(timeSyncCallback);
-    sntp_init();
 
     // Set random AES Key for SmartConfig provisioning, first 8 positions are 0
     // This key is displayed on the LCD, and should be entered when using the EspTouch app.
