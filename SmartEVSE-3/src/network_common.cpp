@@ -10,6 +10,7 @@
 #include <ESPmDNS.h>
 #include <Update.h>
 #include <Preferences.h>
+#include "esp_efuse.h"
 
 #include "esp32.h"
 #if SMARTEVSE_VERSION >=30
@@ -1483,6 +1484,18 @@ void WiFiSetup(void) {
 
         _LOG_A("hwversion %04x serialnr:%u \n",hwversion, serialnr);
         //_LOG_A(ec_public);
+
+        // SmartEVSE v3.1 has this also stored in efuses
+        uint8_t efuse_block1[32];
+        uint8_t efuse_hwversion[2];
+        uint8_t efuse_serialnr[3];
+        esp_efuse_read_block(EFUSE_BLK1, efuse_block1, 0, 32*8);
+        esp_efuse_read_block(EFUSE_BLK3, efuse_hwversion, 56, 16);
+        esp_efuse_read_block(EFUSE_BLK3, efuse_serialnr, 72, 24);
+
+        //_LOG_A("Private key: ");
+        //for (uint8_t x=0; x<32; x++) _LOG_A_NO_FUNC("%02x",efuse_block1[x]);
+        //_LOG_A_NO_FUNC(" hwver: %02x%02x serialnr: %u\n", efuse_hwversion[1], efuse_hwversion[0], efuse_serialnr[0]+(efuse_serialnr[1]<<8));
     } else {
         _LOG_A("No KeyStorage found in nvs!\n");
         if (!serialnr) serialnr = MacId() & 0xffff;                             // when serialnr is not programmed (anymore), we use the Mac address
