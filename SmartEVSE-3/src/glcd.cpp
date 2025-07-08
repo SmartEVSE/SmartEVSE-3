@@ -87,8 +87,8 @@ uint32_t ScrollTimer = 0;
 
 extern void CheckSwitch(bool force = false);
 extern void handleWIFImode(void *s  = &Serial);
-extern char SmartConfigKey[16];
 extern Button ExtSwitch;
+extern String APpassword;
 unsigned char activeRow;
 extern Switch_Phase_t Switching_Phases_C2;
 extern uint8_t RCMTestCounter;
@@ -500,19 +500,17 @@ void GLCD(void) {
                     GLCD_write_buf_str(127,0, Str, GLCD_ALIGN_RIGHT);
                 } else GLCD_write_buf_str(0,0, "Not connected to WiFi", GLCD_ALIGN_LEFT);
 
-            // When Wifi Setup is selected, show AES key for the ESPTouch app
+            // When Wifi Setup is selected, show password and SSID of the Access Point
             } else if (WIFImode == 2) {
                 if (SubMenu && WiFi.getMode() != WIFI_AP_STA) {           // Do not show if AP_STA mode is started
-                    sprintf(Str, "O button starts config");
+                    sprintf(Str, "O button starts portal");
                     GLCD_write_buf_str(0,0, Str, GLCD_ALIGN_LEFT);
                 } else {
-                    // Show ESPTouch key
-                    sprintf(Str, "Key:%s", SmartConfigKey);
-                    GLCD_write_buf_str(0, 0, Str, GLCD_ALIGN_LEFT);
-                    GLCD_sendbuf(7, 1);
-                    GLCD_buffer_clr();
-                    sprintf(Str, "Now use EspTouch app ");
-                    GLCD_write_buf_str(0, 0, Str, GLCD_ALIGN_LEFT);
+                    // Show Access Point password
+                    //sprintf(Str, "AP:SmartEVSE-config");
+                    //GLCD_write_buf_str(0,0, Str, GLCD_ALIGN_LEFT);
+                    sprintf(Str, "Portal PW:%s", APpassword.c_str());
+                    GLCD_write_buf_str(0,0, Str, GLCD_ALIGN_LEFT);
                 }
             }
         }

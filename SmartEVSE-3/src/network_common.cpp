@@ -33,6 +33,7 @@ struct mg_mgr mgr;  // Mongoose event manager. Holds all connections
 // end of mongoose stuff
 
 String APhostname = "SmartEVSE-" + String( MacId() & 0xffff, 10);           // SmartEVSE access point Name = SmartEVSE-xxxxx
+String APpassword = "00000000";
 
 #if MQTT && defined(SMARTEVSE_VERSION) // ESP32 only
 // MQTT connection info
@@ -62,91 +63,11 @@ uint32_t serialnr;
 
 // The following data will be updated by eeprom/storage data at powerup:
 uint8_t WIFImode = WIFI_MODE;                                               // WiFi Mode (0:Disabled / 1:Enabled / 2:Start Portal)
-char SmartConfigKey[] = "0123456789abcdef";                                 // SmartConfig / EspTouch AES key, used to encyrypt the WiFi password.
 String TZinfo = "";                                                         // contains POSIX time string
 
 char *downloadUrl = NULL;
 int downloadProgress = 0;
 int downloadSize = 0;
-
-static uint8_t CliState = 0;
-#ifdef SENSORBOX_VERSION
-void ProvisionCli(HardwareSerial &s) {
-//void ProvisionCli(HardwareSerial &s = &Serial) {
-#else
-#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
-void ProvisionCli(void) {
-    HardwareSerial &s = Serial;
-#else
-void ProvisionCli(HWCDC &s = Serial) {
-#endif
-#endif
-    // SSID and PW for your Router
-    static String Router_SSID, Router_Pass;
-    static char CliBuffer[64];
-    static uint8_t idx = 0;
-    static bool entered = false;
-    char ch;
-
-    if (CliState == 0) {
-        s.println("Enter WiFi access point name:");
-        CliState++;
-
-    } else if (CliState == 1 && entered) {
-        Router_SSID = String(CliBuffer);
-        Router_SSID.trim(); //SSID has no limitations on special characters, so dnt check them
-        CliState++;              // All OK, now request password.
-        idx = 0;
-        entered = false;
-
-    } else if (CliState == 2) {
-        s.println("Enter WiFi password:");
-        CliState++;
-
-    } else if (CliState == 3 && entered) {
-        Router_Pass = String(CliBuffer);
-        Router_Pass.trim();
-        if (idx < 8) {
-            s.println("Password should be min 8 characters.");
-            Router_Pass = "";
-            CliState = 2;
-        } else CliState++;             // All OK
-        idx = 0;
-        entered = false;
-
-    } else if (CliState == 4) {
-        s.println("WiFi credentials stored.");
-        WiFi.mode(WIFI_STA);                // Set Station Mode
-        WiFi.begin(Router_SSID, Router_Pass);   // Configure Wifi with credentials
-        CliState++;
-    }
-
-
-    // read input, and store in buffer until we read a \n
-    while (s.available()) {
-        ch = s.read();
-
-        // When entering a password, replace last character with a *
-        if (CliState == 3 && idx) s.printf("\b*");
-        s.print(ch);
-
-        // check for CR/LF, and make sure the contents of the buffer is atleast 1 character
-        if (ch == '\n' || ch == '\r') {
-            if (idx) {
-                CliBuffer[idx] = 0;         // null terminate
-                entered = true;
-            } else if (CliState == 1 || CliState == 3) CliState--; // Reprint the last message
-        } else if (idx < 63) {              // Store in buffer
-            if (ch == '\b' && idx) {
-                idx--;
-                s.print(" \b");        // erase character from terminal
-            } else {
-                CliBuffer[idx++] = ch;
-            }
-        }
-    }
-}
-
 
 #if MQTT && defined(SMARTEVSE_VERSION) // ESP32 only
 #if MQTT_ESP == 1
@@ -966,6 +887,26 @@ static void timer_fn(void *arg) {
 }
 #endif
 
+
+// HTML web form for entering WIFI credentials in AP setup portal
+static const char *html_form = R"EOF(
+<!DOCTYPE html><html><head><title>WiFi Setup</title>
+<script>
+function togglePassword(){
+  var x = document.getElementById('password');
+  x.type = x.type === 'password' ? 'text' : 'password';
+}
+</script></head><body>
+<h2>WiFi Configuration</h2>
+<form action="/save" method="POST">
+SSID:<br><input type="text" name="ssid"><br>
+Password:<br><input type="password" name="password" id="password"><br>
+<input type="checkbox" onclick="togglePassword()"> Show Password<br><br>
+<input type="submit" value="Save">
+</form></body></html>
+)EOF";
+
+
 // Connection event handler function
 // indenting lower level two spaces to stay compatible with old StartWebServer
 // We use the same event handler function for HTTP and HTTPS connections
@@ -1002,6 +943,25 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
             }
             shouldReboot = true;
             mg_http_reply(c, 200, "Content-Type: text/plain\r\n", "Erasing settings, rebooting");
+        } else if (mg_http_match_uri(hm, "/") && WIFImode == 2) { // serve AP page to fill in WIFI credentials
+            mg_http_reply(c, 200, "Content-Type: text/html\r\n", "%s", html_form);
+        } else if (mg_http_match_uri(hm, "/save")) {
+            char ssid[64], password[64];
+            bool has_ssid = mg_http_get_var(&hm->body, "ssid", ssid, sizeof(ssid)) > 0;
+            bool has_pass = mg_http_get_var(&hm->body, "password", password, sizeof(password)) > 0;
+            if (has_ssid && has_pass) {
+                mg_http_reply(c, 200, "Content-Type: text/html\r\n", "<html><body><h2>Saved! Rebooting...</h2></body></html>");
+                delay(2000);
+                _LOG_A("Connecting to wifi network.\n");
+                WiFi.mode(WIFI_STA);                // Set Station Mode
+                WiFi.begin(ssid, password);   // Configure Wifi with credentials
+                WIFImode = 1;                                                           // we are already connected so don't call handleWIFImode
+                write_settings();
+                delay(2000);
+                ESP.restart();
+            } else {
+              mg_http_reply(c, 400, "", "Missing SSID or password");
+            }
         } else if (mg_http_match_uri(hm, "/autoupdate")) {
             char owner[40];
             char buf[8];
@@ -1382,88 +1342,29 @@ void onWifiEvent(WiFiEvent_t event, WiFiEventInfo_t info) {
 }
 
 
-void SetupPortalTask(void * parameter) {
-#ifdef SENSORBOX_VERSION
-    HardwareSerial *s1 = *((HardwareSerial **)parameter);
-    HardwareSerial &s = *s1;
-#endif
-    _LOG_A("Start Portal...\n");
-    WiFi.disconnect(true);
-
-    // Close Mongoose HTTP Server
-    if (HttpListener80) {
-        HttpListener80->is_closing = 1;
-    }
-    if (HttpListener443) {
-        HttpListener443->is_closing = 1;
-    }
-
-    while (HttpListener80 || HttpListener443) {
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-        _LOG_A("Waiting for Mongoose Server to terminate\n");
-    }
-
-    //Init WiFi as Station, start SmartConfig
-    WiFi.mode(WIFI_AP_STA);
-    WiFi.beginSmartConfig(SC_TYPE_ESPTOUCH_V2, SmartConfigKey);
- 
-    //Wait for SmartConfig packet from mobile.
-    _LOG_V("Waiting for SmartConfig.\n");
-#ifdef SENSORBOX_VERSION
-    s.end();
-    s.begin(115200, SERIAL_8N1, PIN_RXD, PIN_TXD, false);                    // Input from TX of PIC, and debug output to USB
-#endif
-    unsigned long configTimer = millis();
-    while (!WiFi.smartConfigDone() && (WIFImode == 2) && (WiFi.status() != WL_CONNECTED) && millis() - configTimer < 180000) {
-        // Also start Serial CLI for entering AP and password.
-#ifdef SENSORBOX_VERSION
-        ProvisionCli(s);
-#else
-        ProvisionCli();
-#endif
-        delay(100);
-    }                       // loop until connected or Wifi setup menu is exited.
-    delay(2000);            // give smartConfig time to send provision status back to the users phone.
-        
-    if (WiFi.status() == WL_CONNECTED) {
-        _LOG_V("\nWiFi Connected, IP Address:%s.\n", WiFi.localIP().toString().c_str());
-        WIFImode = 1;                                                           // we are already connected so don't call handleWIFImode
-    } else {
-        _LOG_V("\nCould not connect to WiFi, giving up.\n");
-        WIFImode = 0;
-        handleWIFImode();
-    }
-    write_settings();
-    CliState= 0;
-#ifndef SENSORBOX_VERSION                                                       //so we are not on a sensorbox but on a smartevse
-#if SMARTEVSE_VERSION >=30
-    LCDNav = 0;
-#endif
-#else
-    s.end();
-    if (s == Serial2) {
-        Serial2.setRxBufferSize(2048);                                                // Important! first increase buffer, then setup Uart2
-        Serial2.begin(115200, SERIAL_8N1, PIN_RX, -1, true);
-        Serial.begin(115200, SERIAL_8N1, PIN_PGD, PIN_TXD, false);
-    } else
-        s.begin(115200, SERIAL_8N1, PIN_PGD, PIN_TXD, false);                    // Input from TX of PIC, and debug output to USB
-#endif
-    WiFi.stopSmartConfig(); // this makes sure repeated SmartConfig calls are succesfull
-    vTaskDelete(NULL);                                                          //end this task so it will not take up resources
-}
-
-
 void handleWIFImode(void *s) {
     if (WIFImode == 2 && WiFi.getMode() != WIFI_AP_STA) {
-        //now start the portal in the background, so other tasks keep running
-        xTaskCreate(
-            SetupPortalTask,     // Function that should be called
-            "SetupPortalTask",   // Name of the task (for debugging)
-            10000,                // Stack size (bytes)                              // printf needs atleast 1kb
-            (void *) &s,          // Parameter: which serial interface to use for ProvisionCli
-            3,                    // Task priority - medium
-            NULL                  // Task handleCTReceive
-        );
+        _LOG_A("Start Portal...\n");
+
+        // set random AP password
+        uint8_t i, c;
+        for (i=0; i<8 ;i++) {
+                c = random(16) + '0';
+                if (c > '9') c += 'a'-'9'-1;
+                APpassword[i] = c;
+        }
+
+        // Start WiFi as AP
+        WiFi.softAP("SmartEVSE-config", APpassword);
+        IPAddress IP = WiFi.softAPIP();
+
+        if (!HttpListener80) {
+            HttpListener80 = mg_http_listen(&mgr, "http://0.0.0.0:80", fn_http_server, NULL);  // Setup listener
+        }
+        if (!HttpListener443) {
+            HttpListener443 = mg_http_listen(&mgr, "http://0.0.0.0:443", fn_http_server, (void *) 1);  // Setup listener
+        }
+        _LOG_A("HTTP server started\n");
     }
 
     if (WIFImode == 1 && WiFi.getMode() == WIFI_OFF) {
@@ -1524,15 +1425,6 @@ void WiFiSetup(void) {
     WiFi.setAutoReconnect(true);                                                // Required for Arduino 3
     //WiFi.persistent(true);
     WiFi.onEvent(onWifiEvent);
-
-
-    // Set random AES Key for SmartConfig provisioning, first 8 positions are 0
-    // This key is displayed on the LCD, and should be entered when using the EspTouch app.
-#ifndef SENSORBOX_VERSION
-    for (uint8_t i=0; i<8 ;i++) {
-        SmartConfigKey[i+8] = random(9) + '1';
-    }
-#endif
 
     if (preferences.begin("settings", false) ) {
         TZinfo = preferences.getString("TimezoneInfo","");

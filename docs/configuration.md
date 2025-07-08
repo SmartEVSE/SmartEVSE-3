@@ -133,9 +133,9 @@ Enable Wifi connection to your network.
 
 - **Disabled**: Wifi connection is disabled.
 - **SetupWifi** 
-  - v3.6.3 or older:  
-  The SmartEVSE presents itself as a Wifi Acces Point with SSID "smartevse-xxxx". Connect with your phone to that access point, go to [http://192.168.4.1/](http://192.168.4.1/) and configure your Wifi SSID and key (password).
-  - v.3.6.4 and newer:
+  - v3.9.0 or newer:
+  The SmartEVSE presents itself as a Wifi Acces Point with SSID "SmartEVSE-config"; the password is displayed at the top line of your LCD display. Connect with your phone to that access point, go to [http://192.168.4.1/](http://192.168.4.1/) and configure your Wifi SSID and password.
+  - v3.6.4 until v3.8.x:
     - Connect your smartphone to the wifi network you want your SmartEVSE connected to.
 Note: If you have a multi AP setup, with the same SSID, you need to be connected to the desired AP, as the configuration is based on the BSSID, so it will choos the specific AP your phone is connected to.
     - Download and run the ESPTouch app from your favorite app store [Android](https://play.google.com/store/apps/details?id=com.fyent.esptouch.android&hl=en_US:) (please ignore the strange Author name) or [Apple](https://apps.apple.com/us/app/espressif-esptouch/id1071176700) or  [Github](https://github.com/EspressifApp/EsptouchForAndroid) (for source code).
@@ -150,7 +150,7 @@ Note: If you have a multi AP setup, with the same SSID, you need to be connected
     - Press **Confirm**, within 30 seconds the app will confirm a MAC address and an IP address.
     - You are connected now. If you want special stuff (static IP address, special DNS address), configure them on your AP/router.
 
-  - v3.6.4 and newer BACKUP PROCEDURE: if you don't get it to work with the ESPTouch app, there is a backup procedure:
+  - v3.6.4 and until v3.8.x: BACKUP PROCEDURE: if you don't get it to work with the ESPTouch app, there is a backup procedure:
     - connect your SmartEVSE with a USB cable to your PC
     - install the USB driver (Windows) or not (Linux) for ESP32 chipset
     - connect your favorite serial terminal to the appropriate port,
@@ -163,6 +163,8 @@ Note: If you have a multi AP setup, with the same SSID, you need to be connected
     - press the middle button to start the configuration procedure
     - on your terminal window you should see a request to enter your WiFi access point SSID and password. 
     - the controller should now connect to WiFi.
+  - v3.6.3 or older:
+  The SmartEVSE presents itself as a Wifi Acces Point with SSID "smartevse-xxxx". Connect with your phone to that access point, go to [http://192.168.4.1/](http://192.168.4.1/) and configure your Wifi SSID and key (password).
 - **Enabled**: Connect to your network via Wifi.
 
 ## AUTOUPDAT
