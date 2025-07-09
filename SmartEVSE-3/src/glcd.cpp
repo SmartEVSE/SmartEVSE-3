@@ -1137,8 +1137,9 @@ uint8_t getMenuItems (void) {
         MenuItems[m++] = MENU_START;                                            // - Start Surplus Current (A)
         MenuItems[m++] = MENU_STOP;                                             // - Stop time (min)
         MenuItems[m++] = MENU_IMPORT;                                           // - Import Current from Grid (A)
-        MenuItems[m++] = MENU_C2;
     }
+    if (Mode != MODE_NORMAL)
+        MenuItems[m++] = MENU_C2;
     MenuItems[m++] = MENU_SWITCH;                                               // External Switch on SW (0:Disable / 1:Access / 2:Smart-Solar)
     MenuItems[m++] = MENU_RCMON;                                                // Residual Current Monitor on RCM (0:Disable / 1:Enable)
     MenuItems[m++] = MENU_RFIDREADER;                                           // RFID Reader connected to SW (0:Disable / 1:Enable / 2:Learn / 3:Delete / 4:Delate All)
@@ -1276,6 +1277,12 @@ void GLCDMenu(uint8_t Buttons) {
                         value += digits[digit]*pow_10[digit];                   //we add the new digit's value
                         setItemValue(LCDNav, value);
                       break;
+                    case MENU_C2:                                               // do not display AUTO when slave
+                        do {
+                            value = MenuNavInt(Buttons, value, MenuStr[LCDNav].Min, MenuStr[LCDNav].Max);
+                        } while (LoadBl >=2 && value == AUTO);
+                        setItemValue(LCDNav, value);
+                        break;
                     default:
                         value = MenuNavInt(Buttons, value, MenuStr[LCDNav].Min, MenuStr[LCDNav].Max);
                         setItemValue(LCDNav, value);

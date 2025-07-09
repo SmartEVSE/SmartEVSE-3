@@ -194,7 +194,7 @@ Use a second contactor (C2) to switch phases L2 and L3.
 - **Always Off**: C2 is always off, single-phase charging. WE RECOMMEND THIS SETTING IF YOU ARE SINGLE PHASE CHARGING IN SOLAR MODE, EVEN IF YOU DONT HAVE A second contactor INSTALLED!
 - **Always On**: C2 is always on, three-phase charging (default).
 - **Solar Off**: C2 is always on except in Solar Mode, where it is always off.
-- **Auto**: SmartEVSE starts charging at 3-phase, but in Solar Mode, it will switch off C2 when there is not enough current for 3 phases, continuing on 1 phase.
+- **Auto**: (only available when POWER SHARE Disabled or Master): SmartEVSE starts charging at 3-phase, but in Solar Mode, it will switch off C2 when there is not enough current for 3 phases, continuing on 1 phase; if there is enough current it will switch on C2, continuing on 3 phases.
 
 **Important**: Wire your C2 contactor according to the schematics in the [Hardware installation](installation.md).
 

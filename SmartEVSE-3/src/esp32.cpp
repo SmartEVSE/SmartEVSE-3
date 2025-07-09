@@ -876,7 +876,7 @@ void mqttPublishData() {
         MQTTclient.publish(MQTTprefix + "/CustomButton", CustomButton ? "On" : "Off", false, 0);
         MQTTclient.publish(MQTTprefix + "/ChargeCurrent", Balanced[0], true, 0);
         MQTTclient.publish(MQTTprefix + "/ChargeCurrentOverride", OverrideCurrent, true, 0);
-        MQTTclient.publish(MQTTprefix + "/NrOfPhases", Nr_Of_Phases_Charging, false, 0);
+        MQTTclient.publish(MQTTprefix + "/NrOfPhases", Nr_Of_Phases_Charging, true, 0);
         MQTTclient.publish(MQTTprefix + "/Access", AccessStatus == OFF ? "Deny" : AccessStatus == ON ? "Allow" : AccessStatus == PAUSE ? "Pause" : "N/A", true, 0);
         MQTTclient.publish(MQTTprefix + "/RFID", !RFIDReader ? "Not Installed" : RFIDstatus >= 8 ? "NOSTATUS" : StrRFIDStatusWeb[RFIDstatus], true, 0);
         if (RFIDReader) {
@@ -952,6 +952,9 @@ void validate_settings(void) {
     if (RFIDReader == 5) {
         DeleteAllRFID();
         setItemValue(MENU_RFIDREADER, 0);                                       // RFID Reader Disabled
+    }
+    if (LoadBl >= 2 && EnableC2 == AUTO) {                                      // AUTO not supported on slaves
+        EnableC2 = NOT_PRESENT;
     }
 #if SMARTEVSE_VERSION < 40 //v3
     // Update master node config; for v4 this is taken care of when receiving the EVMeterType/Address
