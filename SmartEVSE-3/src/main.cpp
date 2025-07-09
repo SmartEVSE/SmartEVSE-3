@@ -1186,6 +1186,8 @@ void CalcBalancedCurrent(char mod) {
                     Switching_Phases_C2 = GOING_TO_SWITCH_3P;
                 }
             }
+        } else if (Mode == MODE_SMART && Nr_Of_Phases_Charging != 3) {          // in SMART AUTO mode go back to the old 3P
+                    Switching_Phases_C2 = GOING_TO_SWITCH_3P;
         }
         // adapt IsetBalanced in Smart Mode, and ensure the MaxMains/MaxCircuit settings for Solar
 
