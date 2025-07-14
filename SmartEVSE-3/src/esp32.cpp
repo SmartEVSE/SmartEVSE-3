@@ -919,7 +919,7 @@ void mqttPublishData() {
         MQTTclient.publish(MQTTprefix + "/LEDColorSolar", String(ColorSolar[0])+","+String(ColorSolar[1])+","+String(ColorSolar[2]), true, 0);
         MQTTclient.publish(MQTTprefix + "/LEDColorCustom", String(ColorCustom[0])+","+String(ColorCustom[1])+","+String(ColorCustom[2]), true, 0);
         if (Lock != 0) {
-            MQTTclient.publish(MQTTprefix + "/CableLock", CableLock ? "Enabled" : "Disabled", true, 0);
+            MQTTclient.publish(MQTTprefix + "/CableLock", CableLock, true, 0);
         }
 }
 #endif
