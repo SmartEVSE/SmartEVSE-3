@@ -665,6 +665,12 @@ void mqtt_receive_callback(const String topic, const String payload) {
             CableLock = 0;
         }
         write_settings();
+    } else if (topic == MQTTprefix + "/Set/EnableC2") {
+        uint8_t value = payload.toInt();
+        if (value >= 0 && value <=4) {
+            EnableC2 = (EnableC2_t) value;
+        }
+        write_settings();
     }
 
     // Make sure MQTT updates directly to prevent debounces
