@@ -1205,7 +1205,7 @@ void RecomputeSoC(void) {
                 if (EVMeter.PowerMeasured > 0) {
                     // Use real-time PowerMeasured data if available
                     TimeToGo = (3600 * EnergyRemaining) / EVMeter.PowerMeasured;
-                } else if (Mode != MODE_SOLAR) {
+                } else if (Mode != MODE_SOLAR && MaxCapacity != 0) { //prevent divide by zero
                     // Else, fall back on the theoretical maximum of the cable + nr of phases
                     TimeToGo = (3600 * EnergyRemaining) / (MaxCapacity * (Nr_Of_Phases_Charging * 230));
                 }
