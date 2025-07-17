@@ -487,7 +487,6 @@ void Button::CheckSwitch(bool force) {
         }
     } else { // no change in key....
         RB2count = 0;
-        //TODO howto do this in v4 / CH32?
         if (Pressed && Switch == 3 && millis() > TimeOfPress + 1500) {
             if (State == STATE_C) {
                 setState(STATE_C1);
