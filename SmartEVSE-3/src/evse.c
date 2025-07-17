@@ -720,7 +720,7 @@ void setup(void) {
     // Note that printf will only actually send data to the uart, when it detects a newline, or after a timeout
     //
 
-    printf("@MSG: \nSmartEVSE mainboard startup\n");
+    printf("@MSG: SmartEVSE mainboard startup\n");
     printf("@MSG: SystemClk:%d\n",FUNCONF_SYSTEM_CORE_CLOCK);
     //printf("@MSG: ChipID:%08x\n", DBGMCU_GetCHIPID() );
     //printf("@MSG: UID:%08x%04x\n", *( uint32_t * )0x1FFFF7E8 , (*( uint32_t * )0x1FFFF7EC)>>16 );
