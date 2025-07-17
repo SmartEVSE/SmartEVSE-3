@@ -3189,7 +3189,7 @@ void Timer10ms_singlerun(void) {
                 _LOG_D("[(%u)<-] %.*s", idx, idx, SerialBuf);
                 Handle_ESP32_Message(SerialBuf, &CommState);
             } else {
-                _LOG_W("Invalid message\n");
+                _LOG_W("Invalid message,SerialBuf: [(%u)] %.*s", idx, idx, SerialBuf);
             }
         } else {
             break; // No more complete messages
