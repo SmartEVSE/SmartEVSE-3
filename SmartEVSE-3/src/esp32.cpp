@@ -666,7 +666,7 @@ void mqtt_receive_callback(const String topic, const String payload) {
         write_settings();
     } else if (topic == MQTTprefix + "/Set/EnableC2") {
         uint8_t value = payload.toInt();
-        if (value >= 0 && value <=4) {
+        if (value <=4) { //value is always >=0 because unsigned
             EnableC2 = (EnableC2_t) value;
         }
         write_settings();
