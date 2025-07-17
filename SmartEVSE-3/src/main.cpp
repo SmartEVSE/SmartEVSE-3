@@ -85,7 +85,7 @@ extern uint8_t modem_state;
 #define CALL_ON_RECEIVE(X) \
     ret = strstr(SerialBuf, #X);\
     if (ret) {\
-/*        printf("DEBUG CALL_ON_RECEIVE: calling %s().\n", #X); */ \
+/*        printf("@MSG: DEBUG CALL_ON_RECEIVE: calling %s().\n", #X); */ \
         X();\
         RETURN \
     }
@@ -94,7 +94,7 @@ extern uint8_t modem_state;
 #define CALL_ON_RECEIVE_PARAM(X,Y) \
     ret = strstr(SerialBuf, #X);\
     if (ret) {\
-/*        printf("DEBUG CALL_ON_RECEIVE_PARAM: calling %s(%u).\n", #X, atoi(ret+strlen(#X))); */ \
+/*        printf("@MSG: DEBUG CALL_ON_RECEIVE_PARAM: calling %s(%u).\n", #X, atoi(ret+strlen(#X))); */ \
         Y(atoi(ret+strlen(#X)));\
         RETURN \
     }
@@ -102,7 +102,7 @@ extern uint8_t modem_state;
 #define SET_ON_RECEIVE(X,Y) \
     ret = strstr(SerialBuf, #X);\
     if (ret) {\
-/*        printf("DEBUG SET_ON_RECEIVE: setting %s to %u.\n", #Y, atoi(ret+strlen(#X))); */ \
+/*        printf("@MSG: DEBUG SET_ON_RECEIVE: setting %s to %u.\n", #Y, atoi(ret+strlen(#X))); */ \
         Y = atoi(ret+strlen(#X));\
         RETURN \
     }
