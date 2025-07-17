@@ -2911,6 +2911,7 @@ void Timer10ms_singlerun(void) {
 #endif
 
 #ifndef SMARTEVSE_VERSION //CH32
+    static uint32_t log1S = millis();
     //Check RS485 communication
     if (ModbusRxLen) CheckRS485Comm();
 #else //v3 and v4
@@ -2958,11 +2959,19 @@ void Timer10ms_singlerun(void) {
     }
 #endif
 
+#ifndef SMARTEVSE_VERSION // CH32
+#define LOG1S(fmt, ...) \
+    if (millis() > log1S + 1000) printf("@MSG: " fmt, ##__VA_ARGS__);
+#else
+#define LOG1S(X) //dummy
+#endif
+
 #if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40 //CH32 and v3
     // Check the external switch and RCM sensor
     ExtSwitch.CheckSwitch();
     // sample the Pilot line
     pilot = Pilot();
+    LOG1S("WCH 10ms: state=%d, pilot=%d, ErrorFlags=%d, ChargeDelay=%d, AccessStatus=%d, MainsMeter.Type=%d.\n", State, pilot, ErrorFlags, ChargeDelay, AccessStatus, MainsMeter.Type);
 
     // ############### EVSE State A #################
 
@@ -3220,6 +3229,9 @@ void Timer10ms_singlerun(void) {
 #ifndef SMARTEVSE_VERSION //CH32
     // Clear communication error, if present
     if ((ErrorFlags & CT_NOCOMM) && MainsMeter.Timeout == 10) clearErrorFlags(CT_NOCOMM);
+    if (millis() > log1S + 1000) {
+        log1S = millis();
+    }
 #endif
 
 }
