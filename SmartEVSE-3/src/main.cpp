@@ -3519,7 +3519,7 @@ uint16_t getItemValue(uint8_t nav) {
  */
 // 
 int getBatteryCurrent(void) {
-    if (Mode == MODE_SOLAR && (homeBatteryLastUpdate > (millis()-60000))) {
+    if (Mode == MODE_SOLAR && ((uint32_t)homeBatteryLastUpdate > (millis()-60000))) {
         return homeBatteryCurrent;
     } else {
         homeBatteryCurrent = 0;
