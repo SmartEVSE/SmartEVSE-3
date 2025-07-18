@@ -2833,6 +2833,8 @@ void Handle_ESP32_Message(char *SerialBuf, uint8_t *CommState) {
     if (ret != NULL) {
         unsigned long WCHRunningVersion = atoi(ret+strlen(token));
         _LOG_V("version %lu received\n", WCHRunningVersion);
+        SendConfigToCH32();
+        Serial1.printf("@Initialized:1\n");      // this finalizes the Config setup phase
         *CommState = COMM_CONFIG_SET;
         return;
     }
@@ -3208,9 +3210,6 @@ void Timer10ms_singlerun(void) {
 
             case COMM_CONFIG_SET:                       // Set mainboard configuration
                 CommTimeout = 10;
-
-                SendConfigToCH32();
-                Serial1.printf("@Initialized:1\n");      // this finalizes the Config setup phase
                 break;
 
             case COMM_STATUS_REQ:                       // Ready to receive status from mainboard
