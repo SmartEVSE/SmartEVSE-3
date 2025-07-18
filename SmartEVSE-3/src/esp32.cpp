@@ -82,7 +82,6 @@ SPIClass LCD_SPI2(HSPI);
 
 */
 
-uint8_t CommState = COMM_OFF;
 
 // Power Panic handler
 // Shut down ESP to conserve the power we have left. RTC will automatically store powerdown timestamp
