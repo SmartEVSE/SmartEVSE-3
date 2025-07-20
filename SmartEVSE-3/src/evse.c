@@ -725,13 +725,6 @@ void setup(void) {
     //printf("@MSG: ChipID:%08x\n", DBGMCU_GetCHIPID() );
     //printf("@MSG: UID:%08x%04x\n", *( uint32_t * )0x1FFFF7E8 , (*( uint32_t * )0x1FFFF7EC)>>16 );
 
-    EXTInit();                                      // Interrupt on RCMFAULT pin
-    ADCInit();                                      // CP, PP and Temp inputs
-    TIM1Init();                                     // Timebase for CP (PWM)signal and CP/PP/Temp ADC reading (1kHz)
-    TIM2Init();                                     // Modbus t3.5 timeout timer, calls ISR after 3.5ms of silence on the bus
-    TIM3Init();                                     // LED PWM ~4Khz
-    TIM4Init();                                     // ZC input monitoring 50Hz
-
     funDigitalWrite(VCC_EN, FUN_LOW);               // Modem power control OFF
     funDigitalWrite(CPOFF, FUN_LOW);                // CP enabled
     funDigitalWrite(RS485_DIR, FUN_LOW);
@@ -742,6 +735,12 @@ void setup(void) {
     funDigitalWrite(ACTB, FUN_HIGH);                // Actuator output W at 12V
     funDigitalWrite(SWDIO, FUN_HIGH);               // SWDIO High (pull up) unused
 
+    EXTInit();                                      // Interrupt on RCMFAULT pin
+    ADCInit();                                      // CP, PP and Temp inputs
+    TIM1Init();                                     // Timebase for CP (PWM)signal and CP/PP/Temp ADC reading (1kHz)
+    TIM2Init();                                     // Modbus t3.5 timeout timer, calls ISR after 3.5ms of silence on the bus
+    TIM3Init();                                     // LED PWM ~4Khz
+    TIM4Init();                                     // ZC input monitoring 50Hz
 
     ModemPower(1);
     RCmonCtrl(DISABLE);
