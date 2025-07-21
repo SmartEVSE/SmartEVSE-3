@@ -1146,7 +1146,7 @@ void CalcBalancedCurrent(char mod) {
     }
     else if (Mode == MODE_SOLAR && State == STATE_B) {
         // Prepare for switching to state C
-        IsetBalanced = 10*MinCurrent;
+        IsetBalanced = ActiveEVSE * MinCurrent * 10;
         _LOG_D("waiting for Solar (B) Isum=%d dA, phases=%d\n", Isum, Nr_Of_Phases_Charging);
         if (EnableC2 == AUTO) {
             // Mains isn't loaded, so the Isum must be negative for solar charging
@@ -1222,7 +1222,7 @@ void CalcBalancedCurrent(char mod) {
         {
             IsumImport = Isum - (10 * ImportCurrent);                           // Allow Import of power from the grid when solar charging
             // when there is NO charging, do not change the setpoint (IsetBalanced); except when we are in Master/Slave configuration
-            if (LoadBl == 0 && State == STATE_C && Idifference > 0) {           // so we had some room for power as far as MaxCircuit and MaxMains are concerned
+            if (ActiveEVSE > 0 && Idifference > 0) {                            // so we had some room for power as far as MaxCircuit and MaxMains are concerned
                 if (phasesLastUpdateFlag) {                                     // only increase or decrease current if measurements are updated.
                     if (IsumImport < 0) {
                         // negative, we have surplus (solar) power available
