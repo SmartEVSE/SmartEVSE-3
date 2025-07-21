@@ -2331,7 +2331,7 @@ void CheckSerialComm(void) {
     strncpy(token, "Initialized:", sizeof(token));
     ret = strstr(SerialBuf, token);
     if (ret != NULL && Initialized) printf("@Config:OK\n"); //only print this on reception of string
-
+#if MODEM
     strncpy(token, "RequiredEVCCID:", sizeof(token));
     ret = strstr(SerialBuf, token);
     if (ret) {
@@ -2347,6 +2347,7 @@ void CheckSerialComm(void) {
         if (EVCCID[0] == 0x0a) //empty string was sent
             EVCCID[0] = '\0';
     }
+#endif
 
     ReadIrms(SerialBuf);
     ReadPowerMeasured(SerialBuf);
@@ -2809,8 +2810,9 @@ void Handle_ESP32_Message(char *SerialBuf, uint8_t *CommState) {
     CALL_ON_RECEIVE_PARAM(OverrideCurrent:, setOverrideCurrent)
     CALL_ON_RECEIVE_PARAM(Mode:, setMode)
     CALL_ON_RECEIVE(write_settings)
+#if MODEM
     CALL_ON_RECEIVE(DisconnectEvent)
-
+#endif
     //these variables do not exist in CH32 so values are sent to ESP32
     SET_ON_RECEIVE(RFIDstatus:, RFIDstatus)
     SET_ON_RECEIVE(GridActive:, GridActive)

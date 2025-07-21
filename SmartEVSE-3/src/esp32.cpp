@@ -1,5 +1,7 @@
 #include <unordered_map>
 #if MODEM
+#include <stdint.h>
+#include <stdio.h>
 int8_t InitialSoC = -1;                                                     // State of charge of car
 int8_t FullSoC = -1;                                                        // SoC car considers itself fully charged
 int8_t ComputedSoC = -1;                                                    // Estimated SoC, based on charged kWh
