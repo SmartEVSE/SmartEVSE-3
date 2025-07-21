@@ -2967,7 +2967,7 @@ void Timer10ms_singlerun(void) {
 #define LOG1S(fmt, ...) \
     if (millis() > log1S + 1000) printf("@MSG: " fmt, ##__VA_ARGS__);
 #else
-#define LOG1S(X) //dummy
+#define LOG1S(fmt, ...) //dummy
 #endif
 
 #if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40 //CH32 and v3
