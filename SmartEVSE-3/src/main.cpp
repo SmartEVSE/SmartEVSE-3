@@ -194,17 +194,6 @@ Node_t Node[NR_EVSES] = {                                                       
     {      0,       1,     0,       0,       0,      0,      0,      0,     0,    0 }            
 };
 void ModbusRequestLoop(void);
-#endif
-uint8_t AccessTimer = 0; //FIXME ESP32 vs CH32
-int8_t TempEVSE = 0;                                                        // Temperature EVSE in deg C (-50 to +125)
-uint8_t ButtonState = 0x07;                                                 // Holds latest push Buttons state (LSB 2:0)
-uint8_t OldButtonState = 0x07;                                              // Holds previous push Buttons state (LSB 2:0)
-uint8_t LCDNav = 0;
-uint8_t SubMenu = 0;
-uint8_t ChargeDelay = 0;                                                    // Delays charging at least 60 seconds in case of not enough current available.
-uint8_t NoCurrent = 0;                                                      // counts overcurrent situations.
-uint8_t TestState = 0;
-#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
 uint8_t C1Timer = 0;
 uint8_t ModemStage = 0;                                                     // 0: Modem states will be executed when Modem is enabled 1: Modem stages will be skipped, as SoC is already extracted
 int8_t DisconnectTimeCounter = -1;                                          // Count for how long we're disconnected, so we can more reliably throw disconnect event. -1 means counter is disabled
@@ -216,6 +205,15 @@ uint8_t ModbusRequest = 0;                                                  // F
 bool PilotDisconnected = false;
 uint8_t PilotDisconnectTime = 0;                                            // Time the Control Pilot line should be disconnected (Sec)
 #endif
+uint8_t AccessTimer = 0; //FIXME ESP32 vs CH32
+int8_t TempEVSE = 0;                                                        // Temperature EVSE in deg C (-50 to +125)
+uint8_t ButtonState = 0x07;                                                 // Holds latest push Buttons state (LSB 2:0)
+uint8_t OldButtonState = 0x07;                                              // Holds previous push Buttons state (LSB 2:0)
+uint8_t LCDNav = 0;
+uint8_t SubMenu = 0;
+uint8_t ChargeDelay = 0;                                                    // Delays charging at least 60 seconds in case of not enough current available.
+uint8_t NoCurrent = 0;                                                      // counts overcurrent situations.
+uint8_t TestState = 0;
 uint8_t NodeNewMode = 0;
 AccessStatus_t AccessStatus = OFF;                                          // 0: OFF, 1: ON, 2: PAUSE
 uint8_t ConfigChanged = 0;
@@ -229,6 +227,8 @@ uint8_t BacklightSet = 0;
 uint8_t LCDTimer = 0;
 uint16_t CardOffset = CARD_OFFSET;                                          // RFID card used in Enable One mode
 uint8_t RFIDstatus = 0;
+EXT hw_timer_t * timerA;
+esp_adc_cal_characteristics_t * adc_chars_CP;
 #endif
 
 uint8_t ActivationMode = 0, ActivationTimer = 0;
@@ -284,10 +284,6 @@ unsigned long OcppLastTxNotification;
 #endif //ENABLE_OCPP
 
 EXT uint32_t elapsedmax, elapsedtime;
-#ifdef SMARTEVSE_VERSION //v3 and v4
-EXT hw_timer_t * timerA;
-esp_adc_cal_characteristics_t * adc_chars_CP;
-#endif
 
 //functions
 EXT void setup();
