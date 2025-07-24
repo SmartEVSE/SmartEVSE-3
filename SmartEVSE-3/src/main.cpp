@@ -74,35 +74,37 @@ extern void CheckRS485Comm(void);
 #if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=40   //CH32 and v4 ESP32
 #if SMARTEVSE_VERSION >= 40 //v4 ESP32
 #define RETURN return;
+#define CHIP "ESP32"
 extern void RecomputeSoC(void);
 extern uint8_t modem_state;
 #include <qca.h>
 #else
 #define RETURN
+#define CHIP "CH32"
 #endif
 
 //CALL_ON_RECEIVE(setStatePowerUnavailable) setStatePowerUnavailable() when setStatePowerUnavailable is received
 #define CALL_ON_RECEIVE(X) \
     ret = strstr(SerialBuf, #X);\
     if (ret) {\
-/*        printf("@MSG: DEBUG CALL_ON_RECEIVE: calling %s().\n", #X); */ \
+/*        printf("@MSG: %s DEBUG CALL_ON_RECEIVE: calling %s().\n", CHIP, #X); */ \
         X();\
         RETURN \
     }
 
-//CALL_ON_RECEIVE_PARAM(State@, setState) calls setState(param) when State@param is received
+//CALL_ON_RECEIVE_PARAM(State:, setState) calls setState(param) when State:param is received
 #define CALL_ON_RECEIVE_PARAM(X,Y) \
     ret = strstr(SerialBuf, #X);\
     if (ret) {\
-/*        printf("@MSG: DEBUG CALL_ON_RECEIVE_PARAM: calling %s(%u).\n", #X, atoi(ret+strlen(#X))); */ \
+/*        printf("@MSG: %s DEBUG CALL_ON_RECEIVE_PARAM: calling %s(%u).\n", CHIP, #X, atoi(ret+strlen(#X))); */ \
         Y(atoi(ret+strlen(#X)));\
         RETURN \
     }
-//SET_ON_RECEIVE(Pilot@, pilot) sets pilot=parm when Pilot@param is received
+//SET_ON_RECEIVE(Pilot:, pilot) sets pilot=parm when Pilot:param is received
 #define SET_ON_RECEIVE(X,Y) \
     ret = strstr(SerialBuf, #X);\
     if (ret) {\
-/*        printf("@MSG: DEBUG SET_ON_RECEIVE: setting %s to %u.\n", #Y, atoi(ret+strlen(#X))); */ \
+/*        printf("@MSG: %s DEBUG SET_ON_RECEIVE: setting %s to %u.\n", CHIP, #Y, atoi(ret+strlen(#X))); */ \
         Y = atoi(ret+strlen(#X));\
         RETURN \
     }
