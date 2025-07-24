@@ -372,31 +372,30 @@ void Button::HandleSwitch(void) {
             case 1: // Access Button
                 setAccess(AccessStatus == ON ? OFF : ON);           // Toggle AccessStatus OFF->ON->OFF (old behaviour) or PAUSE->ON
                 _LOG_I("Access: %d\n", AccessStatus);
+                CustomButton = !CustomButton;
                 break;
             case 2: // Access Switch
                 setAccess(ON);
+                CustomButton = true;
                 break;
             case 3: // Smart-Solar Button
+                CustomButton = true;
                 break;
             case 4: // Smart-Solar Switch
                 if (Mode == MODE_SOLAR) {
                     setMode(MODE_SMART);
                 }
+                CustomButton = true;
                 break;
             case 5: // Grid relay
                 GridRelayOpen = false;
+                CustomButton = true;
                 break;
             case 6: // Custom button B
                 CustomButton = !CustomButton;
-                #if MQTT && defined(SMARTEVSE_VERSION) // ESP32 only
-                        MQTTclient.publish(MQTTprefix + "/CustomButton", CustomButton ? "On" : "Off", false, 0);
-                #endif  
                 break;
             case 7: // Custom button S
                 CustomButton = true;
-                #if MQTT && defined(SMARTEVSE_VERSION) // ESP32 only
-                        MQTTclient.publish(MQTTprefix + "/CustomButton", CustomButton ? "On" : "Off", false, 0);
-                #endif  
                 break;
             default:
                 if (State == STATE_C) {                             // Menu option Access is set to Disabled
@@ -406,6 +405,9 @@ void Button::HandleSwitch(void) {
                 }
                 break;
         }
+        #if MQTT && defined(SMARTEVSE_VERSION) // ESP32 only
+                MQTTclient.publish(MQTTprefix + "/CustomButton", CustomButton ? "On" : "Off", false, 0);
+        #endif  
 
         // Reset RCM error when button is pressed
         // RCM was tripped, but RCM level is back to normal
@@ -417,12 +419,15 @@ void Button::HandleSwitch(void) {
 
     } else {
         // Switch input released
+        uint32_t tmpMillis = millis();
+
         switch (Switch) {
             case 2: // Access Switch
                 setAccess(OFF);
+                CustomButton = false;
                 break;
             case 3: // Smart-Solar Button
-                if (millis() < TimeOfPress + 1500) {                            // short press
+                if (tmpMillis < TimeOfPress + 1500) {                            // short press
                     if (Mode == MODE_SMART) {
                         setMode(MODE_SOLAR);
                     } else if (Mode == MODE_SOLAR) {
@@ -434,24 +439,28 @@ void Button::HandleSwitch(void) {
                     MaxSumMainsTimer = 0;
                     LCDTimer = 0;
                 }
+                CustomButton = false;
                 break;
             case 4: // Smart-Solar Switch
                 if (Mode == MODE_SMART) setMode(MODE_SOLAR);
+                CustomButton = false;
                 break;
             case 5: // Grid relay
                 GridRelayOpen = true;
+                CustomButton = false;
                 break;
             case 6: // Custom button B
                 break;
             case 7: // Custom button S
                 CustomButton = false;
-                #if MQTT && defined(SMARTEVSE_VERSION) // ESP32 only
-                        MQTTclient.publish(MQTTprefix + "/CustomButton", CustomButton ? "On" : "Off", false, 0);
-                #endif  
                 break;
             default:
                 break;
         }
+        #if MQTT && defined(SMARTEVSE_VERSION) // ESP32 only
+                MQTTclient.publish(MQTTprefix + "/CustomButton", CustomButton ? "On" : "Off", false, 0);
+                MQTTclient.publish(MQTTprefix + "/CustomButtonPressTime", (tmpMillis - TimeOfPress), false, 0);
+        #endif  
     }
 }
 #endif
