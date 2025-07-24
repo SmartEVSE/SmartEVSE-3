@@ -329,7 +329,9 @@ void SlacManager(uint16_t rxbytes) {
             // copy MAC from the EVSE modem to myModemMac. This MAC is not used for communication.
             memcpy(myModemMac, rxbuffer+6, 6);
             _LOG_I("NMK set\n");
-        } else _LOG_W("NMK -NOT- set\n");
+        } else {
+            _LOG_W("NMK -NOT- set\n");
+        }
 
     } else if (mnt == (CM_SLAC_PARAM + MMTYPE_REQ) && modem_state == MODEM_CONFIGURED) {
         _LOG_I("received CM_SLAC_PARAM.REQ\n");

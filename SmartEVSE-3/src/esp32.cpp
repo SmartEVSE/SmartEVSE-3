@@ -1275,9 +1275,9 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
                 case MODE_SMART: mode = "SMART"; modeId=3; break;
             }
         }
-        if (mode == "N/A") //this should never happen, but it does
+        if (mode == "N/A") { //this should never happen, but it does
             _LOG_A("ERROR: mode=%s, Mode=%u, modeId=%d, AccessStatus=%u.\n", mode.c_str(), Mode, modeId, AccessStatus);
-
+        }
         String backlight = "N/A";
         switch(BacklightSet) {
             case 0: backlight = "OFF"; break;

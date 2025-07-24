@@ -2202,8 +2202,9 @@ bool ReadIrms(char *SerialBuf) {
 #endif
             }
             return true; //success
-        } else
+        } else {
             _LOG_A("Received corrupt %s, n=%d, message:%s.\n", token, n, SerialBuf);
+        }
     }
     return false; //did not parse
 }
@@ -2226,8 +2227,9 @@ bool ReadPowerMeasured(char *SerialBuf) {
                 EVMeter.PowerMeasured = PowerMeasured;
             }
             return true; //success
-        } else
+        } else {
             _LOG_A("Received corrupt %s, n=%d, message from WCH:%s.\n", token, n, SerialBuf);
+        }
     }
     return false; //did not parse
 }
@@ -2873,8 +2875,9 @@ void Handle_ESP32_Message(char *SerialBuf, uint8_t *CommState) {
         int n = sscanf(ret,"RFID:%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx", &RFID[0], &RFID[1], &RFID[2], &RFID[3], &RFID[4], &RFID[5], &RFID[6], &RFID[7]);
         if (n == 8) {   //success
             CheckRFID();
-        } else
+        } else {
             _LOG_A("Received corrupt %s, n=%d, message from WCH:%s.\n", token, n, SerialBuf);
+        }
         return;
     }
 
@@ -2895,8 +2898,9 @@ void Handle_ESP32_Message(char *SerialBuf, uint8_t *CommState) {
             } else if (Address == EVMeter.Address) { \
                 EVMeter.X = temp; \
             } \
-        } else \
+        } else { \
             _LOG_A("Received corrupt %s, n=%d, message from WCH:%s.\n", #X, n, SerialBuf); \
+        } \
         return; \
     }
 
