@@ -64,6 +64,7 @@ extern "C" {
     #include "ch32v003fun.h"
     void RCmonCtrl(uint8_t enable);
     void delay(uint32_t ms);
+    void testRCMON(void);
 }
 extern void CheckRS485Comm(void);
 #endif
@@ -144,7 +145,6 @@ uint8_t Switch = SWITCH;                                                    // E
                                                                             // 3:Smart-Solar B / 4:Smart-Solar S / 5: Grid Relay
                                                                             // 6:Custom B / 7:Custom S)
                                                                             // B=momentary push <B>utton, S=toggle <S>witch
-uint8_t RCmon = RC_MON;                                                     // Residual Current Monitor (0:Disable / 1:Enable)
 uint8_t AutoUpdate = AUTOUPDATE;                                            // Automatic Firmware Update (0:Disable / 1:Enable)
 uint16_t StartCurrent = START_CURRENT;
 uint16_t StopTime = STOP_TIME;
@@ -220,6 +220,7 @@ uint8_t ConfigChanged = 0;
 
 uint16_t SolarStopTimer = 0;
 #ifdef SMARTEVSE_VERSION //ESP32 v3 and v4
+uint8_t RCmon = RC_MON;                                                     // Residual Current Monitor (0:Disable / 1:Enable)
 uint8_t DelayedRepeat;                                                      // 0 = no repeat, 1 = daily repeat
 uint8_t LCDlock = LCD_LOCK;                                                 // 0 = LCD buttons operational, 1 = LCD buttons disabled
 uint16_t BacklightTimer = 0;                                                // Backlight timer (sec)
@@ -824,6 +825,12 @@ void setState(uint8_t NewState) { //c
             break;
         case STATE_C:                                                           // State C2
             ActivationMode = 255;                                               // Disable ActivationMode
+#ifdef SMARTEVSE_VERSION //v3
+            LCDTimer = 0;
+#else //CH32
+            printf("@LCDTimer:0\n");
+            //testRCMON();
+#endif
 
             if (Switching_Phases_C2 == GOING_TO_SWITCH_1P) {
                     CONTACTOR2_OFF;
@@ -845,11 +852,6 @@ void setState(uint8_t NewState) { //c
             if (!Force_Single_Phase_Charging()) {                               // in AUTO mode we start with 3phases
                 CONTACTOR2_ON;                                                  // Contactor2 ON
             }
-#ifdef SMARTEVSE_VERSION //v3
-            LCDTimer = 0;
-#else //CH32
-            printf("@LCDTimer:0\n");
-#endif
             break;
         case STATE_C1:
 #ifdef SMARTEVSE_VERSION //v3
@@ -2270,6 +2272,7 @@ void CheckSerialComm(void) {
     CALL_ON_RECEIVE_PARAM(CalcBalancedCurrent:, CalcBalancedCurrent)
     CALL_ON_RECEIVE_PARAM(setPilot:,setPilot)
     CALL_ON_RECEIVE_PARAM(PowerPanicCtrl:, PowerPanicCtrl)
+    CALL_ON_RECEIVE_PARAM(RCmon:, RCmonCtrl);
     CALL_ON_RECEIVE(setStatePowerUnavailable)
     CALL_ON_RECEIVE(OneWireReadCardId)
     CALL_ON_RECEIVE_PARAM(setErrorFlags:, setErrorFlags)
@@ -2292,7 +2295,6 @@ void CheckSerialComm(void) {
     SET_ON_RECEIVE(MinCurrent:, MinCurrent)
     SET_ON_RECEIVE(MaxCircuit:, MaxCircuit)
     SET_ON_RECEIVE(Switch:, Switch)
-    SET_ON_RECEIVE(RCmon:, RCmon)
     SET_ON_RECEIVE(StartCurrent:, StartCurrent)
     SET_ON_RECEIVE(StopTime:, StopTime)
     SET_ON_RECEIVE(ImportCurrent:, ImportCurrent)
@@ -3224,7 +3226,7 @@ void Timer10ms_singlerun(void) {
             case COMM_STATUS_REQ:                       // Ready to receive status from mainboard
                 CommTimeout = 10;
                 Serial1.printf("@PowerPanicCtrl:0\n");
-                Serial1.printf("@RCmonCtrl:%u\n", RCmon);
+                Serial1.printf("@RCmon:%u\n", RCmon);
                 CommState = COMM_STATUS_RSP;
         }
     }
@@ -3345,16 +3347,14 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
 #endif
             LoadBl = val;
             break;
-        case MENU_RCMON:
-            RCmon = val;
-#if !defined(SMARTEVSE_VERSION) //CH32
-            RCmonCtrl(RCmon);
-#endif
-            break;
         case MENU_EMCUSTOM_DATATYPE:
             EMConfig[EM_CUSTOM].DataType = (mb_datatype)val;
             break;
 #ifdef SMARTEVSE_VERSION
+        case MENU_RCMON:
+            RCmon = val;
+            Serial1.printf("@RCmon:%u\n", RCmon);
+            break;
         case MENU_WIFI:
             WIFImode = val;
             break;
@@ -3436,8 +3436,6 @@ uint16_t getItemValue(uint8_t nav) {
             return Lock;
         case MENU_SWITCH:
             return Switch;
-        case MENU_RCMON:
-            return RCmon;
         case MENU_GRID:
             return Grid;
         case MENU_SB2_WIFI:
@@ -3503,6 +3501,8 @@ uint16_t getItemValue(uint8_t nav) {
         case STATUS_TEMP:
             return (signed int)TempEVSE;
 #ifdef SMARTEVSE_VERSION //not on CH32
+        case MENU_RCMON:
+            return RCmon;
         case STATUS_SERIAL:
             return serialnr;
 #endif

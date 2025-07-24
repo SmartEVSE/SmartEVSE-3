@@ -284,6 +284,14 @@ void ModemPower(uint8_t enable)
 }
 
 
+// test RCMON
+// enable test signal to RCM14-03 sensor. Should trigger the fault output
+void testRCMON(void) {
+    funDigitalWrite(RCMTEST, FUN_LOW);
+    delay(100);
+    funDigitalWrite(RCMTEST, FUN_HIGH);
+}
+
 
 //============================ Peripheral Init Functions ==============================
 //
@@ -745,22 +753,12 @@ void setup(void) {
     ModemPower(1);
     RCmonCtrl(DISABLE);
     PowerPanicCtrl(DISABLE);
-
-    // test RCMON
-    // enable test signal to RCM14-03 sensor. Should trigger the fault output
-    /*
-    funDigitalWrite(RCMTEST, FUN_LOW);
-    delay(100);
-    funDigitalWrite(RCMTEST, FUN_HIGH);
-    */
-
 }
 
 
 // Delay in milliseconds
 // We don't reset SysTick counter, but instead set the SysTick compare register
-void delay(uint32_t ms)
-{
+void delay(uint32_t ms) {
     uint32_t i;
 
     // Clear Status register
