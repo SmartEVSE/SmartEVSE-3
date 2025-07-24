@@ -2189,17 +2189,13 @@ bool ReadIrms(char *SerialBuf) {
             if (Address == MainsMeter.Address) {
                 for (int x = 0; x < 3; x++)
                     MainsMeter.Irms[x] = Irms[x];
-#ifndef SMARTEVSE_VERSION //CH32 only
                 MainsMeter.setTimeout(COMM_TIMEOUT);
                 CalcIsum();
-#endif
             } else if (Address == EVMeter.Address) {
                 for (int x = 0; x < 3; x++)
                     EVMeter.Irms[x] = Irms[x];
-#ifndef SMARTEVSE_VERSION //CH32 only
                 EVMeter.setTimeout(COMM_EVTIMEOUT);
                 EVMeter.CalcImeasured();
-#endif
             }
             return true; //success
         } else {
@@ -3517,7 +3513,6 @@ uint16_t getItemValue(uint8_t nav) {
     }
 }
 
-#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40 //not on ESP32 v4
 /**
  * Returns the known battery charge rate if the data is not too old.
  * Returns 0 if data is too old.
@@ -3565,5 +3560,4 @@ void CalcIsum(void) {
     }
     MainsMeter.CalcImeasured();
 }
-#endif
 
