@@ -289,7 +289,7 @@ void ModemPower(uint8_t enable)
 void testRCMON(void) {
     setErrorFlags(RCM_TEST);
     funDigitalWrite(RCMTEST, FUN_LOW);
-    delay(100);
+    delay(1000);                                        // we take this long so you can actually see the red led on the RCM14
     funDigitalWrite(RCMTEST, FUN_HIGH);
 }
 

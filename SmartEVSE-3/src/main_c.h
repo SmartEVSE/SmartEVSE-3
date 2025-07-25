@@ -53,7 +53,10 @@ extern volatile uint8_t ModbusRxLen;
 #define EV_NOCOMM 8
 #define RCM_TRIPPED 16                                                          // RCM tripped. >6mA DC residual current detected.
 //#if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >= 40 //CH32 and v4
-#define RCM_TEST 32
+#define RCM_TEST 32                                                             // RCM_TEST = true, RCM_TRIPPED = false:  RCM test is running (if counter is active) OR RCM test has failed (if RCMTestcounter is not active)
+                                                                                // RCM_TEST = true, RCM_TRIPPED = true:   RCM test has succeeded
+                                                                                // RCM_TEST = false, RCM_TRIPPED = true:  RCM is tripped
+                                                                                // RCM_TEST = false, RCM_TRIPPED = false: no RCM problems
 //#endif
 #define Test_IO 64
 #define BL_FLASH 128

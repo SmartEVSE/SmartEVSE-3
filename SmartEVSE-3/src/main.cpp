@@ -110,6 +110,7 @@ extern uint8_t modem_state;
         RETURN \
     }
 
+uint8_t RCMTestCounter = 0;                                                     // nr of seconds the RCM test is allowed to take
 #endif
 
 #ifndef SMARTEVSE_VERSION //CH32 version
@@ -829,7 +830,9 @@ void setState(uint8_t NewState) { //c
             LCDTimer = 0;
 #else //CH32
             printf("@LCDTimer:0\n");
-            //testRCMON();
+            RCMTestCounter = RCM_TEST_DURATION;
+            SEND_TO_ESP32(RCMTestCounter);
+            testRCMON();
 #endif
 
             if (Switching_Phases_C2 == GOING_TO_SWITCH_1P) {
@@ -1498,6 +1501,7 @@ printf("@MSG: DINGO State=%d, pilot=%d, AccessTimer=%d, PilotDisconnected=%d.\n"
 #endif
 #ifdef SMARTEVSE_VERSION //ESP32
     if (BacklightTimer) BacklightTimer--;                               // Decrease backlight counter every second.
+    //_LOG_A("DINGO: RCMTestCounter=%u.\n", RCMTestCounter);
 #endif
     // wait for Activation mode to start
     if (ActivationMode && ActivationMode != 255) {
@@ -1756,20 +1760,21 @@ printf("@MSG: DINGO State=%d, pilot=%d, AccessTimer=%d, PilotDisconnected=%d.\n"
 #endif
 
 #ifndef SMARTEVSE_VERSION //CH32
-/*
-    // Send data to ESP
-    // Wait till configuration is received 
-    // change LoadBl to something else
-    if (LoadBl) {
-        printf("Pilot@%u,State@%u,ChargeDelay@%u,Error@%u,Temp@%d,Lock@%u,Mode@%u,Access@%u ", Pilot(), State, ChargeDelay, ErrorFlags, TempEVSE, Lock, Mode, Access_bit);
-        if (ow == 1) {
-            printf(",RFID:");
-            for (x=1 ; x<7 ; x++) printf("%02x",RFID[x]);
-            ow = 0;
+    if (ErrorFlags & RCM_TEST) {
+        if (RCMTestCounter) RCMTestCounter--;
+        SEND_TO_ESP32(RCMTestCounter);                                        // CH32 needs it to prevent switch led blinking fast red during RCM test
+        if (ErrorFlags & RCM_TRIPPED) {                                         // RCM test succeeded
+            RCMTestCounter = 0;                                                 // disable counter
+            SEND_TO_ESP32(RCMTestCounter);
+            clearErrorFlags(RCM_TEST | RCM_TRIPPED);
+        } else {
+            if (RCMTestCounter == 1) {                                          // RCM test finished and failed, so RCM_TRIPPED is left false and RCM_TEST is left true
+                if (State) setState(STATE_B1);
+                printf("@LCDTimer:0\n");                                        // display the correct error message on the LCD
+            }
         }
-        printf("\n");
     }
-*/
+
  //   printf("10ms loop:%lu uS systick:%lu millis:%lu\n", elapsedmax/12, (uint32_t)SysTick->CNT, millis());
     // this section sends outcomes of functions and variables to ESP32 to fill Shadow variables
     // FIXME this section preferably should be empty
@@ -2285,9 +2290,8 @@ void CheckSerialComm(void) {
     CALL_ON_RECEIVE_PARAM(clearErrorFlags:, clearErrorFlags)
     CALL_ON_RECEIVE(BroadcastSettings)
     CALL_ON_RECEIVE(ResetModemTimers)
-    // these veriables are owned by ESP32 and copies are kept in CH32:
-// Configuration items array
-//ConfigItem configItems[] = {
+
+    // these variables are owned by ESP32 and copies are kept in CH32:
     SET_ON_RECEIVE(Config:, Config)
     SET_ON_RECEIVE(Lock:, Lock)
     SET_ON_RECEIVE(CableLock:, CableLock)
@@ -2623,7 +2627,11 @@ static uint8_t LedCount = 0;                                                   /
 static unsigned int LedPwm = 0;                                                // PWM value 0-255
 
     // RGB LED
-    if ((ErrorFlags & (CT_NOCOMM | EV_NOCOMM | TEMP_HIGH) ) || ((ErrorFlags & RCM_TRIPPED) != (ErrorFlags & RCM_TEST))) {
+#ifndef SMARTEVSE_VERSION //CH32
+    if ((ErrorFlags & (CT_NOCOMM | EV_NOCOMM | TEMP_HIGH) ) || (((ErrorFlags & RCM_TRIPPED) != (ErrorFlags & RCM_TEST)) && !RCMTestCounter)) {
+#else //v3 ESP32
+    if (ErrorFlags & (RCM_TRIPPED | CT_NOCOMM | EV_NOCOMM | TEMP_HIGH) ) {
+#endif
             LedCount += 20;                                                 // Very rapid flashing, RCD tripped or no Serial Communication.
             if (LedCount > 128) LedPwm = ERROR_LED_BRIGHTNESS;              // Red LED 50% of time on, full brightness
             else LedPwm = 0;
@@ -2848,6 +2856,7 @@ void Handle_ESP32_Message(char *SerialBuf, uint8_t *CommState) {
     SET_ON_RECEIVE(ChargeDelay:, ChargeDelay)
     SET_ON_RECEIVE(SolarStopTimer:, SolarStopTimer)
     SET_ON_RECEIVE(Nr_Of_Phases_Charging:, Nr_Of_Phases_Charging)
+    SET_ON_RECEIVE(RCMTestCounter:, RCMTestCounter)
 
     strncpy(token, "version:", sizeof(token));
     ret = strstr(SerialBuf, token);

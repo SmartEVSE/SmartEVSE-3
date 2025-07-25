@@ -73,6 +73,7 @@
 #define MODEM 0  //0 = no modem 1 = modem
 #endif
 
+#define RCM_TEST_DURATION 15                                                    // nr of seconds the RCM Test is allowed (v4 only)
 #define MAX_MAINS 25                                                            // max Current the Mains connection can supply
 #define MAX_SUMMAINS 0                                                          // only used for capacity rate limiting, max current over the sum of all phases
 #define MAX_SUMMAINSTIME 0

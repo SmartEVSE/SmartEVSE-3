@@ -91,6 +91,7 @@ extern char SmartConfigKey[16];
 extern Button ExtSwitch;
 unsigned char activeRow;
 extern Switch_Phase_t Switching_Phases_C2;
+extern uint8_t RCMTestCounter;
 
 #if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
 
@@ -568,19 +569,21 @@ void GLCD(void) {
                 GLCD_print_buf2(6, (const char *) "RESET");
             }
             return;
-        } else if (!(ErrorFlags & RCM_TRIPPED) && (ErrorFlags & RCM_TEST)) {    // Residual Current Sensor test failed
+#if SMARTEVSE_VERSION >= 40
+        } else if (!(ErrorFlags & RCM_TRIPPED) && (ErrorFlags & RCM_TEST) && !RCMTestCounter) {    // Residual Current Sensor test failed
             if (!LCDToggle) {
                 GLCD_print_buf2(0, (const char *) "RESIDUAL");
                 GLCD_print_buf2(2, (const char *) "SENSOR");
                 GLCD_print_buf2(4, (const char *) "TEST");
                 GLCD_print_buf2(6, (const char *) "FAILED");
             } else {
-                GLCD_print_buf2(0, (const char *) "PRESS");
-                GLCD_print_buf2(2, (const char *) "BUTTON");
-                GLCD_print_buf2(4, (const char *) "TO");
-                GLCD_print_buf2(6, (const char *) "RESET");
+                GLCD_print_buf2(0, (const char *) "REBOOT");
+                GLCD_print_buf2(2, (const char *) "TO");
+                GLCD_print_buf2(4, (const char *) "RESET");
+                GLCD_print_buf2(6, (const char *) "");
             }
             return;
+#endif
         } else if (ErrorFlags & Test_IO) {                                      // Only used when testing the module
             GLCD_print_buf2(2, (const char *) "IO Test");
             sprintf(Str, "FAILED! %u", TestState);
