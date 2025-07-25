@@ -287,6 +287,7 @@ void ModemPower(uint8_t enable)
 // test RCMON
 // enable test signal to RCM14-03 sensor. Should trigger the fault output
 void testRCMON(void) {
+    setErrorFlags(RCM_TEST);
     funDigitalWrite(RCMTEST, FUN_LOW);
     delay(100);
     funDigitalWrite(RCMTEST, FUN_HIGH);

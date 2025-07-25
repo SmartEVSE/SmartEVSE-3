@@ -555,12 +555,25 @@ void GLCD(void) {
             GLCD_print_buf2(4, (const char *) "CHARGING");
             GLCD_print_buf2(6, (const char *) "STOPPED");
             return;
-        } else if (ErrorFlags & RCM_TRIPPED) {                                  // Residual Current Sensor tripped
+        } else if ((ErrorFlags & RCM_TRIPPED) && !(ErrorFlags & RCM_TEST)) {    // Residual Current Sensor tripped
             if (!LCDToggle) {
                 GLCD_print_buf2(0, (const char *) "RESIDUAL");
                 GLCD_print_buf2(2, (const char *) "FAULT");
                 GLCD_print_buf2(4, (const char *) "CURRENT");
                 GLCD_print_buf2(6, (const char *) "DETECTED");
+            } else {
+                GLCD_print_buf2(0, (const char *) "PRESS");
+                GLCD_print_buf2(2, (const char *) "BUTTON");
+                GLCD_print_buf2(4, (const char *) "TO");
+                GLCD_print_buf2(6, (const char *) "RESET");
+            }
+            return;
+        } else if (!(ErrorFlags & RCM_TRIPPED) && (ErrorFlags & RCM_TEST)) {    // Residual Current Sensor test failed
+            if (!LCDToggle) {
+                GLCD_print_buf2(0, (const char *) "RESIDUAL");
+                GLCD_print_buf2(2, (const char *) "SENSOR");
+                GLCD_print_buf2(4, (const char *) "TEST");
+                GLCD_print_buf2(6, (const char *) "FAILED");
             } else {
                 GLCD_print_buf2(0, (const char *) "PRESS");
                 GLCD_print_buf2(2, (const char *) "BUTTON");

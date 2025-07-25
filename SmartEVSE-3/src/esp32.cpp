@@ -138,7 +138,7 @@ extern uint8_t pilot;
 
 extern const char StrStateName[15][13];
 const char StrStateNameWeb[15][17] = {"Ready to Charge", "Connected to EV", "Charging", "D", "Request State B", "State B OK", "Request State C", "State C OK", "Activate", "Charging Stopped", "Stop Charging", "Modem Setup", "Modem Request", "Modem Done", "Modem Denied"};
-const char StrErrorNameWeb[9][20] = {"None", "No Power Available", "Communication Error", "Temperature High", "EV Meter Comm Error", "RCM Tripped", "Waiting for Solar", "Test IO", "Flash Error"};
+const char StrErrorNameWeb[9][20] = {"None", "No Power Available", "Communication Error", "Temperature High", "EV Meter Comm Error", "RCM Tripped", "RCM Test", "Test IO", "Flash Error"};
 const char StrMode[3][8] = {"Normal", "Smart", "Solar"};
 const char StrRFIDStatusWeb[8][20] = {"Ready to read card","Present", "Card Stored", "Card Deleted", "Card already stored", "Card not in storage", "Card Storage full", "Invalid" };
 extern const char StrRFIDReader[7][10] = {"Disabled", "EnableAll", "EnableOne", "Learn", "Delete", "DeleteAll", "Rmt/OCPP"};
@@ -2326,7 +2326,7 @@ void ocppInit() {
     });
 
     addErrorCodeInput([] () {
-        return (ErrorFlags & RCM_TRIPPED) ? "GroundFailure" : (const char*)nullptr;
+        return ((ErrorFlags & RCM_TRIPPED) && !(ErrorFlags & RCM_TEST)) ? "GroundFailure" : (const char*)nullptr;
     });
 
     addErrorDataInput([] () -> MicroOcpp::ErrorData {

@@ -410,7 +410,7 @@ void Button::HandleSwitch(void) {
 
         // Reset RCM error when button is pressed
         // RCM was tripped, but RCM level is back to normal
-        if (RCmon == 1 && (ErrorFlags & RCM_TRIPPED) && digitalRead(PIN_RCM_FAULT) == LOW) {
+        if (RCmon == 1 && ((ErrorFlags & RCM_TRIPPED) && !(ErrorFlags & RCM_TEST)) && digitalRead(PIN_RCM_FAULT) == LOW) {
             clearErrorFlags(RCM_TRIPPED);
         }
         // Also light up the LCD backlight
@@ -2623,7 +2623,7 @@ static uint8_t LedCount = 0;                                                   /
 static unsigned int LedPwm = 0;                                                // PWM value 0-255
 
     // RGB LED
-    if (ErrorFlags & (RCM_TRIPPED | CT_NOCOMM | EV_NOCOMM | TEMP_HIGH) ) {
+    if ((ErrorFlags & (CT_NOCOMM | EV_NOCOMM | TEMP_HIGH) ) || ((ErrorFlags & RCM_TRIPPED) != (ErrorFlags & RCM_TEST))) {
             LedCount += 20;                                                 // Very rapid flashing, RCD tripped or no Serial Communication.
             if (LedCount > 128) LedPwm = ERROR_LED_BRIGHTNESS;              // Red LED 50% of time on, full brightness
             else LedPwm = 0;
@@ -2968,10 +2968,10 @@ void Timer10ms_singlerun(void) {
 
     // When one or more button(s) are pressed, we call GLCDMenu
     if (((ButtonState != 0x07) || (ButtonState != OldButtonState)) ) {
-        // RCM was tripped, but RCM level is back to normal
+/*        // RCM was tripped, but RCM level is back to normal
         if (getItemValue(MENU_RCMON) == 1 && (ErrorFlags & RCM_TRIPPED) && RCMFAULT == LOW) {
             clearErrorFlags(RCM_TRIPPED);         // Clear RCM error bit
-        }
+        }*/ //TODO test if this is handled sufficiently already in line 413
         if (!LCDlock) GLCDMenu(ButtonState);    // LCD is unlocked, enter menu
     }
 
