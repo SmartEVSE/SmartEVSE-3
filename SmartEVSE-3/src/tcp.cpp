@@ -5,14 +5,14 @@
 #include "tcp.h"
 
 // External project headers
+extern "C" {
 #include "exi2/exi_basetypes.h"
+#include "src/exi2/appHand_Decoder.h"
+#include "src/exi2/appHand_Encoder.h"
 #include "exi2/iso20_AC_Datatypes.h"
 #include "exi2/iso20_AC_Decoder.h"
 #include "exi2/iso20_AC_Encoder.h"
-//#include "exi2/appHand_Datatypes.h"
-//#include "src/exi2/appHand_Decoder.h"
-//#include "src/exi2/appHand_Encoder.h"
-
+}
 #include "debug.h"
 #include "esp32.h"
 
@@ -71,27 +71,7 @@ extern int8_t InitialSoC, ComputedSoC, FullSoC;
 extern void setState(uint8_t NewState);
 extern void RecomputeSoC(void);
 extern int32_t EnergyCapacity, EnergyRequest;
-exi_bitstream_t stream;
-
-void routeDecoderInputData(void) {
-    /* connect the data from the TCP to the exiDecoder */
-    /* The TCP receive data consists of two parts: 1. The V2GTP header and 2. the EXI stream.
-        The decoder wants only the EXI stream, so we skip the V2GTP header.
-        In best case, we would check also the consistency of the V2GTP header here.
-    */
-    stream.data = &tcp_rxdata[V2GTP_HEADER_SIZE];
-    stream.data_size = tcp_rxdataLen - V2GTP_HEADER_SIZE;
-    stream.bit_count = 0;
-    stream.byte_pos = 0;
-    stream._init_called = 1;
-    stream._flag_byte_pos = 0;
-    stream.status_callback = NULL; // Can assign a real callback if needed
-
-    /* We have something to decode, this is a good sign that the connection is fine.
-        Inform the ConnectionManager that everything is fine. */
-    //connMgr_ApplOk();
-}
-
+exi_bitstream_t stream, tx_stream;
 
 void tcp_transmit(void) {
 
@@ -132,71 +112,81 @@ void addV2GTPHeaderAndTransmit(const uint8_t *exiBuffer, uint8_t exiBufferLen) {
     }
 }
 
+uint8_t V2G_transmit_buffer[512]; //FIXME determine size
 
 void decodeV2GTP(void) {
-
-    uint16_t arrayLen, i;
-    uint8_t strNamespace[50];
-    uint8_t SchemaID, n;
-    uint16_t NamespaceLen;
-
-    routeDecoderInputData();
+    exi_bitstream_init(&stream, &tcp_rxdata[V2GTP_HEADER_SIZE], tcp_rxdataLen - V2GTP_HEADER_SIZE, 0, NULL);
     uint8_t g_errn;
     struct appHand_exiDocument exiDoc;
-    if (fsmState) g_errn = decode_appHand_exiDocument(&stream, &exiDoc);
-    ///struct iso20_ac_exiDocument exiDoc;
-    ///if (fsmState) decode_iso20_ac_exiDocument(&stream, &exiDoc);
-    //if (fsmState) decode_iso20_ac_exiDocument(&stream, &exiDoc);
-
-//    if (fsmState) projectExiConnector_decode_DinExiDocument();      // Decode DIN EXI
-//    else projectExiConnector_decode_appHandExiDocument();           // Decode Handshake EXI (on first state only)
     tcp_rxdataLen = 0; /* mark the input data as "consumed" */
 
     if (fsmState == stateWaitForSupportedApplicationProtocolRequest) {
+        g_errn = decode_appHand_exiDocument(&stream, &exiDoc);
 
         // Check if we have received the correct message
-        if (exiDoc.supportedAppProtocolReq_isUsed) {
-        //if (exiDoc.supportedAppProtocolReq_isUsed) {
+        if (g_errn == 0 && exiDoc.supportedAppProtocolReq_isUsed) {
 
             _LOG_I("SupportedApplicationProtocolRequest\n");
-            // process data when no errors occured during decoding
-            if (g_errn == 0) {
-                arrayLen = exiDoc.supportedAppProtocolReq.AppProtocol.arrayLen;
-                _LOG_I("The car supports %u schemas.\n", arrayLen);
+            _LOG_I("The car supports %u schemas.\n", exiDoc.supportedAppProtocolReq.AppProtocol.arrayLen);
+            for (uint16_t i=0; i< exiDoc.supportedAppProtocolReq.AppProtocol.arrayLen; i++) {
+                struct appHand_AppProtocolType* app_proto = &exiDoc.supportedAppProtocolReq.AppProtocol.array[i];
+                char* proto_ns = strndup(static_cast<const char*>(app_proto->ProtocolNamespace.characters),
+                                 app_proto->ProtocolNamespace.charactersLen);
+                if (!proto_ns) {
+                    _LOG_A("ERROR: out-of-memory condition.\n");
+                    return;
+                }
+                _LOG_A("handshake_req: Namespace: %s, Version: %" PRIu32 ".%" PRIu32 ", SchemaID: %" PRIu8 ", Priority: %" PRIu8 ".\n", proto_ns, app_proto->VersionNumberMajor, app_proto->VersionNumberMinor, app_proto->SchemaID, app_proto->Priority);
 
-                // check all schemas for DIN
-                for(n=0; n<arrayLen; n++) {
+#define ISO_15118_2013_MSG_DEF "urn:iso:15118:2:2013:MsgDef"
+#define ISO_15118_2013_MAJOR   2
+#define ISO_15118_2010_MSG_DEF "urn:iso:15118:2:2010:MsgDef"
+#define ISO_15118_2010_MAJOR   1
+#define DIN_70121_MSG_DEF "urn:din:70121:2012:MsgDef"
+#define DIN_70121_MAJOR   2
 
-                    memset(strNamespace, 0, 50);
-                    NamespaceLen = exiDoc.supportedAppProtocolReq.AppProtocol.array[n].ProtocolNamespace.charactersLen;
-                    SchemaID = exiDoc.supportedAppProtocolReq.AppProtocol.array[n].SchemaID;
-                    for (i=0; i< NamespaceLen; i++) {
-                        strNamespace[i] = exiDoc.supportedAppProtocolReq.AppProtocol.array[n].ProtocolNamespace.characters[i];
-                    }
-                    _LOG_I("strNameSpace %s SchemaID: %u\n", strNamespace, SchemaID);
+                if (!strcmp(proto_ns, DIN_70121_MSG_DEF) && app_proto->VersionNumberMajor == DIN_70121_MAJOR) {
+                    _LOG_A("Selecting DIN70121.\n");
+                    init_appHand_exiDocument(&exiDoc);
+                    exiDoc.supportedAppProtocolRes_isUsed = 1;
+                    //exiDoc.supportedAppProtocolRes.ResponseCode = appHand_responseCodeType_Failed_NoNegotiation; // [V2G2-172]
+                    exiDoc.supportedAppProtocolRes.ResponseCode = appHand_responseCodeType_OK_SuccessfulNegotiation;
+                    exiDoc.supportedAppProtocolRes.SchemaID_isUsed = (unsigned int)1;
+                    exiDoc.supportedAppProtocolRes.SchemaID = app_proto->SchemaID;
+                    exi_bitstream_init(&tx_stream, V2G_transmit_buffer, sizeof(V2G_transmit_buffer), 0, NULL);
+                    g_errn = encode_appHand_exiDocument(&tx_stream, &exiDoc);
+                    // Send supportedAppProtocolRes to EV
+                    //data_size=512, bit_count=4, byte_pos=3, flag_byte=0
+                    addV2GTPHeaderAndTransmit(tx_stream.data, tx_stream.byte_pos + 1); //not sure if byte_pos is the right variable
+                    fsmState = stateWaitForSessionSetupRequest;
+                    //conn->ctx->selected_protocol = V2G_PROTO_DIN70121;
+                } else if (!strcmp(proto_ns, ISO_15118_2013_MSG_DEF)  && app_proto->VersionNumberMajor == ISO_15118_2013_MAJOR) {
+                    _LOG_I("Detected ISO15118:2\n");
+/*                    conn->handshake_resp.supportedAppProtocolRes.ResponseCode =
+                        appHand_responseCodeType_OK_SuccessfulNegotiationWithMinorDeviation;
+                    ev_app_priority = app_proto->Priority;
+                    conn->handshake_resp.supportedAppProtocolRes.SchemaID = app_proto->SchemaID;
+                    conn->ctx->selected_protocol = V2G_PROTO_ISO15118_2013;
+*/                }
+            } //for
+/*                    //_LOG_I("strNameSpace %s SchemaID: %u\n", strNamespace, SchemaID);
 
                     if (memmem((const char*)strNamespace, NamespaceLen, ":din:70121:", 11) != NULL) {
                         _LOG_I("Detected DIN\n");
-                        projectExiConnector_encode_appHandExiDocumen(SchemaID);
-                        g_errn = encode_appHand_exiDocument(&stream, &exiDoc);
-                        // Send supportedAppProtocolRes to EV
-                        addV2GTPHeaderAndTransmit(global_streamEnc.data, global_streamEncPos);
-                        fsmState = stateWaitForSessionSetupRequest;
                     }
 /*
                     if (memmem((const char*)strNamespace, NamespaceLen, ":iso:15118:2:", 11) != NULL) {
                     //or: if (memmem((const char*)strNamespace, NamespaceLen, ":iso:15118:", 11) != NULL) {
-                        _LOG_I("Detected ISO15118:2\n");
                         projectExiConnector_encode_appHandExiDocument(SchemaID);
                         g_errn = decode_appHand_exiDocument(&stream, &exiDoc);
                         // Send supportedAppProtocolRes to EV
                         addV2GTPHeaderAndTransmit(global_streamEnc.data, global_streamEncPos);
                         fsmState = stateWaitForSessionSetupRequest;
                     }
-                }*/
-            }
+                }
+         */
         }
-
+/*
     } else if (fsmState == stateWaitForSessionSetupRequest) {
 
         // Check if we have received the correct message
@@ -257,11 +247,11 @@ void decodeV2GTP(void) {
             dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes_isUsed = 1;
             init_dinServiceDiscoveryResType(&dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes);
             dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ResponseCode = dinresponseCodeType_OK;
-            /* the mandatory fields in the ISO are PaymentOptionList and ChargeService.
-            But in the DIN, this is different, we find PaymentOptions, ChargeService and optional ServiceList */
-            dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.PaymentOptions.PaymentOption.array[0] = dinpaymentOptionType_ExternalPayment; /* EVSE handles the payment */
-            dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.PaymentOptions.PaymentOption.arrayLen = 1; /* just one single payment option in the table */
-            dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceID = 1; /* todo: not clear what this means  */
+            // the mandatory fields in the ISO are PaymentOptionList and ChargeService.
+            But in the DIN, this is different, we find PaymentOptions, ChargeService and optional ServiceList 
+            dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.PaymentOptions.PaymentOption.array[0] = dinpaymentOptionType_ExternalPayment; /* EVSE handles the payment
+            dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.PaymentOptions.PaymentOption.arrayLen = 1; /* just one single payment option in the table 
+            dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceID = 1; /* todo: not clear what this means 
             //dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceName
             //dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceName_isUsed
             dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceCategory = dinserviceCategoryType_EVCharging;
@@ -281,7 +271,7 @@ void decodeV2GTP(void) {
             dinEVSESupportedEnergyTransferType_AC_core3p_DC_extended = 9
 
             DC_extended means "extended pins of an IEC 62196-3 Configuration FF connector", which is
-            the normal CCS connector https://en.wikipedia.org/wiki/IEC_62196#FF) */
+            the normal CCS connector https://en.wikipedia.org/wiki/IEC_62196#FF) 
             //dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.EnergyTransferType = dinEVSESupportedEnergyTransferType_DC_extended;
             dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.EnergyTransferType = dinEVSESupportedEnergyTransferType_AC_single_phase_three_phase_core_DC_extended;
 
@@ -296,8 +286,9 @@ void decodeV2GTP(void) {
     } else if (fsmState == stateWaitForServicePaymentSelectionRequest) {
 
         routeDecoderInputData();
+        //exi_bitstream_init(&stream, &tcp_rxdata[V2GTP_HEADER_SIZE], tcp_rxdataLen - V2GTP_HEADER_SIZE, 0, NULL);
         projectExiConnector_decode_DinExiDocument();      // Decode EXI
-        tcp_rxdataLen = 0; /* mark the input data as "consumed" */
+        tcp_rxdataLen = 0; /* mark the input data as "consumed" 
 
         // Check if we have received the correct message
         if (dinDocDec.V2G_Message.Body.ServicePaymentSelectionReq_isUsed) {
@@ -326,7 +317,7 @@ void decodeV2GTP(void) {
 
         routeDecoderInputData();
         projectExiConnector_decode_DinExiDocument();      // Decode EXI
-        tcp_rxdataLen = 0; /* mark the input data as "consumed" */
+        tcp_rxdataLen = 0; /* mark the input data as "consumed" 
 
         // Check if we have received the correct message
         if (dinDocDec.V2G_Message.Body.ContractAuthenticationReq_isUsed) {
@@ -352,7 +343,7 @@ void decodeV2GTP(void) {
 
         routeDecoderInputData();
         projectExiConnector_decode_DinExiDocument();      // Decode EXI
-        tcp_rxdataLen = 0; /* mark the input data as "consumed" */
+        tcp_rxdataLen = 0; /* mark the input data as "consumed" 
 
         // Check if we have received the correct message
         if (dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq_isUsed) {
@@ -449,20 +440,12 @@ void decodeV2GTP(void) {
             addV2GTPHeaderAndTransmit(global_streamEnc.data, global_streamEncPos);
             //fsmState = stateWaitForCableCheckRequest;
             fsmState = stateWaitForSupportedApplicationProtocolRequest; //so we will request for SoC the next time we replug; we obviously dont know how to cleanly close a session TODO
-
-        }
-
+*/
+    //    }
+/*
         if (dinDocDec.V2G_Message.Body.ChargingStatusReq_isUsed) {
             _LOG_A("Modem: ChargingStatusReq_isUsed!!\n");
-/*            auto& statusReq = dinDocDec.V2G_Message.Body.ChargingStatusReq;
-
-            if (statusReq.EVStatus_isUsed && statusReq.EVStatus.EVSOC_isUsed) {
-                int soc = statusReq.EVStatus.EVSOC;
-                std::cout << "EV SoC reported: " << soc << "%\n";
-            } else {
-                std::cout << "EVStatus present, but SoC not available.\n";
-            }*/
-        }
+        }*/
 
     } else {
         _LOG_A("Modem: fsmState=%u, unknown message received.\n", fsmState);
@@ -627,7 +610,7 @@ void evaluateTcpPacket(void) {
             (((uint32_t)rxbuffer[64])<<8) +
             (((uint32_t)rxbuffer[65]));
     flags = rxbuffer[67];
-    //_LOG_D("Source:%u Dest:%u Seqnr:%08x Acknr:%08x flags:%02x\n", SourcePort, DestinationPort, remoteSeqNr, remoteAckNr, flags);
+    _LOG_D("Source:%u Dest:%u Seqnr:%08x Acknr:%08x flags:%02x\n", SourcePort, DestinationPort, remoteSeqNr, remoteAckNr, flags);
     if (flags == TCP_FLAG_SYN) { /* This is the connection setup reqest from the EV. */
         if (tcpState == TCP_STATE_CLOSED) {
             evccTcpPort = SourcePort; // update the evccTcpPort to the new TCP port
