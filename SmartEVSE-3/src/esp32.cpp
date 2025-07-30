@@ -800,6 +800,7 @@ void SetupMQTTClient() {
     announce("State", "sensor", optional_payload);
     announce("RFID", "sensor", optional_payload);
     announce("RFIDLastRead", "sensor", optional_payload);
+    announce("NrOfPhases", "sensor", optional_payload);
 
 #if ENABLE_OCPP && defined(SMARTEVSE_VERSION) //run OCPP only on ESP32
     announce("OCPP", "sensor", optional_payload);
