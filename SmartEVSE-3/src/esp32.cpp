@@ -132,6 +132,7 @@ uint8_t PIN_SW_IN, PIN_ACTA, PIN_ACTB, PIN_RCM_FAULT, PIN_RS485_RX; //these pins
 extern esp_adc_cal_characteristics_t * adc_chars_CP;
 extern void setStatePowerUnavailable(void);
 extern char IsCurrentAvailable(void);
+extern uint8_t Force_Single_Phase_Charging(void);
 extern unsigned char RFID[8];
 extern uint8_t pilot;
 
@@ -2953,6 +2954,7 @@ extern void Timer20ms(void * parameter);
 
 
 #if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40
+    Nr_Of_Phases_Charging = Force_Single_Phase_Charging() ? 1 : 3;              // to prevent unnecessary switching after boot
     // Set eModbus LogLevel to 1, to suppress possible E5 errors
     MBUlogLvl = LOG_LEVEL_CRITICAL;
     ConfigureModbusMode(255);

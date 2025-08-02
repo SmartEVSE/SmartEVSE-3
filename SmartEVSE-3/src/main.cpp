@@ -622,7 +622,7 @@ void setSolarStopTimer(uint16_t Timer) {
  * Checks all parameters to determine whether
  * we are going to force single phase charging
  * Returns true if we are going to do single phase charging
- * Returns false if we are going to do (traditional) 3 phase charing
+ * Returns false if we are going to do (traditional) 3 phase charging
  * This is only relevant on a 3P mains and 3P car installation!
  * 1P car will always charge 1P undetermined by CONTACTOR2
  */
@@ -845,6 +845,7 @@ void setState(uint8_t NewState) { //c
                     setSolarStopTimer(0);
                     MaxSumMainsTimer = 0;
                     Nr_Of_Phases_Charging = 3;                                  // switch to 3P
+                    SEND_TO_ESP32(Nr_Of_Phases_Charging);
                     Switching_Phases_C2 = NO_SWITCH;                            // we finished the switching process,
             }
 
@@ -2341,8 +2342,13 @@ void CheckSerialComm(void) {
 
     // Wait till initialized is set by ESP
     strncpy(token, "Initialized:", sizeof(token));
-    ret = strstr(SerialBuf, token);
-    if (ret != NULL && Initialized) printf("@Config:OK\n"); //only print this on reception of string
+    ret = strstr(SerialBuf, token);          //no need to check the value of Initialized since we always send 1
+    if (ret != NULL && Initialized) {
+        printf("@Config:OK\n"); //only print this on reception of string
+        //we now have initialized the CH32 so here are some setup() like statements:
+        Nr_Of_Phases_Charging = Force_Single_Phase_Charging() ? 1 : 3;              // to prevent unnecessary switching after boot
+        SEND_TO_ESP32(Nr_Of_Phases_Charging)
+    }
 #if MODEM
     strncpy(token, "RequiredEVCCID:", sizeof(token));
     ret = strstr(SerialBuf, token);
@@ -2841,6 +2847,7 @@ void Handle_ESP32_Message(char *SerialBuf, uint8_t *CommState) {
     SET_ON_RECEIVE(ErrorFlags:, ErrorFlags)
     SET_ON_RECEIVE(ChargeDelay:, ChargeDelay)
     SET_ON_RECEIVE(SolarStopTimer:, SolarStopTimer)
+    SET_ON_RECEIVE(Nr_Of_Phases_Charging:, Nr_Of_Phases_Charging)
 
     strncpy(token, "version:", sizeof(token));
     ret = strstr(SerialBuf, token);
