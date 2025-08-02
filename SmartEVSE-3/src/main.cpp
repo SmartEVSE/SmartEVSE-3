@@ -113,9 +113,6 @@ extern uint8_t modem_state;
 uint8_t RCMTestCounter = 0;                                                     // nr of seconds the RCM test is allowed to take
 #endif
 
-#ifndef SMARTEVSE_VERSION //CH32 version
-uint8_t Initialized = INITIALIZED;                                          // When first powered on, the settings need to be initialized.
-#endif
 // The following data will be updated by eeprom/storage data at powerup:
 uint16_t MaxMains = MAX_MAINS;                                              // Max Mains Amps (hard limit, limited by the MAINS connection) (A)
 uint16_t MaxSumMains = MAX_SUMMAINS;                                        // Max Mains Amps summed over all 3 phases, limit used by EU capacity rate
@@ -2337,7 +2334,6 @@ void CheckSerialComm(void) {
     SET_ON_RECEIVE(EVMeterTimeout:, EVMeter.Timeout)
     SET_ON_RECEIVE(ConfigChanged:, ConfigChanged)
 
-    SET_ON_RECEIVE(Initialized:, Initialized)
     SET_ON_RECEIVE(ModemStage:, ModemStage)
     SET_ON_RECEIVE(homeBatteryCurrent:, homeBatteryCurrent); if (ret) homeBatteryLastUpdate=time(NULL);
 
@@ -2347,7 +2343,7 @@ void CheckSerialComm(void) {
     // Wait till initialized is set by ESP
     strncpy(token, "Initialized:", sizeof(token));
     ret = strstr(SerialBuf, token);          //no need to check the value of Initialized since we always send 1
-    if (ret != NULL && Initialized) {
+    if (ret != NULL) {
         printf("@Config:OK\n"); //only print this on reception of string
         //we now have initialized the CH32 so here are some setup() like statements:
         Nr_Of_Phases_Charging = Force_Single_Phase_Charging() ? 1 : 3;              // to prevent unnecessary switching after boot
