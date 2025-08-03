@@ -625,6 +625,7 @@ void Timer20ms(void * parameter) {
 
         // Pause the task for 20ms
         vTaskDelay(20 / portTICK_PERIOD_MS);
+        //_LOG_A("Timer20ms task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
 
     } // while(1)
 }

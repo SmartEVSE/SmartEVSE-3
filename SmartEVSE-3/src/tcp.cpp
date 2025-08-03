@@ -9,6 +9,9 @@ extern "C" {
 #include "exi2/exi_basetypes.h"
 #include "src/exi2/appHand_Decoder.h"
 #include "src/exi2/appHand_Encoder.h"
+//#include "exi2/din_msgDefDatatypes.h"
+#include "exi2/din_msgDefDecoder.h"
+#include "exi2/din_msgDefEncoder.h"
 #include "exi2/iso20_AC_Datatypes.h"
 #include "exi2/iso20_AC_Decoder.h"
 #include "exi2/iso20_AC_Encoder.h"
@@ -120,6 +123,7 @@ void decodeV2GTP(void) {
     exi_bitstream_init(&stream, &tcp_rxdata[V2GTP_HEADER_SIZE], tcp_rxdataLen - V2GTP_HEADER_SIZE, 0, NULL);
     uint8_t g_errn;
     struct appHand_exiDocument exiDoc;
+    struct din_exiDocument dinDoc;
     tcp_rxdataLen = 0; /* mark the input data as "consumed" */
 
     if (fsmState == stateWaitForSupportedApplicationProtocolRequest) {
@@ -188,48 +192,51 @@ void decodeV2GTP(void) {
                 }
          */
         }
-/*
+
     } else if (fsmState == stateWaitForSessionSetupRequest) {
-
+        //decode_din_BodyType(stream, &BodyType);
+        memset(&dinDoc, 0, sizeof(struct din_exiDocument));
+        decode_din_exiDocument(&stream, &dinDoc);
         // Check if we have received the correct message
-        if (dinDocDec.V2G_Message.Body.SessionSetupReq_isUsed) {
-
+        if (dinDoc.V2G_Message.Body.SessionSetupReq_isUsed) {
             _LOG_I("SessionSetupReqest\n");
 
             //n = dinDocDec.V2G_Message.Header.SessionID.bytesLen;
             //for (i=0; i< n; i++) {
             //    _LOG_D("%02x", dinDocDec.V2G_Message.Header.SessionID.bytes[i] );
             //}
-            n = dinDocDec.V2G_Message.Body.SessionSetupReq.EVCCID.bytesLen;
+            uint8_t n = dinDoc.V2G_Message.Body.SessionSetupReq.EVCCID.bytesLen;
             if (n>6) n=6;       // out of range check
-            for (i=0; i<n; i++) {
-                EVCCID2[i]= dinDocDec.V2G_Message.Body.SessionSetupReq.EVCCID.bytes[i];
+            for (uint8_t i=0; i<n; i++) {
+                EVCCID2[i]= dinDoc.V2G_Message.Body.SessionSetupReq.EVCCID.bytes[i];
             }
             _LOG_I("EVCCID=%02x%02x%02x%02x%02x%02x\n", EVCCID2[0], EVCCID2[1],EVCCID2[2],EVCCID2[3],EVCCID2[4],EVCCID2[5]);
-
+            uint8_t sessionId[8];
             sessionId[0] = 1;   // our SessionId is set up here, and used by _prepare_DinExiDocument
             sessionId[1] = 2;   // This SessionID will be used by the EV in future communication
             sessionId[2] = 3;
             sessionId[3] = 4;
-            sessionIdLen = 4;
+            uint8_t sessionIdLen = 4;
 
             // Now prepare the 'SessionSetupResponse' message to send back to the EV
-            projectExiConnector_prepare_DinExiDocument();
+            //projectExiConnector_prepare_DinExiDocument();
+            init_din_BodyType(&dinDoc.V2G_Message.Body);
+            auto& body = dinDoc.V2G_Message.Body;
+            init_din_SessionSetupReqType(&body.SessionSetupReq);
 
-            dinDocEnc.V2G_Message.Body.SessionSetupRes_isUsed = 1;
-            init_dinSessionSetupResType(&dinDocEnc.V2G_Message.Body.SessionSetupRes);
-            dinDocEnc.V2G_Message.Body.SessionSetupRes.ResponseCode = dinresponseCodeType_OK_NewSessionEstablished;
-
-            dinDocEnc.V2G_Message.Body.SessionSetupRes.EVSEID.bytes[0] = 0;
-            dinDocEnc.V2G_Message.Body.SessionSetupRes.EVSEID.bytesLen = 1;
+            dinDoc.V2G_Message.Body.SessionSetupRes_isUsed = 1;
+            //init_dinSessionSetupResType(&dinDocEnc.V2G_Message.Body.SessionSetupRes);
+            dinDoc.V2G_Message.Body.SessionSetupRes.ResponseCode = din_responseCodeType_OK_NewSessionEstablished;
+            dinDoc.V2G_Message.Body.SessionSetupRes.EVSEID.bytes[0] = 0;
+            dinDoc.V2G_Message.Body.SessionSetupRes.EVSEID.bytesLen = 1;
 
             // Send SessionSetupResponse to EV
-            global_streamEncPos = 0;
-            projectExiConnector_encode_DinExiDocument();
-            addV2GTPHeaderAndTransmit(global_streamEnc.data, global_streamEncPos);
+            exi_bitstream_init(&tx_stream, V2G_transmit_buffer, sizeof(V2G_transmit_buffer), 0, NULL);
+            encode_din_exiDocument(&tx_stream, &dinDoc);
+            addV2GTPHeaderAndTransmit(tx_stream.data, tx_stream.byte_pos + 1); //not sure if byte_pos is the right variable
             fsmState = stateWaitForServiceDiscoveryRequest;
         }
-
+/*
     } else if (fsmState == stateWaitForServiceDiscoveryRequest) {
 
 
