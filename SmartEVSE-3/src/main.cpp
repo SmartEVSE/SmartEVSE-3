@@ -787,7 +787,7 @@ void setState(uint8_t NewState) { //c
             }
             break;
         case STATE_MODEM_REQUEST: // After overriding PWM, and resetting the safe state is 10% PWM. To make sure communication recovers after going to normal, we do this. Ugly and temporary
-            ToModemWaitStateTimer = 5;
+            ToModemWaitStateTimer = 0;
             PILOT_DISCONNECTED;                                                 // CP 0V = STATE E
             DisconnectTimeCounter = -1;                                         // Disable Disconnect timer. Car is connected
             SetCPDuty(1024); //TODO try 0 to emulate STATE_E

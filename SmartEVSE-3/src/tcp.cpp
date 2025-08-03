@@ -54,6 +54,9 @@ uint32_t TcpAckNr;
 uint8_t tcp_rxdataLen=0;
 uint8_t tcp_rxdata[TCP_RX_DATA_LEN];
 
+#define EXI_TRANSMIT_BUFFER_SIZE 256
+uint8_t V2G_transmit_buffer[EXI_TRANSMIT_BUFFER_SIZE];
+
 #define stateWaitForSupportedApplicationProtocolRequest 0
 #define stateWaitForSessionSetupRequest 1
 #define stateWaitForServiceDiscoveryRequest 2
@@ -112,7 +115,6 @@ void addV2GTPHeaderAndTransmit(const uint8_t *exiBuffer, uint8_t exiBufferLen) {
     }
 }
 
-uint8_t V2G_transmit_buffer[512]; //FIXME determine size
 
 void decodeV2GTP(void) {
     exi_bitstream_init(&stream, &tcp_rxdata[V2GTP_HEADER_SIZE], tcp_rxdataLen - V2GTP_HEADER_SIZE, 0, NULL);
