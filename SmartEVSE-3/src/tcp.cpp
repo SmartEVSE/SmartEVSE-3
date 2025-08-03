@@ -194,7 +194,6 @@ void decodeV2GTP(void) {
         }
 
     } else if (fsmState == stateWaitForSessionSetupRequest) {
-        //decode_din_BodyType(stream, &BodyType);
         memset(&dinDoc, 0, sizeof(struct din_exiDocument));
         decode_din_exiDocument(&stream, &dinDoc);
         // Check if we have received the correct message
@@ -219,7 +218,6 @@ void decodeV2GTP(void) {
             uint8_t sessionIdLen = 4;
 
             // Now prepare the 'SessionSetupResponse' message to send back to the EV
-            //projectExiConnector_prepare_DinExiDocument();
             init_din_BodyType(&dinDoc.V2G_Message.Body);
             auto& body = dinDoc.V2G_Message.Body;
             init_din_SessionSetupReqType(&body.SessionSetupReq);
@@ -236,37 +234,44 @@ void decodeV2GTP(void) {
             addV2GTPHeaderAndTransmit(tx_stream.data, tx_stream.byte_pos + 1); //not sure if byte_pos is the right variable
             fsmState = stateWaitForServiceDiscoveryRequest;
         }
-/*
+
     } else if (fsmState == stateWaitForServiceDiscoveryRequest) {
-
-
-
+        memset(&dinDoc, 0, sizeof(struct din_exiDocument));
+        decode_din_exiDocument(&stream, &dinDoc);
         // Check if we have received the correct message
-        if (dinDocDec.V2G_Message.Body.ServiceDiscoveryReq_isUsed) {
+        if (dinDoc.V2G_Message.Body.ServiceDiscoveryReq_isUsed) {
 
             _LOG_I("ServiceDiscoveryReqest\n");
-            n = dinDocDec.V2G_Message.Header.SessionID.bytesLen;
+            uint8_t n = dinDoc.V2G_Message.Header.SessionID.bytesLen;
             _LOG_I("SessionID:");
-            for (i=0; i<n; i++) _LOG_I("%02x", dinDocDec.V2G_Message.Header.SessionID.bytes[i] );
-            _LOG_I("\n");
+            for (uint8_t i=0; i<n; i++) _LOG_I_NO_FUNC("%02x", dinDoc.V2G_Message.Header.SessionID.bytes[i] );
+            _LOG_I_NO_FUNC("\n");
 
             // Now prepare the 'ServiceDiscoveryResponse' message to send back to the EV
-            projectExiConnector_prepare_DinExiDocument();
+            init_din_BodyType(&dinDoc.V2G_Message.Body);
+            auto& body = dinDoc.V2G_Message.Body;
+            init_din_ServiceDiscoveryReqType(&body.ServiceDiscoveryReq);
+            dinDoc.V2G_Message.Body.ServiceDiscoveryRes_isUsed = 1;
 
-            dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes_isUsed = 1;
-            init_dinServiceDiscoveryResType(&dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes);
-            dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ResponseCode = dinresponseCodeType_OK;
+            // set the service category
+            dinDoc.V2G_Message.Body.ServiceDiscoveryReq.ServiceScope_isUsed = false;
+            dinDoc.V2G_Message.Body.ServiceDiscoveryReq.ServiceCategory_isUsed = true;
+            dinDoc.V2G_Message.Body.ServiceDiscoveryReq.ServiceCategory = din_serviceCategoryType_EVCharging;
+ 
+            //init_dinServiceDiscoveryResType(&dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes);
+            dinDoc.V2G_Message.Body.ServiceDiscoveryRes.ResponseCode = din_responseCodeType_OK;
+            //dinDoc.V2G_Message.Body.ServiceDiscoveryRes.ResponseCode = dinresponseCodeType_OK;
             // the mandatory fields in the ISO are PaymentOptionList and ChargeService.
-            But in the DIN, this is different, we find PaymentOptions, ChargeService and optional ServiceList 
-            dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.PaymentOptions.PaymentOption.array[0] = dinpaymentOptionType_ExternalPayment; /* EVSE handles the payment
-            dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.PaymentOptions.PaymentOption.arrayLen = 1; /* just one single payment option in the table 
-            dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceID = 1; /* todo: not clear what this means 
+            //But in the DIN, this is different, we find PaymentOptions, ChargeService and optional ServiceList 
+            dinDoc.V2G_Message.Body.ServiceDiscoveryRes.PaymentOptions.PaymentOption.array[0] = din_paymentOptionType_ExternalPayment; // EVSE handles the payment
+            dinDoc.V2G_Message.Body.ServiceDiscoveryRes.PaymentOptions.PaymentOption.arrayLen = 1; // just one single payment option in the table 
+            dinDoc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceID = 1; // todo: not clear what this means 
             //dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceName
             //dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceName_isUsed
-            dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceCategory = dinserviceCategoryType_EVCharging;
+            dinDoc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceCategory = din_serviceCategoryType_EVCharging;
             //dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceScope
             //dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceScope_isUsed
-            dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.FreeService = 0; /* what ever this means. Just from example. */
+            dinDoc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.FreeService = 0; // what ever this means. Just from example.
 /*          dinEVSESupportedEnergyTransferType
             dinEVSESupportedEnergyTransferType_AC_single_phase_core = 0,
             dinEVSESupportedEnergyTransferType_AC_three_phase_core = 1,
@@ -278,20 +283,22 @@ void decodeV2GTP(void) {
             dinEVSESupportedEnergyTransferType_AC_single_DC_core = 7,
             dinEVSESupportedEnergyTransferType_AC_single_phase_three_phase_core_DC_extended = 8,
             dinEVSESupportedEnergyTransferType_AC_core3p_DC_extended = 9
-
-            DC_extended means "extended pins of an IEC 62196-3 Configuration FF connector", which is
-            the normal CCS connector https://en.wikipedia.org/wiki/IEC_62196#FF) 
-            //dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.EnergyTransferType = dinEVSESupportedEnergyTransferType_DC_extended;
-            dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.EnergyTransferType = dinEVSESupportedEnergyTransferType_AC_single_phase_three_phase_core_DC_extended;
+*/
+            // DC_extended means "extended pins of an IEC 62196-3 Configuration FF connector", which is
+            // the normal CCS connector https://en.wikipedia.org/wiki/IEC_62196#FF) 
+            dinDoc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.EnergyTransferType = din_EVSESupportedEnergyTransferType_DC_extended;
+            dinDoc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.EnergyTransferType = din_EVSESupportedEnergyTransferType_AC_single_phase_three_phase_core_DC_extended;
 
             // Send ServiceDiscoveryResponse to EV
-            global_streamEncPos = 0;
-            projectExiConnector_encode_DinExiDocument();
-            addV2GTPHeaderAndTransmit(global_streamEnc.data, global_streamEncPos);
+            exi_bitstream_init(&tx_stream, V2G_transmit_buffer, sizeof(V2G_transmit_buffer), 0, NULL);
+            encode_din_exiDocument(&tx_stream, &dinDoc);
+            addV2GTPHeaderAndTransmit(tx_stream.data, tx_stream.byte_pos + 1); //not sure if byte_pos is the right variable
+            //global_streamEncPos = 0;
+            //projectExiConnector_encode_DinExiDocument();
+            //addV2GTPHeaderAndTransmit(global_streamEnc.data, global_streamEncPos);
             fsmState = stateWaitForServicePaymentSelectionRequest;
-
         }
-
+/*
     } else if (fsmState == stateWaitForServicePaymentSelectionRequest) {
 
         routeDecoderInputData();
