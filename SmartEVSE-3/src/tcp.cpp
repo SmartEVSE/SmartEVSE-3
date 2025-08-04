@@ -204,7 +204,7 @@ void decodeV2GTP(void) {
                     if (memmem((const char*)strNamespace, NamespaceLen, ":din:70121:", 11) != NULL) {
                         _LOG_I("Detected DIN\n");
                     }
-/*
+
                     if (memmem((const char*)strNamespace, NamespaceLen, ":iso:15118:2:", 11) != NULL) {
                     //or: if (memmem((const char*)strNamespace, NamespaceLen, ":iso:15118:", 11) != NULL) {
                         projectExiConnector_encode_appHandExiDocument(SchemaID);
@@ -223,9 +223,9 @@ void decodeV2GTP(void) {
         if (dinDoc.V2G_Message.Body.SessionSetupReq_isUsed) {
             _LOG_I("SessionSetupReqest\n");
 
-            //n = dinDocDec.V2G_Message.Header.SessionID.bytesLen;
+            //n = dinDoc.V2G_Message.Header.SessionID.bytesLen;
             //for (i=0; i< n; i++) {
-            //    _LOG_D("%02x", dinDocDec.V2G_Message.Header.SessionID.bytes[i] );
+            //    _LOG_D("%02x", dinDoc.V2G_Message.Header.SessionID.bytes[i] );
             //}
             uint8_t n = dinDoc.V2G_Message.Body.SessionSetupReq.EVCCID.bytesLen;
             if (n>6) n=6;       // out of range check
@@ -354,15 +354,14 @@ void decodeV2GTP(void) {
         }
         return;
     }
-/*
+
     if (fsmState == stateWaitForChargeParameterDiscoveryRequest) {
         // Check if we have received the correct message
-        if (dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq_isUsed) {
-
+        if (dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq_isUsed) {
             _LOG_I("ChargeParameterDiscoveryRequest\n");
 
             // Read the SOC from the EVRESSOC data
-            ComputedSoC = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.DC_EVStatus.EVRESSSOC;
+            ComputedSoC = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.DC_EVStatus.EVRESSSOC;
 
             _LOG_I("Current SoC %d%%\n", ComputedSoC);
             String EVCCIDstr = "";
@@ -375,47 +374,47 @@ void decodeV2GTP(void) {
             Serial1.printf("@EVCCID:%s\n", EVCCID);  //send to CH32
 
             const char UnitStr[][4] = {"h" , "m" , "s" , "A" , "Ah" , "V" , "VA" , "W" , "W_s" , "Wh"};
-            dinPhysicalValueType Temp;
+            din_PhysicalValueType Temp;
 
             //try to read this required field so we can test if we have communication ok with the EV
-            Temp = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVMaximumCurrentLimit;
+            Temp = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVMaximumCurrentLimit;
             _LOG_A("Modem: DC EVMaximumCurrentLimit=%f %s.\n", Temp.Value * pow(10, Temp.Multiplier), Temp.Unit_isUsed ? UnitStr[Temp.Unit] : ""); //not using pow_10 because multiplier can be negative!
 
-            Temp = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVMaximumVoltageLimit;
+            Temp = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVMaximumVoltageLimit;
             _LOG_A("Modem: DC EVMaximumVoltageLimit=%f %s.\n", Temp.Value * pow(10, Temp.Multiplier), Temp.Unit_isUsed ? UnitStr[Temp.Unit] : ""); //not using pow_10 because multiplier can be negative!
-            Temp = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVMaximumPowerLimit;
+            Temp = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVMaximumPowerLimit;
             _LOG_A("Modem: DC EVMaximumPowerLimit=%f %s.\n", Temp.Value * pow(10, Temp.Multiplier), Temp.Unit_isUsed ? UnitStr[Temp.Unit] : ""); //not using pow_10 because multiplier can be negative!
 
-            if(dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.BulkSOC_isUsed) {
-                uint8_t BulkSOC = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.BulkSOC;
+            if(dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.BulkSOC_isUsed) {
+                uint8_t BulkSOC = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.BulkSOC;
                 _LOG_A("Modem: BulkSOC=%d.\n", BulkSOC); \
             }
 
-            if(dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.FullSOC_isUsed) {
-                FullSoC = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.FullSOC;
+            if(dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.FullSOC_isUsed) {
+                FullSoC = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.FullSOC;
                 _LOG_A("Modem: set FullSoC=%d.\n", FullSoC);
             }
 
-            uint32_t deptime = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.AC_EVChargeParameter.DepartureTime;
+            uint32_t deptime = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.AC_EVChargeParameter.DepartureTime;
             _LOG_A("Modem: Departure Time=%u.\n", deptime);
 
-            Temp = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.AC_EVChargeParameter.EAmount;
+            Temp = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.AC_EVChargeParameter.EAmount;
             _LOG_A("Modem: EAmount=%d %s.\n", Temp.Value, Temp.Unit_isUsed ? UnitStr[Temp.Unit] : "");
-            Temp = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.AC_EVChargeParameter.EVMaxVoltage;
+            Temp = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.AC_EVChargeParameter.EVMaxVoltage;
             _LOG_A("Modem: EVMaxVoltage=%d %s.\n", Temp.Value, Temp.Unit_isUsed ? UnitStr[Temp.Unit] : "");
-            Temp = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.AC_EVChargeParameter.EVMaxCurrent;
+            Temp = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.AC_EVChargeParameter.EVMaxCurrent;
             _LOG_A("Modem: EVMaxCurrent=%d %s.\n", Temp.Value, Temp.Unit_isUsed ? UnitStr[Temp.Unit] : "");
-            Temp = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.AC_EVChargeParameter.EVMinCurrent;
+            Temp = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.AC_EVChargeParameter.EVMinCurrent;
             _LOG_A("Modem: EVMinCurrent=%d %s.\n", Temp.Value, Temp.Unit_isUsed ? UnitStr[Temp.Unit] : "");
 
-            if(dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVEnergyCapacity_isUsed) {
-                Temp = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVEnergyCapacity;
+            if(dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVEnergyCapacity_isUsed) {
+                Temp = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVEnergyCapacity;
                 EnergyCapacity = Temp.Value  * pow(10, Temp.Multiplier);
                 _LOG_A("Modem: set EVEnergyCapacity=%d %s.\n", Temp.Value, Temp.Unit_isUsed ? UnitStr[Temp.Unit] : "");
             }
 
-            if(dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVEnergyRequest_isUsed) {
-                Temp = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVEnergyRequest;
+            if(dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVEnergyRequest_isUsed) {
+                Temp = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVEnergyRequest;
                 _LOG_A("Modem: set EVEnergyRequest=%d %s, Multiplier=%d.\n", Temp.Value, Temp.Unit_isUsed ? UnitStr[Temp.Unit] : "", Temp.Multiplier);
                 EnergyRequest = Temp.Value;
             }
@@ -432,7 +431,7 @@ void decodeV2GTP(void) {
             }
 
 
-            int8_t Transfer = dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq.EVRequestedEnergyTransferType;
+            int8_t Transfer = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.EVRequestedEnergyTransferType;
             const char EnergyTransferStr[][25] = {"AC_single_phase_core","AC_three_phase_core","DC_core","DC_extended","DC_combo_core","DC_unique"};
 
             _LOG_A("Modem: Requested Energy Transfer Type =%s.\n", EnergyTransferStr[Transfer]);
@@ -440,15 +439,13 @@ void decodeV2GTP(void) {
             RecomputeSoC();
 
             // Now prepare the 'ChargeParameterDiscoveryResponse' message to send back to the EV
-            projectExiConnector_prepare_DinExiDocument();
+            init_din_BodyType(&dinDoc.V2G_Message.Body);
+            init_din_ChargeParameterDiscoveryResType(&dinDoc.V2G_Message.Body.ChargeParameterDiscoveryRes);
 
-            dinDocEnc.V2G_Message.Body.ChargeParameterDiscoveryRes_isUsed = 1;
-            init_dinChargeParameterDiscoveryResType(&dinDocEnc.V2G_Message.Body.ChargeParameterDiscoveryRes);
+            dinDoc.V2G_Message.Body.ChargeParameterDiscoveryRes_isUsed = 1;
 
             // Send SessionSetupResponse to EV
-            global_streamEncPos = 0;
-            projectExiConnector_encode_DinExiDocument();
-            addV2GTPHeaderAndTransmit(global_streamEnc.data, global_streamEncPos);
+            EncodeAndTransmit(&dinDoc);
             //fsmState = stateWaitForCableCheckRequest;
             fsmState = stateWaitForSupportedApplicationProtocolRequest; //so we will request for SoC the next time we replug; we obviously dont know how to cleanly close a session TODO
 
@@ -456,7 +453,7 @@ void decodeV2GTP(void) {
         }
         return;
     }
-*/
+
     if (dinDoc.V2G_Message.Body.ChargingStatusReq_isUsed) {
         _LOG_A("Modem: ChargingStatusReq_isUsed!!\n");
     }
