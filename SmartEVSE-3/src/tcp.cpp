@@ -269,8 +269,7 @@ void decodeV2GTP(void) {
 
             // Now prepare the 'ServiceDiscoveryResponse' message to send back to the EV
             init_din_BodyType(&dinDoc.V2G_Message.Body);
-            auto& body = dinDoc.V2G_Message.Body;
-            init_din_ServiceDiscoveryReqType(&body.ServiceDiscoveryReq);
+            init_din_ServiceDiscoveryReqType(&dinDoc.V2G_Message.Body.ServiceDiscoveryReq);
             dinDoc.V2G_Message.Body.ServiceDiscoveryRes_isUsed = 1;
 
             // set the service category
@@ -311,9 +310,6 @@ void decodeV2GTP(void) {
 
             // Send ServiceDiscoveryResponse to EV
             EncodeAndTransmit(&dinDoc);
-            //global_streamEncPos = 0;
-            //projectExiConnector_encode_DinExiDocument();
-            //addV2GTPHeaderAndTransmit(global_streamEnc.data, global_streamEncPos);
             fsmState = stateWaitForServicePaymentSelectionRequest;
         }
 /*
