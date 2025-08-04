@@ -77,7 +77,6 @@ extern int8_t InitialSoC, ComputedSoC, FullSoC;
 extern void setState(uint8_t NewState);
 extern void RecomputeSoC(void);
 extern int32_t EnergyCapacity, EnergyRequest;
-exi_bitstream_t stream, tx_stream;
 
 void tcp_transmit(void) {
 
@@ -119,14 +118,43 @@ void addV2GTPHeaderAndTransmit(const uint8_t *exiBuffer, uint8_t exiBufferLen) {
 }
 
 
+void EncodeAndTransmit(struct appHand_exiDocument* exiDoc) {
+    uint8_t g_errn;
+    exi_bitstream_t tx_stream; //TODO perhaps reuse stream?
+    exi_bitstream_init(&tx_stream, V2G_transmit_buffer, sizeof(V2G_transmit_buffer), 0, NULL);
+    g_errn = encode_appHand_exiDocument(&tx_stream, exiDoc);
+    // Send supportedAppProtocolRes to EV
+    if (!g_errn)
+        //data_size=256, bit_count=4, byte_pos=3, flag_byte=0 for appHand
+        addV2GTPHeaderAndTransmit(tx_stream.data, tx_stream.byte_pos + 1); //not sure if byte_pos is the right variable
+}
+
+
+void EncodeAndTransmit(struct din_exiDocument* dinDoc) {
+    uint8_t g_errn;
+    exi_bitstream_t tx_stream; //TODO perhaps reuse stream?
+    exi_bitstream_init(&tx_stream, V2G_transmit_buffer, sizeof(V2G_transmit_buffer), 0, NULL);
+    g_errn = encode_din_exiDocument(&tx_stream, dinDoc);
+    // Send supportedAppProtocolRes to EV
+    if (!g_errn)
+        //data_size=256, bit_count=4, byte_pos=3, flag_byte=0 for appHand
+        addV2GTPHeaderAndTransmit(tx_stream.data, tx_stream.byte_pos + 1); //not sure if byte_pos is the right variable
+}
+
+
 void decodeV2GTP(void) {
+    exi_bitstream_t stream;
     exi_bitstream_init(&stream, &tcp_rxdata[V2GTP_HEADER_SIZE], tcp_rxdataLen - V2GTP_HEADER_SIZE, 0, NULL);
     uint8_t g_errn;
-    struct appHand_exiDocument exiDoc;
     struct din_exiDocument dinDoc;
     tcp_rxdataLen = 0; /* mark the input data as "consumed" */
 
+    if (fsmState != stateWaitForSupportedApplicationProtocolRequest) {
+        memset(&dinDoc, 0, sizeof(struct din_exiDocument));
+        decode_din_exiDocument(&stream, &dinDoc);
+    }
     if (fsmState == stateWaitForSupportedApplicationProtocolRequest) {
+        struct appHand_exiDocument exiDoc;
         g_errn = decode_appHand_exiDocument(&stream, &exiDoc);
 
         // Check if we have received the correct message
@@ -159,11 +187,7 @@ void decodeV2GTP(void) {
                     exiDoc.supportedAppProtocolRes.ResponseCode = appHand_responseCodeType_OK_SuccessfulNegotiation;
                     exiDoc.supportedAppProtocolRes.SchemaID_isUsed = (unsigned int)1;
                     exiDoc.supportedAppProtocolRes.SchemaID = app_proto->SchemaID;
-                    exi_bitstream_init(&tx_stream, V2G_transmit_buffer, sizeof(V2G_transmit_buffer), 0, NULL);
-                    g_errn = encode_appHand_exiDocument(&tx_stream, &exiDoc);
-                    // Send supportedAppProtocolRes to EV
-                    //data_size=512, bit_count=4, byte_pos=3, flag_byte=0
-                    addV2GTPHeaderAndTransmit(tx_stream.data, tx_stream.byte_pos + 1); //not sure if byte_pos is the right variable
+                    EncodeAndTransmit(&exiDoc);
                     fsmState = stateWaitForSessionSetupRequest;
                     //conn->ctx->selected_protocol = V2G_PROTO_DIN70121;
                 } else if (!strcmp(proto_ns, ISO_15118_2013_MSG_DEF)  && app_proto->VersionNumberMajor == ISO_15118_2013_MAJOR) {
@@ -192,10 +216,9 @@ void decodeV2GTP(void) {
                 }
          */
         }
-
-    } else if (fsmState == stateWaitForSessionSetupRequest) {
-        memset(&dinDoc, 0, sizeof(struct din_exiDocument));
-        decode_din_exiDocument(&stream, &dinDoc);
+        return;
+    }
+    if (fsmState == stateWaitForSessionSetupRequest) {
         // Check if we have received the correct message
         if (dinDoc.V2G_Message.Body.SessionSetupReq_isUsed) {
             _LOG_I("SessionSetupReqest\n");
@@ -229,15 +252,12 @@ void decodeV2GTP(void) {
             dinDoc.V2G_Message.Body.SessionSetupRes.EVSEID.bytesLen = 1;
 
             // Send SessionSetupResponse to EV
-            exi_bitstream_init(&tx_stream, V2G_transmit_buffer, sizeof(V2G_transmit_buffer), 0, NULL);
-            encode_din_exiDocument(&tx_stream, &dinDoc);
-            addV2GTPHeaderAndTransmit(tx_stream.data, tx_stream.byte_pos + 1); //not sure if byte_pos is the right variable
+            EncodeAndTransmit(&dinDoc);
             fsmState = stateWaitForServiceDiscoveryRequest;
         }
-
-    } else if (fsmState == stateWaitForServiceDiscoveryRequest) {
-        memset(&dinDoc, 0, sizeof(struct din_exiDocument));
-        decode_din_exiDocument(&stream, &dinDoc);
+        return;
+    }
+    if (fsmState == stateWaitForServiceDiscoveryRequest) {
         // Check if we have received the correct message
         if (dinDoc.V2G_Message.Body.ServiceDiscoveryReq_isUsed) {
 
@@ -290,9 +310,7 @@ void decodeV2GTP(void) {
             dinDoc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.EnergyTransferType = din_EVSESupportedEnergyTransferType_AC_single_phase_three_phase_core_DC_extended;
 
             // Send ServiceDiscoveryResponse to EV
-            exi_bitstream_init(&tx_stream, V2G_transmit_buffer, sizeof(V2G_transmit_buffer), 0, NULL);
-            encode_din_exiDocument(&tx_stream, &dinDoc);
-            addV2GTPHeaderAndTransmit(tx_stream.data, tx_stream.byte_pos + 1); //not sure if byte_pos is the right variable
+            EncodeAndTransmit(&dinDoc);
             //global_streamEncPos = 0;
             //projectExiConnector_encode_DinExiDocument();
             //addV2GTPHeaderAndTransmit(global_streamEnc.data, global_streamEncPos);
