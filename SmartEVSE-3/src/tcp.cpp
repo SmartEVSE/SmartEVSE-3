@@ -242,8 +242,7 @@ void decodeV2GTP(void) {
 
             // Now prepare the 'SessionSetupResponse' message to send back to the EV
             init_din_BodyType(&dinDoc.V2G_Message.Body);
-            auto& body = dinDoc.V2G_Message.Body;
-            init_din_SessionSetupReqType(&body.SessionSetupReq);
+            init_din_SessionSetupReqType(&dinDoc.V2G_Message.Body.SessionSetupReq);
 
             dinDoc.V2G_Message.Body.SessionSetupRes_isUsed = 1;
             //init_dinSessionSetupResType(&dinDocEnc.V2G_Message.Body.SessionSetupRes);
