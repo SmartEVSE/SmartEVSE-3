@@ -312,43 +312,32 @@ void decodeV2GTP(void) {
             EncodeAndTransmit(&dinDoc);
             fsmState = stateWaitForServicePaymentSelectionRequest;
         }
-/*
-    } else if (fsmState == stateWaitForServicePaymentSelectionRequest) {
+        return;
+    }
 
-        routeDecoderInputData();
-        //exi_bitstream_init(&stream, &tcp_rxdata[V2GTP_HEADER_SIZE], tcp_rxdataLen - V2GTP_HEADER_SIZE, 0, NULL);
-        projectExiConnector_decode_DinExiDocument();      // Decode EXI
-        tcp_rxdataLen = 0; /* mark the input data as "consumed" 
-
+    if (fsmState == stateWaitForServicePaymentSelectionRequest) {
         // Check if we have received the correct message
-        if (dinDocDec.V2G_Message.Body.ServicePaymentSelectionReq_isUsed) {
-
+        if (dinDoc.V2G_Message.Body.ServicePaymentSelectionReq_isUsed) {
             _LOG_I("ServicePaymentSelectionReqest\n");
-
-            if (dinDocDec.V2G_Message.Body.ServicePaymentSelectionReq.SelectedPaymentOption == dinpaymentOptionType_ExternalPayment) {
+            if (dinDoc.V2G_Message.Body.ServicePaymentSelectionReq.SelectedPaymentOption == din_paymentOptionType_ExternalPayment) {
                 _LOG_I("OK. External Payment Selected\n");
 
                 // Now prepare the 'ServicePaymentSelectionResponse' message to send back to the EV
-                projectExiConnector_prepare_DinExiDocument();
+                init_din_BodyType(&dinDoc.V2G_Message.Body);
+                init_din_ServicePaymentSelectionResType(&dinDoc.V2G_Message.Body.ServicePaymentSelectionRes);
 
-                dinDocEnc.V2G_Message.Body.ServicePaymentSelectionRes_isUsed = 1;
-                init_dinServicePaymentSelectionResType(&dinDocEnc.V2G_Message.Body.ServicePaymentSelectionRes);
-
-                dinDocEnc.V2G_Message.Body.ServicePaymentSelectionRes.ResponseCode = dinresponseCodeType_OK;
+                dinDoc.V2G_Message.Body.ServicePaymentSelectionRes_isUsed = 1;
+                dinDoc.V2G_Message.Body.ServicePaymentSelectionRes.ResponseCode = din_responseCodeType_OK;
 
                 // Send SessionSetupResponse to EV
-                global_streamEncPos = 0;
-                projectExiConnector_encode_DinExiDocument();
-                addV2GTPHeaderAndTransmit(global_streamEnc.data, global_streamEncPos);
+                EncodeAndTransmit(&dinDoc);
                 fsmState = stateWaitForContractAuthenticationRequest;
             }
         }
-    } else if (fsmState == stateWaitForContractAuthenticationRequest) {
-
-        routeDecoderInputData();
-        projectExiConnector_decode_DinExiDocument();      // Decode EXI
-        tcp_rxdataLen = 0; /* mark the input data as "consumed" 
-
+        return;
+    }
+/*
+    if (fsmState == stateWaitForContractAuthenticationRequest) {
         // Check if we have received the correct message
         if (dinDocDec.V2G_Message.Body.ContractAuthenticationReq_isUsed) {
 
@@ -368,13 +357,10 @@ void decodeV2GTP(void) {
             addV2GTPHeaderAndTransmit(global_streamEnc.data, global_streamEncPos);
             fsmState = stateWaitForChargeParameterDiscoveryRequest;
         }
-
-    } else if (fsmState == stateWaitForChargeParameterDiscoveryRequest) {
-
-        routeDecoderInputData();
-        projectExiConnector_decode_DinExiDocument();      // Decode EXI
-        tcp_rxdataLen = 0; /* mark the input data as "consumed" 
-
+        return;
+    }*/
+/*
+    if (fsmState == stateWaitForChargeParameterDiscoveryRequest) {
         // Check if we have received the correct message
         if (dinDocDec.V2G_Message.Body.ChargeParameterDiscoveryReq_isUsed) {
 
@@ -470,17 +456,17 @@ void decodeV2GTP(void) {
             addV2GTPHeaderAndTransmit(global_streamEnc.data, global_streamEncPos);
             //fsmState = stateWaitForCableCheckRequest;
             fsmState = stateWaitForSupportedApplicationProtocolRequest; //so we will request for SoC the next time we replug; we obviously dont know how to cleanly close a session TODO
-*/
-    //    }
-/*
-        if (dinDocDec.V2G_Message.Body.ChargingStatusReq_isUsed) {
-            _LOG_A("Modem: ChargingStatusReq_isUsed!!\n");
-        }*/
 
-    } else {
-        _LOG_A("Modem: fsmState=%u, unknown message received.\n", fsmState);
+
+        }
+        return;
+    }
+*/
+    if (dinDoc.V2G_Message.Body.ChargingStatusReq_isUsed) {
+        _LOG_A("Modem: ChargingStatusReq_isUsed!!\n");
     }
 
+    _LOG_A("Modem: fsmState=%u, unknown message received.\n", fsmState);
 }
 
 
