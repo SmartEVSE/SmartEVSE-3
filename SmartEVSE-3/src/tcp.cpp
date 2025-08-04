@@ -335,29 +335,25 @@ void decodeV2GTP(void) {
         }
         return;
     }
-/*
+
     if (fsmState == stateWaitForContractAuthenticationRequest) {
         // Check if we have received the correct message
-        if (dinDocDec.V2G_Message.Body.ContractAuthenticationReq_isUsed) {
-
+        if (dinDoc.V2G_Message.Body.ContractAuthenticationReq_isUsed) {
             _LOG_I("ContractAuthenticationRequest\n");
 
-            // Now prepare the 'ContractAuthenticationResponse' message to send back to the EV
-            projectExiConnector_prepare_DinExiDocument();
+            init_din_BodyType(&dinDoc.V2G_Message.Body);
+            init_din_ContractAuthenticationResType(&dinDoc.V2G_Message.Body.ContractAuthenticationRes);
 
-            dinDocEnc.V2G_Message.Body.ContractAuthenticationRes_isUsed = 1;
+            dinDoc.V2G_Message.Body.ContractAuthenticationRes_isUsed = 1;
             // Set Authorisation immediately to 'Finished'.
-            dinDocEnc.V2G_Message.Body.ContractAuthenticationRes.EVSEProcessing = dinEVSEProcessingType_Finished;
-            init_dinContractAuthenticationResType(&dinDocEnc.V2G_Message.Body.ContractAuthenticationRes);
+            dinDoc.V2G_Message.Body.ContractAuthenticationRes.EVSEProcessing = din_EVSEProcessingType_Finished;
 
             // Send SessionSetupResponse to EV
-            global_streamEncPos = 0;
-            projectExiConnector_encode_DinExiDocument();
-            addV2GTPHeaderAndTransmit(global_streamEnc.data, global_streamEncPos);
+            EncodeAndTransmit(&dinDoc);
             fsmState = stateWaitForChargeParameterDiscoveryRequest;
         }
         return;
-    }*/
+    }
 /*
     if (fsmState == stateWaitForChargeParameterDiscoveryRequest) {
         // Check if we have received the correct message
