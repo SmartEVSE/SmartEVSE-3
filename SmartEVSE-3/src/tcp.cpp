@@ -71,6 +71,7 @@ uint8_t V2G_transmit_buffer[EXI_TRANSMIT_BUFFER_SIZE];
 #define stateWaitForPowerDeliveryRequest 8
 
 uint8_t fsmState = stateWaitForSupportedApplicationProtocolRequest;
+enum {DIN, ISO2, ISO20} Protocol;
 
 extern char EVCCID[32];
 extern int8_t InitialSoC, ComputedSoC, FullSoC;
@@ -146,13 +147,8 @@ void decodeV2GTP(void) {
     exi_bitstream_t stream;
     exi_bitstream_init(&stream, &tcp_rxdata[V2GTP_HEADER_SIZE], tcp_rxdataLen - V2GTP_HEADER_SIZE, 0, NULL);
     uint8_t g_errn;
-    struct din_exiDocument dinDoc;
     tcp_rxdataLen = 0; /* mark the input data as "consumed" */
 
-    if (fsmState != stateWaitForSupportedApplicationProtocolRequest) {
-        memset(&dinDoc, 0, sizeof(struct din_exiDocument));
-        decode_din_exiDocument(&stream, &dinDoc);
-    }
     if (fsmState == stateWaitForSupportedApplicationProtocolRequest) {
         struct appHand_exiDocument exiDoc;
         g_errn = decode_appHand_exiDocument(&stream, &exiDoc);
@@ -188,276 +184,516 @@ void decodeV2GTP(void) {
                     exiDoc.supportedAppProtocolRes.SchemaID_isUsed = (unsigned int)1;
                     exiDoc.supportedAppProtocolRes.SchemaID = app_proto->SchemaID;
                     EncodeAndTransmit(&exiDoc);
+                    Protocol = DIN;
                     fsmState = stateWaitForSessionSetupRequest;
                     //conn->ctx->selected_protocol = V2G_PROTO_DIN70121;
                 } else if (!strcmp(proto_ns, ISO_15118_2013_MSG_DEF)  && app_proto->VersionNumberMajor == ISO_15118_2013_MAJOR) {
                     _LOG_I("Detected ISO15118:2\n");
-/*                    conn->handshake_resp.supportedAppProtocolRes.ResponseCode =
-                        appHand_responseCodeType_OK_SuccessfulNegotiationWithMinorDeviation;
-                    ev_app_priority = app_proto->Priority;
-                    conn->handshake_resp.supportedAppProtocolRes.SchemaID = app_proto->SchemaID;
-                    conn->ctx->selected_protocol = V2G_PROTO_ISO15118_2013;
-*/                }
-            } //for
-/*                    //_LOG_I("strNameSpace %s SchemaID: %u\n", strNamespace, SchemaID);
-
-                    if (memmem((const char*)strNamespace, NamespaceLen, ":din:70121:", 11) != NULL) {
-                        _LOG_I("Detected DIN\n");
-                    }
-
-                    if (memmem((const char*)strNamespace, NamespaceLen, ":iso:15118:2:", 11) != NULL) {
-                    //or: if (memmem((const char*)strNamespace, NamespaceLen, ":iso:15118:", 11) != NULL) {
-                        projectExiConnector_encode_appHandExiDocument(SchemaID);
-                        g_errn = decode_appHand_exiDocument(&stream, &exiDoc);
-                        // Send supportedAppProtocolRes to EV
-                        addV2GTPHeaderAndTransmit(global_streamEnc.data, global_streamEncPos);
-                        fsmState = stateWaitForSessionSetupRequest;
-                    }
+                    init_appHand_exiDocument(&exiDoc);
+                    exiDoc.supportedAppProtocolRes_isUsed = 1;
+                    //exiDoc.supportedAppProtocolRes.ResponseCode = appHand_responseCodeType_Failed_NoNegotiation; // [V2G2-172]
+                    exiDoc.supportedAppProtocolRes.ResponseCode = appHand_responseCodeType_OK_SuccessfulNegotiation;
+                    exiDoc.supportedAppProtocolRes.SchemaID_isUsed = (unsigned int)1;
+                    exiDoc.supportedAppProtocolRes.SchemaID = app_proto->SchemaID;
+                    EncodeAndTransmit(&exiDoc);
+                    Protocol = ISO2;
+                    fsmState = stateWaitForSessionSetupRequest;
                 }
-         */
+            } //for
         }
         return;
     }
-    if (fsmState == stateWaitForSessionSetupRequest) {
-        // Check if we have received the correct message
-        if (dinDoc.V2G_Message.Body.SessionSetupReq_isUsed) {
-            _LOG_I("SessionSetupReqest\n");
+    if (Protocol == DIN) {
+        struct din_exiDocument dinDoc;
+        memset(&dinDoc, 0, sizeof(struct din_exiDocument));
+        decode_din_exiDocument(&stream, &dinDoc);
+        if (fsmState == stateWaitForSessionSetupRequest) {
+            // Check if we have received the correct message
+            if (dinDoc.V2G_Message.Body.SessionSetupReq_isUsed) {
+                _LOG_I("SessionSetupReqest\n");
 
-            //n = dinDoc.V2G_Message.Header.SessionID.bytesLen;
-            //for (i=0; i< n; i++) {
-            //    _LOG_D("%02x", dinDoc.V2G_Message.Header.SessionID.bytes[i] );
-            //}
-            uint8_t n = dinDoc.V2G_Message.Body.SessionSetupReq.EVCCID.bytesLen;
-            if (n>6) n=6;       // out of range check
-            for (uint8_t i=0; i<n; i++) {
-                EVCCID2[i]= dinDoc.V2G_Message.Body.SessionSetupReq.EVCCID.bytes[i];
-            }
-            _LOG_I("EVCCID=%02x%02x%02x%02x%02x%02x\n", EVCCID2[0], EVCCID2[1],EVCCID2[2],EVCCID2[3],EVCCID2[4],EVCCID2[5]);
-            uint8_t sessionId[8];
-            sessionId[0] = 1;   // our SessionId is set up here, and used by _prepare_DinExiDocument
-            sessionId[1] = 2;   // This SessionID will be used by the EV in future communication
-            sessionId[2] = 3;
-            sessionId[3] = 4;
-            uint8_t sessionIdLen = 4;
+                //n = dinDoc.V2G_Message.Header.SessionID.bytesLen;
+                //for (i=0; i< n; i++) {
+                //    _LOG_D("%02x", dinDoc.V2G_Message.Header.SessionID.bytes[i] );
+                //}
+                uint8_t n = dinDoc.V2G_Message.Body.SessionSetupReq.EVCCID.bytesLen;
+                if (n>6) n=6;       // out of range check
+                for (uint8_t i=0; i<n; i++) {
+                    EVCCID2[i]= dinDoc.V2G_Message.Body.SessionSetupReq.EVCCID.bytes[i];
+                }
+                _LOG_I("EVCCID=%02x%02x%02x%02x%02x%02x\n", EVCCID2[0], EVCCID2[1],EVCCID2[2],EVCCID2[3],EVCCID2[4],EVCCID2[5]);
+                uint8_t sessionId[8];
+                sessionId[0] = 1;   // our SessionId is set up here, and used by _prepare_DinExiDocument
+                sessionId[1] = 2;   // This SessionID will be used by the EV in future communication
+                sessionId[2] = 3;
+                sessionId[3] = 4;
+                uint8_t sessionIdLen = 4;
 
-            // Now prepare the 'SessionSetupResponse' message to send back to the EV
-            init_din_BodyType(&dinDoc.V2G_Message.Body);
-            init_din_SessionSetupReqType(&dinDoc.V2G_Message.Body.SessionSetupReq);
-
-            dinDoc.V2G_Message.Body.SessionSetupRes_isUsed = 1;
-            //init_dinSessionSetupResType(&dinDocEnc.V2G_Message.Body.SessionSetupRes);
-            dinDoc.V2G_Message.Body.SessionSetupRes.ResponseCode = din_responseCodeType_OK_NewSessionEstablished;
-            dinDoc.V2G_Message.Body.SessionSetupRes.EVSEID.bytes[0] = 0;
-            dinDoc.V2G_Message.Body.SessionSetupRes.EVSEID.bytesLen = 1;
-
-            // Send SessionSetupResponse to EV
-            EncodeAndTransmit(&dinDoc);
-            fsmState = stateWaitForServiceDiscoveryRequest;
-        }
-        return;
-    }
-    if (fsmState == stateWaitForServiceDiscoveryRequest) {
-        // Check if we have received the correct message
-        if (dinDoc.V2G_Message.Body.ServiceDiscoveryReq_isUsed) {
-
-            _LOG_I("ServiceDiscoveryReqest\n");
-            uint8_t n = dinDoc.V2G_Message.Header.SessionID.bytesLen;
-            _LOG_I("SessionID:");
-            for (uint8_t i=0; i<n; i++) _LOG_I_NO_FUNC("%02x", dinDoc.V2G_Message.Header.SessionID.bytes[i] );
-            _LOG_I_NO_FUNC("\n");
-
-            // Now prepare the 'ServiceDiscoveryResponse' message to send back to the EV
-            init_din_BodyType(&dinDoc.V2G_Message.Body);
-            init_din_ServiceDiscoveryReqType(&dinDoc.V2G_Message.Body.ServiceDiscoveryReq);
-            dinDoc.V2G_Message.Body.ServiceDiscoveryRes_isUsed = 1;
-
-            // set the service category
-            dinDoc.V2G_Message.Body.ServiceDiscoveryReq.ServiceScope_isUsed = false;
-            dinDoc.V2G_Message.Body.ServiceDiscoveryReq.ServiceCategory_isUsed = true;
-            dinDoc.V2G_Message.Body.ServiceDiscoveryReq.ServiceCategory = din_serviceCategoryType_EVCharging;
- 
-            //init_dinServiceDiscoveryResType(&dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes);
-            dinDoc.V2G_Message.Body.ServiceDiscoveryRes.ResponseCode = din_responseCodeType_OK;
-            //dinDoc.V2G_Message.Body.ServiceDiscoveryRes.ResponseCode = dinresponseCodeType_OK;
-            // the mandatory fields in the ISO are PaymentOptionList and ChargeService.
-            //But in the DIN, this is different, we find PaymentOptions, ChargeService and optional ServiceList 
-            dinDoc.V2G_Message.Body.ServiceDiscoveryRes.PaymentOptions.PaymentOption.array[0] = din_paymentOptionType_ExternalPayment; // EVSE handles the payment
-            dinDoc.V2G_Message.Body.ServiceDiscoveryRes.PaymentOptions.PaymentOption.arrayLen = 1; // just one single payment option in the table 
-            dinDoc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceID = 1; // todo: not clear what this means 
-            //dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceName
-            //dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceName_isUsed
-            dinDoc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceCategory = din_serviceCategoryType_EVCharging;
-            //dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceScope
-            //dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceScope_isUsed
-            dinDoc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.FreeService = 0; // what ever this means. Just from example.
-/*          dinEVSESupportedEnergyTransferType
-            dinEVSESupportedEnergyTransferType_AC_single_phase_core = 0,
-            dinEVSESupportedEnergyTransferType_AC_three_phase_core = 1,
-            dinEVSESupportedEnergyTransferType_DC_core = 2,
-            dinEVSESupportedEnergyTransferType_DC_extended = 3,
-            dinEVSESupportedEnergyTransferType_DC_combo_core = 4,
-            dinEVSESupportedEnergyTransferType_DC_dual = 5,
-            dinEVSESupportedEnergyTransferType_AC_core1p_DC_extended = 6,
-            dinEVSESupportedEnergyTransferType_AC_single_DC_core = 7,
-            dinEVSESupportedEnergyTransferType_AC_single_phase_three_phase_core_DC_extended = 8,
-            dinEVSESupportedEnergyTransferType_AC_core3p_DC_extended = 9
-*/
-            // DC_extended means "extended pins of an IEC 62196-3 Configuration FF connector", which is
-            // the normal CCS connector https://en.wikipedia.org/wiki/IEC_62196#FF) 
-            dinDoc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.EnergyTransferType = din_EVSESupportedEnergyTransferType_DC_extended;
-            dinDoc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.EnergyTransferType = din_EVSESupportedEnergyTransferType_AC_single_phase_three_phase_core_DC_extended;
-
-            // Send ServiceDiscoveryResponse to EV
-            EncodeAndTransmit(&dinDoc);
-            fsmState = stateWaitForServicePaymentSelectionRequest;
-        }
-        return;
-    }
-
-    if (fsmState == stateWaitForServicePaymentSelectionRequest) {
-        // Check if we have received the correct message
-        if (dinDoc.V2G_Message.Body.ServicePaymentSelectionReq_isUsed) {
-            _LOG_I("ServicePaymentSelectionReqest\n");
-            if (dinDoc.V2G_Message.Body.ServicePaymentSelectionReq.SelectedPaymentOption == din_paymentOptionType_ExternalPayment) {
-                _LOG_I("OK. External Payment Selected\n");
-
-                // Now prepare the 'ServicePaymentSelectionResponse' message to send back to the EV
+                // Now prepare the 'SessionSetupResponse' message to send back to the EV
                 init_din_BodyType(&dinDoc.V2G_Message.Body);
-                init_din_ServicePaymentSelectionResType(&dinDoc.V2G_Message.Body.ServicePaymentSelectionRes);
+                init_din_SessionSetupReqType(&dinDoc.V2G_Message.Body.SessionSetupReq);
 
-                dinDoc.V2G_Message.Body.ServicePaymentSelectionRes_isUsed = 1;
-                dinDoc.V2G_Message.Body.ServicePaymentSelectionRes.ResponseCode = din_responseCodeType_OK;
+                dinDoc.V2G_Message.Body.SessionSetupRes_isUsed = 1;
+                //init_dinSessionSetupResType(&dinDocEnc.V2G_Message.Body.SessionSetupRes);
+                dinDoc.V2G_Message.Body.SessionSetupRes.ResponseCode = din_responseCodeType_OK_NewSessionEstablished;
+                dinDoc.V2G_Message.Body.SessionSetupRes.EVSEID.bytes[0] = 0;
+                dinDoc.V2G_Message.Body.SessionSetupRes.EVSEID.bytesLen = 1;
 
                 // Send SessionSetupResponse to EV
                 EncodeAndTransmit(&dinDoc);
-                fsmState = stateWaitForContractAuthenticationRequest;
+                fsmState = stateWaitForServiceDiscoveryRequest;
             }
+            return;
         }
-        return;
-    }
+        if (fsmState == stateWaitForServiceDiscoveryRequest) {
+            // Check if we have received the correct message
+            if (dinDoc.V2G_Message.Body.ServiceDiscoveryReq_isUsed) {
 
-    if (fsmState == stateWaitForContractAuthenticationRequest) {
-        // Check if we have received the correct message
-        if (dinDoc.V2G_Message.Body.ContractAuthenticationReq_isUsed) {
-            _LOG_I("ContractAuthenticationRequest\n");
+                _LOG_I("ServiceDiscoveryReqest\n");
+                uint8_t n = dinDoc.V2G_Message.Header.SessionID.bytesLen;
+                _LOG_I("SessionID:");
+                for (uint8_t i=0; i<n; i++) _LOG_I_NO_FUNC("%02x", dinDoc.V2G_Message.Header.SessionID.bytes[i] );
+                _LOG_I_NO_FUNC("\n");
 
-            init_din_BodyType(&dinDoc.V2G_Message.Body);
-            init_din_ContractAuthenticationResType(&dinDoc.V2G_Message.Body.ContractAuthenticationRes);
+                // Now prepare the 'ServiceDiscoveryResponse' message to send back to the EV
+                init_din_BodyType(&dinDoc.V2G_Message.Body);
+                init_din_ServiceDiscoveryReqType(&dinDoc.V2G_Message.Body.ServiceDiscoveryReq);
+                dinDoc.V2G_Message.Body.ServiceDiscoveryRes_isUsed = 1;
 
-            dinDoc.V2G_Message.Body.ContractAuthenticationRes_isUsed = 1;
-            // Set Authorisation immediately to 'Finished'.
-            dinDoc.V2G_Message.Body.ContractAuthenticationRes.EVSEProcessing = din_EVSEProcessingType_Finished;
+                // set the service category
+                dinDoc.V2G_Message.Body.ServiceDiscoveryReq.ServiceScope_isUsed = false;
+                dinDoc.V2G_Message.Body.ServiceDiscoveryReq.ServiceCategory_isUsed = true;
+                dinDoc.V2G_Message.Body.ServiceDiscoveryReq.ServiceCategory = din_serviceCategoryType_EVCharging;
 
-            // Send SessionSetupResponse to EV
-            EncodeAndTransmit(&dinDoc);
-            fsmState = stateWaitForChargeParameterDiscoveryRequest;
+                //init_dinServiceDiscoveryResType(&dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes);
+                dinDoc.V2G_Message.Body.ServiceDiscoveryRes.ResponseCode = din_responseCodeType_OK;
+                //dinDoc.V2G_Message.Body.ServiceDiscoveryRes.ResponseCode = dinresponseCodeType_OK;
+                // the mandatory fields in the ISO are PaymentOptionList and ChargeService.
+                //But in the DIN, this is different, we find PaymentOptions, ChargeService and optional ServiceList
+                dinDoc.V2G_Message.Body.ServiceDiscoveryRes.PaymentOptions.PaymentOption.array[0] = din_paymentOptionType_ExternalPayment; // EVSE handles the payment
+                dinDoc.V2G_Message.Body.ServiceDiscoveryRes.PaymentOptions.PaymentOption.arrayLen = 1; // just one single payment option in the table
+                dinDoc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceID = 1; // todo: not clear what this means
+                //dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceName
+                //dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceName_isUsed
+                dinDoc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceCategory = din_serviceCategoryType_EVCharging;
+                //dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceScope
+                //dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceScope_isUsed
+                dinDoc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.FreeService = 0; // what ever this means. Just from example.
+    /*          dinEVSESupportedEnergyTransferType
+                dinEVSESupportedEnergyTransferType_AC_single_phase_core = 0,
+                dinEVSESupportedEnergyTransferType_AC_three_phase_core = 1,
+                dinEVSESupportedEnergyTransferType_DC_core = 2,
+                dinEVSESupportedEnergyTransferType_DC_extended = 3,
+                dinEVSESupportedEnergyTransferType_DC_combo_core = 4,
+                dinEVSESupportedEnergyTransferType_DC_dual = 5,
+                dinEVSESupportedEnergyTransferType_AC_core1p_DC_extended = 6,
+                dinEVSESupportedEnergyTransferType_AC_single_DC_core = 7,
+                dinEVSESupportedEnergyTransferType_AC_single_phase_three_phase_core_DC_extended = 8,
+                dinEVSESupportedEnergyTransferType_AC_core3p_DC_extended = 9
+    */
+                // DC_extended means "extended pins of an IEC 62196-3 Configuration FF connector", which is
+                // the normal CCS connector https://en.wikipedia.org/wiki/IEC_62196#FF)
+                dinDoc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.EnergyTransferType = din_EVSESupportedEnergyTransferType_DC_extended;
+                dinDoc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.EnergyTransferType = din_EVSESupportedEnergyTransferType_AC_single_phase_three_phase_core_DC_extended;
+
+                // Send ServiceDiscoveryResponse to EV
+                EncodeAndTransmit(&dinDoc);
+                fsmState = stateWaitForServicePaymentSelectionRequest;
+            }
+            return;
         }
-        return;
-    }
 
-    if (fsmState == stateWaitForChargeParameterDiscoveryRequest) {
-        // Check if we have received the correct message
-        if (dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq_isUsed) {
-            _LOG_I("ChargeParameterDiscoveryRequest\n");
+        if (fsmState == stateWaitForServicePaymentSelectionRequest) {
+            // Check if we have received the correct message
+            if (dinDoc.V2G_Message.Body.ServicePaymentSelectionReq_isUsed) {
+                _LOG_I("ServicePaymentSelectionReqest\n");
+                if (dinDoc.V2G_Message.Body.ServicePaymentSelectionReq.SelectedPaymentOption == din_paymentOptionType_ExternalPayment) {
+                    _LOG_I("OK. External Payment Selected\n");
 
-            // Read the SOC from the EVRESSOC data
-            ComputedSoC = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.DC_EVStatus.EVRESSSOC;
+                    // Now prepare the 'ServicePaymentSelectionResponse' message to send back to the EV
+                    init_din_BodyType(&dinDoc.V2G_Message.Body);
+                    init_din_ServicePaymentSelectionResType(&dinDoc.V2G_Message.Body.ServicePaymentSelectionRes);
 
-            _LOG_I("Current SoC %d%%\n", ComputedSoC);
-            String EVCCIDstr = "";
-            for (uint8_t i = 0; i < 6; i++) {
-                if (EVCCID2[i] < 0x10) EVCCIDstr += "0";  // pad with zero for values less than 0x10
-                EVCCIDstr += String(EVCCID2[i], HEX);
-            }
-            _LOG_I("EVCCID=%s.\n", EVCCIDstr.c_str());
-            strncpy(EVCCID, EVCCIDstr.c_str(), sizeof(EVCCID));
-            Serial1.printf("@EVCCID:%s\n", EVCCID);  //send to CH32
+                    dinDoc.V2G_Message.Body.ServicePaymentSelectionRes_isUsed = 1;
+                    dinDoc.V2G_Message.Body.ServicePaymentSelectionRes.ResponseCode = din_responseCodeType_OK;
 
-            const char UnitStr[][4] = {"h" , "m" , "s" , "A" , "Ah" , "V" , "VA" , "W" , "W_s" , "Wh"};
-            din_PhysicalValueType Temp;
-
-            //try to read this required field so we can test if we have communication ok with the EV
-            Temp = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVMaximumCurrentLimit;
-            _LOG_A("Modem: DC EVMaximumCurrentLimit=%f %s.\n", Temp.Value * pow(10, Temp.Multiplier), Temp.Unit_isUsed ? UnitStr[Temp.Unit] : ""); //not using pow_10 because multiplier can be negative!
-
-            Temp = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVMaximumVoltageLimit;
-            _LOG_A("Modem: DC EVMaximumVoltageLimit=%f %s.\n", Temp.Value * pow(10, Temp.Multiplier), Temp.Unit_isUsed ? UnitStr[Temp.Unit] : ""); //not using pow_10 because multiplier can be negative!
-            Temp = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVMaximumPowerLimit;
-            _LOG_A("Modem: DC EVMaximumPowerLimit=%f %s.\n", Temp.Value * pow(10, Temp.Multiplier), Temp.Unit_isUsed ? UnitStr[Temp.Unit] : ""); //not using pow_10 because multiplier can be negative!
-
-            if(dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.BulkSOC_isUsed) {
-                uint8_t BulkSOC = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.BulkSOC;
-                _LOG_A("Modem: BulkSOC=%d.\n", BulkSOC); \
-            }
-
-            if(dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.FullSOC_isUsed) {
-                FullSoC = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.FullSOC;
-                _LOG_A("Modem: set FullSoC=%d.\n", FullSoC);
-            }
-
-            uint32_t deptime = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.AC_EVChargeParameter.DepartureTime;
-            _LOG_A("Modem: Departure Time=%u.\n", deptime);
-
-            Temp = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.AC_EVChargeParameter.EAmount;
-            _LOG_A("Modem: EAmount=%d %s.\n", Temp.Value, Temp.Unit_isUsed ? UnitStr[Temp.Unit] : "");
-            Temp = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.AC_EVChargeParameter.EVMaxVoltage;
-            _LOG_A("Modem: EVMaxVoltage=%d %s.\n", Temp.Value, Temp.Unit_isUsed ? UnitStr[Temp.Unit] : "");
-            Temp = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.AC_EVChargeParameter.EVMaxCurrent;
-            _LOG_A("Modem: EVMaxCurrent=%d %s.\n", Temp.Value, Temp.Unit_isUsed ? UnitStr[Temp.Unit] : "");
-            Temp = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.AC_EVChargeParameter.EVMinCurrent;
-            _LOG_A("Modem: EVMinCurrent=%d %s.\n", Temp.Value, Temp.Unit_isUsed ? UnitStr[Temp.Unit] : "");
-
-            if(dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVEnergyCapacity_isUsed) {
-                Temp = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVEnergyCapacity;
-                EnergyCapacity = Temp.Value  * pow(10, Temp.Multiplier);
-                _LOG_A("Modem: set EVEnergyCapacity=%d %s.\n", Temp.Value, Temp.Unit_isUsed ? UnitStr[Temp.Unit] : "");
-            }
-
-            if(dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVEnergyRequest_isUsed) {
-                Temp = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVEnergyRequest;
-                _LOG_A("Modem: set EVEnergyRequest=%d %s, Multiplier=%d.\n", Temp.Value, Temp.Unit_isUsed ? UnitStr[Temp.Unit] : "", Temp.Multiplier);
-                EnergyRequest = Temp.Value;
-            }
-
-            if (ComputedSoC >= 0 && ComputedSoC <= 100) { // valid
-                // Skip waiting, charge since we have what we've got
-                if (State == STATE_MODEM_REQUEST || State == STATE_MODEM_WAIT || State == STATE_MODEM_DONE){
-                    _LOG_A("Received SoC via Modem. Shortcut to State Modem Done\n");
-                    setState(STATE_MODEM_DONE); // Go to State B, which means in this case setting PWM
-                    tcpState = TCP_STATE_CLOSED; //if we dont close the TCP connection the  next replug wont work TODO is this the right place, the right way?
+                    // Send SessionSetupResponse to EV
+                    EncodeAndTransmit(&dinDoc);
+                    fsmState = stateWaitForContractAuthenticationRequest;
                 }
-                if (InitialSoC < 0) //not initialized yet
-                    InitialSoC = ComputedSoC;
             }
+            return;
+        }
+
+        if (fsmState == stateWaitForContractAuthenticationRequest) {
+            // Check if we have received the correct message
+            if (dinDoc.V2G_Message.Body.ContractAuthenticationReq_isUsed) {
+                _LOG_I("ContractAuthenticationRequest\n");
+
+                init_din_BodyType(&dinDoc.V2G_Message.Body);
+                init_din_ContractAuthenticationResType(&dinDoc.V2G_Message.Body.ContractAuthenticationRes);
+
+                dinDoc.V2G_Message.Body.ContractAuthenticationRes_isUsed = 1;
+                // Set Authorisation immediately to 'Finished'.
+                dinDoc.V2G_Message.Body.ContractAuthenticationRes.EVSEProcessing = din_EVSEProcessingType_Finished;
+
+                // Send SessionSetupResponse to EV
+                EncodeAndTransmit(&dinDoc);
+                fsmState = stateWaitForChargeParameterDiscoveryRequest;
+            }
+            return;
+        }
+
+        if (fsmState == stateWaitForChargeParameterDiscoveryRequest) {
+            // Check if we have received the correct message
+            if (dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq_isUsed) {
+                _LOG_I("ChargeParameterDiscoveryRequest\n");
+
+                // Read the SOC from the EVRESSOC data
+                ComputedSoC = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.DC_EVStatus.EVRESSSOC;
+
+                _LOG_I("Current SoC %d%%\n", ComputedSoC);
+                String EVCCIDstr = "";
+                for (uint8_t i = 0; i < 6; i++) {
+                    if (EVCCID2[i] < 0x10) EVCCIDstr += "0";  // pad with zero for values less than 0x10
+                    EVCCIDstr += String(EVCCID2[i], HEX);
+                }
+                _LOG_I("EVCCID=%s.\n", EVCCIDstr.c_str());
+                strncpy(EVCCID, EVCCIDstr.c_str(), sizeof(EVCCID));
+                Serial1.printf("@EVCCID:%s\n", EVCCID);  //send to CH32
+
+                const char UnitStr[][4] = {"h" , "m" , "s" , "A" , "Ah" , "V" , "VA" , "W" , "W_s" , "Wh"};
+                din_PhysicalValueType Temp;
+
+                //try to read this required field so we can test if we have communication ok with the EV
+                Temp = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVMaximumCurrentLimit;
+                _LOG_A("Modem: DC EVMaximumCurrentLimit=%f %s.\n", Temp.Value * pow(10, Temp.Multiplier), Temp.Unit_isUsed ? UnitStr[Temp.Unit] : ""); //not using pow_10 because multiplier can be negative!
+
+                Temp = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVMaximumVoltageLimit;
+                _LOG_A("Modem: DC EVMaximumVoltageLimit=%f %s.\n", Temp.Value * pow(10, Temp.Multiplier), Temp.Unit_isUsed ? UnitStr[Temp.Unit] : ""); //not using pow_10 because multiplier can be negative!
+                Temp = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVMaximumPowerLimit;
+                _LOG_A("Modem: DC EVMaximumPowerLimit=%f %s.\n", Temp.Value * pow(10, Temp.Multiplier), Temp.Unit_isUsed ? UnitStr[Temp.Unit] : ""); //not using pow_10 because multiplier can be negative!
+
+                if(dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.BulkSOC_isUsed) {
+                    uint8_t BulkSOC = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.BulkSOC;
+                    _LOG_A("Modem: BulkSOC=%d.\n", BulkSOC); \
+                }
+
+                if(dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.FullSOC_isUsed) {
+                    FullSoC = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.FullSOC;
+                    _LOG_A("Modem: set FullSoC=%d.\n", FullSoC);
+                }
+
+                uint32_t deptime = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.AC_EVChargeParameter.DepartureTime;
+                _LOG_A("Modem: Departure Time=%u.\n", deptime);
+
+                Temp = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.AC_EVChargeParameter.EAmount;
+                _LOG_A("Modem: EAmount=%d %s.\n", Temp.Value, Temp.Unit_isUsed ? UnitStr[Temp.Unit] : "");
+                Temp = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.AC_EVChargeParameter.EVMaxVoltage;
+                _LOG_A("Modem: EVMaxVoltage=%d %s.\n", Temp.Value, Temp.Unit_isUsed ? UnitStr[Temp.Unit] : "");
+                Temp = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.AC_EVChargeParameter.EVMaxCurrent;
+                _LOG_A("Modem: EVMaxCurrent=%d %s.\n", Temp.Value, Temp.Unit_isUsed ? UnitStr[Temp.Unit] : "");
+                Temp = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.AC_EVChargeParameter.EVMinCurrent;
+                _LOG_A("Modem: EVMinCurrent=%d %s.\n", Temp.Value, Temp.Unit_isUsed ? UnitStr[Temp.Unit] : "");
+
+                if(dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVEnergyCapacity_isUsed) {
+                    Temp = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVEnergyCapacity;
+                    EnergyCapacity = Temp.Value  * pow(10, Temp.Multiplier);
+                    _LOG_A("Modem: set EVEnergyCapacity=%d %s.\n", Temp.Value, Temp.Unit_isUsed ? UnitStr[Temp.Unit] : "");
+                }
+
+                if(dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVEnergyRequest_isUsed) {
+                    Temp = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVEnergyRequest;
+                    _LOG_A("Modem: set EVEnergyRequest=%d %s, Multiplier=%d.\n", Temp.Value, Temp.Unit_isUsed ? UnitStr[Temp.Unit] : "", Temp.Multiplier);
+                    EnergyRequest = Temp.Value;
+                }
+
+                if (ComputedSoC >= 0 && ComputedSoC <= 100) { // valid
+                    // Skip waiting, charge since we have what we've got
+                    if (State == STATE_MODEM_REQUEST || State == STATE_MODEM_WAIT || State == STATE_MODEM_DONE){
+                        _LOG_A("Received SoC via Modem. Shortcut to State Modem Done\n");
+                        setState(STATE_MODEM_DONE); // Go to State B, which means in this case setting PWM
+                        tcpState = TCP_STATE_CLOSED; //if we dont close the TCP connection the  next replug wont work TODO is this the right place, the right way?
+                    }
+                    if (InitialSoC < 0) //not initialized yet
+                        InitialSoC = ComputedSoC;
+                }
 
 
-            int8_t Transfer = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.EVRequestedEnergyTransferType;
-            const char EnergyTransferStr[][25] = {"AC_single_phase_core","AC_three_phase_core","DC_core","DC_extended","DC_combo_core","DC_unique"};
+                int8_t Transfer = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.EVRequestedEnergyTransferType;
+                const char EnergyTransferStr[][25] = {"AC_single_phase_core","AC_three_phase_core","DC_core","DC_extended","DC_combo_core","DC_unique"};
 
-            _LOG_A("Modem: Requested Energy Transfer Type =%s.\n", EnergyTransferStr[Transfer]);
+                _LOG_A("Modem: Requested Energy Transfer Type =%s.\n", EnergyTransferStr[Transfer]);
 
-            RecomputeSoC();
+                RecomputeSoC();
 
-            // Now prepare the 'ChargeParameterDiscoveryResponse' message to send back to the EV
-            init_din_BodyType(&dinDoc.V2G_Message.Body);
-            init_din_ChargeParameterDiscoveryResType(&dinDoc.V2G_Message.Body.ChargeParameterDiscoveryRes);
+                // Now prepare the 'ChargeParameterDiscoveryResponse' message to send back to the EV
+                init_din_BodyType(&dinDoc.V2G_Message.Body);
+                init_din_ChargeParameterDiscoveryResType(&dinDoc.V2G_Message.Body.ChargeParameterDiscoveryRes);
 
-            dinDoc.V2G_Message.Body.ChargeParameterDiscoveryRes_isUsed = 1;
+                dinDoc.V2G_Message.Body.ChargeParameterDiscoveryRes_isUsed = 1;
 
-            // Send SessionSetupResponse to EV
-            EncodeAndTransmit(&dinDoc);
-            //fsmState = stateWaitForCableCheckRequest;
-            fsmState = stateWaitForSupportedApplicationProtocolRequest; //so we will request for SoC the next time we replug; we obviously dont know how to cleanly close a session TODO
+                // Send SessionSetupResponse to EV
+                EncodeAndTransmit(&dinDoc);
+                //fsmState = stateWaitForCableCheckRequest;
+                fsmState = stateWaitForSupportedApplicationProtocolRequest; //so we will request for SoC the next time we replug; we obviously dont know how to cleanly close a session TODO
 
 
+            }
+            return;
+        }
+
+        if (dinDoc.V2G_Message.Body.ChargingStatusReq_isUsed) {
+            _LOG_A("Modem: ChargingStatusReq_isUsed!!\n");
         }
         return;
-    }
+    } //DIN
+/*
+    if (Protocol == ISO2) {
+        memset(&dinDoc, 0, sizeof(struct din_exiDocument));
+        decode_din_exiDocument(&stream, &dinDoc);
+        if (fsmState == stateWaitForSessionSetupRequest) {
+            // Check if we have received the correct message
+            if (dinDoc.V2G_Message.Body.SessionSetupReq_isUsed) {
+                _LOG_I("SessionSetupReqest\n");
 
-    if (dinDoc.V2G_Message.Body.ChargingStatusReq_isUsed) {
-        _LOG_A("Modem: ChargingStatusReq_isUsed!!\n");
-    }
+                //n = dinDoc.V2G_Message.Header.SessionID.bytesLen;
+                //for (i=0; i< n; i++) {
+                //    _LOG_D("%02x", dinDoc.V2G_Message.Header.SessionID.bytes[i] );
+                //}
+                uint8_t n = dinDoc.V2G_Message.Body.SessionSetupReq.EVCCID.bytesLen;
+                if (n>6) n=6;       // out of range check
+                for (uint8_t i=0; i<n; i++) {
+                    EVCCID2[i]= dinDoc.V2G_Message.Body.SessionSetupReq.EVCCID.bytes[i];
+                }
+                _LOG_I("EVCCID=%02x%02x%02x%02x%02x%02x\n", EVCCID2[0], EVCCID2[1],EVCCID2[2],EVCCID2[3],EVCCID2[4],EVCCID2[5]);
+                uint8_t sessionId[8];
+                sessionId[0] = 1;   // our SessionId is set up here, and used by _prepare_DinExiDocument
+                sessionId[1] = 2;   // This SessionID will be used by the EV in future communication
+                sessionId[2] = 3;
+                sessionId[3] = 4;
+                uint8_t sessionIdLen = 4;
 
+                // Now prepare the 'SessionSetupResponse' message to send back to the EV
+                init_din_BodyType(&dinDoc.V2G_Message.Body);
+                init_din_SessionSetupReqType(&dinDoc.V2G_Message.Body.SessionSetupReq);
+
+                dinDoc.V2G_Message.Body.SessionSetupRes_isUsed = 1;
+                //init_dinSessionSetupResType(&dinDocEnc.V2G_Message.Body.SessionSetupRes);
+                dinDoc.V2G_Message.Body.SessionSetupRes.ResponseCode = din_responseCodeType_OK_NewSessionEstablished;
+                dinDoc.V2G_Message.Body.SessionSetupRes.EVSEID.bytes[0] = 0;
+                dinDoc.V2G_Message.Body.SessionSetupRes.EVSEID.bytesLen = 1;
+
+                // Send SessionSetupResponse to EV
+                EncodeAndTransmit(&dinDoc);
+                fsmState = stateWaitForServiceDiscoveryRequest;
+            }
+            return;
+        }
+        if (fsmState == stateWaitForServiceDiscoveryRequest) {
+            // Check if we have received the correct message
+            if (dinDoc.V2G_Message.Body.ServiceDiscoveryReq_isUsed) {
+
+                _LOG_I("ServiceDiscoveryReqest\n");
+                uint8_t n = dinDoc.V2G_Message.Header.SessionID.bytesLen;
+                _LOG_I("SessionID:");
+                for (uint8_t i=0; i<n; i++) _LOG_I_NO_FUNC("%02x", dinDoc.V2G_Message.Header.SessionID.bytes[i] );
+                _LOG_I_NO_FUNC("\n");
+
+                // Now prepare the 'ServiceDiscoveryResponse' message to send back to the EV
+                init_din_BodyType(&dinDoc.V2G_Message.Body);
+                init_din_ServiceDiscoveryReqType(&dinDoc.V2G_Message.Body.ServiceDiscoveryReq);
+                dinDoc.V2G_Message.Body.ServiceDiscoveryRes_isUsed = 1;
+
+                // set the service category
+                dinDoc.V2G_Message.Body.ServiceDiscoveryReq.ServiceScope_isUsed = false;
+                dinDoc.V2G_Message.Body.ServiceDiscoveryReq.ServiceCategory_isUsed = true;
+                dinDoc.V2G_Message.Body.ServiceDiscoveryReq.ServiceCategory = din_serviceCategoryType_EVCharging;
+
+                //init_dinServiceDiscoveryResType(&dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes);
+                dinDoc.V2G_Message.Body.ServiceDiscoveryRes.ResponseCode = din_responseCodeType_OK;
+                //dinDoc.V2G_Message.Body.ServiceDiscoveryRes.ResponseCode = dinresponseCodeType_OK;
+                // the mandatory fields in the ISO are PaymentOptionList and ChargeService.
+                //But in the DIN, this is different, we find PaymentOptions, ChargeService and optional ServiceList
+                dinDoc.V2G_Message.Body.ServiceDiscoveryRes.PaymentOptions.PaymentOption.array[0] = din_paymentOptionType_ExternalPayment; // EVSE handles the payment
+                dinDoc.V2G_Message.Body.ServiceDiscoveryRes.PaymentOptions.PaymentOption.arrayLen = 1; // just one single payment option in the table
+                dinDoc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceID = 1; // todo: not clear what this means
+                //dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceName
+                //dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceName_isUsed
+                dinDoc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceCategory = din_serviceCategoryType_EVCharging;
+                //dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceScope
+                //dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceScope_isUsed
+                dinDoc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.FreeService = 0; // what ever this means. Just from example.
+    /*          dinEVSESupportedEnergyTransferType
+                dinEVSESupportedEnergyTransferType_AC_single_phase_core = 0,
+                dinEVSESupportedEnergyTransferType_AC_three_phase_core = 1,
+                dinEVSESupportedEnergyTransferType_DC_core = 2,
+                dinEVSESupportedEnergyTransferType_DC_extended = 3,
+                dinEVSESupportedEnergyTransferType_DC_combo_core = 4,
+                dinEVSESupportedEnergyTransferType_DC_dual = 5,
+                dinEVSESupportedEnergyTransferType_AC_core1p_DC_extended = 6,
+                dinEVSESupportedEnergyTransferType_AC_single_DC_core = 7,
+                dinEVSESupportedEnergyTransferType_AC_single_phase_three_phase_core_DC_extended = 8,
+                dinEVSESupportedEnergyTransferType_AC_core3p_DC_extended = 9
+
+                // DC_extended means "extended pins of an IEC 62196-3 Configuration FF connector", which is
+                // the normal CCS connector https://en.wikipedia.org/wiki/IEC_62196#FF)
+                dinDoc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.EnergyTransferType = din_EVSESupportedEnergyTransferType_DC_extended;
+                dinDoc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.EnergyTransferType = din_EVSESupportedEnergyTransferType_AC_single_phase_three_phase_core_DC_extended;
+
+                // Send ServiceDiscoveryResponse to EV
+                EncodeAndTransmit(&dinDoc);
+                fsmState = stateWaitForServicePaymentSelectionRequest;
+            }
+            return;
+        }
+
+        if (fsmState == stateWaitForServicePaymentSelectionRequest) {
+            // Check if we have received the correct message
+            if (dinDoc.V2G_Message.Body.ServicePaymentSelectionReq_isUsed) {
+                _LOG_I("ServicePaymentSelectionReqest\n");
+                if (dinDoc.V2G_Message.Body.ServicePaymentSelectionReq.SelectedPaymentOption == din_paymentOptionType_ExternalPayment) {
+                    _LOG_I("OK. External Payment Selected\n");
+
+                    // Now prepare the 'ServicePaymentSelectionResponse' message to send back to the EV
+                    init_din_BodyType(&dinDoc.V2G_Message.Body);
+                    init_din_ServicePaymentSelectionResType(&dinDoc.V2G_Message.Body.ServicePaymentSelectionRes);
+
+                    dinDoc.V2G_Message.Body.ServicePaymentSelectionRes_isUsed = 1;
+                    dinDoc.V2G_Message.Body.ServicePaymentSelectionRes.ResponseCode = din_responseCodeType_OK;
+
+                    // Send SessionSetupResponse to EV
+                    EncodeAndTransmit(&dinDoc);
+                    fsmState = stateWaitForContractAuthenticationRequest;
+                }
+            }
+            return;
+        }
+
+        if (fsmState == stateWaitForContractAuthenticationRequest) {
+            // Check if we have received the correct message
+            if (dinDoc.V2G_Message.Body.ContractAuthenticationReq_isUsed) {
+                _LOG_I("ContractAuthenticationRequest\n");
+
+                init_din_BodyType(&dinDoc.V2G_Message.Body);
+                init_din_ContractAuthenticationResType(&dinDoc.V2G_Message.Body.ContractAuthenticationRes);
+
+                dinDoc.V2G_Message.Body.ContractAuthenticationRes_isUsed = 1;
+                // Set Authorisation immediately to 'Finished'.
+                dinDoc.V2G_Message.Body.ContractAuthenticationRes.EVSEProcessing = din_EVSEProcessingType_Finished;
+
+                // Send SessionSetupResponse to EV
+                EncodeAndTransmit(&dinDoc);
+                fsmState = stateWaitForChargeParameterDiscoveryRequest;
+            }
+            return;
+        }
+
+        if (fsmState == stateWaitForChargeParameterDiscoveryRequest) {
+            // Check if we have received the correct message
+            if (dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq_isUsed) {
+                _LOG_I("ChargeParameterDiscoveryRequest\n");
+
+                // Read the SOC from the EVRESSOC data
+                ComputedSoC = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.DC_EVStatus.EVRESSSOC;
+
+                _LOG_I("Current SoC %d%%\n", ComputedSoC);
+                String EVCCIDstr = "";
+                for (uint8_t i = 0; i < 6; i++) {
+                    if (EVCCID2[i] < 0x10) EVCCIDstr += "0";  // pad with zero for values less than 0x10
+                    EVCCIDstr += String(EVCCID2[i], HEX);
+                }
+                _LOG_I("EVCCID=%s.\n", EVCCIDstr.c_str());
+                strncpy(EVCCID, EVCCIDstr.c_str(), sizeof(EVCCID));
+                Serial1.printf("@EVCCID:%s\n", EVCCID);  //send to CH32
+
+                const char UnitStr[][4] = {"h" , "m" , "s" , "A" , "Ah" , "V" , "VA" , "W" , "W_s" , "Wh"};
+                din_PhysicalValueType Temp;
+
+                //try to read this required field so we can test if we have communication ok with the EV
+                Temp = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVMaximumCurrentLimit;
+                _LOG_A("Modem: DC EVMaximumCurrentLimit=%f %s.\n", Temp.Value * pow(10, Temp.Multiplier), Temp.Unit_isUsed ? UnitStr[Temp.Unit] : ""); //not using pow_10 because multiplier can be negative!
+
+                Temp = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVMaximumVoltageLimit;
+                _LOG_A("Modem: DC EVMaximumVoltageLimit=%f %s.\n", Temp.Value * pow(10, Temp.Multiplier), Temp.Unit_isUsed ? UnitStr[Temp.Unit] : ""); //not using pow_10 because multiplier can be negative!
+                Temp = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVMaximumPowerLimit;
+                _LOG_A("Modem: DC EVMaximumPowerLimit=%f %s.\n", Temp.Value * pow(10, Temp.Multiplier), Temp.Unit_isUsed ? UnitStr[Temp.Unit] : ""); //not using pow_10 because multiplier can be negative!
+
+                if(dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.BulkSOC_isUsed) {
+                    uint8_t BulkSOC = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.BulkSOC;
+                    _LOG_A("Modem: BulkSOC=%d.\n", BulkSOC); \
+                }
+
+                if(dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.FullSOC_isUsed) {
+                    FullSoC = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.FullSOC;
+                    _LOG_A("Modem: set FullSoC=%d.\n", FullSoC);
+                }
+
+                uint32_t deptime = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.AC_EVChargeParameter.DepartureTime;
+                _LOG_A("Modem: Departure Time=%u.\n", deptime);
+
+                Temp = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.AC_EVChargeParameter.EAmount;
+                _LOG_A("Modem: EAmount=%d %s.\n", Temp.Value, Temp.Unit_isUsed ? UnitStr[Temp.Unit] : "");
+                Temp = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.AC_EVChargeParameter.EVMaxVoltage;
+                _LOG_A("Modem: EVMaxVoltage=%d %s.\n", Temp.Value, Temp.Unit_isUsed ? UnitStr[Temp.Unit] : "");
+                Temp = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.AC_EVChargeParameter.EVMaxCurrent;
+                _LOG_A("Modem: EVMaxCurrent=%d %s.\n", Temp.Value, Temp.Unit_isUsed ? UnitStr[Temp.Unit] : "");
+                Temp = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.AC_EVChargeParameter.EVMinCurrent;
+                _LOG_A("Modem: EVMinCurrent=%d %s.\n", Temp.Value, Temp.Unit_isUsed ? UnitStr[Temp.Unit] : "");
+
+                if(dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVEnergyCapacity_isUsed) {
+                    Temp = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVEnergyCapacity;
+                    EnergyCapacity = Temp.Value  * pow(10, Temp.Multiplier);
+                    _LOG_A("Modem: set EVEnergyCapacity=%d %s.\n", Temp.Value, Temp.Unit_isUsed ? UnitStr[Temp.Unit] : "");
+                }
+
+                if(dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVEnergyRequest_isUsed) {
+                    Temp = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.DC_EVChargeParameter.EVEnergyRequest;
+                    _LOG_A("Modem: set EVEnergyRequest=%d %s, Multiplier=%d.\n", Temp.Value, Temp.Unit_isUsed ? UnitStr[Temp.Unit] : "", Temp.Multiplier);
+                    EnergyRequest = Temp.Value;
+                }
+
+                if (ComputedSoC >= 0 && ComputedSoC <= 100) { // valid
+                    // Skip waiting, charge since we have what we've got
+                    if (State == STATE_MODEM_REQUEST || State == STATE_MODEM_WAIT || State == STATE_MODEM_DONE){
+                        _LOG_A("Received SoC via Modem. Shortcut to State Modem Done\n");
+                        setState(STATE_MODEM_DONE); // Go to State B, which means in this case setting PWM
+                        tcpState = TCP_STATE_CLOSED; //if we dont close the TCP connection the  next replug wont work TODO is this the right place, the right way?
+                    }
+                    if (InitialSoC < 0) //not initialized yet
+                        InitialSoC = ComputedSoC;
+                }
+
+
+                int8_t Transfer = dinDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.EVRequestedEnergyTransferType;
+                const char EnergyTransferStr[][25] = {"AC_single_phase_core","AC_three_phase_core","DC_core","DC_extended","DC_combo_core","DC_unique"};
+
+                _LOG_A("Modem: Requested Energy Transfer Type =%s.\n", EnergyTransferStr[Transfer]);
+
+                RecomputeSoC();
+
+                // Now prepare the 'ChargeParameterDiscoveryResponse' message to send back to the EV
+                init_din_BodyType(&dinDoc.V2G_Message.Body);
+                init_din_ChargeParameterDiscoveryResType(&dinDoc.V2G_Message.Body.ChargeParameterDiscoveryRes);
+
+                dinDoc.V2G_Message.Body.ChargeParameterDiscoveryRes_isUsed = 1;
+
+                // Send SessionSetupResponse to EV
+                EncodeAndTransmit(&dinDoc);
+                //fsmState = stateWaitForCableCheckRequest;
+                fsmState = stateWaitForSupportedApplicationProtocolRequest; //so we will request for SoC the next time we replug; we obviously dont know how to cleanly close a session TODO
+
+
+            }
+            return;
+        }
+
+        if (dinDoc.V2G_Message.Body.ChargingStatusReq_isUsed) {
+            _LOG_A("Modem: ChargingStatusReq_isUsed!!\n");
+        }
+        return;
+    } //ISO2
+*/
     _LOG_A("Modem: fsmState=%u, unknown message received.\n", fsmState);
 }
 
