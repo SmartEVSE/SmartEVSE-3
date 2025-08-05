@@ -9,9 +9,11 @@ extern "C" {
 #include "exi2/exi_basetypes.h"
 #include "src/exi2/appHand_Decoder.h"
 #include "src/exi2/appHand_Encoder.h"
-//#include "exi2/din_msgDefDatatypes.h"
 #include "exi2/din_msgDefDecoder.h"
 #include "exi2/din_msgDefEncoder.h"
+#include "exi2/iso2_msgDefDecoder.h"
+#include "exi2/iso2_msgDefEncoder.h"
+
 #include "exi2/iso20_AC_Datatypes.h"
 #include "exi2/iso20_AC_Decoder.h"
 #include "exi2/iso20_AC_Encoder.h"
@@ -136,6 +138,18 @@ void EncodeAndTransmit(struct din_exiDocument* dinDoc) {
     exi_bitstream_t tx_stream; //TODO perhaps reuse stream?
     exi_bitstream_init(&tx_stream, V2G_transmit_buffer, sizeof(V2G_transmit_buffer), 0, NULL);
     g_errn = encode_din_exiDocument(&tx_stream, dinDoc);
+    // Send supportedAppProtocolRes to EV
+    if (!g_errn)
+        //data_size=256, bit_count=4, byte_pos=3, flag_byte=0 for appHand
+        addV2GTPHeaderAndTransmit(tx_stream.data, tx_stream.byte_pos + 1); //not sure if byte_pos is the right variable
+}
+
+
+void EncodeAndTransmit(struct iso2_exiDocument* dinDoc) {
+    uint8_t g_errn;
+    exi_bitstream_t tx_stream; //TODO perhaps reuse stream?
+    exi_bitstream_init(&tx_stream, V2G_transmit_buffer, sizeof(V2G_transmit_buffer), 0, NULL);
+    g_errn = encode_iso2_exiDocument(&tx_stream, dinDoc);
     // Send supportedAppProtocolRes to EV
     if (!g_errn)
         //data_size=256, bit_count=4, byte_pos=3, flag_byte=0 for appHand
@@ -448,23 +462,24 @@ void decodeV2GTP(void) {
         }
         return;
     } //DIN
-/*
     if (Protocol == ISO2) {
-        memset(&dinDoc, 0, sizeof(struct din_exiDocument));
-        decode_din_exiDocument(&stream, &dinDoc);
+        struct iso2_exiDocument exiDoc;
+        memset(&exiDoc, 0, sizeof(struct iso2_exiDocument));
+        decode_iso2_exiDocument(&stream, &exiDoc);
+
         if (fsmState == stateWaitForSessionSetupRequest) {
             // Check if we have received the correct message
-            if (dinDoc.V2G_Message.Body.SessionSetupReq_isUsed) {
+            if (exiDoc.V2G_Message.Body.SessionSetupReq_isUsed) {
                 _LOG_I("SessionSetupReqest\n");
 
-                //n = dinDoc.V2G_Message.Header.SessionID.bytesLen;
+                //n = exiDoc.V2G_Message.Header.SessionID.bytesLen;
                 //for (i=0; i< n; i++) {
-                //    _LOG_D("%02x", dinDoc.V2G_Message.Header.SessionID.bytes[i] );
+                //    _LOG_D("%02x", exiDoc.V2G_Message.Header.SessionID.bytes[i] );
                 //}
-                uint8_t n = dinDoc.V2G_Message.Body.SessionSetupReq.EVCCID.bytesLen;
+                uint8_t n = exiDoc.V2G_Message.Body.SessionSetupReq.EVCCID.bytesLen;
                 if (n>6) n=6;       // out of range check
                 for (uint8_t i=0; i<n; i++) {
-                    EVCCID2[i]= dinDoc.V2G_Message.Body.SessionSetupReq.EVCCID.bytes[i];
+                    EVCCID2[i]= exiDoc.V2G_Message.Body.SessionSetupReq.EVCCID.bytes[i];
                 }
                 _LOG_I("EVCCID=%02x%02x%02x%02x%02x%02x\n", EVCCID2[0], EVCCID2[1],EVCCID2[2],EVCCID2[3],EVCCID2[4],EVCCID2[5]);
                 uint8_t sessionId[8];
@@ -475,21 +490,23 @@ void decodeV2GTP(void) {
                 uint8_t sessionIdLen = 4;
 
                 // Now prepare the 'SessionSetupResponse' message to send back to the EV
-                init_din_BodyType(&dinDoc.V2G_Message.Body);
-                init_din_SessionSetupReqType(&dinDoc.V2G_Message.Body.SessionSetupReq);
+                init_iso2_BodyType(&exiDoc.V2G_Message.Body);
+                init_iso2_SessionSetupReqType(&exiDoc.V2G_Message.Body.SessionSetupReq);
 
-                dinDoc.V2G_Message.Body.SessionSetupRes_isUsed = 1;
-                //init_dinSessionSetupResType(&dinDocEnc.V2G_Message.Body.SessionSetupRes);
-                dinDoc.V2G_Message.Body.SessionSetupRes.ResponseCode = din_responseCodeType_OK_NewSessionEstablished;
-                dinDoc.V2G_Message.Body.SessionSetupRes.EVSEID.bytes[0] = 0;
-                dinDoc.V2G_Message.Body.SessionSetupRes.EVSEID.bytesLen = 1;
+                exiDoc.V2G_Message.Body.SessionSetupRes_isUsed = 1;
+                exiDoc.V2G_Message.Body.SessionSetupRes.ResponseCode = iso2_responseCodeType_OK_NewSessionEstablished;
+                char EVSEID[24]; // 23 characters + 1 for null terminator
+                snprintf(EVSEID, sizeof(EVSEID), "SEV*01*SmartEVSE-%06u", serialnr);
+                memcpy(exiDoc.V2G_Message.Body.SessionSetupRes.EVSEID.characters, &EVSEID, 23);
+                exiDoc.V2G_Message.Body.SessionSetupRes.EVSEID.charactersLen = 23; //mandatory 23 characters
 
                 // Send SessionSetupResponse to EV
-                EncodeAndTransmit(&dinDoc);
+                EncodeAndTransmit(&exiDoc);
                 fsmState = stateWaitForServiceDiscoveryRequest;
             }
             return;
         }
+/*
         if (fsmState == stateWaitForServiceDiscoveryRequest) {
             // Check if we have received the correct message
             if (dinDoc.V2G_Message.Body.ServiceDiscoveryReq_isUsed) {
@@ -692,8 +709,8 @@ void decodeV2GTP(void) {
             _LOG_A("Modem: ChargingStatusReq_isUsed!!\n");
         }
         return;
-    } //ISO2
 */
+    } //ISO2
     _LOG_A("Modem: fsmState=%u, unknown message received.\n", fsmState);
 }
 

@@ -2843,7 +2843,7 @@ extern void Timer20ms(void * parameter);
     xTaskCreate(
         Timer20ms,      // Function that should be called
         "Timer20ms",    // Name of the task (for debugging)
-        16384,          // Stack size (bytes)
+        40000,          // Stack size (bytes)
         NULL,           // Parameter to pass
         1,              // Task priority
         NULL            // Task handle
