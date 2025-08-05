@@ -551,29 +551,29 @@ void decodeV2GTP(void) {
             }
             return;
         }
-/*
 
         if (fsmState == stateWaitForServicePaymentSelectionRequest) {
             // Check if we have received the correct message
-            if (dinDoc.V2G_Message.Body.ServicePaymentSelectionReq_isUsed) {
+            if (exiDoc.V2G_Message.Body.PaymentServiceSelectionReq_isUsed) {
                 _LOG_I("ServicePaymentSelectionReqest\n");
-                if (dinDoc.V2G_Message.Body.ServicePaymentSelectionReq.SelectedPaymentOption == din_paymentOptionType_ExternalPayment) {
+                if (exiDoc.V2G_Message.Body.PaymentServiceSelectionReq.SelectedPaymentOption == iso2_paymentOptionType_ExternalPayment) {
                     _LOG_I("OK. External Payment Selected\n");
 
                     // Now prepare the 'ServicePaymentSelectionResponse' message to send back to the EV
-                    init_din_BodyType(&dinDoc.V2G_Message.Body);
-                    init_din_ServicePaymentSelectionResType(&dinDoc.V2G_Message.Body.ServicePaymentSelectionRes);
+                    init_iso2_BodyType(&exiDoc.V2G_Message.Body);
+                    init_iso2_PaymentServiceSelectionResType(&exiDoc.V2G_Message.Body.PaymentServiceSelectionRes);
 
-                    dinDoc.V2G_Message.Body.ServicePaymentSelectionRes_isUsed = 1;
-                    dinDoc.V2G_Message.Body.ServicePaymentSelectionRes.ResponseCode = din_responseCodeType_OK;
+                    exiDoc.V2G_Message.Body.PaymentServiceSelectionRes_isUsed = 1;
+                    exiDoc.V2G_Message.Body.PaymentServiceSelectionRes.ResponseCode = iso2_responseCodeType_OK;
 
                     // Send SessionSetupResponse to EV
-                    EncodeAndTransmit(&dinDoc);
+                    EncodeAndTransmit(&exiDoc);
                     fsmState = stateWaitForContractAuthenticationRequest;
                 }
             }
             return;
         }
+/*
 
         if (fsmState == stateWaitForContractAuthenticationRequest) {
             // Check if we have received the correct message
