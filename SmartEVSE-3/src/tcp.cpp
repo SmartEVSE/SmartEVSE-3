@@ -506,64 +506,52 @@ void decodeV2GTP(void) {
             }
             return;
         }
-/*
         if (fsmState == stateWaitForServiceDiscoveryRequest) {
             // Check if we have received the correct message
-            if (dinDoc.V2G_Message.Body.ServiceDiscoveryReq_isUsed) {
+            if (exiDoc.V2G_Message.Body.ServiceDiscoveryReq_isUsed) {
 
                 _LOG_I("ServiceDiscoveryReqest\n");
-                uint8_t n = dinDoc.V2G_Message.Header.SessionID.bytesLen;
+                uint8_t n = exiDoc.V2G_Message.Header.SessionID.bytesLen;
                 _LOG_I("SessionID:");
-                for (uint8_t i=0; i<n; i++) _LOG_I_NO_FUNC("%02x", dinDoc.V2G_Message.Header.SessionID.bytes[i] );
+                for (uint8_t i=0; i<n; i++) _LOG_I_NO_FUNC("%02x", exiDoc.V2G_Message.Header.SessionID.bytes[i] );
                 _LOG_I_NO_FUNC("\n");
 
                 // Now prepare the 'ServiceDiscoveryResponse' message to send back to the EV
-                init_din_BodyType(&dinDoc.V2G_Message.Body);
-                init_din_ServiceDiscoveryReqType(&dinDoc.V2G_Message.Body.ServiceDiscoveryReq);
-                dinDoc.V2G_Message.Body.ServiceDiscoveryRes_isUsed = 1;
+                init_iso2_BodyType(&exiDoc.V2G_Message.Body);
+                init_iso2_ServiceDiscoveryReqType(&exiDoc.V2G_Message.Body.ServiceDiscoveryReq);
+                exiDoc.V2G_Message.Body.ServiceDiscoveryRes_isUsed = 1;
 
                 // set the service category
-                dinDoc.V2G_Message.Body.ServiceDiscoveryReq.ServiceScope_isUsed = false;
-                dinDoc.V2G_Message.Body.ServiceDiscoveryReq.ServiceCategory_isUsed = true;
-                dinDoc.V2G_Message.Body.ServiceDiscoveryReq.ServiceCategory = din_serviceCategoryType_EVCharging;
+                exiDoc.V2G_Message.Body.ServiceDiscoveryReq.ServiceScope_isUsed = false;
+                exiDoc.V2G_Message.Body.ServiceDiscoveryReq.ServiceCategory_isUsed = true;
+                exiDoc.V2G_Message.Body.ServiceDiscoveryReq.ServiceCategory = iso2_serviceCategoryType_EVCharging;
 
-                //init_dinServiceDiscoveryResType(&dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes);
-                dinDoc.V2G_Message.Body.ServiceDiscoveryRes.ResponseCode = din_responseCodeType_OK;
-                //dinDoc.V2G_Message.Body.ServiceDiscoveryRes.ResponseCode = dinresponseCodeType_OK;
+                //init_dinServiceDiscoveryResType(&exiDocEnc.V2G_Message.Body.ServiceDiscoveryRes);
+                exiDoc.V2G_Message.Body.ServiceDiscoveryRes.ResponseCode = iso2_responseCodeType_OK;
+                //exiDoc.V2G_Message.Body.ServiceDiscoveryRes.ResponseCode = dinresponseCodeType_OK;
                 // the mandatory fields in the ISO are PaymentOptionList and ChargeService.
                 //But in the DIN, this is different, we find PaymentOptions, ChargeService and optional ServiceList
-                dinDoc.V2G_Message.Body.ServiceDiscoveryRes.PaymentOptions.PaymentOption.array[0] = din_paymentOptionType_ExternalPayment; // EVSE handles the payment
-                dinDoc.V2G_Message.Body.ServiceDiscoveryRes.PaymentOptions.PaymentOption.arrayLen = 1; // just one single payment option in the table
-                dinDoc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceID = 1; // todo: not clear what this means
-                //dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceName
-                //dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceName_isUsed
-                dinDoc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceCategory = din_serviceCategoryType_EVCharging;
-                //dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceScope
-                //dinDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceScope_isUsed
-                dinDoc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.FreeService = 0; // what ever this means. Just from example.
-    /*          dinEVSESupportedEnergyTransferType
-                dinEVSESupportedEnergyTransferType_AC_single_phase_core = 0,
-                dinEVSESupportedEnergyTransferType_AC_three_phase_core = 1,
-                dinEVSESupportedEnergyTransferType_DC_core = 2,
-                dinEVSESupportedEnergyTransferType_DC_extended = 3,
-                dinEVSESupportedEnergyTransferType_DC_combo_core = 4,
-                dinEVSESupportedEnergyTransferType_DC_dual = 5,
-                dinEVSESupportedEnergyTransferType_AC_core1p_DC_extended = 6,
-                dinEVSESupportedEnergyTransferType_AC_single_DC_core = 7,
-                dinEVSESupportedEnergyTransferType_AC_single_phase_three_phase_core_DC_extended = 8,
-                dinEVSESupportedEnergyTransferType_AC_core3p_DC_extended = 9
-
-                // DC_extended means "extended pins of an IEC 62196-3 Configuration FF connector", which is
-                // the normal CCS connector https://en.wikipedia.org/wiki/IEC_62196#FF)
-                dinDoc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.EnergyTransferType = din_EVSESupportedEnergyTransferType_DC_extended;
-                dinDoc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.EnergyTransferType = din_EVSESupportedEnergyTransferType_AC_single_phase_three_phase_core_DC_extended;
+                exiDoc.V2G_Message.Body.ServiceDiscoveryRes.PaymentOptionList.PaymentOption.array[0] = iso2_paymentOptionType_ExternalPayment; // EVSE handles the payment
+                exiDoc.V2G_Message.Body.ServiceDiscoveryRes.PaymentOptionList.PaymentOption.arrayLen = 1; // just one single payment option in the table
+                exiDoc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceID = 1; // todo: not clear what this means
+                //exiDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceName
+                //exiDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceName_isUsed
+                exiDoc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceCategory = iso2_serviceCategoryType_EVCharging;
+                //exiDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceScope
+                //exiDocEnc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.ServiceTag.ServiceScope_isUsed
+                exiDoc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.FreeService = 0; // what ever this means. Just from example.
+                //exiDoc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.EnergyTransferType = iso2_EVSESupportedEnergyTransferType_DC_extended;
+                exiDoc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.SupportedEnergyTransferMode.EnergyTransferMode.array[0] = iso2_EnergyTransferModeType_AC_three_phase_core;
+                exiDoc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.SupportedEnergyTransferMode.EnergyTransferMode.arrayLen = 1;
+                //exiDoc.V2G_Message.Body.ServiceDiscoveryRes.ChargeService.EnergyTransferType = iso2_EVSESupportedEnergyTransferType_AC_single_phase_three_phase_core_DC_extended;
 
                 // Send ServiceDiscoveryResponse to EV
-                EncodeAndTransmit(&dinDoc);
+                EncodeAndTransmit(&exiDoc);
                 fsmState = stateWaitForServicePaymentSelectionRequest;
             }
             return;
         }
+/*
 
         if (fsmState == stateWaitForServicePaymentSelectionRequest) {
             // Check if we have received the correct message
