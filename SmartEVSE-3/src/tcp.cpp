@@ -573,26 +573,26 @@ void decodeV2GTP(void) {
             }
             return;
         }
-/*
 
         if (fsmState == stateWaitForContractAuthenticationRequest) {
             // Check if we have received the correct message
-            if (dinDoc.V2G_Message.Body.ContractAuthenticationReq_isUsed) {
-                _LOG_I("ContractAuthenticationRequest\n");
+            if (exiDoc.V2G_Message.Body.AuthorizationReq_isUsed) {
+                _LOG_I("AuthorizationRequest\n");
 
-                init_din_BodyType(&dinDoc.V2G_Message.Body);
-                init_din_ContractAuthenticationResType(&dinDoc.V2G_Message.Body.ContractAuthenticationRes);
+                init_iso2_BodyType(&exiDoc.V2G_Message.Body);
+                init_iso2_AuthorizationResType(&exiDoc.V2G_Message.Body.AuthorizationRes);
 
-                dinDoc.V2G_Message.Body.ContractAuthenticationRes_isUsed = 1;
+                exiDoc.V2G_Message.Body.AuthorizationRes_isUsed = 1;
                 // Set Authorisation immediately to 'Finished'.
-                dinDoc.V2G_Message.Body.ContractAuthenticationRes.EVSEProcessing = din_EVSEProcessingType_Finished;
+                exiDoc.V2G_Message.Body.AuthorizationRes.EVSEProcessing = iso2_EVSEProcessingType_Finished;
 
                 // Send SessionSetupResponse to EV
-                EncodeAndTransmit(&dinDoc);
+                EncodeAndTransmit(&exiDoc);
                 fsmState = stateWaitForChargeParameterDiscoveryRequest;
             }
             return;
         }
+/*
 
         if (fsmState == stateWaitForChargeParameterDiscoveryRequest) {
             // Check if we have received the correct message
