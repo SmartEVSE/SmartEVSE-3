@@ -1149,40 +1149,29 @@ void CalcBalancedCurrent(char mod) {
         else
             IsetBalanced = ChargeCurrent;                                       // No Load Balancing in Normal Mode. Set current to ChargeCurrent (fix: v2.05)
     } //end MODE_NORMAL
-    else if (Mode == MODE_SOLAR && State == STATE_A) {
-        // waiting for Solar
-        IsetBalanced = 0;
-        _LOG_V("waiting for Solar (A)\n");
-    }
-    else if (Mode == MODE_SOLAR && State == STATE_B) {
-        // Prepare for switching to state C
-        IsetBalanced = ActiveEVSE * MinCurrent * 10;
-        _LOG_D("waiting for Solar (B) Isum=%d dA, phases=%d\n", Isum, Nr_Of_Phases_Charging);
-        if (EnableC2 == AUTO) {
-            // Mains isn't loaded, so the Isum must be negative for solar charging
-            // determine if enough current is available for 3-phase or 1-phase charging
-            // TODO: deal with strong fluctuations in startup
-            if (-Isum >= (30*MinCurrent+30)) { // 30x for 3-phase and 0.1A resolution; +30 to have 3x1.0A room for regulation
-                if (Nr_Of_Phases_Charging != 3) {
-                    Switching_Phases_C2 = GOING_TO_SWITCH_3P;
-                    _LOG_D("Solar starting in 3-phase mode\n");
-                } else
-                    _LOG_D("Solar continuing in 3-phase mode\n");
-            } else /*if (-Isum >= (10*MinCurrent+2))*/ {
-                if (Nr_Of_Phases_Charging != 1) {
-                    Switching_Phases_C2 = GOING_TO_SWITCH_1P;
-                    _LOG_D("Solar starting in 1-phase mode\n");
-                } else
-                    _LOG_D("Solar continuing in 1-phase mode\n");
-            } /*else {
-                Switching_Phases_C2 = NO_SWITCH;
-                // Not enough current;
-                // TODO: we should return to STATE_A
-                //setState(STATE_A);
-            }*/
-        }
-    }
     else { // start MODE_SOLAR || MODE_SMART
+        if (Mode == MODE_SOLAR && State == STATE_B) {
+            // Prepare for switching to state C
+            _LOG_D("waiting for Solar (B) Isum=%d dA, phases=%d\n", Isum, Nr_Of_Phases_Charging);
+            if (EnableC2 == AUTO) {
+                // Mains isn't loaded, so the Isum must be negative for solar charging
+                // determine if enough current is available for 3-phase or 1-phase charging
+                // TODO: deal with strong fluctuations in startup
+                if (-Isum >= (30*MinCurrent+30)) { // 30x for 3-phase and 0.1A resolution; +30 to have 3x1.0A room for regulation
+                    if (Nr_Of_Phases_Charging != 3) {
+                        Switching_Phases_C2 = GOING_TO_SWITCH_3P;
+                        _LOG_D("Solar starting in 3-phase mode\n");
+                    } else
+                        _LOG_D("Solar continuing in 3-phase mode\n");
+                } else /*if (-Isum >= (10*MinCurrent+2))*/ {
+                    if (Nr_Of_Phases_Charging != 1) {
+                        Switching_Phases_C2 = GOING_TO_SWITCH_1P;
+                        _LOG_D("Solar starting in 1-phase mode\n");
+                    } else
+                        _LOG_D("Solar continuing in 1-phase mode\n");
+                }
+            }
+        }
         // we want to obey EnableC2 settings at all times, after switching modes and/or C2 settings
         // TODO move this to setMode and glcd.cpp C2_MENU?
         if (EnableC2 != AUTO) {
