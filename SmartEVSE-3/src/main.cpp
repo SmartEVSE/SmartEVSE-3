@@ -1291,10 +1291,9 @@ void CalcBalancedCurrent(char mod) {
                                               // Importing too much?
                 if (ActiveEVSE && IsumImport > 0 &&
                         // Would a stop free so much current that StartCurrent would immediately restart charging?
-                        Isum > (ActiveEVSE * MinCurrent * Nr_Of_Phases_Charging - StartCurrent) * 10) {
-                    //TODO maybe enable solar switching for loadbl = 1
-                    //if (EnableC2 == AUTO && LoadBl == 0)
-                    //    Set_Nr_of_Phases_Charging();
+                        (Isum > (ActiveEVSE * MinCurrent * Nr_Of_Phases_Charging - StartCurrent) * 10 ||
+                         // don't apply that rule if we are 3P charging and we could switch to 1P
+                         (Nr_Of_Phases_Charging > 1 && EnableC2 == AUTO))) {
                     if (Nr_Of_Phases_Charging > 1 && EnableC2 == AUTO) {
                         // not enough current for 3-phase operation; we can switch to 1-phase after some time
                         // start solar stop timer
