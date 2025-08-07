@@ -78,19 +78,6 @@ extern void RecomputeSoC(void);
 extern int32_t EnergyCapacity, EnergyRequest;
 extern uint16_t MaxCurrent;
 
-void tcp_transmit(void) {
-
-    if (tcpState == TCP_STATE_ESTABLISHED) {
-        if (tcpPayloadLen+tcpHeaderLen < TCP_TRANSMIT_PACKET_LEN) {
-            memcpy(&TcpTransmitPacket[tcpHeaderLen], tcpPayload, tcpPayloadLen);
-            tcp_prepareTcpHeader(TCP_FLAG_PSH + TCP_FLAG_ACK); /* data packets are always sent with flags PUSH and ACK. */
-            tcp_packRequestIntoIp();
-        } else {
-            _LOG_W("Error: tcpPayload and header do not fit into TcpTransmitPacket.\n");
-        }
-    }
-}
-
 
 void addV2GTPHeaderAndTransmit(const uint8_t *exiBuffer, uint16_t exiBufferLen) {
     // takes the bytearray with exidata, and adds a header to it, according to the Vehicle-to-Grid-Transport-Protocol
@@ -114,7 +101,16 @@ void addV2GTPHeaderAndTransmit(const uint8_t *exiBuffer, uint16_t exiBufferLen) 
         //for (uint16_t i=0; i< exiBufferLen; i++)
         //    _LOG_V_NO_FUNC(" %02X",exiBuffer[i]);
         //_LOG_V_NO_FUNC("\n.");
-        tcp_transmit();
+
+        //tcp_transmit:
+        if (tcpState == TCP_STATE_ESTABLISHED) {
+            if (tcpPayloadLen+tcpHeaderLen < TCP_TRANSMIT_PACKET_LEN) {
+                memcpy(&TcpTransmitPacket[tcpHeaderLen], tcpPayload, tcpPayloadLen);
+                tcp_prepareTcpHeader(TCP_FLAG_PSH + TCP_FLAG_ACK); // data packets are always sent with flags PUSH and ACK
+            } else {
+                _LOG_W("Error: tcpPayload and header do not fit into TcpTransmitPacket.\n");
+            }
+        }
     } else {
         _LOG_W("Error: EXI does not fit into tcpPayload.\n");
     }
@@ -782,9 +778,7 @@ void tcp_packRequestIntoIp(void) {
     memcpy(TcpIpRequest+40, TcpTransmitPacket, TcpTransmitPacketLen);
 
     //# packs the IP packet into an ethernet packet
-    uint16_t length;
-
-    length = TcpIpRequestLen + 6 + 6 + 2; // # Ethernet header needs 14 bytes:
+    uint16_t length = TcpIpRequestLen + 6 + 6 + 2; // # Ethernet header needs 14 bytes:
                                                     // #  6 bytes destination MAC
                                                     // #  6 bytes source MAC
                                                     // #  2 bytes EtherType
@@ -849,6 +843,8 @@ void tcp_prepareTcpHeader(uint8_t tcpFlag) {
     TcpTransmitPacket[17] = (uint8_t)(checksum);
 
     //_LOG_D("Source:%u Dest:%u Seqnr:%08x Acknr:%08x\n", seccPort, evccTcpPort, TcpSeqNr, TcpAckNr);
+
+    tcp_packRequestIntoIp();
 }
 
 
@@ -856,14 +852,12 @@ void tcp_sendFirstAck(void) {
    // _LOG_D("[TCP] sending first ACK\n");
     tcpPayloadLen = 0;
     tcp_prepareTcpHeader(TCP_FLAG_ACK | TCP_FLAG_SYN);
-    tcp_packRequestIntoIp();
 }
 
 void tcp_sendAck(void) {
 //   _LOG_D("[TCP] sending ACK\n");
    tcpPayloadLen = 0;
    tcp_prepareTcpHeader(TCP_FLAG_ACK);
-   tcp_packRequestIntoIp();
 }
 
 
