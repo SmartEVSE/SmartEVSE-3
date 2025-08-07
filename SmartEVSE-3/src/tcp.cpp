@@ -43,7 +43,7 @@ uint8_t TcpTransmitPacketLen;
 uint8_t TcpTransmitPacket[TCP_TRANSMIT_PACKET_LEN];
 
 #define TCPIP_TRANSMIT_PACKET_LEN 512
-uint8_t TcpIpRequestLen;
+uint16_t TcpIpRequestLen;
 uint8_t TcpIpRequest[TCPIP_TRANSMIT_PACKET_LEN];
 
 #define TCP_STATE_CLOSED 0
@@ -115,10 +115,10 @@ void addV2GTPHeaderAndTransmit(const uint8_t *exiBuffer, uint16_t exiBufferLen) 
     if (exiBufferLen+8 < TCP_PAYLOAD_LEN) {
         memcpy(tcpPayload+8, exiBuffer, exiBufferLen);
         tcpPayloadLen = 8 + exiBufferLen; /* 8 byte V2GTP header, plus the EXI data */
-        _LOG_V("EXI transmit[%u]:", exiBufferLen);
-        for (uint16_t i=0; i< exiBufferLen; i++)
-            _LOG_V_NO_FUNC(" %02X",exiBuffer[i]);
-        _LOG_V_NO_FUNC("\n.");
+        //_LOG_V("EXI transmit[%u]:", exiBufferLen);
+        //for (uint16_t i=0; i< exiBufferLen; i++)
+        //    _LOG_V_NO_FUNC(" %02X",exiBuffer[i]);
+        //_LOG_V_NO_FUNC("\n.");
         tcp_transmit();
     } else {
         _LOG_W("Error: EXI does not fit into tcpPayload.\n");
@@ -714,11 +714,11 @@ void decodeV2GTP(void) {
         byteArray[i] = (uint8_t) strtol(byteChars, NULL, 16);
     }
 
-     _LOG_A("Hex string[%zu]: %s\nBytes: ", byteCount, hexString);
+/*     _LOG_A("Hex string[%zu]: %s\nBytes: ", byteCount, hexString);
     for (size_t i = 0; i < byteCount; i++) {
         _LOG_A_NO_FUNC("0x%02X ", byteArray[i]);
     }
-    _LOG_A_NO_FUNC("\n");
+    _LOG_A_NO_FUNC("\n");*/
 //                char buf[512];
 //                int len = 325;
 //                for (uint16_t i=0; i < len; i++)
@@ -779,9 +779,9 @@ void tcp_packRequestIntoEthernet(void) {
     txbuffer[13] = 0xdd;
     memcpy(txbuffer+14, TcpIpRequest, length);
 
-    //_LOG_D("[TX:%u]", length);
-    //for(int x=0; x<length; x++) _LOG_D_NO_FUNC("%02x",txbuffer[x]);
-    //_LOG_D_NO_FUNC("\n\n");
+    _LOG_D("[TX:%u]", length);
+    for(int x=0; x<length; x++) _LOG_D_NO_FUNC("%02x",txbuffer[x]);
+    _LOG_D_NO_FUNC("\n\n");
 
     qcaspi_write_burst(txbuffer, length);
 }
