@@ -29,9 +29,6 @@ extern "C" {
 #define TCP_FLAG_ACK 0x10
 
 #define TCP_HEADER_LEN 20 // 20 bytes normal header, no options
-#define TCP_PAYLOAD_LEN 512
-uint8_t tcpPayload[TCP_PAYLOAD_LEN];
-
 
 #define TCP_ACTIVITY_TIMER_START (5*33) /* 5 seconds */
 uint16_t tcpActivityTimer;
@@ -73,7 +70,7 @@ extern int32_t EnergyCapacity, EnergyRequest;
 extern uint16_t MaxCurrent;
 
 
-void tcp_prepareTcpHeader(uint8_t tcpFlag, uint8_t * tcpPayload, uint16_t tcpPayloadLen) {
+void tcp_prepareTcpHeader(uint8_t tcpFlag, uint8_t *tcpPayload, uint16_t tcpPayloadLen) {
     uint16_t checksum;
     uint16_t TcpTransmitPacketLen = TCP_HEADER_LEN + tcpPayloadLen;
     uint8_t TcpTransmitPacket[TcpTransmitPacketLen];
@@ -170,6 +167,7 @@ void addV2GTPHeaderAndTransmit(const uint8_t *exiBuffer, uint16_t exiBufferLen) 
     // 1 byte protocol version inverted
     // 2 bytes payload type
     // 4 byte payload length
+    uint8_t tcpPayload[8 + exiBufferLen];
     tcpPayload[0] = 0x01; // version
     tcpPayload[1] = 0xfe; // version inverted
     tcpPayload[2] = 0x80; // payload type. 0x8001 means "EXI data"
@@ -178,19 +176,15 @@ void addV2GTPHeaderAndTransmit(const uint8_t *exiBuffer, uint16_t exiBufferLen) 
     tcpPayload[5] = (uint8_t)(exiBufferLen >> 16);
     tcpPayload[6] = (uint8_t)(exiBufferLen >> 8);
     tcpPayload[7] = (uint8_t)exiBufferLen;
-    if (exiBufferLen+8 < TCP_PAYLOAD_LEN) {
-        memcpy(tcpPayload+8, exiBuffer, exiBufferLen);
-        //_LOG_V("EXI transmit[%u]:", exiBufferLen);
-        //for (uint16_t i=0; i< exiBufferLen; i++)
-        //    _LOG_V_NO_FUNC(" %02X",exiBuffer[i]);
-        //_LOG_V_NO_FUNC("\n.");
+    memcpy(tcpPayload+8, exiBuffer, exiBufferLen);
+    //_LOG_V("EXI transmit[%u]:", exiBufferLen);
+    //for (uint16_t i=0; i< exiBufferLen; i++)
+    //    _LOG_V_NO_FUNC(" %02X",exiBuffer[i]);
+    //_LOG_V_NO_FUNC("\n.");
 
-        //tcp_transmit:
-        if (tcpState == TCP_STATE_ESTABLISHED) {
-            tcp_prepareTcpHeader(TCP_FLAG_PSH + TCP_FLAG_ACK, tcpPayload, 8 + exiBufferLen); // data packets are always sent with flags PUSH and ACK; 8 byte V2GTP header, plus the EXI data 
-        }
-    } else {
-        _LOG_W("Error: EXI does not fit into tcpPayload.\n");
+    //tcp_transmit:
+    if (tcpState == TCP_STATE_ESTABLISHED) {
+        tcp_prepareTcpHeader(TCP_FLAG_PSH + TCP_FLAG_ACK, tcpPayload, 8 + exiBufferLen); // data packets are always sent with flags PUSH and ACK; 8 byte V2GTP header, plus the EXI data 
     }
 }
 
