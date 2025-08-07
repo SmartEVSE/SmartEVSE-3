@@ -125,7 +125,13 @@ void tcp_prepareTcpHeader(uint8_t tcpFlag, uint8_t *tcpPayload, uint16_t tcpPayl
                                                 //  #   2 bytes destination port
                                                 //  #   2 bytes length (incl checksum)
                                                 //  #   2 bytes checksum
-    uint8_t TcpIpRequest[TcpIpRequestLen];
+    //# fill the destination MAC with the MAC of the charger
+    setMacAt(pevMac, 0);
+    setMacAt(myMac, 6); // bytes 6 to 11 are the source MAC
+    txbuffer[12] = 0x86; // # 86dd is IPv6
+    txbuffer[13] = 0xdd;
+
+    uint8_t *TcpIpRequest = txbuffer + 14;
     TcpIpRequest[0] = 0x60; // traffic class, flow
     TcpIpRequest[1] = 0x00;
     TcpIpRequest[2] = 0x00;
@@ -145,12 +151,6 @@ void tcp_prepareTcpHeader(uint8_t tcpFlag, uint8_t *tcpPayload, uint16_t tcpPayl
                                                     // #  6 bytes destination MAC
                                                     // #  6 bytes source MAC
                                                     // #  2 bytes EtherType
-    //# fill the destination MAC with the MAC of the charger
-    setMacAt(pevMac, 0);
-    setMacAt(myMac, 6); // bytes 6 to 11 are the source MAC
-    txbuffer[12] = 0x86; // # 86dd is IPv6
-    txbuffer[13] = 0xdd;
-    memcpy(txbuffer+14, TcpIpRequest, length);
 
     _LOG_D("[TX:%u]", length);
     for(int x=0; x<length; x++) _LOG_D_NO_FUNC("%02x",txbuffer[x]);
