@@ -755,49 +755,6 @@ void decodeV2GTP(void) {
 }
 
 
-void tcp_packRequestIntoIp(void) {
-    // # embeds the TCP into the lower-layer-protocol: IP, Ethernet
-    uint16_t TcpIpRequestLen = TcpTransmitPacketLen + 8 + 16 + 16; // # IP6 header needs 40 bytes:
-                                                //  #   4 bytes traffic class, flow
-                                                //  #   2 bytes destination port
-                                                //  #   2 bytes length (incl checksum)
-                                                //  #   2 bytes checksum
-    uint8_t TcpIpRequest[TcpIpRequestLen];
-    TcpIpRequest[0] = 0x60; // traffic class, flow
-    TcpIpRequest[1] = 0x00;
-    TcpIpRequest[2] = 0x00;
-    TcpIpRequest[3] = 0x00;
-    TcpIpRequest[4] = TcpTransmitPacketLen >> 8; // length of the payload. Without headers.
-    TcpIpRequest[5] = TcpTransmitPacketLen & 0xFF;
-    TcpIpRequest[6] = NEXT_TCP; // next level protocol, 0x06 = TCP in this case
-    TcpIpRequest[7] = 0x40; // hop limit
-    //
-    // We are the EVSE. So the PevIp is our own link-local IP address.
-    memcpy(TcpIpRequest+8, SeccIp, 16);         // source IP address
-    memcpy(TcpIpRequest+24, EvccIp, 16);        // destination IP address
-    memcpy(TcpIpRequest+40, TcpTransmitPacket, TcpTransmitPacketLen);
-
-    //# packs the IP packet into an ethernet packet
-    uint16_t length = TcpIpRequestLen + 6 + 6 + 2; // # Ethernet header needs 14 bytes:
-                                                    // #  6 bytes destination MAC
-                                                    // #  6 bytes source MAC
-                                                    // #  2 bytes EtherType
-    //# fill the destination MAC with the MAC of the charger
-    setMacAt(pevMac, 0);
-    setMacAt(myMac, 6); // bytes 6 to 11 are the source MAC
-    txbuffer[12] = 0x86; // # 86dd is IPv6
-    txbuffer[13] = 0xdd;
-    memcpy(txbuffer+14, TcpIpRequest, length);
-
-    _LOG_D("[TX:%u]", length);
-    for(int x=0; x<length; x++) _LOG_D_NO_FUNC("%02x",txbuffer[x]);
-    _LOG_D_NO_FUNC("\n\n");
-
-    qcaspi_write_burst(txbuffer, length);
-}
-
-
-
 void tcp_prepareTcpHeader(uint8_t tcpFlag) {
     uint16_t checksum;
 
@@ -844,7 +801,45 @@ void tcp_prepareTcpHeader(uint8_t tcpFlag) {
 
     //_LOG_D("Source:%u Dest:%u Seqnr:%08x Acknr:%08x\n", seccPort, evccTcpPort, TcpSeqNr, TcpAckNr);
 
-    tcp_packRequestIntoIp();
+    //tcp_packRequestIntoIp():
+    // # embeds the TCP into the lower-layer-protocol: IP, Ethernet
+    uint16_t TcpIpRequestLen = TcpTransmitPacketLen + 8 + 16 + 16; // # IP6 header needs 40 bytes:
+                                                //  #   4 bytes traffic class, flow
+                                                //  #   2 bytes destination port
+                                                //  #   2 bytes length (incl checksum)
+                                                //  #   2 bytes checksum
+    uint8_t TcpIpRequest[TcpIpRequestLen];
+    TcpIpRequest[0] = 0x60; // traffic class, flow
+    TcpIpRequest[1] = 0x00;
+    TcpIpRequest[2] = 0x00;
+    TcpIpRequest[3] = 0x00;
+    TcpIpRequest[4] = TcpTransmitPacketLen >> 8; // length of the payload. Without headers.
+    TcpIpRequest[5] = TcpTransmitPacketLen & 0xFF;
+    TcpIpRequest[6] = NEXT_TCP; // next level protocol, 0x06 = TCP in this case
+    TcpIpRequest[7] = 0x40; // hop limit
+    //
+    // We are the EVSE. So the PevIp is our own link-local IP address.
+    memcpy(TcpIpRequest+8, SeccIp, 16);         // source IP address
+    memcpy(TcpIpRequest+24, EvccIp, 16);        // destination IP address
+    memcpy(TcpIpRequest+40, TcpTransmitPacket, TcpTransmitPacketLen);
+
+    //# packs the IP packet into an ethernet packet
+    uint16_t length = TcpIpRequestLen + 6 + 6 + 2; // # Ethernet header needs 14 bytes:
+                                                    // #  6 bytes destination MAC
+                                                    // #  6 bytes source MAC
+                                                    // #  2 bytes EtherType
+    //# fill the destination MAC with the MAC of the charger
+    setMacAt(pevMac, 0);
+    setMacAt(myMac, 6); // bytes 6 to 11 are the source MAC
+    txbuffer[12] = 0x86; // # 86dd is IPv6
+    txbuffer[13] = 0xdd;
+    memcpy(txbuffer+14, TcpIpRequest, length);
+
+    _LOG_D("[TX:%u]", length);
+    for(int x=0; x<length; x++) _LOG_D_NO_FUNC("%02x",txbuffer[x]);
+    _LOG_D_NO_FUNC("\n\n");
+
+    qcaspi_write_burst(txbuffer, length);
 }
 
 
