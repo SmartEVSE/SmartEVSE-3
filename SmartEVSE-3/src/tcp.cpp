@@ -28,12 +28,14 @@ extern "C" {
 #define TCP_FLAG_PSH 0x08
 #define TCP_FLAG_ACK 0x10
 
-#define TCP_HEADER_LEN 20 // 20 bytes normal header, no options
+//in correct order:
 #define ETHERNET_HEADER_LEN 14                      // # Ethernet header needs 14 bytes:
                                                     // #  6 bytes destination MAC
                                                     // #  6 bytes source MAC
                                                     // #  2 bytes EtherType
 #define IP6_HEADER_LEN 40 // # IP6 header needs 40 bytes: 8 + 16 + 16
+#define TCP_HEADER_LEN 20 // 20 bytes normal header, no options
+#define V2GTP_HEADER_SIZE 8 /* header has 8 bytes */
 
 #define TCP_ACTIVITY_TIMER_START (5*33) /* 5 seconds */
 uint16_t tcpActivityTimer;
@@ -168,7 +170,8 @@ void addV2GTPHeaderAndTransmit(const uint8_t *exiBuffer, uint16_t exiBufferLen) 
     // 1 byte protocol version inverted
     // 2 bytes payload type
     // 4 byte payload length
-    uint8_t tcpPayload[8 + exiBufferLen];
+    uint8_t *tcpPayload = txbuffer + ETHERNET_HEADER_LEN + IP6_HEADER_LEN + TCP_HEADER_LEN;
+
     tcpPayload[0] = 0x01; // version
     tcpPayload[1] = 0xfe; // version inverted
     tcpPayload[2] = 0x80; // payload type. 0x8001 means "EXI data"

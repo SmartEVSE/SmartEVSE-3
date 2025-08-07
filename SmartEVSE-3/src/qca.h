@@ -106,9 +106,6 @@ uint32_t qcaspi_read_burst(uint8_t *dst);
 #define FRAME_IPV6 0x86DD
 #define FRAME_HOMEPLUG 0x88E1
 
-/* V2GTP */
-#define V2GTP_HEADER_SIZE 8 /* header has 8 bytes */
-
 extern uint8_t txbuffer[], rxbuffer[];
 extern uint8_t myMac[];
 extern uint8_t pevMac[];
