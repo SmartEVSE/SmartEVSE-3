@@ -35,7 +35,9 @@ extern "C" {
                                                     // #  2 bytes EtherType
 #define IP6_HEADER_LEN 40 // # IP6 header needs 40 bytes: 8 + 16 + 16
 #define TCP_HEADER_LEN 20 // 20 bytes normal header, no options
-#define V2GTP_HEADER_SIZE 8 /* header has 8 bytes */
+#define V2GTP_HEADER_LEN 8 /* header has 8 bytes */
+
+#define EXI_OFFSET ETHERNET_HEADER_LEN + IP6_HEADER_LEN + TCP_HEADER_LEN + V2GTP_HEADER_LEN
 
 #define TCP_ACTIVITY_TIMER_START (5*33) /* 5 seconds */
 uint16_t tcpActivityTimer;
@@ -52,9 +54,6 @@ uint32_t TcpAckNr;
 #define TCP_RX_DATA_LEN 1000
 uint8_t tcp_rxdataLen=0;
 uint8_t tcp_rxdata[TCP_RX_DATA_LEN];
-
-#define EXI_TRANSMIT_BUFFER_SIZE 512
-uint8_t V2G_transmit_buffer[EXI_TRANSMIT_BUFFER_SIZE];
 
 #define stateWaitForSupportedApplicationProtocolRequest 0
 #define stateWaitForSessionSetupRequest 1
@@ -196,7 +195,7 @@ void addV2GTPHeaderAndTransmit(const uint8_t *exiBuffer, uint16_t exiBufferLen) 
 void EncodeAndTransmit(struct appHand_exiDocument* exiDoc) {
     uint8_t g_errn;
     exi_bitstream_t tx_stream; //TODO perhaps reuse stream?
-    exi_bitstream_init(&tx_stream, V2G_transmit_buffer, sizeof(V2G_transmit_buffer), 0, NULL);
+    exi_bitstream_init(&tx_stream, txbuffer + EXI_OFFSET, sizeof(txbuffer) - EXI_OFFSET, 0, NULL);
     g_errn = encode_appHand_exiDocument(&tx_stream, exiDoc);
     // Send supportedAppProtocolRes to EV
     if (!g_errn)
@@ -208,7 +207,7 @@ void EncodeAndTransmit(struct appHand_exiDocument* exiDoc) {
 void EncodeAndTransmit(struct din_exiDocument* dinDoc) {
     uint8_t g_errn;
     exi_bitstream_t tx_stream; //TODO perhaps reuse stream?
-    exi_bitstream_init(&tx_stream, V2G_transmit_buffer, sizeof(V2G_transmit_buffer), 0, NULL);
+    exi_bitstream_init(&tx_stream, txbuffer + EXI_OFFSET, sizeof(txbuffer) - EXI_OFFSET, 0, NULL);
     g_errn = encode_din_exiDocument(&tx_stream, dinDoc);
     // Send supportedAppProtocolRes to EV
     if (!g_errn)
@@ -220,7 +219,7 @@ void EncodeAndTransmit(struct din_exiDocument* dinDoc) {
 void EncodeAndTransmit(struct iso2_exiDocument* dinDoc) {
     uint8_t g_errn;
     exi_bitstream_t tx_stream; //TODO perhaps reuse stream?
-    exi_bitstream_init(&tx_stream, V2G_transmit_buffer, sizeof(V2G_transmit_buffer), 0, NULL);
+    exi_bitstream_init(&tx_stream, txbuffer + EXI_OFFSET, sizeof(txbuffer) - EXI_OFFSET, 0, NULL);
     g_errn = encode_iso2_exiDocument(&tx_stream, dinDoc);
     // Send supportedAppProtocolRes to EV
     if (!g_errn) {
@@ -234,7 +233,7 @@ void EncodeAndTransmit(struct iso2_exiDocument* dinDoc) {
 
 void decodeV2GTP(void) {
     exi_bitstream_t stream;
-    exi_bitstream_init(&stream, &tcp_rxdata[V2GTP_HEADER_SIZE], tcp_rxdataLen - V2GTP_HEADER_SIZE, 0, NULL);
+    exi_bitstream_init(&stream, &tcp_rxdata[V2GTP_HEADER_LEN], tcp_rxdataLen - V2GTP_HEADER_LEN, 0, NULL);
     uint8_t g_errn;
     tcp_rxdataLen = 0; /* mark the input data as "consumed" */
 

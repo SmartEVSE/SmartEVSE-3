@@ -106,7 +106,7 @@ uint32_t qcaspi_read_burst(uint8_t *dst);
 #define FRAME_IPV6 0x86DD
 #define FRAME_HOMEPLUG 0x88E1
 
-extern uint8_t txbuffer[], rxbuffer[];
+extern uint8_t txbuffer[3164], rxbuffer[3164];
 extern uint8_t myMac[];
 extern uint8_t pevMac[];
 extern uint8_t EVCCID2[];
