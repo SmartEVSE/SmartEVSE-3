@@ -2,7 +2,6 @@
 #include <Arduino.h>
 #include "qca.h"
 #include "ipv6.h"
-#include "tcp.h"
 
 // External project headers
 extern "C" {
@@ -79,6 +78,97 @@ extern int32_t EnergyCapacity, EnergyRequest;
 extern uint16_t MaxCurrent;
 
 
+void tcp_prepareTcpHeader(uint8_t tcpFlag, uint8_t * tcpPayload, uint16_t tcpPayloadLen) {
+    uint16_t checksum;
+    uint16_t TcpTransmitPacketLen = TCP_HEADER_LEN + tcpPayloadLen;
+    uint8_t TcpTransmitPacket[TcpTransmitPacketLen];
+    memcpy(&TcpTransmitPacket[TCP_HEADER_LEN], tcpPayload, tcpPayloadLen);
+
+    // # TCP header needs at least 24 bytes:
+    // 2 bytes source port
+    // 2 bytes destination port
+    // 4 bytes sequence number
+    // 4 bytes ack number
+    // 4 bytes DO/RES/Flags/Windowsize
+    // 2 bytes checksum
+    // 2 bytes urgentPointer
+    // n*4 bytes options/fill (empty for the ACK frame and payload frames)
+    TcpTransmitPacket[0] = (uint8_t)(seccPort >> 8); /* source port */
+    TcpTransmitPacket[1] = (uint8_t)(seccPort);
+    TcpTransmitPacket[2] = (uint8_t)(evccTcpPort >> 8); /* destination port */
+    TcpTransmitPacket[3] = (uint8_t)(evccTcpPort);
+
+    TcpTransmitPacket[4] = (uint8_t)(TcpSeqNr>>24); /* sequence number */
+    TcpTransmitPacket[5] = (uint8_t)(TcpSeqNr>>16);
+    TcpTransmitPacket[6] = (uint8_t)(TcpSeqNr>>8);
+    TcpTransmitPacket[7] = (uint8_t)(TcpSeqNr);
+
+    TcpTransmitPacket[8] = (uint8_t)(TcpAckNr>>24); /* ack number */
+    TcpTransmitPacket[9] = (uint8_t)(TcpAckNr>>16);
+    TcpTransmitPacket[10] = (uint8_t)(TcpAckNr>>8);
+    TcpTransmitPacket[11] = (uint8_t)(TcpAckNr);
+    TcpTransmitPacketLen = TCP_HEADER_LEN + tcpPayloadLen;
+    TcpTransmitPacket[12] = (TCP_HEADER_LEN/4) << 4; /* 70 High-nibble: DataOffset in 4-byte-steps. Low-nibble: Reserved=0. */
+
+    TcpTransmitPacket[13] = tcpFlag;
+    TcpTransmitPacket[14] = (uint8_t)(TCP_RECEIVE_WINDOW>>8);
+    TcpTransmitPacket[15] = (uint8_t)(TCP_RECEIVE_WINDOW);
+
+    // checksum will be calculated afterwards
+    TcpTransmitPacket[16] = 0;
+    TcpTransmitPacket[17] = 0;
+
+    TcpTransmitPacket[18] = 0; /* 16 bit urgentPointer. Always zero in our case. */
+    TcpTransmitPacket[19] = 0;
+
+    checksum = calculateUdpAndTcpChecksumForIPv6(TcpTransmitPacket, TcpTransmitPacketLen, SeccIp, EvccIp, NEXT_TCP);
+    TcpTransmitPacket[16] = (uint8_t)(checksum >> 8);
+    TcpTransmitPacket[17] = (uint8_t)(checksum);
+
+    //_LOG_D("Source:%u Dest:%u Seqnr:%08x Acknr:%08x\n", seccPort, evccTcpPort, TcpSeqNr, TcpAckNr);
+
+    //tcp_packRequestIntoIp():
+    // # embeds the TCP into the lower-layer-protocol: IP, Ethernet
+    uint16_t TcpIpRequestLen = TcpTransmitPacketLen + 8 + 16 + 16; // # IP6 header needs 40 bytes:
+                                                //  #   4 bytes traffic class, flow
+                                                //  #   2 bytes destination port
+                                                //  #   2 bytes length (incl checksum)
+                                                //  #   2 bytes checksum
+    uint8_t TcpIpRequest[TcpIpRequestLen];
+    TcpIpRequest[0] = 0x60; // traffic class, flow
+    TcpIpRequest[1] = 0x00;
+    TcpIpRequest[2] = 0x00;
+    TcpIpRequest[3] = 0x00;
+    TcpIpRequest[4] = TcpTransmitPacketLen >> 8; // length of the payload. Without headers.
+    TcpIpRequest[5] = TcpTransmitPacketLen & 0xFF;
+    TcpIpRequest[6] = NEXT_TCP; // next level protocol, 0x06 = TCP in this case
+    TcpIpRequest[7] = 0x40; // hop limit
+    //
+    // We are the EVSE. So the PevIp is our own link-local IP address.
+    memcpy(TcpIpRequest+8, SeccIp, 16);         // source IP address
+    memcpy(TcpIpRequest+24, EvccIp, 16);        // destination IP address
+    memcpy(TcpIpRequest+40, TcpTransmitPacket, TcpTransmitPacketLen);
+
+    //# packs the IP packet into an ethernet packet
+    uint16_t length = TcpIpRequestLen + 6 + 6 + 2; // # Ethernet header needs 14 bytes:
+                                                    // #  6 bytes destination MAC
+                                                    // #  6 bytes source MAC
+                                                    // #  2 bytes EtherType
+    //# fill the destination MAC with the MAC of the charger
+    setMacAt(pevMac, 0);
+    setMacAt(myMac, 6); // bytes 6 to 11 are the source MAC
+    txbuffer[12] = 0x86; // # 86dd is IPv6
+    txbuffer[13] = 0xdd;
+    memcpy(txbuffer+14, TcpIpRequest, length);
+
+    _LOG_D("[TX:%u]", length);
+    for(int x=0; x<length; x++) _LOG_D_NO_FUNC("%02x",txbuffer[x]);
+    _LOG_D_NO_FUNC("\n\n");
+
+    qcaspi_write_burst(txbuffer, length);
+}
+
+
 void addV2GTPHeaderAndTransmit(const uint8_t *exiBuffer, uint16_t exiBufferLen) {
     // takes the bytearray with exidata, and adds a header to it, according to the Vehicle-to-Grid-Transport-Protocol
     // V2GTP header has 8 bytes
@@ -105,8 +195,7 @@ void addV2GTPHeaderAndTransmit(const uint8_t *exiBuffer, uint16_t exiBufferLen) 
         //tcp_transmit:
         if (tcpState == TCP_STATE_ESTABLISHED) {
             if (tcpPayloadLen+TCP_HEADER_LEN < TCP_TRANSMIT_PACKET_LEN) {
-                memcpy(&TcpTransmitPacket[TCP_HEADER_LEN], tcpPayload, tcpPayloadLen);
-                tcp_prepareTcpHeader(TCP_FLAG_PSH + TCP_FLAG_ACK); // data packets are always sent with flags PUSH and ACK
+                tcp_prepareTcpHeader(TCP_FLAG_PSH + TCP_FLAG_ACK, tcpPayload, tcpPayloadLen); // data packets are always sent with flags PUSH and ACK
             } else {
                 _LOG_W("Error: tcpPayload and header do not fit into TcpTransmitPacket.\n");
             }
@@ -755,104 +844,16 @@ void decodeV2GTP(void) {
 }
 
 
-void tcp_prepareTcpHeader(uint8_t tcpFlag) {
-    uint16_t checksum;
-
-    // # TCP header needs at least 24 bytes:
-    // 2 bytes source port
-    // 2 bytes destination port
-    // 4 bytes sequence number
-    // 4 bytes ack number
-    // 4 bytes DO/RES/Flags/Windowsize
-    // 2 bytes checksum
-    // 2 bytes urgentPointer
-    // n*4 bytes options/fill (empty for the ACK frame and payload frames)
-    TcpTransmitPacket[0] = (uint8_t)(seccPort >> 8); /* source port */
-    TcpTransmitPacket[1] = (uint8_t)(seccPort);
-    TcpTransmitPacket[2] = (uint8_t)(evccTcpPort >> 8); /* destination port */
-    TcpTransmitPacket[3] = (uint8_t)(evccTcpPort);
-
-    TcpTransmitPacket[4] = (uint8_t)(TcpSeqNr>>24); /* sequence number */
-    TcpTransmitPacket[5] = (uint8_t)(TcpSeqNr>>16);
-    TcpTransmitPacket[6] = (uint8_t)(TcpSeqNr>>8);
-    TcpTransmitPacket[7] = (uint8_t)(TcpSeqNr);
-
-    TcpTransmitPacket[8] = (uint8_t)(TcpAckNr>>24); /* ack number */
-    TcpTransmitPacket[9] = (uint8_t)(TcpAckNr>>16);
-    TcpTransmitPacket[10] = (uint8_t)(TcpAckNr>>8);
-    TcpTransmitPacket[11] = (uint8_t)(TcpAckNr);
-    TcpTransmitPacketLen = TCP_HEADER_LEN + tcpPayloadLen;
-    TcpTransmitPacket[12] = (TCP_HEADER_LEN/4) << 4; /* 70 High-nibble: DataOffset in 4-byte-steps. Low-nibble: Reserved=0. */
-
-    TcpTransmitPacket[13] = tcpFlag;
-    TcpTransmitPacket[14] = (uint8_t)(TCP_RECEIVE_WINDOW>>8);
-    TcpTransmitPacket[15] = (uint8_t)(TCP_RECEIVE_WINDOW);
-
-    // checksum will be calculated afterwards
-    TcpTransmitPacket[16] = 0;
-    TcpTransmitPacket[17] = 0;
-
-    TcpTransmitPacket[18] = 0; /* 16 bit urgentPointer. Always zero in our case. */
-    TcpTransmitPacket[19] = 0;
-
-    checksum = calculateUdpAndTcpChecksumForIPv6(TcpTransmitPacket, TcpTransmitPacketLen, SeccIp, EvccIp, NEXT_TCP);
-    TcpTransmitPacket[16] = (uint8_t)(checksum >> 8);
-    TcpTransmitPacket[17] = (uint8_t)(checksum);
-
-    //_LOG_D("Source:%u Dest:%u Seqnr:%08x Acknr:%08x\n", seccPort, evccTcpPort, TcpSeqNr, TcpAckNr);
-
-    //tcp_packRequestIntoIp():
-    // # embeds the TCP into the lower-layer-protocol: IP, Ethernet
-    uint16_t TcpIpRequestLen = TcpTransmitPacketLen + 8 + 16 + 16; // # IP6 header needs 40 bytes:
-                                                //  #   4 bytes traffic class, flow
-                                                //  #   2 bytes destination port
-                                                //  #   2 bytes length (incl checksum)
-                                                //  #   2 bytes checksum
-    uint8_t TcpIpRequest[TcpIpRequestLen];
-    TcpIpRequest[0] = 0x60; // traffic class, flow
-    TcpIpRequest[1] = 0x00;
-    TcpIpRequest[2] = 0x00;
-    TcpIpRequest[3] = 0x00;
-    TcpIpRequest[4] = TcpTransmitPacketLen >> 8; // length of the payload. Without headers.
-    TcpIpRequest[5] = TcpTransmitPacketLen & 0xFF;
-    TcpIpRequest[6] = NEXT_TCP; // next level protocol, 0x06 = TCP in this case
-    TcpIpRequest[7] = 0x40; // hop limit
-    //
-    // We are the EVSE. So the PevIp is our own link-local IP address.
-    memcpy(TcpIpRequest+8, SeccIp, 16);         // source IP address
-    memcpy(TcpIpRequest+24, EvccIp, 16);        // destination IP address
-    memcpy(TcpIpRequest+40, TcpTransmitPacket, TcpTransmitPacketLen);
-
-    //# packs the IP packet into an ethernet packet
-    uint16_t length = TcpIpRequestLen + 6 + 6 + 2; // # Ethernet header needs 14 bytes:
-                                                    // #  6 bytes destination MAC
-                                                    // #  6 bytes source MAC
-                                                    // #  2 bytes EtherType
-    //# fill the destination MAC with the MAC of the charger
-    setMacAt(pevMac, 0);
-    setMacAt(myMac, 6); // bytes 6 to 11 are the source MAC
-    txbuffer[12] = 0x86; // # 86dd is IPv6
-    txbuffer[13] = 0xdd;
-    memcpy(txbuffer+14, TcpIpRequest, length);
-
-    _LOG_D("[TX:%u]", length);
-    for(int x=0; x<length; x++) _LOG_D_NO_FUNC("%02x",txbuffer[x]);
-    _LOG_D_NO_FUNC("\n\n");
-
-    qcaspi_write_burst(txbuffer, length);
-}
-
-
 void tcp_sendFirstAck(void) {
    // _LOG_D("[TCP] sending first ACK\n");
     tcpPayloadLen = 0;
-    tcp_prepareTcpHeader(TCP_FLAG_ACK | TCP_FLAG_SYN);
+    tcp_prepareTcpHeader(TCP_FLAG_ACK | TCP_FLAG_SYN, NULL, 0);
 }
 
 void tcp_sendAck(void) {
 //   _LOG_D("[TCP] sending ACK\n");
    tcpPayloadLen = 0;
-   tcp_prepareTcpHeader(TCP_FLAG_ACK);
+   tcp_prepareTcpHeader(TCP_FLAG_ACK, NULL, 0);
 }
 
 

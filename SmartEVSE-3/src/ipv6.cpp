@@ -1,7 +1,6 @@
 #if SMARTEVSE_VERSION >= 40
 #include <Arduino.h>
 #include "qca.h"
-#include "tcp.h"
 #include "debug.h"
 
 const uint8_t broadcastIPv6[16] = { 0xff, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1};
@@ -44,6 +43,8 @@ uint8_t IpResponse[IP_RESPONSE_LEN];
 
 #define PSEUDO_HEADER_LEN 40
 uint8_t pseudoHeader[PSEUDO_HEADER_LEN];
+
+extern void evaluateTcpPacket(void);
 
 void setSeccIp() {
     // Create a link-local Ipv6 address based on myMac (the MAC of the ESP32).
