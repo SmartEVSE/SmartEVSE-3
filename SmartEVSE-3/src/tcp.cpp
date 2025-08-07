@@ -779,9 +779,9 @@ void tcp_packRequestIntoEthernet(void) {
     txbuffer[13] = 0xdd;
     memcpy(txbuffer+14, TcpIpRequest, length);
 
-    //_LOG_D("[TX] ");
-    //for(int x=0; x<length; x++) _LOG_D("%02x",txbuffer[x]);
-    //_LOG_D("\n\n");
+    //_LOG_D("[TX:%u]", length);
+    //for(int x=0; x<length; x++) _LOG_D_NO_FUNC("%02x",txbuffer[x]);
+    //_LOG_D_NO_FUNC("\n\n");
 
     qcaspi_write_burst(txbuffer, length);
 }
