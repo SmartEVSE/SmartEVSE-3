@@ -37,10 +37,6 @@ uint8_t tcpPayload[TCP_PAYLOAD_LEN];
 #define TCP_ACTIVITY_TIMER_START (5*33) /* 5 seconds */
 uint16_t tcpActivityTimer;
 
-#define TCP_TRANSMIT_PACKET_LEN 1024
-uint16_t TcpTransmitPacketLen;
-uint8_t TcpTransmitPacket[TCP_TRANSMIT_PACKET_LEN];
-
 #define TCP_STATE_CLOSED 0
 #define TCP_STATE_SYN_ACK 1
 #define TCP_STATE_ESTABLISHED 2
@@ -107,7 +103,6 @@ void tcp_prepareTcpHeader(uint8_t tcpFlag, uint8_t * tcpPayload, uint16_t tcpPay
     TcpTransmitPacket[9] = (uint8_t)(TcpAckNr>>16);
     TcpTransmitPacket[10] = (uint8_t)(TcpAckNr>>8);
     TcpTransmitPacket[11] = (uint8_t)(TcpAckNr);
-    TcpTransmitPacketLen = TCP_HEADER_LEN + tcpPayloadLen;
     TcpTransmitPacket[12] = (TCP_HEADER_LEN/4) << 4; /* 70 High-nibble: DataOffset in 4-byte-steps. Low-nibble: Reserved=0. */
 
     TcpTransmitPacket[13] = tcpFlag;
@@ -194,11 +189,7 @@ void addV2GTPHeaderAndTransmit(const uint8_t *exiBuffer, uint16_t exiBufferLen) 
 
         //tcp_transmit:
         if (tcpState == TCP_STATE_ESTABLISHED) {
-            if (tcpPayloadLen+TCP_HEADER_LEN < TCP_TRANSMIT_PACKET_LEN) {
-                tcp_prepareTcpHeader(TCP_FLAG_PSH + TCP_FLAG_ACK, tcpPayload, tcpPayloadLen); // data packets are always sent with flags PUSH and ACK
-            } else {
-                _LOG_W("Error: tcpPayload and header do not fit into TcpTransmitPacket.\n");
-            }
+            tcp_prepareTcpHeader(TCP_FLAG_PSH + TCP_FLAG_ACK, tcpPayload, tcpPayloadLen); // data packets are always sent with flags PUSH and ACK
         }
     } else {
         _LOG_W("Error: EXI does not fit into tcpPayload.\n");
