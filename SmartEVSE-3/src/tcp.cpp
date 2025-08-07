@@ -42,10 +42,6 @@ uint16_t tcpActivityTimer;
 uint16_t TcpTransmitPacketLen;
 uint8_t TcpTransmitPacket[TCP_TRANSMIT_PACKET_LEN];
 
-#define TCPIP_TRANSMIT_PACKET_LEN 1024
-uint16_t TcpIpRequestLen;
-uint8_t TcpIpRequest[TCPIP_TRANSMIT_PACKET_LEN];
-
 #define TCP_STATE_CLOSED 0
 #define TCP_STATE_SYN_ACK 1
 #define TCP_STATE_ESTABLISHED 2
@@ -763,7 +759,28 @@ void decodeV2GTP(void) {
 }
 
 
-void tcp_packRequestIntoEthernet(void) {
+void tcp_packRequestIntoIp(void) {
+    // # embeds the TCP into the lower-layer-protocol: IP, Ethernet
+    uint16_t TcpIpRequestLen = TcpTransmitPacketLen + 8 + 16 + 16; // # IP6 header needs 40 bytes:
+                                                //  #   4 bytes traffic class, flow
+                                                //  #   2 bytes destination port
+                                                //  #   2 bytes length (incl checksum)
+                                                //  #   2 bytes checksum
+    uint8_t TcpIpRequest[TcpIpRequestLen];
+    TcpIpRequest[0] = 0x60; // traffic class, flow
+    TcpIpRequest[1] = 0x00;
+    TcpIpRequest[2] = 0x00;
+    TcpIpRequest[3] = 0x00;
+    TcpIpRequest[4] = TcpTransmitPacketLen >> 8; // length of the payload. Without headers.
+    TcpIpRequest[5] = TcpTransmitPacketLen & 0xFF;
+    TcpIpRequest[6] = NEXT_TCP; // next level protocol, 0x06 = TCP in this case
+    TcpIpRequest[7] = 0x40; // hop limit
+    //
+    // We are the EVSE. So the PevIp is our own link-local IP address.
+    memcpy(TcpIpRequest+8, SeccIp, 16);         // source IP address
+    memcpy(TcpIpRequest+24, EvccIp, 16);        // destination IP address
+    memcpy(TcpIpRequest+40, TcpTransmitPacket, TcpTransmitPacketLen);
+
     //# packs the IP packet into an ethernet packet
     uint16_t length;
 
@@ -783,30 +800,6 @@ void tcp_packRequestIntoEthernet(void) {
     _LOG_D_NO_FUNC("\n\n");
 
     qcaspi_write_burst(txbuffer, length);
-}
-
-void tcp_packRequestIntoIp(void) {
-    // # embeds the TCP into the lower-layer-protocol: IP, Ethernet
-    uint8_t i;
-    TcpIpRequestLen = TcpTransmitPacketLen + 8 + 16 + 16; // # IP6 header needs 40 bytes:
-                                                //  #   4 bytes traffic class, flow
-                                                //  #   2 bytes destination port
-                                                //  #   2 bytes length (incl checksum)
-                                                //  #   2 bytes checksum
-    TcpIpRequest[0] = 0x60; // traffic class, flow
-    TcpIpRequest[1] = 0x00;
-    TcpIpRequest[2] = 0x00;
-    TcpIpRequest[3] = 0x00;
-    TcpIpRequest[4] = TcpTransmitPacketLen >> 8; // length of the payload. Without headers.
-    TcpIpRequest[5] = TcpTransmitPacketLen & 0xFF;
-    TcpIpRequest[6] = NEXT_TCP; // next level protocol, 0x06 = TCP in this case
-    TcpIpRequest[7] = 0x40; // hop limit
-    //
-    // We are the EVSE. So the PevIp is our own link-local IP address.
-    memcpy(TcpIpRequest+8, SeccIp, 16);         // source IP address
-    memcpy(TcpIpRequest+24, EvccIp, 16);        // destination IP address
-    memcpy(TcpIpRequest+40, TcpTransmitPacket, TcpTransmitPacketLen);
-    tcp_packRequestIntoEthernet();
 }
 
 
