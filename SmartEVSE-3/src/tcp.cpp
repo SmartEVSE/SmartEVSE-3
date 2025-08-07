@@ -179,7 +179,6 @@ void addV2GTPHeaderAndTransmit(const uint8_t *exiBuffer, uint16_t exiBufferLen) 
     tcpPayload[5] = (uint8_t)(exiBufferLen >> 16);
     tcpPayload[6] = (uint8_t)(exiBufferLen >> 8);
     tcpPayload[7] = (uint8_t)exiBufferLen;
-    memcpy(tcpPayload+8, exiBuffer, exiBufferLen);
     //_LOG_V("EXI transmit[%u]:", exiBufferLen);
     //for (uint16_t i=0; i< exiBufferLen; i++)
     //    _LOG_V_NO_FUNC(" %02X",exiBuffer[i]);
@@ -187,7 +186,7 @@ void addV2GTPHeaderAndTransmit(const uint8_t *exiBuffer, uint16_t exiBufferLen) 
 
     //tcp_transmit:
     if (tcpState == TCP_STATE_ESTABLISHED) {
-        tcp_prepareTcpHeader(TCP_FLAG_PSH + TCP_FLAG_ACK, 8 + exiBufferLen); // data packets are always sent with flags PUSH and ACK; 8 byte V2GTP header, plus the EXI data 
+        tcp_prepareTcpHeader(TCP_FLAG_PSH + TCP_FLAG_ACK, V2GTP_HEADER_LEN + exiBufferLen); // data packets are always sent with flags PUSH and ACK; 8 byte V2GTP header, plus the EXI data 
     }
 }
 
