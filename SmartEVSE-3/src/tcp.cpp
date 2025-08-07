@@ -29,6 +29,10 @@ extern "C" {
 #define TCP_FLAG_ACK 0x10
 
 #define TCP_HEADER_LEN 20 // 20 bytes normal header, no options
+#define ETHERNET_HEADER_LEN 14                      // # Ethernet header needs 14 bytes:
+                                                    // #  6 bytes destination MAC
+                                                    // #  6 bytes source MAC
+                                                    // #  2 bytes EtherType
 
 #define TCP_ACTIVITY_TIMER_START (5*33) /* 5 seconds */
 uint16_t tcpActivityTimer;
@@ -73,7 +77,7 @@ extern uint16_t MaxCurrent;
 void tcp_prepareTcpHeader(uint8_t tcpFlag, uint8_t *tcpPayload, uint16_t tcpPayloadLen) {
     uint16_t checksum;
     uint16_t TcpTransmitPacketLen = TCP_HEADER_LEN + tcpPayloadLen;
-    uint8_t *TcpIpRequest = txbuffer + 14;
+    uint8_t *TcpIpRequest = txbuffer + ETHERNET_HEADER_LEN;
     uint8_t *TcpTransmitPacket = TcpIpRequest + 40;
     memcpy(&TcpTransmitPacket[TCP_HEADER_LEN], tcpPayload, tcpPayloadLen);
 
@@ -146,7 +150,7 @@ void tcp_prepareTcpHeader(uint8_t tcpFlag, uint8_t *tcpPayload, uint16_t tcpPayl
     memcpy(TcpIpRequest+24, EvccIp, 16);        // destination IP address
 
     //# packs the IP packet into an ethernet packet
-    uint16_t length = TcpIpRequestLen + 6 + 6 + 2; // # Ethernet header needs 14 bytes:
+    uint16_t length = TcpIpRequestLen + ETHERNET_HEADER_LEN;
                                                     // #  6 bytes destination MAC
                                                     // #  6 bytes source MAC
                                                     // #  2 bytes EtherType
