@@ -97,7 +97,7 @@ void tcp_transmit(void) {
 }
 
 
-void addV2GTPHeaderAndTransmit(const uint8_t *exiBuffer, uint8_t exiBufferLen) {
+void addV2GTPHeaderAndTransmit(const uint8_t *exiBuffer, uint16_t exiBufferLen) {
     // takes the bytearray with exidata, and adds a header to it, according to the Vehicle-to-Grid-Transport-Protocol
     // V2GTP header has 8 bytes
     // 1 byte protocol version
@@ -115,6 +115,10 @@ void addV2GTPHeaderAndTransmit(const uint8_t *exiBuffer, uint8_t exiBufferLen) {
     if (exiBufferLen+8 < TCP_PAYLOAD_LEN) {
         memcpy(tcpPayload+8, exiBuffer, exiBufferLen);
         tcpPayloadLen = 8 + exiBufferLen; /* 8 byte V2GTP header, plus the EXI data */
+        _LOG_V("EXI transmit[%u]:", exiBufferLen);
+        for (uint16_t i=0; i< exiBufferLen; i++)
+            _LOG_V_NO_FUNC(" %02X",exiBuffer[i]);
+        _LOG_V_NO_FUNC("\n.");
         tcp_transmit();
     } else {
         _LOG_W("Error: EXI does not fit into tcpPayload.\n");
