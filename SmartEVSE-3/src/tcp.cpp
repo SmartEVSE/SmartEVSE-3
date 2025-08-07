@@ -30,7 +30,6 @@ extern "C" {
 
 #define TCP_HEADER_LEN 20 // 20 bytes normal header, no options
 #define TCP_PAYLOAD_LEN 512
-uint16_t tcpPayloadLen;
 uint8_t tcpPayload[TCP_PAYLOAD_LEN];
 
 
@@ -181,7 +180,6 @@ void addV2GTPHeaderAndTransmit(const uint8_t *exiBuffer, uint16_t exiBufferLen) 
     tcpPayload[7] = (uint8_t)exiBufferLen;
     if (exiBufferLen+8 < TCP_PAYLOAD_LEN) {
         memcpy(tcpPayload+8, exiBuffer, exiBufferLen);
-        tcpPayloadLen = 8 + exiBufferLen; /* 8 byte V2GTP header, plus the EXI data */
         //_LOG_V("EXI transmit[%u]:", exiBufferLen);
         //for (uint16_t i=0; i< exiBufferLen; i++)
         //    _LOG_V_NO_FUNC(" %02X",exiBuffer[i]);
@@ -189,7 +187,7 @@ void addV2GTPHeaderAndTransmit(const uint8_t *exiBuffer, uint16_t exiBufferLen) 
 
         //tcp_transmit:
         if (tcpState == TCP_STATE_ESTABLISHED) {
-            tcp_prepareTcpHeader(TCP_FLAG_PSH + TCP_FLAG_ACK, tcpPayload, tcpPayloadLen); // data packets are always sent with flags PUSH and ACK
+            tcp_prepareTcpHeader(TCP_FLAG_PSH + TCP_FLAG_ACK, tcpPayload, 8 + exiBufferLen); // data packets are always sent with flags PUSH and ACK; 8 byte V2GTP header, plus the EXI data 
         }
     } else {
         _LOG_W("Error: EXI does not fit into tcpPayload.\n");
@@ -837,13 +835,11 @@ void decodeV2GTP(void) {
 
 void tcp_sendFirstAck(void) {
    // _LOG_D("[TCP] sending first ACK\n");
-    tcpPayloadLen = 0;
     tcp_prepareTcpHeader(TCP_FLAG_ACK | TCP_FLAG_SYN, NULL, 0);
 }
 
 void tcp_sendAck(void) {
 //   _LOG_D("[TCP] sending ACK\n");
-   tcpPayloadLen = 0;
    tcp_prepareTcpHeader(TCP_FLAG_ACK, NULL, 0);
 }
 
