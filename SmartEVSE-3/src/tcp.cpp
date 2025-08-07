@@ -29,7 +29,7 @@ extern "C" {
 #define TCP_FLAG_PSH 0x08
 #define TCP_FLAG_ACK 0x10
 
-uint8_t tcpHeaderLen;
+#define tcpHeaderLen 20 // 20 bytes normal header, no options
 #define TCP_PAYLOAD_LEN 512
 uint16_t tcpPayloadLen;
 uint8_t tcpPayload[TCP_PAYLOAD_LEN];
@@ -38,11 +38,11 @@ uint8_t tcpPayload[TCP_PAYLOAD_LEN];
 #define TCP_ACTIVITY_TIMER_START (5*33) /* 5 seconds */
 uint16_t tcpActivityTimer;
 
-#define TCP_TRANSMIT_PACKET_LEN 512
-uint8_t TcpTransmitPacketLen;
+#define TCP_TRANSMIT_PACKET_LEN 1024
+uint16_t TcpTransmitPacketLen;
 uint8_t TcpTransmitPacket[TCP_TRANSMIT_PACKET_LEN];
 
-#define TCPIP_TRANSMIT_PACKET_LEN 512
+#define TCPIP_TRANSMIT_PACKET_LEN 1024
 uint16_t TcpIpRequestLen;
 uint8_t TcpIpRequest[TCPIP_TRANSMIT_PACKET_LEN];
 
@@ -85,7 +85,6 @@ extern uint16_t MaxCurrent;
 void tcp_transmit(void) {
 
     if (tcpState == TCP_STATE_ESTABLISHED) {
-        tcpHeaderLen = 20; /* 20 bytes normal header, no options */
         if (tcpPayloadLen+tcpHeaderLen < TCP_TRANSMIT_PACKET_LEN) {
             memcpy(&TcpTransmitPacket[tcpHeaderLen], tcpPayload, tcpPayloadLen);
             tcp_prepareTcpHeader(TCP_FLAG_PSH + TCP_FLAG_ACK); /* data packets are always sent with flags PUSH and ACK. */
@@ -789,7 +788,6 @@ void tcp_packRequestIntoEthernet(void) {
 void tcp_packRequestIntoIp(void) {
     // # embeds the TCP into the lower-layer-protocol: IP, Ethernet
     uint8_t i;
-    uint16_t plen;
     TcpIpRequestLen = TcpTransmitPacketLen + 8 + 16 + 16; // # IP6 header needs 40 bytes:
                                                 //  #   4 bytes traffic class, flow
                                                 //  #   2 bytes destination port
@@ -799,23 +797,15 @@ void tcp_packRequestIntoIp(void) {
     TcpIpRequest[1] = 0x00;
     TcpIpRequest[2] = 0x00;
     TcpIpRequest[3] = 0x00;
-    plen = TcpTransmitPacketLen; // length of the payload. Without headers.
-    TcpIpRequest[4] = plen >> 8;
-    TcpIpRequest[5] = plen & 0xFF;
+    TcpIpRequest[4] = TcpTransmitPacketLen >> 8; // length of the payload. Without headers.
+    TcpIpRequest[5] = TcpTransmitPacketLen & 0xFF;
     TcpIpRequest[6] = NEXT_TCP; // next level protocol, 0x06 = TCP in this case
     TcpIpRequest[7] = 0x40; // hop limit
     //
     // We are the EVSE. So the PevIp is our own link-local IP address.
-    for (i=0; i<16; i++) {
-        TcpIpRequest[8+i] = SeccIp[i]; // source IP address
-    }
-    for (i=0; i<16; i++) {
-        TcpIpRequest[24+i] = EvccIp[i]; // destination IP address
-    }
-    for (i=0; i<TcpTransmitPacketLen; i++) {
-        TcpIpRequest[40+i] = TcpTransmitPacket[i];
-    }
-    //showAsHex(TcpIpRequest, TcpIpRequestLen, "TcpIpRequest");
+    memcpy(TcpIpRequest+8, SeccIp, 16);         // source IP address
+    memcpy(TcpIpRequest+24, EvccIp, 16);        // destination IP address
+    memcpy(TcpIpRequest+40, TcpTransmitPacket, TcpTransmitPacketLen);
     tcp_packRequestIntoEthernet();
 }
 
@@ -871,7 +861,6 @@ void tcp_prepareTcpHeader(uint8_t tcpFlag) {
 
 void tcp_sendFirstAck(void) {
    // _LOG_D("[TCP] sending first ACK\n");
-    tcpHeaderLen = 20;
     tcpPayloadLen = 0;
     tcp_prepareTcpHeader(TCP_FLAG_ACK | TCP_FLAG_SYN);
     tcp_packRequestIntoIp();
@@ -879,7 +868,6 @@ void tcp_sendFirstAck(void) {
 
 void tcp_sendAck(void) {
 //   _LOG_D("[TCP] sending ACK\n");
-   tcpHeaderLen = 20; /* 20 bytes normal header, no options */
    tcpPayloadLen = 0;
    tcp_prepareTcpHeader(TCP_FLAG_ACK);
    tcp_packRequestIntoIp();
