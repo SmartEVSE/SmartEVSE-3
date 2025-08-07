@@ -225,7 +225,7 @@ void decodeV2GTP(void) {
         if (fsmState == stateWaitForSessionSetupRequest) {
             // Check if we have received the correct message
             if (dinDoc.V2G_Message.Body.SessionSetupReq_isUsed) {
-                _LOG_I("SessionSetupReqest\n");
+                _LOG_I("SessionSetupRequest\n");
 
                 //n = dinDoc.V2G_Message.Header.SessionID.bytesLen;
                 //for (i=0; i< n; i++) {
@@ -264,7 +264,7 @@ void decodeV2GTP(void) {
             // Check if we have received the correct message
             if (dinDoc.V2G_Message.Body.ServiceDiscoveryReq_isUsed) {
 
-                _LOG_I("ServiceDiscoveryReqest\n");
+                _LOG_I("ServiceDiscoveryRequest\n");
                 uint8_t n = dinDoc.V2G_Message.Header.SessionID.bytesLen;
                 _LOG_I("SessionID:");
                 for (uint8_t i=0; i<n; i++) _LOG_I_NO_FUNC("%02x", dinDoc.V2G_Message.Header.SessionID.bytes[i] );
@@ -321,7 +321,7 @@ void decodeV2GTP(void) {
         if (fsmState == stateWaitForServicePaymentSelectionRequest) {
             // Check if we have received the correct message
             if (dinDoc.V2G_Message.Body.ServicePaymentSelectionReq_isUsed) {
-                _LOG_I("ServicePaymentSelectionReqest\n");
+                _LOG_I("ServicePaymentSelectionRequest\n");
                 if (dinDoc.V2G_Message.Body.ServicePaymentSelectionReq.SelectedPaymentOption == din_paymentOptionType_ExternalPayment) {
                     _LOG_I("OK. External Payment Selected\n");
 
@@ -471,7 +471,7 @@ void decodeV2GTP(void) {
         if (fsmState == stateWaitForSessionSetupRequest) {
             // Check if we have received the correct message
             if (exiDoc.V2G_Message.Body.SessionSetupReq_isUsed) {
-                _LOG_I("SessionSetupReqest\n");
+                _LOG_I("SessionSetupRequest\n");
 
                 //n = exiDoc.V2G_Message.Header.SessionID.bytesLen;
                 //for (i=0; i< n; i++) {
@@ -511,7 +511,7 @@ void decodeV2GTP(void) {
             // Check if we have received the correct message
             if (exiDoc.V2G_Message.Body.ServiceDiscoveryReq_isUsed) {
 
-                _LOG_I("ServiceDiscoveryReqest\n");
+                _LOG_I("ServiceDiscoveryRequest\n");
                 uint8_t n = exiDoc.V2G_Message.Header.SessionID.bytesLen;
                 _LOG_I("SessionID:");
                 for (uint8_t i=0; i<n; i++) _LOG_I_NO_FUNC("%02x", exiDoc.V2G_Message.Header.SessionID.bytes[i] );
@@ -556,7 +556,7 @@ void decodeV2GTP(void) {
         if (fsmState == stateWaitForServicePaymentSelectionRequest) {
             // Check if we have received the correct message
             if (exiDoc.V2G_Message.Body.PaymentServiceSelectionReq_isUsed) {
-                _LOG_I("ServicePaymentSelectionReqest\n");
+                _LOG_I("ServicePaymentSelectionRequest\n");
                 if (exiDoc.V2G_Message.Body.PaymentServiceSelectionReq.SelectedPaymentOption == iso2_paymentOptionType_ExternalPayment) {
                     _LOG_I("OK. External Payment Selected\n");
 
