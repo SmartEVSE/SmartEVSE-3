@@ -29,7 +29,7 @@ extern "C" {
 #define TCP_FLAG_PSH 0x08
 #define TCP_FLAG_ACK 0x10
 
-#define tcpHeaderLen 20 // 20 bytes normal header, no options
+#define TCP_HEADER_LEN 20 // 20 bytes normal header, no options
 #define TCP_PAYLOAD_LEN 512
 uint16_t tcpPayloadLen;
 uint8_t tcpPayload[TCP_PAYLOAD_LEN];
@@ -104,8 +104,8 @@ void addV2GTPHeaderAndTransmit(const uint8_t *exiBuffer, uint16_t exiBufferLen) 
 
         //tcp_transmit:
         if (tcpState == TCP_STATE_ESTABLISHED) {
-            if (tcpPayloadLen+tcpHeaderLen < TCP_TRANSMIT_PACKET_LEN) {
-                memcpy(&TcpTransmitPacket[tcpHeaderLen], tcpPayload, tcpPayloadLen);
+            if (tcpPayloadLen+TCP_HEADER_LEN < TCP_TRANSMIT_PACKET_LEN) {
+                memcpy(&TcpTransmitPacket[TCP_HEADER_LEN], tcpPayload, tcpPayloadLen);
                 tcp_prepareTcpHeader(TCP_FLAG_PSH + TCP_FLAG_ACK); // data packets are always sent with flags PUSH and ACK
             } else {
                 _LOG_W("Error: tcpPayload and header do not fit into TcpTransmitPacket.\n");
@@ -781,8 +781,8 @@ void tcp_prepareTcpHeader(uint8_t tcpFlag) {
     TcpTransmitPacket[9] = (uint8_t)(TcpAckNr>>16);
     TcpTransmitPacket[10] = (uint8_t)(TcpAckNr>>8);
     TcpTransmitPacket[11] = (uint8_t)(TcpAckNr);
-    TcpTransmitPacketLen = tcpHeaderLen + tcpPayloadLen;
-    TcpTransmitPacket[12] = (tcpHeaderLen/4) << 4; /* 70 High-nibble: DataOffset in 4-byte-steps. Low-nibble: Reserved=0. */
+    TcpTransmitPacketLen = TCP_HEADER_LEN + tcpPayloadLen;
+    TcpTransmitPacket[12] = (TCP_HEADER_LEN/4) << 4; /* 70 High-nibble: DataOffset in 4-byte-steps. Low-nibble: Reserved=0. */
 
     TcpTransmitPacket[13] = tcpFlag;
     TcpTransmitPacket[14] = (uint8_t)(TCP_RECEIVE_WINDOW>>8);
