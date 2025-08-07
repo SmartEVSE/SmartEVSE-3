@@ -750,7 +750,8 @@ void decodeV2GTP(void) {
 
                 exiDoc.V2G_Message.Body.ChargeParameterDiscoveryRes_isUsed = 1;
                 exiDoc.V2G_Message.Body.ChargeParameterDiscoveryRes.ResponseCode = iso2_responseCodeType_OK;
-                exiDoc.V2G_Message.Body.ChargeParameterDiscoveryRes.EVSEProcessing = iso2_EVSEProcessingType_Ongoing;
+                //exiDoc.V2G_Message.Body.ChargeParameterDiscoveryRes.EVSEProcessing = iso2_EVSEProcessingType_Ongoing;
+                exiDoc.V2G_Message.Body.ChargeParameterDiscoveryRes.EVSEProcessing = iso2_EVSEProcessingType_Finished;
                 exiDoc.V2G_Message.Body.ChargeParameterDiscoveryRes.DC_EVSEChargeParameter_isUsed = 0;
                 exiDoc.V2G_Message.Body.ChargeParameterDiscoveryRes.AC_EVSEChargeParameter_isUsed = 1;
                 exiDoc.V2G_Message.Body.ChargeParameterDiscoveryRes.AC_EVSEChargeParameter.AC_EVSEStatus.NotificationMaxDelay = 0;
@@ -764,34 +765,21 @@ void decodeV2GTP(void) {
                 exiDoc.V2G_Message.Body.ChargeParameterDiscoveryRes.AC_EVSEChargeParameter.EVSEMaxCurrent.Multiplier = 0;
 
                 // Send SessionSetupResponse to EV
-//                exi_bitstream_t tx_stream; //TODO perhaps reuse stream?
-//                exi_bitstream_init(&tx_stream, V2G_transmit_buffer, sizeof(V2G_transmit_buffer), 0, NULL);
-                //g_errn = encode_din_exiDocument(&tx_stream, dinDoc);
-                const char* hexString = "80980239cc442653682fd50a895a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbd5148bd8d85b9bdb9a58d85b0b595e1a4bd0d5a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbcc8c0c0c4bcc0d0bde1b5b191cda59cb5b5bdc9948d958d91cd84b5cda184c8d4d910311b4b218812b43a3a381d1797bbbbbb973b999737b93397aa2917b1b0b737b734b1b0b616b2bc3497a429687474703a2f2f7777772e77332e6f72672f323030312f30342f786d6c656e6323736861323536420ada970464881fee067d9353a43f210ab57b2d4c571be62bc726fd18366265d3d1280816a43b86bb9f304ad80e8395758a37fdfcdf5d1836d18f7b69d6f5f9baa566a1e648e04c5212463964554cf4c2874d91810a33f47de43195fb56ebbf73ad7108280000000000080a30503143e154200ad2c862049008000101460a001290000000c409003030c08000";
-///////////////////////////
-    size_t len = strlen(hexString);
-
-
-    uint16_t byteCount = len / 2;
-    uint8_t byteArray[byteCount];
-
-    for (size_t i = 0; i < byteCount; i++) {
-        char byteChars[3] = { hexString[i * 2], hexString[i * 2 + 1], '\0' };
-        byteArray[i] = (uint8_t) strtol(byteChars, NULL, 16);
-    }
-
-/*     _LOG_A("Hex string[%zu]: %s\nBytes: ", byteCount, hexString);
-    for (size_t i = 0; i < byteCount; i++) {
-        _LOG_A_NO_FUNC("0x%02X ", byteArray[i]);
-    }
-    _LOG_A_NO_FUNC("\n");*/
-//                char buf[512];
-//                int len = 325;
-//                for (uint16_t i=0; i < len; i++)
-//                    sscanf(buf[i], "%02x", exiMsg[i*2]);
-///////////////////////////
-                addV2GTPHeaderAndTransmit(byteArray,byteCount); //not sure if byte_pos is the right variable
-                //EncodeAndTransmit(&exiDoc);
+/* essage to encode (ns=Namespace.XML_DSIG): {"SignedInfo": {"CanonicalizationMethod": {"Algorithm": "http://www.w3.org/TR/c
+anonical-exi/"}, "SignatureMethod": {"Algorithm": "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256"}, "Reference": [{"Transforms": {"Transform": [{"Algorithm": "http://www.w3.org/TR/can
+onical-exi/"}]}, "DigestMethod": {"Algorithm": "http://www.w3.org/2001/04/xmlenc#sha256"}, "DigestValue": "ralwRkiB/uBn2TU6Q/IQq1ey1MVxvmK8cm/Rg2YmXT0=", "URI": "#id1"}]}}
+DEBUG    2025-08-06 10:31:25,823 - iso15118.shared.exi_codec (261): EXI-encoded message: 808112b43a3a381d1797bbbbbb973b999737b93397aa2917b1b0b737b734b1b0b616b2bc3497a1ab43a3a381d1797bbbbbb973b999737b933979918181897981a17bc36b63239b4b396b6b7b93291b2b1b239b096b9b430991a9b220623696431025687474703a2f2f7777772e77332e6f72672f54522f63616e6f6e6963616c2d6578692f4852d0e8e8e0745e5eeeeeee5cee665cdee4ce5e646060625e60685ef0dad8cadcc646e6d0c2646a6c8415b52e08c9103fdc0cfb26a7487e42156af65a98ae37cc578e4dfa306cc4cba7a370
+INFO    2025-08-06 10:31:25,824 - iso15118.shared.exi_codec (248): Message to encode (ns=Namespace.ISO_V2_MSG_DEF): {"V2G_Message": {"Header": {"SessionID": "E73110994DA0BF54", "Signature":
+ {"SignedInfo": {"CanonicalizationMethod": {"Algorithm": "http://www.w3.org/TR/canonical-exi/"}, "SignatureMethod": {"Algorithm": "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256"}, "Re
+ference": [{"Transforms": {"Transform": [{"Algorithm": "http://www.w3.org/TR/canonical-exi/"}]}, "DigestMethod": {"Algorithm": "http://www.w3.org/2001/04/xmlenc#sha256"}, "DigestValue": "ra
+lwRkiB/uBn2TU6Q/IQq1ey1MVxvmK8cm/Rg2YmXT0=", "URI": "#id1"}]}, "SignatureValue": {"value": "QLUh3DXc+YJWwHQcq6xRv+/m+ujBtox72063r83VKzUPMkcCYpCSMcsiqmemFDpsjAhRn6PvIYyv2rdd+51riA=="}}}, "Bo
+dy": {"ChargeParameterDiscoveryRes": {"ResponseCode": "OK", "EVSEProcessing": "Finished", "SAScheduleList": {"SAScheduleTuple": [{"SAScheduleTupleID": 1, "PMaxSchedule": {"PMaxScheduleEntry
+": [{"PMax": {"Value": 11000, "Multiplier": 0, "Unit": "W"}, "RelativeTimeInterval": {"start": 0, "duration": 86400}}]}, "SalesTariff": {"Id": "id1", "SalesTariffID": 10, "NumEPriceLevels":
+ 1, "SalesTariffEntry": [{"EPriceLevel": 1, "RelativeTimeInterval": {"start": 0, "duration": 86400}}]}}]}, "AC_EVSEChargeParameter": {"AC_EVSEStatus": {"NotificationMaxDelay": 0, "EVSENotif
+ication": "None", "RCD": false}, "EVSENominalVoltage": {"Value": 400, "Multiplier": 0, "Unit": "V"}, "EVSEMaxCurrent": {"Value": 32, "Multiplier": 0, "Unit": "A"}}}}}}
+DEBUG    2025-08-06 10:31:25,843 - iso15118.shared.exi_codec (261): EXI-encoded message: 80980239cc442653682fd50a895a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbd5148bd8d85b9bdb9a58d85b0b595e1a4bd0d5a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbcc8c0c0c4bcc0d0bde1b5b191cda59cb5b5bdc9948d958d91cd84b5cda184c8d4d910311b4b218812b43a3a381d1797bbbbbb973b999737b93397aa2917b1b0b737b734b1b0b616b2bc3497a429687474703a2f2f7777772e77332e6f72672f323030312f30342f786d6c656e6323736861323536420ada970464881fee067d9353a43f210ab57b2d4c571be62bc726fd18366265d3d1280816a43b86bb9f304ad80e8395758a37fdfcdf5d1836d18f7b69d6f5f9baa566a1e648e04c5212463964554cf4c2874d91810a33f47de43195fb56ebbf73ad7108280000000000080a30503143e154200ad2c862049008000101460a001290000000c409003030c08000
+*/
+                EncodeAndTransmit(&exiDoc);
                 fsmState = stateWaitForPowerDeliveryRequest; //we did not negotiate scheduled charging so no need to wait for ScheduleExchangeReq
 
             }
