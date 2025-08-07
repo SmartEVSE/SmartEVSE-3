@@ -33,6 +33,7 @@ extern "C" {
                                                     // #  6 bytes destination MAC
                                                     // #  6 bytes source MAC
                                                     // #  2 bytes EtherType
+#define IP6_HEADER_LEN 40 // # IP6 header needs 40 bytes: 8 + 16 + 16
 
 #define TCP_ACTIVITY_TIMER_START (5*33) /* 5 seconds */
 uint16_t tcpActivityTimer;
@@ -78,7 +79,7 @@ void tcp_prepareTcpHeader(uint8_t tcpFlag, uint8_t *tcpPayload, uint16_t tcpPayl
     uint16_t checksum;
     uint16_t TcpTransmitPacketLen = TCP_HEADER_LEN + tcpPayloadLen;
     uint8_t *TcpIpRequest = txbuffer + ETHERNET_HEADER_LEN;
-    uint8_t *TcpTransmitPacket = TcpIpRequest + 40;
+    uint8_t *TcpTransmitPacket = TcpIpRequest + IP6_HEADER_LEN;
     memcpy(&TcpTransmitPacket[TCP_HEADER_LEN], tcpPayload, tcpPayloadLen);
 
     // # TCP header needs at least 24 bytes:
@@ -125,11 +126,8 @@ void tcp_prepareTcpHeader(uint8_t tcpFlag, uint8_t *tcpPayload, uint16_t tcpPayl
 
     //tcp_packRequestIntoIp():
     // # embeds the TCP into the lower-layer-protocol: IP, Ethernet
-    uint16_t TcpIpRequestLen = TcpTransmitPacketLen + 8 + 16 + 16; // # IP6 header needs 40 bytes:
-                                                //  #   4 bytes traffic class, flow
-                                                //  #   2 bytes destination port
-                                                //  #   2 bytes length (incl checksum)
-                                                //  #   2 bytes checksum
+    uint16_t TcpIpRequestLen = TcpTransmitPacketLen + IP6_HEADER_LEN;
+
     //# fill the destination MAC with the MAC of the charger
     setMacAt(pevMac, 0);
     setMacAt(myMac, 6); // bytes 6 to 11 are the source MAC
