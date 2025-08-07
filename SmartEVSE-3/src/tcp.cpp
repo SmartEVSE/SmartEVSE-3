@@ -30,19 +30,19 @@ extern "C" {
 #define TCP_FLAG_ACK 0x10
 
 uint8_t tcpHeaderLen;
-#define TCP_PAYLOAD_LEN 200
-uint8_t tcpPayloadLen;
+#define TCP_PAYLOAD_LEN 512
+uint16_t tcpPayloadLen;
 uint8_t tcpPayload[TCP_PAYLOAD_LEN];
 
 
 #define TCP_ACTIVITY_TIMER_START (5*33) /* 5 seconds */
 uint16_t tcpActivityTimer;
 
-#define TCP_TRANSMIT_PACKET_LEN 200
+#define TCP_TRANSMIT_PACKET_LEN 512
 uint8_t TcpTransmitPacketLen;
 uint8_t TcpTransmitPacket[TCP_TRANSMIT_PACKET_LEN];
 
-#define TCPIP_TRANSMIT_PACKET_LEN 200
+#define TCPIP_TRANSMIT_PACKET_LEN 512
 uint8_t TcpIpRequestLen;
 uint8_t TcpIpRequest[TCPIP_TRANSMIT_PACKET_LEN];
 
@@ -59,7 +59,7 @@ uint32_t TcpAckNr;
 uint8_t tcp_rxdataLen=0;
 uint8_t tcp_rxdata[TCP_RX_DATA_LEN];
 
-#define EXI_TRANSMIT_BUFFER_SIZE 256
+#define EXI_TRANSMIT_BUFFER_SIZE 512
 uint8_t V2G_transmit_buffer[EXI_TRANSMIT_BUFFER_SIZE];
 
 #define stateWaitForSupportedApplicationProtocolRequest 0
@@ -156,9 +156,12 @@ void EncodeAndTransmit(struct iso2_exiDocument* dinDoc) {
     exi_bitstream_init(&tx_stream, V2G_transmit_buffer, sizeof(V2G_transmit_buffer), 0, NULL);
     g_errn = encode_iso2_exiDocument(&tx_stream, dinDoc);
     // Send supportedAppProtocolRes to EV
-    if (!g_errn)
+    if (!g_errn) {
+        _LOG_A("DINGO: transmitting iso2 exiDocument.\n");
         //data_size=256, bit_count=4, byte_pos=3, flag_byte=0 for appHand
         addV2GTPHeaderAndTransmit(tx_stream.data, tx_stream.byte_pos + 1); //not sure if byte_pos is the right variable
+    } else
+        _LOG_A("ERROR no %u: Could not encode iso2 document, not transmitting response!\n", g_errn);
 }
 
 
@@ -663,23 +666,17 @@ void decodeV2GTP(void) {
                 }
 
                 if (ComputedSoC >= 0 && ComputedSoC <= 100) { // valid
-                    // Skip waiting, charge since we have what we've got
-                    if (State == STATE_MODEM_REQUEST || State == STATE_MODEM_WAIT || State == STATE_MODEM_DONE){
-                        _LOG_A("Received SoC via Modem. Shortcut to State Modem Done\n");
-                        setState(STATE_MODEM_DONE); // Go to State B, which means in this case setting PWM
-                        tcpState = TCP_STATE_CLOSED; //if we dont close the TCP connection the  next replug wont work TODO is this the right place, the right way?
-                    }
+                    setState(STATE_MODEM_WAIT); //FIXME 
                     if (InitialSoC < 0) //not initialized yet
                         InitialSoC = ComputedSoC;
                 }
-
 
                 int8_t Transfer = exiDoc.V2G_Message.Body.ChargeParameterDiscoveryReq.RequestedEnergyTransferMode;
                 const char EnergyTransferStr[][25] = {"AC_single_phase_core","AC_three_phase_core","DC_core","DC_extended","DC_combo_core","DC_unique"};
 
                 _LOG_A("Modem: Requested Energy Transfer Type =%s.\n", EnergyTransferStr[Transfer]);
 
-                RecomputeSoC();
+                //RecomputeSoC();
 
                 // Now prepare the 'ChargeParameterDiscoveryResponse' message to send back to the EV
                 init_iso2_BodyType(&exiDoc.V2G_Message.Body);
@@ -701,11 +698,57 @@ void decodeV2GTP(void) {
                 exiDoc.V2G_Message.Body.ChargeParameterDiscoveryRes.AC_EVSEChargeParameter.EVSEMaxCurrent.Multiplier = 0;
 
                 // Send SessionSetupResponse to EV
+//                exi_bitstream_t tx_stream; //TODO perhaps reuse stream?
+//                exi_bitstream_init(&tx_stream, V2G_transmit_buffer, sizeof(V2G_transmit_buffer), 0, NULL);
+                //g_errn = encode_din_exiDocument(&tx_stream, dinDoc);
+                const char* hexString = "80980239cc442653682fd50a895a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbd5148bd8d85b9bdb9a58d85b0b595e1a4bd0d5a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbcc8c0c0c4bcc0d0bde1b5b191cda59cb5b5bdc9948d958d91cd84b5cda184c8d4d910311b4b218812b43a3a381d1797bbbbbb973b999737b93397aa2917b1b0b737b734b1b0b616b2bc3497a429687474703a2f2f7777772e77332e6f72672f323030312f30342f786d6c656e6323736861323536420ada970464881fee067d9353a43f210ab57b2d4c571be62bc726fd18366265d3d1280816a43b86bb9f304ad80e8395758a37fdfcdf5d1836d18f7b69d6f5f9baa566a1e648e04c5212463964554cf4c2874d91810a33f47de43195fb56ebbf73ad7108280000000000080a30503143e154200ad2c862049008000101460a001290000000c409003030c08000";
+///////////////////////////
+    size_t len = strlen(hexString);
+
+
+    uint16_t byteCount = len / 2;
+    uint8_t byteArray[byteCount];
+
+    for (size_t i = 0; i < byteCount; i++) {
+        char byteChars[3] = { hexString[i * 2], hexString[i * 2 + 1], '\0' };
+        byteArray[i] = (uint8_t) strtol(byteChars, NULL, 16);
+    }
+
+     _LOG_A("Hex string[%zu]: %s\nBytes: ", byteCount, hexString);
+    for (size_t i = 0; i < byteCount; i++) {
+        _LOG_A_NO_FUNC("0x%02X ", byteArray[i]);
+    }
+    _LOG_A_NO_FUNC("\n");
+//                char buf[512];
+//                int len = 325;
+//                for (uint16_t i=0; i < len; i++)
+//                    sscanf(buf[i], "%02x", exiMsg[i*2]);
+///////////////////////////
+                addV2GTPHeaderAndTransmit(byteArray,byteCount); //not sure if byte_pos is the right variable
+                //EncodeAndTransmit(&exiDoc);
+                fsmState = stateWaitForPowerDeliveryRequest; //we did not negotiate scheduled charging so no need to wait for ScheduleExchangeReq
+
+            }
+            return;
+        }
+        if (fsmState == stateWaitForPowerDeliveryRequest) {
+            if (exiDoc.V2G_Message.Body.PowerDeliveryReq_isUsed) {
+//example PowerDeliveryRequest:
+//{"V2G_Message": {"Header": {"SessionID": "E73110994DA0BF54"}, "Body": {"PowerDeliveryReq": {"ChargeProgress": "Start", "SAScheduleTupleID": 1, "ChargingProfile": {"ProfileEntry": [{"ChargingProfileEntryStart": 0, "ChargingProfileEntryMaxPower": {"Value": 11000, "Multiplier": 0, "Unit": "W"}}, {"ChargingProfileEntryStart": 86400, "ChargingProfileEntryMaxPower": {"Value": 0, "Multiplier": 0, "Unit": "W"}}]}}}}}
+                const char ChargeProgressStr[][12] = {"Start" , "Stop" , "Renegotiate"};
+                _LOG_I("PowerDeliveryRequest, ChargeProgress: %s.\n", ChargeProgressStr[exiDoc.V2G_Message.Body.PowerDeliveryReq.ChargeProgress]);
+
+/*
+                // Now prepare the 'ServicePaymentSelectionResponse' message to send back to the EV
+                init_iso2_BodyType(&exiDoc.V2G_Message.Body);
+                init_iso2_PowerDeliveryResType(&exiDoc.V2G_Message.Body.PowerDeliveryRes);
+
+                //exiDoc.V2G_Message.Body.PaymentServiceSelectionRes_isUsed = 1;
+                //exiDoc.V2G_Message.Body.PaymentServiceSelectionRes.ResponseCode = iso2_responseCodeType_OK;
+
+                // Send SessionSetupResponse to EV
                 EncodeAndTransmit(&exiDoc);
-                //fsmState = stateWaitForCableCheckRequest;
-                fsmState = stateWaitForSupportedApplicationProtocolRequest; //so we will request for SoC the next time we replug; we obviously dont know how to cleanly close a session TODO
-
-
+                fsmState = stateWaitForContractAuthenticationRequest;*/
             }
             return;
         }
