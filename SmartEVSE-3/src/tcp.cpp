@@ -76,12 +76,12 @@ extern int32_t EnergyCapacity, EnergyRequest;
 extern uint16_t MaxCurrent;
 
 
-void tcp_prepareTcpHeader(uint8_t tcpFlag, uint8_t *tcpPayload, uint16_t tcpPayloadLen) {
+void tcp_prepareTcpHeader(uint8_t tcpFlag, uint16_t tcpPayloadLen) {
     uint16_t checksum;
     uint16_t TcpTransmitPacketLen = TCP_HEADER_LEN + tcpPayloadLen;
     uint8_t *TcpIpRequest = txbuffer + ETHERNET_HEADER_LEN;
     uint8_t *TcpTransmitPacket = TcpIpRequest + IP6_HEADER_LEN;
-    memcpy(&TcpTransmitPacket[TCP_HEADER_LEN], tcpPayload, tcpPayloadLen);
+    //uint8_t *tcpPayload = txbuffer + ETHERNET_HEADER_LEN + IP6_HEADER_LEN + TCP_HEADER_LEN;
 
     // # TCP header needs at least 24 bytes:
     // 2 bytes source port
@@ -187,7 +187,7 @@ void addV2GTPHeaderAndTransmit(const uint8_t *exiBuffer, uint16_t exiBufferLen) 
 
     //tcp_transmit:
     if (tcpState == TCP_STATE_ESTABLISHED) {
-        tcp_prepareTcpHeader(TCP_FLAG_PSH + TCP_FLAG_ACK, tcpPayload, 8 + exiBufferLen); // data packets are always sent with flags PUSH and ACK; 8 byte V2GTP header, plus the EXI data 
+        tcp_prepareTcpHeader(TCP_FLAG_PSH + TCP_FLAG_ACK, 8 + exiBufferLen); // data packets are always sent with flags PUSH and ACK; 8 byte V2GTP header, plus the EXI data 
     }
 }
 
@@ -832,12 +832,12 @@ void decodeV2GTP(void) {
 
 void tcp_sendFirstAck(void) {
    // _LOG_D("[TCP] sending first ACK\n");
-    tcp_prepareTcpHeader(TCP_FLAG_ACK | TCP_FLAG_SYN, NULL, 0);
+    tcp_prepareTcpHeader(TCP_FLAG_ACK | TCP_FLAG_SYN, 0);
 }
 
 void tcp_sendAck(void) {
 //   _LOG_D("[TCP] sending ACK\n");
-   tcp_prepareTcpHeader(TCP_FLAG_ACK, NULL, 0);
+   tcp_prepareTcpHeader(TCP_FLAG_ACK, 0);
 }
 
 
