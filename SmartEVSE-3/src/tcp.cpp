@@ -73,7 +73,8 @@ extern uint16_t MaxCurrent;
 void tcp_prepareTcpHeader(uint8_t tcpFlag, uint8_t *tcpPayload, uint16_t tcpPayloadLen) {
     uint16_t checksum;
     uint16_t TcpTransmitPacketLen = TCP_HEADER_LEN + tcpPayloadLen;
-    uint8_t TcpTransmitPacket[TcpTransmitPacketLen];
+    uint8_t *TcpIpRequest = txbuffer + 14;
+    uint8_t *TcpTransmitPacket = TcpIpRequest + 40;
     memcpy(&TcpTransmitPacket[TCP_HEADER_LEN], tcpPayload, tcpPayloadLen);
 
     // # TCP header needs at least 24 bytes:
@@ -131,7 +132,6 @@ void tcp_prepareTcpHeader(uint8_t tcpFlag, uint8_t *tcpPayload, uint16_t tcpPayl
     txbuffer[12] = 0x86; // # 86dd is IPv6
     txbuffer[13] = 0xdd;
 
-    uint8_t *TcpIpRequest = txbuffer + 14;
     TcpIpRequest[0] = 0x60; // traffic class, flow
     TcpIpRequest[1] = 0x00;
     TcpIpRequest[2] = 0x00;
@@ -144,7 +144,6 @@ void tcp_prepareTcpHeader(uint8_t tcpFlag, uint8_t *tcpPayload, uint16_t tcpPayl
     // We are the EVSE. So the PevIp is our own link-local IP address.
     memcpy(TcpIpRequest+8, SeccIp, 16);         // source IP address
     memcpy(TcpIpRequest+24, EvccIp, 16);        // destination IP address
-    memcpy(TcpIpRequest+40, TcpTransmitPacket, TcpTransmitPacketLen);
 
     //# packs the IP packet into an ethernet packet
     uint16_t length = TcpIpRequestLen + 6 + 6 + 2; // # Ethernet header needs 14 bytes:
