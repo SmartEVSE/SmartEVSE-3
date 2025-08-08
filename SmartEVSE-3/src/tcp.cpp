@@ -744,6 +744,7 @@ void decodeV2GTP(void) {
                 //RecomputeSoC();
 
                 // Now prepare the 'ChargeParameterDiscoveryResponse' message to send back to the EV
+                //memset(&exiDoc, 0, sizeof(struct iso2_exiDocument));
                 init_iso2_BodyType(&exiDoc.V2G_Message.Body);
                 init_iso2_ChargeParameterDiscoveryResType(&exiDoc.V2G_Message.Body.ChargeParameterDiscoveryRes);
 
@@ -763,6 +764,31 @@ void decodeV2GTP(void) {
                 exiDoc.V2G_Message.Body.ChargeParameterDiscoveryRes.AC_EVSEChargeParameter.EVSEMaxCurrent.Unit = iso2_unitSymbolType_A;
                 exiDoc.V2G_Message.Body.ChargeParameterDiscoveryRes.AC_EVSEChargeParameter.EVSEMaxCurrent.Multiplier = 0;
 
+                //SAScheduleList
+                exiDoc.V2G_Message.Body.ChargeParameterDiscoveryRes.SAScheduleList_isUsed = 1;
+                exiDoc.V2G_Message.Body.ChargeParameterDiscoveryRes.SASchedules_isUsed = 0;
+                exiDoc.V2G_Message.Body.ChargeParameterDiscoveryRes.EVSEChargeParameter_isUsed = 0;
+                exiDoc.V2G_Message.Body.ChargeParameterDiscoveryRes.SAScheduleList.SAScheduleTuple.arrayLen = 1;
+                exiDoc.V2G_Message.Body.ChargeParameterDiscoveryRes.SAScheduleList.SAScheduleTuple.array[0].SAScheduleTupleID = 1;
+                exiDoc.V2G_Message.Body.ChargeParameterDiscoveryRes.SAScheduleList.SAScheduleTuple.array[0].PMaxSchedule.PMaxScheduleEntry.arrayLen = 1;
+                exiDoc.V2G_Message.Body.ChargeParameterDiscoveryRes.SAScheduleList.SAScheduleTuple.array[0].PMaxSchedule.PMaxScheduleEntry.array[0].RelativeTimeInterval_isUsed = 1;
+                exiDoc.V2G_Message.Body.ChargeParameterDiscoveryRes.SAScheduleList.SAScheduleTuple.array[0].PMaxSchedule.PMaxScheduleEntry.array[0].TimeInterval_isUsed = 0;
+                exiDoc.V2G_Message.Body.ChargeParameterDiscoveryRes.SAScheduleList.SAScheduleTuple.array[0].PMaxSchedule.PMaxScheduleEntry.array[0].RelativeTimeInterval.start = 0;
+                exiDoc.V2G_Message.Body.ChargeParameterDiscoveryRes.SAScheduleList.SAScheduleTuple.array[0].PMaxSchedule.PMaxScheduleEntry.array[0].RelativeTimeInterval.duration = 86400;
+                //exiDoc.V2G_Message.Body.ChargeParameterDiscoveryRes.SAScheduleList.array[0].PMaxSchedule.array[0].TimeInterval = 1;
+                exiDoc.V2G_Message.Body.ChargeParameterDiscoveryRes.SAScheduleList.SAScheduleTuple.array[0].PMaxSchedule.PMaxScheduleEntry.array[0].PMax.Value = 11000; //FIXME
+                exiDoc.V2G_Message.Body.ChargeParameterDiscoveryRes.SAScheduleList.SAScheduleTuple.array[0].PMaxSchedule.PMaxScheduleEntry.array[0].PMax.Unit = iso2_unitSymbolType_W;
+                exiDoc.V2G_Message.Body.ChargeParameterDiscoveryRes.SAScheduleList.SAScheduleTuple.array[0].PMaxSchedule.PMaxScheduleEntry.array[0].PMax.Multiplier = 0;
+                exiDoc.V2G_Message.Body.ChargeParameterDiscoveryRes.SAScheduleList.SAScheduleTuple.array[0].SalesTariff_isUsed = 0;
+/*                exiDoc.V2G_Message.Body.ChargeParameterDiscoveryRes.SAScheduleList.SAScheduleTuple.array[0].SalesTariff.SalesTariffEntry.arrayLen = 1;
+                char ID[] = "id1";
+                exiDoc.V2G_Message.Body.ChargeParameterDiscoveryRes.SAScheduleList.SAScheduleTuple.array[0].SalesTariff.Id.charactersLen = sizeof(ID) -1 ; //do not include terminating NULL
+                memcpy(exiDoc.V2G_Message.Body.ChargeParameterDiscoveryRes.SAScheduleList.SAScheduleTuple.array[0].SalesTariff.Id.characters, ID, sizeof(ID) - 1);
+                exiDoc.V2G_Message.Body.ChargeParameterDiscoveryRes.SAScheduleList.SAScheduleTuple.array[0].SalesTariff.SalesTariffID = 10;
+                exiDoc.V2G_Message.Body.ChargeParameterDiscoveryRes.SAScheduleList.SAScheduleTuple.array[0].SalesTariff.NumEPriceLevels = 1;
+                exiDoc.V2G_Message.Body.ChargeParameterDiscoveryRes.SAScheduleList.SAScheduleTuple.array[0].SalesTariff.SalesTariffEntry.array[0].RelativeTimeInterval.start = 0;
+                exiDoc.V2G_Message.Body.ChargeParameterDiscoveryRes.SAScheduleList.SAScheduleTuple.array[0].SalesTariff.SalesTariffEntry.array[0].RelativeTimeInterval.duration = 86400;
+*/
                 // Send SessionSetupResponse to EV
 /* essage to encode (ns=Namespace.XML_DSIG): {"SignedInfo": {"CanonicalizationMethod": {"Algorithm": "http://www.w3.org/TR/c
 anonical-exi/"}, "SignatureMethod": {"Algorithm": "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256"}, "Reference": [{"Transforms": {"Transform": [{"Algorithm": "http://www.w3.org/TR/can
@@ -776,6 +802,103 @@ dy": {"ChargeParameterDiscoveryRes": {"ResponseCode": "OK", "EVSEProcessing": "F
 ": [{"PMax": {"Value": 11000, "Multiplier": 0, "Unit": "W"}, "RelativeTimeInterval": {"start": 0, "duration": 86400}}]}, "SalesTariff": {"Id": "id1", "SalesTariffID": 10, "NumEPriceLevels":
  1, "SalesTariffEntry": [{"EPriceLevel": 1, "RelativeTimeInterval": {"start": 0, "duration": 86400}}]}}]}, "AC_EVSEChargeParameter": {"AC_EVSEStatus": {"NotificationMaxDelay": 0, "EVSENotif
 ication": "None", "RCD": false}, "EVSENominalVoltage": {"Value": 400, "Multiplier": 0, "Unit": "V"}, "EVSEMaxCurrent": {"Value": 32, "Multiplier": 0, "Unit": "A"}}}}}}
+{
+  "V2G_Message": {
+    "Header": {
+      "SessionID": "E73110994DA0BF54",
+      "Signature": {
+        "SignedInfo": {
+          "CanonicalizationMethod": {
+            "Algorithm": "http:aawww.w3.orgaTRacanonical-exia"
+          },
+          "SignatureMethod": {
+            "Algorithm": "http:aawww.w3.orga2001a04axmldsig-more#ecdsa-sha256"
+          },
+          "Re ference": [
+            {
+              "Transforms": {
+                "Transform": [
+                  {
+                    "Algorithm": "http:aawww.w3.orgaTRacanonical-exia"
+                  }
+                ]
+              },
+              "DigestMethod": {
+                "Algorithm": "http:aawww.w3.orga2001a04axmlenc#sha256"
+              },
+              "DigestValue": "ra lwRkiBauBn2TU6QaIQq1ey1MVxvmK8cmaRg2YmXT0=",
+              "URI": "#id1"
+            }
+          ]
+        },
+        "SignatureValue": {
+          "value": "QLUh3DXc+YJWwHQcq6xRv+am+ujBtox72063r83VKzUPMkcCYpCSMcsiqmemFDpsjAhRn6PvIYyv2rdd+51riA=="
+        }
+      }
+    },
+    "Bo dy": {
+      "ChargeParameterDiscoveryRes": {
+        "ResponseCode": "OK",
+        "EVSEProcessing": "Finished",
+        "SAScheduleList": {
+          "SAScheduleTuple": [
+            {
+              "SAScheduleTupleID": 1,
+              "PMaxSchedule": {
+                "PMaxScheduleEntry ": [
+                  {
+                    "PMax": {
+                      "Value": 11000,
+                      "Multiplier": 0,
+                      "Unit": "W"
+                    },
+                    "RelativeTimeInterval": {
+                      "start": 0,
+                      "duration": 86400
+                    }
+                  }
+                ]
+              },
+              "SalesTariff": {
+                "Id": "id1",
+                "SalesTariffID": 10,
+                "NumEPriceLevels": 1,
+                "SalesTariffEntry": [
+                  {
+                    "EPriceLevel": 1,
+                    "RelativeTimeInterval": {
+                      "start": 0,
+                      "duration": 86400
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "AC_EVSEChargeParameter": {
+          "AC_EVSEStatus": {
+            "NotificationMaxDelay": 0,
+            "EVSENotif ication": "None",
+            "RCD": false
+          },
+          "EVSENominalVoltage": {
+            "Value": 400,
+            "Multiplier": 0,
+            "Unit": "V"
+          },
+          "EVSEMaxCurrent": {
+            "Value": 32,
+            "Multiplier": 0,
+            "Unit": "A"
+          }
+        }
+      }
+    }
+  }
+}
+
+
 DEBUG    2025-08-06 10:31:25,843 - iso15118.shared.exi_codec (261): EXI-encoded message: 80980239cc442653682fd50a895a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbd5148bd8d85b9bdb9a58d85b0b595e1a4bd0d5a1d1d1c0e8bcbddddddcb9dcccb9bdc99cbcc8c0c0c4bcc0d0bde1b5b191cda59cb5b5bdc9948d958d91cd84b5cda184c8d4d910311b4b218812b43a3a381d1797bbbbbb973b999737b93397aa2917b1b0b737b734b1b0b616b2bc3497a429687474703a2f2f7777772e77332e6f72672f323030312f30342f786d6c656e6323736861323536420ada970464881fee067d9353a43f210ab57b2d4c571be62bc726fd18366265d3d1280816a43b86bb9f304ad80e8395758a37fdfcdf5d1836d18f7b69d6f5f9baa566a1e648e04c5212463964554cf4c2874d91810a33f47de43195fb56ebbf73ad7108280000000000080a30503143e154200ad2c862049008000101460a001290000000c409003030c08000
 */
                 EncodeAndTransmit(&exiDoc);
