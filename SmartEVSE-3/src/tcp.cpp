@@ -192,7 +192,7 @@ void addV2GTPHeaderAndTransmit(uint16_t exiBufferLen) {
 
 
 void EncodeAndTransmit(struct appHand_exiDocument* exiDoc) {
-    uint8_t g_errn;
+    int16_t g_errn;
     exi_bitstream_t tx_stream; //TODO perhaps reuse stream?
     exi_bitstream_init(&tx_stream, txbuffer + EXI_OFFSET, sizeof(txbuffer) - EXI_OFFSET, 0, NULL);
     g_errn = encode_appHand_exiDocument(&tx_stream, exiDoc);
@@ -204,7 +204,7 @@ void EncodeAndTransmit(struct appHand_exiDocument* exiDoc) {
 
 
 void EncodeAndTransmit(struct din_exiDocument* dinDoc) {
-    uint8_t g_errn;
+    int16_t g_errn;
     exi_bitstream_t tx_stream; //TODO perhaps reuse stream?
     exi_bitstream_init(&tx_stream, txbuffer + EXI_OFFSET, sizeof(txbuffer) - EXI_OFFSET, 0, NULL);
     g_errn = encode_din_exiDocument(&tx_stream, dinDoc);
@@ -216,7 +216,7 @@ void EncodeAndTransmit(struct din_exiDocument* dinDoc) {
 
 
 void EncodeAndTransmit(struct iso2_exiDocument* dinDoc) {
-    uint8_t g_errn;
+    int16_t g_errn;
     exi_bitstream_t tx_stream; //TODO perhaps reuse stream?
     exi_bitstream_init(&tx_stream, txbuffer + EXI_OFFSET, sizeof(txbuffer) - EXI_OFFSET, 0, NULL);
     g_errn = encode_iso2_exiDocument(&tx_stream, dinDoc);
@@ -226,7 +226,7 @@ void EncodeAndTransmit(struct iso2_exiDocument* dinDoc) {
         //data_size=256, bit_count=4, byte_pos=3, flag_byte=0 for appHand
         addV2GTPHeaderAndTransmit(tx_stream.byte_pos + 1); //not sure if byte_pos is the right variable
     } else
-        _LOG_A("ERROR no %u: Could not encode iso2 document, not transmitting response!\n", g_errn);
+        _LOG_A("ERROR no %d: Could not encode iso2 document, not transmitting response!\n", g_errn);
 }
 
 
