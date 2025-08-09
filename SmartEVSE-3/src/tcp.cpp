@@ -902,50 +902,29 @@ void decodeV2GTP(void) {
 //example PowerDeliveryResponse:
 // {"V2G_Message": {"Header": {"SessionID": "E73110994DA0BF54"}, "Body": {"PowerDeliveryRes": {"ResponseCode": "OK", "AC_EVSEStatus": {"NotificationMaxDelay": 0, "EVSENotification": "None", "RCD": false}}}}}
 
-                //memset(&exiDoc, 0, sizeof(struct iso2_exiDocument));
-                //memset(&exiDoc.V2G_Message.Body, 0, sizeof(exiDoc.V2G_Message.Body));
                 init_iso2_BodyType(&exiDoc.V2G_Message.Body);
                 init_iso2_PowerDeliveryResType(&exiDoc.V2G_Message.Body.PowerDeliveryRes);
                 exiDoc.V2G_Message.Body.PowerDeliveryRes_isUsed = 1;
                 exiDoc.V2G_Message.Body.PowerDeliveryRes.ResponseCode = iso2_responseCodeType_OK;
 
+                exiDoc.V2G_Message.Body.PowerDeliveryRes.EVSEStatus_isUsed = 0;
                 exiDoc.V2G_Message.Body.PowerDeliveryRes.DC_EVSEStatus_isUsed = 0;
                 exiDoc.V2G_Message.Body.PowerDeliveryRes.AC_EVSEStatus_isUsed = 1;
-                exiDoc.V2G_Message.Body.PowerDeliveryRes.AC_EVSEStatus.NotificationMaxDelay = 0;
-                exiDoc.V2G_Message.Body.PowerDeliveryRes.AC_EVSEStatus.EVSENotification = iso2_EVSENotificationType_None; //or _StopCharging or _ReNegatiation
-                exiDoc.V2G_Message.Body.PowerDeliveryRes.AC_EVSEStatus.RCD = (ErrorFlags & RCM_TRIPPED); //FIXME RCM_TEST*/
-//                exiDoc.V2G_Message.Body.PowerDeliveryRes.EVSEStatus_isUsed = 1;
-/*                exiDoc.V2G_Message.Body.PowerDeliveryRes.EVSEStatus.NotificationMaxDelay = 0;
+                //TODO somehow we should check the tupleid the EV sent
+                //check everest-core/modules/EvseV2G/iso_server.cpp for this
+/*                exiDoc.V2G_Message.Body.PowerDeliveryRes.AC_EVSEStatus.NotificationMaxDelay = 0;
+                exiDoc.V2G_Message.Body.PowerDeliveryRes.AC_EVSEStatus.EVSENotification = iso2_EVSENotificationType_None; //or _StopCharging or _ReNegatiation 
+                exiDoc.V2G_Message.Body.PowerDeliveryRes.AC_EVSEStatus.RCD = (ErrorFlags & RCM_TRIPPED); //FIXME RCM_TEST
+                exiDoc.V2G_Message.Body.PowerDeliveryRes.EVSEStatus_isUsed = 1;
+                exiDoc.V2G_Message.Body.PowerDeliveryRes.EVSEStatus.NotificationMaxDelay = 0;
                 exiDoc.V2G_Message.Body.PowerDeliveryRes.EVSEStatus.EVSENotification = iso2_EVSENotificationType_None; //or _StopCharging or _ReNegatiation
-                exiDoc.V2G_Message.Body.PowerDeliveryRes.EVSEStatus.AC_EVSEStatus.NotificationMaxDelay = 0;
-                exiDoc.V2G_Message.Body.PowerDeliveryRes.EVSEStatus.AC_EVSEStatus.EVSENotification = iso2_EVSENotificationType_None; //or _StopCharging or _ReNegatiation
+//                exiDoc.V2G_Message.Body.PowerDeliveryRes.EVSEStatus.AC_EVSEStatus.NotificationMaxDelay = 0;
+ //               exiDoc.V2G_Message.Body.PowerDeliveryRes.EVSEStatus.AC_EVSEStatus.EVSENotification = iso2_EVSENotificationType_None; //or _StopCharging or _ReNegatiation
                 exiDoc.V2G_Message.Body.PowerDeliveryRes.EVSEStatus.AC_EVSEStatus.RCD = (ErrorFlags & RCM_TRIPPED); //FIXME RCM_TEST
 */
 
-//encoded response:
-/*                const char* hexString = "80980239cc442653682fd5116000000000";
-                ///////////////////////////
-                size_t len = strlen(hexString);
-            
-            
-                size_t byteCount = len / 2;
-                uint8_t byteArray[byteCount];
-            
-                for (size_t i = 0; i < byteCount; i++) {
-                    char byteChars[3] = { hexString[i * 2], hexString[i * 2 + 1], '\0' };
-                    byteArray[i] = (uint8_t) strtol(byteChars, NULL, 16);
-                }
-
-                exi_bitstream_t tx_stream; //TODO perhaps reuse stream?
-                exi_bitstream_init(&tx_stream, byteArray, byteCount, 0, NULL);
-*/                memset(&exiDoc, 0, sizeof(struct iso2_exiDocument));
-                decode_iso2_exiDocument(&stream, &exiDoc);
-                exiDoc.V2G_Message.Body.PowerDeliveryRes_isUsed = 1;
                 // Send SessionSetupResponse to EV
                 EncodeAndTransmit(&exiDoc);
-/*                exi_bitstream_init(&tx_stream, txbuffer + EXI_OFFSET, sizeof(txbuffer) - EXI_OFFSET, 0, NULL);
-                memcpy(txbuffer+EXI_OFFSET, byteArray, byteCount);
-                addV2GTPHeaderAndTransmit(byteCount);*/
                 fsmState = stateWaitForContractAuthenticationRequest;
             }
             return;
