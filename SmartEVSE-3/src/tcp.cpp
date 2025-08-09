@@ -162,7 +162,7 @@ void tcp_prepareTcpHeader(uint8_t tcpFlag, uint16_t tcpPayloadLen) {
 }
 
 
-void addV2GTPHeaderAndTransmit(const uint8_t *exiBuffer, uint16_t exiBufferLen) {
+void addV2GTPHeaderAndTransmit(uint16_t exiBufferLen) {
     // takes the bytearray with exidata, and adds a header to it, according to the Vehicle-to-Grid-Transport-Protocol
     // V2GTP header has 8 bytes
     // 1 byte protocol version
@@ -199,7 +199,7 @@ void EncodeAndTransmit(struct appHand_exiDocument* exiDoc) {
     // Send supportedAppProtocolRes to EV
     if (!g_errn)
         //data_size=256, bit_count=4, byte_pos=3, flag_byte=0 for appHand
-        addV2GTPHeaderAndTransmit(tx_stream.data, tx_stream.byte_pos + 1); //not sure if byte_pos is the right variable
+        addV2GTPHeaderAndTransmit(tx_stream.byte_pos + 1); //not sure if byte_pos is the right variable
 }
 
 
@@ -211,7 +211,7 @@ void EncodeAndTransmit(struct din_exiDocument* dinDoc) {
     // Send supportedAppProtocolRes to EV
     if (!g_errn)
         //data_size=256, bit_count=4, byte_pos=3, flag_byte=0 for appHand
-        addV2GTPHeaderAndTransmit(tx_stream.data, tx_stream.byte_pos + 1); //not sure if byte_pos is the right variable
+        addV2GTPHeaderAndTransmit(tx_stream.byte_pos + 1); //not sure if byte_pos is the right variable
 }
 
 
@@ -224,7 +224,7 @@ void EncodeAndTransmit(struct iso2_exiDocument* dinDoc) {
     if (!g_errn) {
         _LOG_A("DINGO: transmitting iso2 exiDocument.\n");
         //data_size=256, bit_count=4, byte_pos=3, flag_byte=0 for appHand
-        addV2GTPHeaderAndTransmit(tx_stream.data, tx_stream.byte_pos + 1); //not sure if byte_pos is the right variable
+        addV2GTPHeaderAndTransmit(tx_stream.byte_pos + 1); //not sure if byte_pos is the right variable
     } else
         _LOG_A("ERROR no %u: Could not encode iso2 document, not transmitting response!\n", g_errn);
 }
