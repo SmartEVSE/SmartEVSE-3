@@ -64,6 +64,9 @@ uint8_t tcp_rxdata[TCP_RX_DATA_LEN];
 #define stateWaitForCableCheckRequest 6
 #define stateWaitForPreChargeRequest 7
 #define stateWaitForPowerDeliveryRequest 8
+#define stateWaitForChargingStatusRequest 9
+#define stateWaitForMeteringReceipt 10
+#define stateWaitForChargingstatusPowerDelivery 11  //FIXME
 
 uint8_t fsmState = stateWaitForSupportedApplicationProtocolRequest;
 enum {DIN, ISO2, ISO20} Protocol;
@@ -925,7 +928,47 @@ void decodeV2GTP(void) {
 
                 // Send SessionSetupResponse to EV
                 EncodeAndTransmit(&exiDoc);
-                fsmState = stateWaitForContractAuthenticationRequest;
+                fsmState = stateWaitForChargingStatusRequest;
+            }
+            return;
+        }
+///we are going to try stateless from here:
+#define INIT_ISO2_RESPONSE(X) \
+    init_iso2_BodyType(&exiDoc.V2G_Message.Body); \
+    init_iso2_##X##ResType(&exiDoc.V2G_Message.Body.X##Res); \
+    exiDoc.V2G_Message.Body.X##Res_isUsed = 1; \
+    exiDoc.V2G_Message.Body.X##Res.ResponseCode = iso2_responseCodeType_OK;
+
+        if (fsmState == stateWaitForChargingStatusRequest) {
+            if (exiDoc.V2G_Message.Body.ChargingStatusReq_isUsed) {
+                _LOG_I("ChargingStatusRequest.\n");
+                INIT_ISO2_RESPONSE(ChargingStatus)
+
+                exiDoc.V2G_Message.Body.ChargingStatusRes.ReceiptRequired_isUsed = 1;
+                exiDoc.V2G_Message.Body.ChargingStatusRes.ReceiptRequired = false; //if not PlugNCharge
+                exiDoc.V2G_Message.Body.ChargingStatusRes.MeterInfo_isUsed = 0;
+                //exiDoc.V2G_Message.Body.ChargingStatusRes.EVSEMaxCurrent_isUsed = iso_selected_payment_option == iso2_paymentOptionType_Contract) ? 0 : 1; // This element is not included in the message if any AC PnC Message Set has been selected.
+                exiDoc.V2G_Message.Body.ChargingStatusRes.EVSEMaxCurrent_isUsed = 1;
+                if (exiDoc.V2G_Message.Body.ChargingStatusRes.EVSEMaxCurrent_isUsed) {
+                    exiDoc.V2G_Message.Body.ChargingStatusRes.EVSEMaxCurrent.Value = MaxCurrent;
+                    exiDoc.V2G_Message.Body.ChargingStatusRes.EVSEMaxCurrent.Unit = iso2_unitSymbolType_A;
+                    exiDoc.V2G_Message.Body.ChargingStatusRes.EVSEMaxCurrent.Multiplier = 0;
+                }
+                char EVSEID[24]; // 23 characters + 1 for null terminator
+                snprintf(EVSEID, sizeof(EVSEID), "SEV*01*SmartEVSE-%06u", serialnr);
+                memcpy(exiDoc.V2G_Message.Body.ChargingStatusRes.EVSEID.characters, &EVSEID, 23);
+                exiDoc.V2G_Message.Body.ChargingStatusRes.EVSEID.charactersLen = 23; //mandatory 23 characters
+                exiDoc.V2G_Message.Body.ChargingStatusRes.SAScheduleTupleID = 1; //FIXME
+                exiDoc.V2G_Message.Body.ChargingStatusRes.AC_EVSEStatus.NotificationMaxDelay = 5; //common default
+                exiDoc.V2G_Message.Body.ChargingStatusRes.AC_EVSEStatus.EVSENotification = iso2_EVSENotificationType_None; //or _StopCharging or _ReNegatiation
+                exiDoc.V2G_Message.Body.ChargingStatusRes.AC_EVSEStatus.RCD = (ErrorFlags & RCM_TRIPPED); //FIXME RCM_TEST
+
+                EncodeAndTransmit(&exiDoc);
+
+                if (exiDoc.V2G_Message.Body.ChargingStatusRes.ReceiptRequired)
+                    fsmState = stateWaitForMeteringReceipt;
+                else
+                    fsmState = stateWaitForChargingstatusPowerDelivery; //FIXME
             }
             return;
         }
