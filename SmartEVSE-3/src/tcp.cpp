@@ -69,7 +69,7 @@ uint8_t tcp_rxdata[TCP_RX_DATA_LEN];
 #define stateWaitForChargingstatusPowerDelivery 11  //FIXME
 
 uint8_t fsmState = stateWaitForSupportedApplicationProtocolRequest;
-enum {DIN, ISO2, ISO20} Protocol;
+enum {NONE, DIN, ISO2, ISO20} V2G_Protocol = NONE;
 
 extern char EVCCID[32];
 extern int8_t InitialSoC, ComputedSoC, FullSoC;
@@ -256,7 +256,7 @@ void decodeV2GTP(void) {
                     _LOG_A("ERROR: out-of-memory condition.\n");
                     return;
                 }
-                _LOG_A("handshake_req: Namespace: %s, Version: %" PRIu32 ".%" PRIu32 ", SchemaID: %" PRIu8 ", Priority: %" PRIu8 ".\n", proto_ns, app_proto->VersionNumberMajor, app_proto->VersionNumberMinor, app_proto->SchemaID, app_proto->Priority);
+                _LOG_A("The car supports: %s, Version: %" PRIu32 ".%" PRIu32 ", SchemaID: %" PRIu8 ", Priority: %" PRIu8 ".\n", proto_ns, app_proto->VersionNumberMajor, app_proto->VersionNumberMinor, app_proto->SchemaID, app_proto->Priority);
 
 #define ISO_15118_2013_MSG_DEF "urn:iso:15118:2:2013:MsgDef"
 #define ISO_15118_2013_MAJOR   2
@@ -265,35 +265,38 @@ void decodeV2GTP(void) {
 #define DIN_70121_MSG_DEF "urn:din:70121:2012:MsgDef"
 #define DIN_70121_MAJOR   2
 
-                if (!strcmp(proto_ns, DIN_70121_MSG_DEF) && app_proto->VersionNumberMajor == DIN_70121_MAJOR) {
-                    _LOG_A("Selecting DIN70121.\n");
-                    init_appHand_exiDocument(&exiDoc);
-                    exiDoc.supportedAppProtocolRes_isUsed = 1;
-                    //exiDoc.supportedAppProtocolRes.ResponseCode = appHand_responseCodeType_Failed_NoNegotiation; // [V2G2-172]
-                    exiDoc.supportedAppProtocolRes.ResponseCode = appHand_responseCodeType_OK_SuccessfulNegotiation;
-                    exiDoc.supportedAppProtocolRes.SchemaID_isUsed = (unsigned int)1;
-                    exiDoc.supportedAppProtocolRes.SchemaID = app_proto->SchemaID;
-                    EncodeAndTransmit(&exiDoc);
-                    Protocol = DIN;
-                    fsmState = stateWaitForSessionSetupRequest;
-                    //conn->ctx->selected_protocol = V2G_PROTO_DIN70121;
-                } else if (!strcmp(proto_ns, ISO_15118_2013_MSG_DEF)  && app_proto->VersionNumberMajor == ISO_15118_2013_MAJOR) {
-                    _LOG_I("Detected ISO15118:2\n");
-                    init_appHand_exiDocument(&exiDoc);
-                    exiDoc.supportedAppProtocolRes_isUsed = 1;
-                    //exiDoc.supportedAppProtocolRes.ResponseCode = appHand_responseCodeType_Failed_NoNegotiation; // [V2G2-172]
-                    exiDoc.supportedAppProtocolRes.ResponseCode = appHand_responseCodeType_OK_SuccessfulNegotiation;
-                    exiDoc.supportedAppProtocolRes.SchemaID_isUsed = (unsigned int)1;
-                    exiDoc.supportedAppProtocolRes.SchemaID = app_proto->SchemaID;
-                    EncodeAndTransmit(&exiDoc);
-                    Protocol = ISO2;
-                    fsmState = stateWaitForSessionSetupRequest;
+                if (!strcmp(proto_ns, ISO_15118_2013_MSG_DEF)  && app_proto->VersionNumberMajor == ISO_15118_2013_MAJOR) {
+                    if (V2G_Protocol == NONE) {
+                        _LOG_I("Selecting ISO15118:2.0\n");
+                        init_appHand_exiDocument(&exiDoc);
+                        exiDoc.supportedAppProtocolRes_isUsed = 1;
+                        //exiDoc.supportedAppProtocolRes.ResponseCode = appHand_responseCodeType_Failed_NoNegotiation; // [V2G2-172]
+                        exiDoc.supportedAppProtocolRes.ResponseCode = appHand_responseCodeType_OK_SuccessfulNegotiation;
+                        exiDoc.supportedAppProtocolRes.SchemaID_isUsed = (unsigned int)1;
+                        exiDoc.supportedAppProtocolRes.SchemaID = app_proto->SchemaID;
+                        EncodeAndTransmit(&exiDoc);
+                        V2G_Protocol = ISO2;
+                        fsmState = stateWaitForSessionSetupRequest;
+                    }
+                } else if (!strcmp(proto_ns, DIN_70121_MSG_DEF) && app_proto->VersionNumberMajor == DIN_70121_MAJOR) {
+                    if (V2G_Protocol == NONE) {
+                        _LOG_A("Selecting DIN70121.\n");
+                        init_appHand_exiDocument(&exiDoc);
+                        exiDoc.supportedAppProtocolRes_isUsed = 1;
+                        //exiDoc.supportedAppProtocolRes.ResponseCode = appHand_responseCodeType_Failed_NoNegotiation; // [V2G2-172]
+                        exiDoc.supportedAppProtocolRes.ResponseCode = appHand_responseCodeType_OK_SuccessfulNegotiation;
+                        exiDoc.supportedAppProtocolRes.SchemaID_isUsed = (unsigned int)1;
+                        exiDoc.supportedAppProtocolRes.SchemaID = app_proto->SchemaID;
+                        EncodeAndTransmit(&exiDoc);
+                        V2G_Protocol = DIN;
+                        fsmState = stateWaitForSessionSetupRequest;
+                    }
                 }
             } //for
         }
         return;
     }
-    if (Protocol == DIN) {
+    if (V2G_Protocol == DIN) {
         struct din_exiDocument dinDoc;
         memset(&dinDoc, 0, sizeof(struct din_exiDocument));
         decode_din_exiDocument(&stream, &dinDoc);
@@ -538,7 +541,7 @@ void decodeV2GTP(void) {
         }
         return;
     } //DIN
-    if (Protocol == ISO2) {
+    if (V2G_Protocol == ISO2) {
         struct iso2_exiDocument exiDoc;
         memset(&exiDoc, 0, sizeof(struct iso2_exiDocument));
         decode_iso2_exiDocument(&stream, &exiDoc);
