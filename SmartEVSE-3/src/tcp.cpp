@@ -266,7 +266,8 @@ void decodeV2GTP(void) {
 #define DIN_70121_MAJOR   2
 
                 if (!strcmp(proto_ns, ISO_15118_2013_MSG_DEF)  && app_proto->VersionNumberMajor == ISO_15118_2013_MAJOR) {
-                    if (V2G_Protocol == NONE) {
+                    if (V2G_Protocol == NONE || V2G_Protocol == DIN) { // FIXME allow promoting from DIN to ISO2 FOR TESTBENCH PURPOSES ONLY!!
+                    //if (V2G_Protocol == NONE) {
                         _LOG_I("Selecting ISO15118:2.0\n"); //TODO also implement ISO_15118_2010
                                                             //TODO also take into account the EV priority
                                                             //for now we determine the priority
