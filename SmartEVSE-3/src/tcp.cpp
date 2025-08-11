@@ -267,7 +267,9 @@ void decodeV2GTP(void) {
 
                 if (!strcmp(proto_ns, ISO_15118_2013_MSG_DEF)  && app_proto->VersionNumberMajor == ISO_15118_2013_MAJOR) {
                     if (V2G_Protocol == NONE) {
-                        _LOG_I("Selecting ISO15118:2.0\n");
+                        _LOG_I("Selecting ISO15118:2.0\n"); //TODO also implement ISO_15118_2010
+                                                            //TODO also take into account the EV priority
+                                                            //for now we determine the priority
                         init_appHand_exiDocument(&exiDoc);
                         exiDoc.supportedAppProtocolRes_isUsed = 1;
                         //exiDoc.supportedAppProtocolRes.ResponseCode = appHand_responseCodeType_Failed_NoNegotiation; // [V2G2-172]
@@ -293,7 +295,15 @@ void decodeV2GTP(void) {
                     }
                 }
             } //for
-        }
+            if (V2G_Protocol == NONE) { //we failed negotiating a protocol, signal that back to the EV
+                _LOG_A("No V2G protocol selected.\n");
+                init_appHand_exiDocument(&exiDoc);
+                exiDoc.supportedAppProtocolRes_isUsed = 1;
+                exiDoc.supportedAppProtocolRes.ResponseCode = appHand_responseCodeType_Failed_NoNegotiation; // [V2G2-172]
+                exiDoc.supportedAppProtocolRes.SchemaID_isUsed = 0;
+                EncodeAndTransmit(&exiDoc);
+            }
+        } //supportedAppProtocolReq_isUsed
         return;
     }
     if (V2G_Protocol == DIN) {
