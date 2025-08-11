@@ -613,8 +613,8 @@ void decodeV2GTP(void) {
                 // Send SessionSetupResponse to EV
                 EncodeAndTransmit(&exiDoc);
                 fsmState = stateWaitForServiceDiscoveryRequest;
+                return;
             }
-            return;
         }
         if (fsmState == stateWaitForServiceDiscoveryRequest) {
             // Check if we have received the correct message
@@ -658,8 +658,8 @@ void decodeV2GTP(void) {
                 // Send ServiceDiscoveryResponse to EV
                 EncodeAndTransmit(&exiDoc);
                 fsmState = stateWaitForServicePaymentSelectionRequest;
+                return;
             }
-            return;
         }
 
         if (fsmState == stateWaitForServicePaymentSelectionRequest) {
@@ -679,9 +679,9 @@ void decodeV2GTP(void) {
                     // Send SessionSetupResponse to EV
                     EncodeAndTransmit(&exiDoc);
                     fsmState = stateWaitForContractAuthenticationRequest;
-                }
+                    return;
+                } //FIXME howto handle other payment options?
             }
-            return;
         }
 
         if (fsmState == stateWaitForContractAuthenticationRequest) {
@@ -699,8 +699,8 @@ void decodeV2GTP(void) {
                 // Send SessionSetupResponse to EV
                 EncodeAndTransmit(&exiDoc);
                 fsmState = stateWaitForChargeParameterDiscoveryRequest;
+                return;
             }
-            return;
         }
 
         if (fsmState == stateWaitForChargeParameterDiscoveryRequest) {
@@ -925,9 +925,8 @@ void decodeV2GTP(void) {
 */
                 EncodeAndTransmit(&exiDoc);
                 fsmState = stateWaitForPowerDeliveryRequest; //we did not negotiate scheduled charging so no need to wait for ScheduleExchangeReq
-
+                return;
             }
-            return;
         }
         if (fsmState == stateWaitForPowerDeliveryRequest) {
             if (exiDoc.V2G_Message.Body.PowerDeliveryReq_isUsed) {
@@ -963,10 +962,9 @@ void decodeV2GTP(void) {
                 // Send SessionSetupResponse to EV
                 EncodeAndTransmit(&exiDoc);
                 fsmState = stateWaitForChargingStatusRequest;
+                return;
             }
-            return;
         }
-///we are going to try stateless from here:
 #define INIT_ISO2_RESPONSE(X) \
     init_iso2_BodyType(&exiDoc.V2G_Message.Body); \
     init_iso2_##X##ResType(&exiDoc.V2G_Message.Body.X##Res); \
@@ -1003,16 +1001,33 @@ void decodeV2GTP(void) {
                     fsmState = stateWaitForMeteringReceipt;
                 else
                     fsmState = stateWaitForChargingstatusPowerDelivery; //FIXME
+                return;
             }
-            return;
         }
-/*
 
-        if (dinDoc.V2G_Message.Body.ChargingStatusReq_isUsed) {
-            _LOG_A("Modem: ChargingStatusReq_isUsed!!\n");
-        }
-        return;
-*/
+        //this code will be executed regardless of fsmState
+        if (exiDoc.V2G_Message.Body.SessionStopReq_isUsed) { //formally only can be sent after sending PowerDeliveryReq with ChargeProgress equal to Stop
+            //FIXME this code is untested since the testbench cannot initiate Stop request
+            _LOG_I("SessionStopRequest received.\n");
+            switch (exiDoc.V2G_Message.Body.SessionStopReq.ChargingSession) {
+                case iso2_chargingSessionType_Terminate:
+                    _LOG_I("Terminating session.\n");
+                    setAccess(OFF); //this should have been done by ChargeProgress Stop already!
+                    break;
+                case iso2_chargingSessionType_Pause:
+                    _LOG_I("Pausing session.\n");
+                    setAccess(PAUSE);
+                    break;
+            }
+            //now the V2G communication layer needs to be terminated:
+            //FIXME
+            tcp_prepareTcpHeader(TCP_FLAG_RST, 0); //FIXME quick and dirty termination without all that FIN/ACK stuff; better implement the lwIP stack instead of rebuilding it ourselves
+            //now create response:
+            INIT_ISO2_RESPONSE(SessionStop)
+            EncodeAndTransmit(&exiDoc);
+            fsmState = stateWaitForSessionSetupRequest;
+            return;
+        } //SessionStopReq_isUsed
     } //ISO2
     _LOG_A("Modem: fsmState=%u, unknown message received.\n", fsmState);
 }
