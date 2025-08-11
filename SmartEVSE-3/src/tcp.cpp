@@ -314,26 +314,34 @@ void decodeV2GTP(void) {
         if (fsmState == stateWaitForSessionSetupRequest) {
             // Check if we have received the correct message
             if (dinDoc.V2G_Message.Body.SessionSetupReq_isUsed) {
-                _LOG_I("SessionSetupRequest\n");
+                // define a SessionID
+                uint8_t sessionId[8];  // This SessionID will be used by the EV in future communication
+                sessionId[0] = 1;
+                sessionId[1] = 2;
+                sessionId[2] = 3;
+                sessionId[3] = 4;
+                uint8_t sessionIdLen = 4;
 
-                //n = dinDoc.V2G_Message.Header.SessionID.bytesLen;
-                //for (i=0; i< n; i++) {
-                //    _LOG_D("%02x", dinDoc.V2G_Message.Header.SessionID.bytes[i] );
-                //}
-                uint8_t n = dinDoc.V2G_Message.Body.SessionSetupReq.EVCCID.bytesLen;
+                _LOG_I("SessionSetupRequest, SessionID=");
+                uint8_t n = dinDoc.V2G_Message.Header.SessionID.bytesLen;
+                for (uint8_t i=0; i< n; i++) {
+                    _LOG_I_NO_FUNC("%02x", dinDoc.V2G_Message.Header.SessionID.bytes[i] );
+                }
+                _LOG_I_NO_FUNC(".\n");
+
+                n = dinDoc.V2G_Message.Body.SessionSetupReq.EVCCID.bytesLen;
                 if (n>6) n=6;       // out of range check
                 for (uint8_t i=0; i<n; i++) {
                     EVCCID2[i]= dinDoc.V2G_Message.Body.SessionSetupReq.EVCCID.bytes[i];
                 }
                 _LOG_I("EVCCID=%02x%02x%02x%02x%02x%02x\n", EVCCID2[0], EVCCID2[1],EVCCID2[2],EVCCID2[3],EVCCID2[4],EVCCID2[5]);
-                uint8_t sessionId[8];
-                sessionId[0] = 1;   // our SessionId is set up here, and used by _prepare_DinExiDocument
-                sessionId[1] = 2;   // This SessionID will be used by the EV in future communication
-                sessionId[2] = 3;
-                sessionId[3] = 4;
-                uint8_t sessionIdLen = 4;
 
                 // Now prepare the 'SessionSetupResponse' message to send back to the EV
+                // the sessionId we made up has is sent in the header:
+                init_din_MessageHeaderType(&dinDoc.V2G_Message.Header);
+                dinDoc.V2G_Message.Header.SessionID.bytesLen = sessionIdLen;
+                memcpy(dinDoc.V2G_Message.Header.SessionID.bytes, sessionId, sessionIdLen);
+
                 init_din_BodyType(&dinDoc.V2G_Message.Body);
                 init_din_SessionSetupReqType(&dinDoc.V2G_Message.Body.SessionSetupReq);
 
@@ -560,26 +568,35 @@ void decodeV2GTP(void) {
         if (fsmState == stateWaitForSessionSetupRequest) {
             // Check if we have received the correct message
             if (exiDoc.V2G_Message.Body.SessionSetupReq_isUsed) {
-                _LOG_I("SessionSetupRequest\n");
+                // define a SessionID
+                uint8_t sessionId[8];  // This SessionID will be used by the EV in future communication
+                sessionId[0] = 1;
+                sessionId[1] = 2;
+                sessionId[2] = 3;
+                sessionId[3] = 4;
+                uint8_t sessionIdLen = 4;
 
-                //n = exiDoc.V2G_Message.Header.SessionID.bytesLen;
-                //for (i=0; i< n; i++) {
-                //    _LOG_D("%02x", exiDoc.V2G_Message.Header.SessionID.bytes[i] );
-                //}
-                uint8_t n = exiDoc.V2G_Message.Body.SessionSetupReq.EVCCID.bytesLen;
+                _LOG_I("SessionSetupRequest, SessionID=");
+                uint8_t n = exiDoc.V2G_Message.Header.SessionID.bytesLen;
+                for (uint8_t i=0; i< n; i++) {
+                    _LOG_I_NO_FUNC("%02x", exiDoc.V2G_Message.Header.SessionID.bytes[i] );
+                }
+                _LOG_I_NO_FUNC(".\n");
+
+                n = exiDoc.V2G_Message.Body.SessionSetupReq.EVCCID.bytesLen;
                 if (n>6) n=6;       // out of range check
                 for (uint8_t i=0; i<n; i++) {
                     EVCCID2[i]= exiDoc.V2G_Message.Body.SessionSetupReq.EVCCID.bytes[i];
                 }
                 _LOG_I("EVCCID=%02x%02x%02x%02x%02x%02x\n", EVCCID2[0], EVCCID2[1],EVCCID2[2],EVCCID2[3],EVCCID2[4],EVCCID2[5]);
-                uint8_t sessionId[8];
-                sessionId[0] = 1;   // our SessionId is set up here, and used by _prepare_DinExiDocument
-                sessionId[1] = 2;   // This SessionID will be used by the EV in future communication
-                sessionId[2] = 3;
-                sessionId[3] = 4;
-                uint8_t sessionIdLen = 4;
+
 
                 // Now prepare the 'SessionSetupResponse' message to send back to the EV
+                // the sessionId we made up has is sent in the header:
+                init_iso2_MessageHeaderType(&exiDoc.V2G_Message.Header);
+                exiDoc.V2G_Message.Header.SessionID.bytesLen = sessionIdLen;
+                memcpy(exiDoc.V2G_Message.Header.SessionID.bytes, sessionId, sessionIdLen);
+
                 init_iso2_BodyType(&exiDoc.V2G_Message.Body);
                 init_iso2_SessionSetupReqType(&exiDoc.V2G_Message.Body.SessionSetupReq);
 
