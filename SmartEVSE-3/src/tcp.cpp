@@ -977,6 +977,7 @@ void decodeV2GTP(void) {
                         break;
                     case iso2_chargeProgressType_Stop: //FIXME open contactors
                         SetCPDuty(1024); //V2G2-866
+                        //setAccess(OFF);
                     case iso2_chargeProgressType_Renegotiate:  //FIXME
                     default:
                         fsmState = stateWaitForChargingStatusRequest;
@@ -1032,19 +1033,20 @@ void decodeV2GTP(void) {
             switch (exiDoc.V2G_Message.Body.SessionStopReq.ChargingSession) {
                 case iso2_chargingSessionType_Terminate:
                     _LOG_I("Terminating session.\n");
-                    setAccess(OFF); //this should have been done by ChargeProgress Stop already!
+                    //setAccess(OFF); //this should have been done by ChargeProgress Stop already!
                     break;
                 case iso2_chargingSessionType_Pause:
                     _LOG_I("Pausing session.\n");
                     setAccess(PAUSE);
                     break;
             }
-            //now the V2G communication layer needs to be terminated:
-            //FIXME
-            tcp_prepareTcpHeader(TCP_FLAG_RST, 0); //FIXME quick and dirty termination without all that FIN/ACK stuff; better implement the lwIP stack instead of rebuilding it ourselves
-            //now create response:
             INIT_ISO2_RESPONSE(SessionStop)
             EncodeAndTransmit(&exiDoc);
+            //now the V2G communication layer needs to be terminated:
+            //FIXME
+            tcp_prepareTcpHeader(TCP_FLAG_FIN | TCP_FLAG_ACK, 0); //FIXME quick and dirty termination without all that FIN/ACK stuff; better implement the lwIP stack instead of rebuilding it ourselves
+            //tcp_prepareTcpHeader(TCP_FLAG_RST, 0); //FIXME quick and dirty termination without all that FIN/ACK stuff; better implement the lwIP stack instead of rebuilding it ourselves
+            //now create response:
             fsmState = stateWaitForSessionSetupRequest;
             return;
         } //SessionStopReq_isUsed
