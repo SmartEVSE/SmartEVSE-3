@@ -956,10 +956,10 @@ void decodeV2GTP(void) {
                 exiDoc.V2G_Message.Body.PowerDeliveryRes.AC_EVSEStatus_isUsed = 1;
                 //TODO somehow we should check the tupleid the EV sent
                 //check everest-core/modules/EvseV2G/iso_server.cpp for this
-/*                exiDoc.V2G_Message.Body.PowerDeliveryRes.AC_EVSEStatus.NotificationMaxDelay = 0;
+                exiDoc.V2G_Message.Body.PowerDeliveryRes.AC_EVSEStatus.NotificationMaxDelay = 5;
                 exiDoc.V2G_Message.Body.PowerDeliveryRes.AC_EVSEStatus.EVSENotification = iso2_EVSENotificationType_None; //or _StopCharging or _ReNegatiation 
                 exiDoc.V2G_Message.Body.PowerDeliveryRes.AC_EVSEStatus.RCD = (ErrorFlags & RCM_TRIPPED); //FIXME RCM_TEST
-                exiDoc.V2G_Message.Body.PowerDeliveryRes.EVSEStatus_isUsed = 1;
+/*                exiDoc.V2G_Message.Body.PowerDeliveryRes.EVSEStatus_isUsed = 1;
                 exiDoc.V2G_Message.Body.PowerDeliveryRes.EVSEStatus.NotificationMaxDelay = 0;
                 exiDoc.V2G_Message.Body.PowerDeliveryRes.EVSEStatus.EVSENotification = iso2_EVSENotificationType_None; //or _StopCharging or _ReNegatiation
 //                exiDoc.V2G_Message.Body.PowerDeliveryRes.EVSEStatus.AC_EVSEStatus.NotificationMaxDelay = 0;
