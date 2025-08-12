@@ -80,6 +80,7 @@ extern void RecomputeSoC(void);
 extern int32_t EnergyCapacity, EnergyRequest;
 extern uint16_t MaxCurrent;
 extern Charging_Protocol_t Charging_Protocol;
+extern bool CPDutyOverride;
 
 void tcp_prepareTcpHeader(uint8_t tcpFlag, uint16_t tcpPayloadLen) {
     uint16_t checksum;
@@ -971,10 +972,13 @@ void decodeV2GTP(void) {
                         fsmState = stateChargeLoop;
                         //we have to close contactors now
                         //either setState(STATE_C) and prevent DutyCycle from being set to something else then 5%
+                        SetCPDuty(51); //5% if not already there
+                        CPDutyOverride = true;
                         setState(STATE_C);
                         break;
                     case iso2_chargeProgressType_Stop: //FIXME open contactors
-                        SetCPDuty(1024); //V2G2-866
+                        setState(STATE_C1);
+                        //SetCPDuty(1024); //V2G2-866 state C1 already takes care of this
                         //setAccess(OFF);
                     case iso2_chargeProgressType_Renegotiate:  //FIXME
                     default:
