@@ -111,6 +111,7 @@ extern uint8_t modem_state;
     }
 
 uint8_t RCMTestCounter = 0;                                                     // nr of seconds the RCM test is allowed to take
+Charging_Protocol_t Charging_Protocol = IEC; // IEC 61851-1 (low-level signaling through PWM), the others are high-level signalling via the modem
 #endif
 
 // The following data will be updated by eeprom/storage data at powerup:

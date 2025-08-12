@@ -72,7 +72,6 @@ uint8_t tcp_rxdata[TCP_RX_DATA_LEN];
 #define stateChargeLoop 11
 
 uint8_t fsmState = stateWaitForSupportedApplicationProtocolRequest;
-enum {NONE, DIN, ISO2, ISO20} V2G_Protocol = NONE;
 
 extern char EVCCID[32];
 extern int8_t InitialSoC, ComputedSoC, FullSoC;
@@ -80,7 +79,7 @@ extern void setState(uint8_t NewState);
 extern void RecomputeSoC(void);
 extern int32_t EnergyCapacity, EnergyRequest;
 extern uint16_t MaxCurrent;
-
+extern Charging_Protocol_t Charging_Protocol;
 
 void tcp_prepareTcpHeader(uint8_t tcpFlag, uint16_t tcpPayloadLen) {
     uint16_t checksum;
@@ -269,8 +268,8 @@ void decodeV2GTP(void) {
 #define DIN_70121_MAJOR   2
 
                 if (!strcmp(proto_ns, ISO_15118_2013_MSG_DEF)  && app_proto->VersionNumberMajor == ISO_15118_2013_MAJOR) {
-                    if (V2G_Protocol == NONE || V2G_Protocol == DIN) { // FIXME allow promoting from DIN to ISO2 FOR TESTBENCH PURPOSES ONLY!!
-                    //if (V2G_Protocol == NONE) {
+                    if (Charging_Protocol == IEC || Charging_Protocol == DIN) { // FIXME allow promoting from DIN to ISO2 FOR TESTBENCH PURPOSES ONLY!!
+                    //if (Charging_Protocol == IEC) {
                         _LOG_I("Selecting ISO15118:2.0\n"); //TODO also implement ISO_15118_2010
                                                             //TODO also take into account the EV priority
                                                             //for now we determine the priority
@@ -281,11 +280,11 @@ void decodeV2GTP(void) {
                         exiDoc.supportedAppProtocolRes.SchemaID_isUsed = (unsigned int)1;
                         exiDoc.supportedAppProtocolRes.SchemaID = app_proto->SchemaID;
                         EncodeAndTransmit(&exiDoc);
-                        V2G_Protocol = ISO2;
+                        Charging_Protocol = ISO2;
                         fsmState = stateWaitForSessionSetupRequest;
                     }
                 } else if (!strcmp(proto_ns, DIN_70121_MSG_DEF) && app_proto->VersionNumberMajor == DIN_70121_MAJOR) {
-                    if (V2G_Protocol == NONE) {
+                    if (Charging_Protocol == IEC) {
                         _LOG_A("Selecting DIN70121.\n");
                         init_appHand_exiDocument(&exiDoc);
                         exiDoc.supportedAppProtocolRes_isUsed = 1;
@@ -294,12 +293,12 @@ void decodeV2GTP(void) {
                         exiDoc.supportedAppProtocolRes.SchemaID_isUsed = (unsigned int)1;
                         exiDoc.supportedAppProtocolRes.SchemaID = app_proto->SchemaID;
                         EncodeAndTransmit(&exiDoc);
-                        V2G_Protocol = DIN;
+                        Charging_Protocol = DIN;
                         fsmState = stateWaitForSessionSetupRequest;
                     }
                 }
             } //for
-            if (V2G_Protocol == NONE) { //we failed negotiating a protocol, signal that back to the EV
+            if (Charging_Protocol == IEC) { //we failed negotiating a protocol, signal that back to the EV
                 _LOG_A("No V2G protocol selected.\n");
                 init_appHand_exiDocument(&exiDoc);
                 exiDoc.supportedAppProtocolRes_isUsed = 1;
@@ -310,7 +309,7 @@ void decodeV2GTP(void) {
         } //supportedAppProtocolReq_isUsed
         return;
     }
-    if (V2G_Protocol == DIN) {
+    if (Charging_Protocol == DIN) {
         struct din_exiDocument dinDoc;
         memset(&dinDoc, 0, sizeof(struct din_exiDocument));
         decode_din_exiDocument(&stream, &dinDoc);
@@ -563,7 +562,7 @@ void decodeV2GTP(void) {
         }
         return;
     } //DIN
-    if (V2G_Protocol == ISO2) {
+    if (Charging_Protocol == ISO2) {
         struct iso2_exiDocument exiDoc;
         memset(&exiDoc, 0, sizeof(struct iso2_exiDocument));
         decode_iso2_exiDocument(&stream, &exiDoc);
@@ -972,8 +971,7 @@ void decodeV2GTP(void) {
                         fsmState = stateChargeLoop;
                         //we have to close contactors now
                         //either setState(STATE_C) and prevent DutyCycle from being set to something else then 5%
-                        //or stay in STATE_MODEM_WAIT and copy the code here ... with all the externs ....
-                        //also it should detect state C ... probably keep the old states and check for HLC charging
+                        setState(STATE_C);
                         break;
                     case iso2_chargeProgressType_Stop: //FIXME open contactors
                         SetCPDuty(1024); //V2G2-866

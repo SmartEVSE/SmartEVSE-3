@@ -314,6 +314,8 @@ extern void PowerPanicESP();
 extern uint8_t LCDlock;
 enum Switch_Phase_t { NO_SWITCH, GOING_TO_SWITCH_1P, GOING_TO_SWITCH_3P };
 enum AccessStatus_t { OFF, ON, PAUSE };
+enum Charging_Protocol_t {IEC, DIN, ISO2, ISO20}; // IEC 61851-1 (low-level signaling through PWM), the others are high-level signalling via the modem
+
 extern void CalcBalancedCurrent(char mod);
 extern void write_settings(void);
 extern void CalcIsum(void);
