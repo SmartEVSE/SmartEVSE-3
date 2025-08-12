@@ -69,7 +69,7 @@ uint8_t tcp_rxdata[TCP_RX_DATA_LEN];
 #define stateWaitForPowerDeliveryRequest 8
 #define stateWaitForChargingStatusRequest 9
 #define stateWaitForMeteringReceipt 10
-#define stateWaitForChargingstatusPowerDelivery 11  //FIXME
+#define stateChargeLoop 11
 
 uint8_t fsmState = stateWaitForSupportedApplicationProtocolRequest;
 enum {NONE, DIN, ISO2, ISO20} V2G_Protocol = NONE;
@@ -693,12 +693,20 @@ void decodeV2GTP(void) {
                 init_iso2_AuthorizationResType(&exiDoc.V2G_Message.Body.AuthorizationRes);
 
                 exiDoc.V2G_Message.Body.AuthorizationRes_isUsed = 1;
-                // Set Authorisation immediately to 'Finished'.
-                exiDoc.V2G_Message.Body.AuthorizationRes.EVSEProcessing = iso2_EVSEProcessingType_Finished;
+/*                if (RFIDReader) {
+                    exiDoc.V2G_Message.Body.AuthorizationRes.EVSEProcessing = iso2_EVSEProcessingType_Ongoing_WaitingForCustomerInteraction;
+                    //we don't change fsmState because the EV will resend it
+                    //FIXME we have to break this endless loop after confirmation of the RFID
+                } else { */
+                    // Set Authorisation immediately to 'Finished'.
+                    exiDoc.V2G_Message.Body.AuthorizationRes.EVSEProcessing = iso2_EVSEProcessingType_Finished;
+                    //setState(STATE_MODEM_DONE); //V2G2-853 If an EVSE receives positive authorization information from an EIM the EVSE shall apply a nominal duty cycle
+                    //but V2G2-857 says to keep it at 5% until the end of the V2G communication session !?!?
+                    fsmState = stateWaitForChargeParameterDiscoveryRequest;
+                // }
 
                 // Send SessionSetupResponse to EV
                 EncodeAndTransmit(&exiDoc);
-                fsmState = stateWaitForChargeParameterDiscoveryRequest;
                 return;
             }
         }
@@ -928,7 +936,7 @@ void decodeV2GTP(void) {
                 return;
             }
         }
-        if (fsmState == stateWaitForPowerDeliveryRequest) {
+        if (fsmState == stateWaitForPowerDeliveryRequest || fsmState == stateChargeLoop ) {
             if (exiDoc.V2G_Message.Body.PowerDeliveryReq_isUsed) {
 //example PowerDeliveryRequest:
 //{"V2G_Message": {"Header": {"SessionID": "E73110994DA0BF54"}, "Body": {"PowerDeliveryReq": {"ChargeProgress": "Start", "SAScheduleTupleID": 1, "ChargingProfile": {"ProfileEntry": [{"ChargingProfileEntryStart": 0, "ChargingProfileEntryMaxPower": {"Value": 11000, "Multiplier": 0, "Unit": "W"}}, {"ChargingProfileEntryStart": 86400, "ChargingProfileEntryMaxPower": {"Value": 0, "Multiplier": 0, "Unit": "W"}}]}}}}}
@@ -959,9 +967,21 @@ void decodeV2GTP(void) {
                 exiDoc.V2G_Message.Body.PowerDeliveryRes.EVSEStatus.AC_EVSEStatus.RCD = (ErrorFlags & RCM_TRIPPED); //FIXME RCM_TEST
 */
 
-                // Send SessionSetupResponse to EV
+                switch (exiDoc.V2G_Message.Body.PowerDeliveryReq.ChargeProgress) {
+                    case iso2_chargeProgressType_Start:
+                        fsmState = stateChargeLoop;
+                        //we have to close contactors now
+                        //either setState(STATE_C) and prevent DutyCycle from being set to something else then 5%
+                        //or stay in STATE_MODEM_WAIT and copy the code here ... with all the externs ....
+                        //also it should detect state C ... probably keep the old states and check for HLC charging
+                        break;
+                    case iso2_chargeProgressType_Stop: //FIXME open contactors
+                        SetCPDuty(1024); //V2G2-866
+                    case iso2_chargeProgressType_Renegotiate:  //FIXME
+                    default:
+                        fsmState = stateWaitForChargingStatusRequest;
+                }
                 EncodeAndTransmit(&exiDoc);
-                fsmState = stateWaitForChargingStatusRequest;
                 return;
             }
         }
@@ -971,7 +991,7 @@ void decodeV2GTP(void) {
     exiDoc.V2G_Message.Body.X##Res_isUsed = 1; \
     exiDoc.V2G_Message.Body.X##Res.ResponseCode = iso2_responseCodeType_OK;
 
-        if (fsmState == stateWaitForChargingStatusRequest) {
+        if (fsmState == stateWaitForChargingStatusRequest || fsmState == stateChargeLoop) {
             if (exiDoc.V2G_Message.Body.ChargingStatusReq_isUsed) {
                 _LOG_I("ChargingStatusRequest.\n");
                 INIT_ISO2_RESPONSE(ChargingStatus)
@@ -1000,7 +1020,7 @@ void decodeV2GTP(void) {
                 if (exiDoc.V2G_Message.Body.ChargingStatusRes.ReceiptRequired)
                     fsmState = stateWaitForMeteringReceipt;
                 else
-                    fsmState = stateWaitForChargingstatusPowerDelivery; //FIXME
+                    fsmState = stateChargeLoop; //FIXME
                 return;
             }
         }

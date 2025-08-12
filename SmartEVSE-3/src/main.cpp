@@ -801,7 +801,7 @@ void setState(uint8_t NewState) { //c
             break;
         case STATE_MODEM_WAIT:
             PILOT_CONNECTED;
-            SetCPDuty(50);
+            SetCPDuty(51); // 5% * 1024/1000
             ToModemDoneStateTimer = 60;
             break;
         //TODO how about STATE_MODEM_DENIED?
@@ -1513,7 +1513,11 @@ printf("@MSG: DINGO State=%d, pilot=%d, AccessTimer=%d, PilotDisconnected=%d.\n"
 
 #if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
     if (State == STATE_MODEM_WAIT){
-        if (ToModemDoneStateTimer) ToModemDoneStateTimer--;
+        if (ToModemDoneStateTimer) {
+#if SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40 //v3 ; v4 stays in STATE_MODEM_WAIT indefinitely
+            ToModemDoneStateTimer--;
+#endif
+        }
         else{
             setState(STATE_MODEM_DONE); 
             _GLCD;
