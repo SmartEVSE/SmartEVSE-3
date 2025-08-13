@@ -571,7 +571,7 @@ void decodeV2GTP(void) {
         memset(&exiDoc, 0, sizeof(struct iso2_exiDocument));
         decode_iso2_exiDocument(&stream, &exiDoc);
 
-        if (fsmState == stateWaitForSessionSetupRequest) {
+        //if (fsmState == stateWaitForSessionSetupRequest) {
             // Check if we have received the correct message
             if (exiDoc.V2G_Message.Body.SessionSetupReq_isUsed) {
                 // define a SessionID
@@ -618,8 +618,8 @@ void decodeV2GTP(void) {
                 fsmState = stateWaitForServiceDiscoveryRequest;
                 return;
             }
-        }
-        if (fsmState == stateWaitForServiceDiscoveryRequest) {
+        //}
+        //if (fsmState == stateWaitForServiceDiscoveryRequest) {
             // Check if we have received the correct message
             if (exiDoc.V2G_Message.Body.ServiceDiscoveryReq_isUsed) {
 
@@ -663,9 +663,9 @@ void decodeV2GTP(void) {
                 fsmState = stateWaitForServicePaymentSelectionRequest;
                 return;
             }
-        }
+        //}
 
-        if (fsmState == stateWaitForServicePaymentSelectionRequest) {
+        //if (fsmState == stateWaitForServicePaymentSelectionRequest) {
             // Check if we have received the correct message
             if (exiDoc.V2G_Message.Body.PaymentServiceSelectionReq_isUsed) {
                 _LOG_I("ServicePaymentSelectionRequest\n");
@@ -685,9 +685,9 @@ void decodeV2GTP(void) {
                     return;
                 } //FIXME howto handle other payment options?
             }
-        }
+        //}
 
-        if (fsmState == stateWaitForContractAuthenticationRequest) {
+        //if (fsmState == stateWaitForContractAuthenticationRequest) {
             // Check if we have received the correct message
             if (exiDoc.V2G_Message.Body.AuthorizationReq_isUsed) {
                 _LOG_I("AuthorizationRequest\n");
@@ -712,9 +712,9 @@ void decodeV2GTP(void) {
                 EncodeAndTransmit(&exiDoc);
                 return;
             }
-        }
+        //}
 
-        if (fsmState == stateWaitForChargeParameterDiscoveryRequest) {
+        //if (fsmState == stateWaitForChargeParameterDiscoveryRequest) {
             // Check if we have received the correct message
             if (exiDoc.V2G_Message.Body.ChargeParameterDiscoveryReq_isUsed) {
                 _LOG_I("ChargeParameterDiscoveryRequest\n");
@@ -938,8 +938,8 @@ void decodeV2GTP(void) {
                 fsmState = stateWaitForPowerDeliveryRequest; //we did not negotiate scheduled charging so no need to wait for ScheduleExchangeReq
                 return;
             }
-        }
-        if (fsmState == stateWaitForPowerDeliveryRequest || fsmState == stateChargeLoop ) {
+        //}
+        //if (fsmState == stateWaitForPowerDeliveryRequest || fsmState == stateChargeLoop ) {
             if (exiDoc.V2G_Message.Body.PowerDeliveryReq_isUsed) {
 //example PowerDeliveryRequest:
 //{"V2G_Message": {"Header": {"SessionID": "E73110994DA0BF54"}, "Body": {"PowerDeliveryReq": {"ChargeProgress": "Start", "SAScheduleTupleID": 1, "ChargingProfile": {"ProfileEntry": [{"ChargingProfileEntryStart": 0, "ChargingProfileEntryMaxPower": {"Value": 11000, "Multiplier": 0, "Unit": "W"}}, {"ChargingProfileEntryStart": 86400, "ChargingProfileEntryMaxPower": {"Value": 0, "Multiplier": 0, "Unit": "W"}}]}}}}}
@@ -992,14 +992,14 @@ void decodeV2GTP(void) {
                 fsmState = stateWaitForChargeParameterDiscoveryRequest; //FIXME
                 return;
             }
-        }
+        //}
 #define INIT_ISO2_RESPONSE(X) \
     init_iso2_BodyType(&exiDoc.V2G_Message.Body); \
     init_iso2_##X##ResType(&exiDoc.V2G_Message.Body.X##Res); \
     exiDoc.V2G_Message.Body.X##Res_isUsed = 1; \
     exiDoc.V2G_Message.Body.X##Res.ResponseCode = iso2_responseCodeType_OK;
 
-        if (fsmState == stateWaitForChargingStatusRequest || fsmState == stateChargeLoop) {
+        //if (fsmState == stateWaitForChargingStatusRequest || fsmState == stateChargeLoop) {
             if (exiDoc.V2G_Message.Body.ChargingStatusReq_isUsed) {
                 _LOG_I("ChargingStatusRequest.\n");
                 INIT_ISO2_RESPONSE(ChargingStatus)
@@ -1031,7 +1031,7 @@ void decodeV2GTP(void) {
                     fsmState = stateChargeLoop; //FIXME
                 return;
             }
-        }
+        //}
 
         //this code will be executed regardless of fsmState
         if (exiDoc.V2G_Message.Body.SessionStopReq_isUsed) { //formally only can be sent after sending PowerDeliveryReq with ChargeProgress equal to Stop
