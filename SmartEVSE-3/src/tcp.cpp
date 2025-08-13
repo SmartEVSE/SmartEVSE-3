@@ -47,10 +47,13 @@ uint16_t tcpActivityTimer;
 #define TCP_STATE_CLOSED 0
 #define TCP_STATE_SYN_ACK 1
 #define TCP_STATE_ESTABLISHED 2
+#define TCP_STATE_FIN_WAIT_1 3
+#define TCP_STATE_FIN_WAIT_2 4
+#define TCP_STATE_LAST_ACK 5
+
 #define TCP_RECEIVE_WINDOW 1000 /* number of octets we are able to receive */
 
 uint8_t tcpState = TCP_STATE_CLOSED;
-bool tcpClosing = false;
 uint32_t TcpSeqNr;
 uint32_t TcpAckNr;
 
@@ -957,7 +960,8 @@ void decodeV2GTP(void) {
                 //TODO somehow we should check the tupleid the EV sent
                 //check everest-core/modules/EvseV2G/iso_server.cpp for this
                 exiDoc.V2G_Message.Body.PowerDeliveryRes.AC_EVSEStatus.NotificationMaxDelay = 5;
-                exiDoc.V2G_Message.Body.PowerDeliveryRes.AC_EVSEStatus.EVSENotification = iso2_EVSENotificationType_None; //or _StopCharging or _ReNegatiation 
+                exiDoc.V2G_Message.Body.PowerDeliveryRes.AC_EVSEStatus.EVSENotification = iso2_EVSENotificationType_None; //or _StopCharging or _ReNegatiation
+                //exiDoc.V2G_Message.Body.PowerDeliveryRes.AC_EVSEStatus.EVSENotification = iso2_EVSENotificationType_ReNegotiation; //or _StopCharging or _ReNegotiation
                 exiDoc.V2G_Message.Body.PowerDeliveryRes.AC_EVSEStatus.RCD = (ErrorFlags & RCM_TRIPPED); //FIXME RCM_TEST
 /*                exiDoc.V2G_Message.Body.PowerDeliveryRes.EVSEStatus_isUsed = 1;
                 exiDoc.V2G_Message.Body.PowerDeliveryRes.EVSEStatus.NotificationMaxDelay = 0;
@@ -985,6 +989,7 @@ void decodeV2GTP(void) {
                         fsmState = stateWaitForChargingStatusRequest;
                 }
                 EncodeAndTransmit(&exiDoc);
+                fsmState = stateWaitForChargeParameterDiscoveryRequest; //FIXME
                 return;
             }
         }
@@ -1045,11 +1050,11 @@ void decodeV2GTP(void) {
             INIT_ISO2_RESPONSE(SessionStop)
             EncodeAndTransmit(&exiDoc);
             //now the V2G communication layer needs to be terminated:
-            //FIXME
-            tcp_prepareTcpHeader(TCP_FLAG_FIN | TCP_FLAG_ACK, 0); //FIXME quick and dirty termination without all that FIN/ACK stuff; better implement the lwIP stack instead of rebuilding it ourselves
-            //tcp_prepareTcpHeader(TCP_FLAG_RST, 0); //FIXME quick and dirty termination without all that FIN/ACK stuff; better implement the lwIP stack instead of rebuilding it ourselves
-            //now create response:
-            fsmState = stateWaitForSessionSetupRequest;
+            tcp_prepareTcpHeader(TCP_FLAG_FIN | TCP_FLAG_ACK, 0);
+            tcpState = TCP_STATE_FIN_WAIT_1;
+            //FIXME quick and dirty termination without all that FIN/ACK stuff; better implement the lwIP stack instead of rebuilding it ourselves
+            //fsmState = stateWaitForSessionSetupRequest;
+            fsmState = stateWaitForSupportedApplicationProtocolRequest;
             return;
         } //SessionStopReq_isUsed
     } //ISO2
@@ -1091,8 +1096,45 @@ void evaluateTcpPacket(void) {
             (((uint32_t)rxbuffer[64])<<8) +
             (((uint32_t)rxbuffer[65]));
     flags = rxbuffer[67];
-    _LOG_D("Source:%u Dest:%u Seqnr:%08x Acknr:%08x flags:%02x\n", SourcePort, DestinationPort, remoteSeqNr, remoteAckNr, flags);
+    _LOG_D("Source:%u Dest:%u Seqnr:%08x Acknr:%08x flags:0x%02x\n", SourcePort, DestinationPort, remoteSeqNr, remoteAckNr, flags);
     _LOG_D("TcpState=%u.\n", tcpState);
+    if (flags & TCP_FLAG_RST) { // EV wants to immediately close the TCP connection
+        _LOG_D("Received TCP RST, closing connection.\n");
+        tcpState = TCP_STATE_CLOSED;
+        fsmState = stateWaitForSupportedApplicationProtocolRequest;
+        return;
+    }
+
+    //we are closing the TCP connection
+    if (flags & TCP_FLAG_ACK && tcpState == TCP_STATE_FIN_WAIT_1) {
+        tcp_prepareTcpHeader(TCP_FLAG_ACK, 0);
+        tcpState = TCP_STATE_FIN_WAIT_2;
+    }
+    if ((flags & TCP_FLAG_FIN) && tcpState == TCP_STATE_FIN_WAIT_2) {
+        tcp_prepareTcpHeader(TCP_FLAG_ACK, 0);
+        tcpState = TCP_STATE_CLOSED; //skipping TIME_WAIT
+        fsmState = stateWaitForSupportedApplicationProtocolRequest;
+        return;
+    }
+
+/*    //EV wants to close the TCP connection gracefully
+    if ((flags & TCP_FLAG_FIN) && tcpState == TCP_STATE_ESTABLISHED) {
+        _LOG_D("Received TCP FIN, closing connection.\n");
+        tcp_prepareTcpHeader(TCP_FLAG_ACK | TCP_FLAG_FIN, 0);
+        tcpState = TCP_STATE_LAST_ACK;
+        return;
+        //_LOG_A("Received SoC via Modem. Shortcut to State Modem Done\n");
+        //setState(STATE_MODEM_DONE); // Go to State B, which means in this case setting PWM
+    }
+    if ((flags & TCP_FLAG_ACK) && tcpState == TCP_STATE_LAST_ACK) {
+        tcpState = TCP_STATE_CLOSED;
+        fsmState = stateWaitForSupportedApplicationProtocolRequest;
+        return;
+        //_LOG_A("Received SoC via Modem. Shortcut to State Modem Done\n");
+        //setState(STATE_MODEM_DONE); // Go to State B, which means in this case setting PWM
+    }
+*/
+    //normal TCP traffic
     if (flags == TCP_FLAG_SYN) { /* This is the connection setup reqest from the EV. */
         if (tcpState == TCP_STATE_CLOSED) {
             evccTcpPort = SourcePort; // update the evccTcpPort to the new TCP port
@@ -1134,13 +1176,5 @@ void evaluateTcpPacket(void) {
         return;
     }
 
-   if ((tcpClosing && (flags & TCP_FLAG_ACK) && (flags & TCP_FLAG_FIN)) || (flags & TCP_FLAG_RST)) {  //sometimes we receive FIN ACK without having sent the FIN packet ?!?!
-       _LOG_D("Received TCP FIN ACK or a RST, closing connection.\n");
-        TcpSeqNr = remoteAckNr; /* The sequence number of our next transmit packet is given by the received ACK number. */
-        tcpState = TCP_STATE_CLOSED;
-        fsmState = stateWaitForSupportedApplicationProtocolRequest;
-        _LOG_A("Received SoC via Modem. Shortcut to State Modem Done\n");
-        setState(STATE_MODEM_DONE); // Go to State B, which means in this case setting PWM
-   }
 }
 #endif
