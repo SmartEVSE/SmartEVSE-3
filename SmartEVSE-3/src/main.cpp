@@ -3568,7 +3568,11 @@ void CalcIsum(void) {
         MainsMeter.Irms[x] = MainsMeter.Irms[x] - temp[x];
 #endif
         IrmsOriginal[x] = MainsMeter.Irms[x];
-        MainsMeter.Irms[x] -= batteryPerPhase;
+        if (EnableC2 != ALWAYS_OFF) {                                           // so single phase users can signal to only correct battery current on first phase
+            MainsMeter.Irms[x] -= batteryPerPhase;
+        } else
+            if (x == 0)
+                MainsMeter.Irms[0] -= getBatteryCurrent();
         Isum = Isum + MainsMeter.Irms[x];
     }
     MainsMeter.CalcImeasured();

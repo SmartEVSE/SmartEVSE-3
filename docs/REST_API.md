@@ -201,6 +201,13 @@ to your curl POST command. -d ''
 &emsp;&emsp;Actual home battery current multiplied by 10
 <br>&emsp;&emsp;A positive number means the home battery is charging
 <br>&emsp;&emsp;A negative number means the home battery is discharging
+```
+curl -X POST "http://ipaddress/currents?battery_current=300" -d ''
+```
+...means your battery is charging at 10A per phase (3 * 10A = 30A = 300dA).
+
+NOTE: By default the current fed here is divided by three and corrected on every phase.
+If C2 is set to "Always Off", you are signalling a single phase system; in that case the correction is put fully on the L1 phase.
 
 * L1, L2, L3
 
