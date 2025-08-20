@@ -129,6 +129,7 @@ uint16_t GridRelayMaxSumMains = GRID_RELAY_MAX_SUMMAINS;                    // M
                                                                             // The relay is only allowed on the Master
 bool GridRelayOpen = false;                                                 // The read status of the relay
 bool CustomButton = false;                                                  // The status of the custom button
+bool MqttButtonState = false;                                               // The status of the button send via MQTT
 uint16_t MaxCurrent = MAX_CURRENT;                                          // Max Charge current (A)
 uint16_t MinCurrent = MIN_CURRENT;                                          // Minimal current the EV is happy with (A)
 uint8_t Mode = MODE;                                                        // EVSE mode (0:Normal / 1:Smart / 2:Solar)
@@ -362,37 +363,40 @@ void Button::HandleSwitch(void) {
     printf("@ExtSwitch:%u.\n", Pressed);
 }
 #else //v3 and v4
-void Button::HandleSwitch(void) {
+void Button::HandleSwitch(void) 
+{
     if (Pressed) {
         // Switch input pulled low
         switch (Switch) {
             case 1: // Access Button
                 setAccess(AccessStatus == ON ? OFF : ON);           // Toggle AccessStatus OFF->ON->OFF (old behaviour) or PAUSE->ON
                 _LOG_I("Access: %d\n", AccessStatus);
-                CustomButton = !CustomButton;
+                MqttButtonState = !MqttButtonState;
                 break;
             case 2: // Access Switch
                 setAccess(ON);
-                CustomButton = true;
+                MqttButtonState = true;
                 break;
             case 3: // Smart-Solar Button
-                CustomButton = true;
+                MqttButtonState = true;
                 break;
             case 4: // Smart-Solar Switch
                 if (Mode == MODE_SOLAR) {
                     setMode(MODE_SMART);
                 }
-                CustomButton = true;
+                MqttButtonState = true;
                 break;
             case 5: // Grid relay
                 GridRelayOpen = false;
-                CustomButton = true;
+                MqttButtonState = true;
                 break;
             case 6: // Custom button B
                 CustomButton = !CustomButton;
+                MqttButtonState = CustomButton;
                 break;
             case 7: // Custom button S
                 CustomButton = true;
+                MqttButtonState = CustomButton;
                 break;
             default:
                 if (State == STATE_C) {                             // Menu option Access is set to Disabled
@@ -403,12 +407,12 @@ void Button::HandleSwitch(void) {
                 break;
         }
         #if MQTT && defined(SMARTEVSE_VERSION) // ESP32 only
-                MQTTclient.publish(MQTTprefix + "/CustomButton", CustomButton ? "On" : "Off", false, 0);
+                MQTTclient.publish(MQTTprefix + "/CustomButton", MqttButtonState ? "On" : "Off", false, 0);
         #endif  
 
         // Reset RCM error when button is pressed
         // RCM was tripped, but RCM level is back to normal
-        if (RCmon == 1 && ((ErrorFlags & RCM_TRIPPED) && !(ErrorFlags & RCM_TEST)) && digitalRead(PIN_RCM_FAULT) == LOW) {
+        if (RCmon == 1 && (ErrorFlags & RCM_TRIPPED) && digitalRead(PIN_RCM_FAULT) == LOW) {
             clearErrorFlags(RCM_TRIPPED);
         }
         // Also light up the LCD backlight
@@ -421,7 +425,7 @@ void Button::HandleSwitch(void) {
         switch (Switch) {
             case 2: // Access Switch
                 setAccess(OFF);
-                CustomButton = false;
+                MqttButtonState = false;
                 break;
             case 3: // Smart-Solar Button
                 if (tmpMillis < TimeOfPress + 1500) {                            // short press
@@ -436,26 +440,27 @@ void Button::HandleSwitch(void) {
                     MaxSumMainsTimer = 0;
                     LCDTimer = 0;
                 }
-                CustomButton = false;
+                MqttButtonState = false;
                 break;
             case 4: // Smart-Solar Switch
                 if (Mode == MODE_SMART) setMode(MODE_SOLAR);
-                CustomButton = false;
+                MqttButtonState = false;
                 break;
             case 5: // Grid relay
                 GridRelayOpen = true;
-                CustomButton = false;
+                MqttButtonState = false;
                 break;
             case 6: // Custom button B
                 break;
             case 7: // Custom button S
                 CustomButton = false;
+                MqttButtonState = CustomButton;
                 break;
             default:
                 break;
         }
         #if MQTT && defined(SMARTEVSE_VERSION) // ESP32 only
-                MQTTclient.publish(MQTTprefix + "/CustomButton", CustomButton ? "On" : "Off", false, 0);
+                MQTTclient.publish(MQTTprefix + "/CustomButton", MqttButtonState ? "On" : "Off", false, 0);
                 MQTTclient.publish(MQTTprefix + "/CustomButtonPressTime", (tmpMillis - TimeOfPress), false, 0);
         #endif  
     }
