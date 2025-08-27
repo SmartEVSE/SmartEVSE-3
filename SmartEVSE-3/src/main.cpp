@@ -242,7 +242,7 @@ extern volatile uint16_t ADC_CP[NUM_ADC_SAMPLES];
 int phasesLastUpdate = 0;
 bool phasesLastUpdateFlag = false;
 int16_t IrmsOriginal[3]={0, 0, 0};
-int homeBatteryCurrent = 0;
+int16_t homeBatteryCurrent = 0;
 int homeBatteryLastUpdate = 0; // Time in milliseconds
 // set by EXTERNAL logic through MQTT/REST to indicate cheap tariffs ahead until unix time indicated
 uint8_t ColorOff[3] = {0, 0, 0};          // off
@@ -3540,7 +3540,7 @@ uint16_t getItemValue(uint8_t nav) {
  * Note: The user who is posting battery charge data should take this into account, meaning: if he wants a minimum home battery (dis)charge rate he should substract this from the value he is sending.
  */
 // 
-int getBatteryCurrent(void) {
+int16_t getBatteryCurrent(void) {
     if (Mode == MODE_SOLAR && ((uint32_t)homeBatteryLastUpdate > (millis()-60000))) {
         return homeBatteryCurrent;
     } else {
@@ -3554,7 +3554,8 @@ int getBatteryCurrent(void) {
 void CalcIsum(void) {
     phasesLastUpdate = time(NULL);
     phasesLastUpdateFlag = true;                        // Set flag if a new Irms measurement is received.
-    int batteryPerPhase = getBatteryCurrent() / 3;
+    int16_t BatteryCurrent = getBatteryCurrent();
+    int16_t batteryPerPhase = getBatteryCurrent() / 3;
     Isum = 0;
 #if FAKE_SUNNY_DAY
     int32_t temp[3]={0, 0, 0};
@@ -3570,9 +3571,12 @@ void CalcIsum(void) {
         IrmsOriginal[x] = MainsMeter.Irms[x];
         if (EnableC2 != ALWAYS_OFF) {                                           // so single phase users can signal to only correct battery current on first phase
             MainsMeter.Irms[x] -= batteryPerPhase;
-        } else
-            if (x == 0)
-                MainsMeter.Irms[0] -= getBatteryCurrent();
+        } else {
+            if (x == 0) {
+                MainsMeter.Irms[x] -= BatteryCurrent;
+                //MainsMeter.Irms[0] -= getBatteryCurrent(); //for some strange reason this would f*ck up the CH32 ?!?!
+            }
+        }
         Isum = Isum + MainsMeter.Irms[x];
     }
     MainsMeter.CalcImeasured();
