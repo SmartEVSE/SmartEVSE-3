@@ -308,6 +308,8 @@ The EVSE will use the battery current to neutralize the impact of a home battery
 
 **Regular updates from the consumer are required to keep this working as values cannot be older than 11 seconds.**
 
+**The battery currents are ONLY taken into account in Solar mode!!
+
 ### Example
 * Home battery is charging at 2300W -> 10A
 * P1 has an export value of 230W -> -1A

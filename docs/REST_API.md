@@ -206,6 +206,8 @@ curl -X POST "http://ipaddress/currents?battery_current=300" -d ''
 ```
 ...means your battery is charging at 10A per phase (3 * 10A = 30A = 300dA).
 
+NOTE: The battery current is ONLY taken into account in SOLAR mode !!!
+
 NOTE: By default the current fed here is divided by three and corrected on every phase.
 If C2 is set to "Always Off", you are signalling a single phase system; in that case the correction is put fully on the L1 phase.
 
