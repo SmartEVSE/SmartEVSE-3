@@ -12,7 +12,10 @@
 #include <Preferences.h>
 #include "esp_efuse.h"
 
+#ifndef SENSORBOX_VERSION
 #include "esp32.h"
+#endif
+
 #if SMARTEVSE_VERSION >=30
 #include "OneWire.h"
 #endif
