@@ -47,7 +47,7 @@
 
 #define FREE(x) free(x); x = NULL;
 
-#if MQTT && defined(SMARTEVSE_VERSION) // ESP32 only
+#if MQTT
 // MQTT connection info
 extern String MQTTuser;
 extern String MQTTpassword;

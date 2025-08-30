@@ -35,7 +35,7 @@ struct mg_mgr mgr;  // Mongoose event manager. Holds all connections
 String APhostname = "SmartEVSE-" + String( MacId() & 0xffff, 10);           // SmartEVSE access point Name = SmartEVSE-xxxxx
 String APpassword = "00000000";
 
-#if MQTT && defined(SMARTEVSE_VERSION) // ESP32 only
+#if MQTT
 // MQTT connection info
 String MQTTuser;
 String MQTTpassword;
@@ -69,7 +69,7 @@ char *downloadUrl = NULL;
 int downloadProgress = 0;
 int downloadSize = 0;
 
-#if MQTT && defined(SMARTEVSE_VERSION) // ESP32 only
+#if MQTT
 #if MQTT_ESP == 1
 /*
  * @brief Event handler registered to receive MQTT events
@@ -1156,7 +1156,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
 #endif
         } else if (mg_http_match_uri(hm, "/settings") && !memcmp("POST", hm->method.buf, hm->method.len)) {
             DynamicJsonDocument doc(64);
-#if MQTT && defined(SMARTEVSE_VERSION) // ESP32 only
+#if MQTT
             if (request->hasParam("mqtt_update") && request->getParam("mqtt_update")->value().toInt() == 1) {
 
                 if(request->hasParam("mqtt_host")) {
@@ -1288,7 +1288,7 @@ void onWifiEvent(WiFiEvent_t event, WiFiEventInfo_t info) {
         case WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_CONNECTED:
             _LOG_A("Connected or reconnected to WiFi\n");
 
-#if MQTT && defined(SMARTEVSE_VERSION) // ESP32 only
+#if MQTT
 #if MQTT_ESP == 0
             if (!MQTTtimer) {
                MQTTtimer = mg_timer_add(&mgr, 3000, MG_TIMER_REPEAT | MG_TIMER_RUN_NOW, timer_fn, &mgr);
@@ -1319,7 +1319,7 @@ void onWifiEvent(WiFiEvent_t event, WiFiEventInfo_t info) {
             break;
         case WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
             if (WIFImode == 1) {
-#if MQTT && defined(SMARTEVSE_VERSION) // ESP32 only
+#if MQTT
                 //mg_timer_free(&mgr);
 #endif
                 WiFi.reconnect();                                               // recommended reconnection strategy by ESP-IDF manual
@@ -1432,7 +1432,7 @@ void WiFiSetup(void) {
             setenv("TZ",TZinfo.c_str(),1);
             tzset();
         }
-#if MQTT && defined(SMARTEVSE_VERSION) // ESP32 only
+#if MQTT
         MQTTpassword = preferences.getString("MQTTpassword");
         MQTTuser = preferences.getString("MQTTuser");
 #ifdef SENSORBOX_VERSION
@@ -1448,7 +1448,7 @@ void WiFiSetup(void) {
 
     handleWIFImode();                                                           //go into the mode that was saved in nonvolatile memory
 
-#if MQTT && defined(SMARTEVSE_VERSION) && MQTT_ESP == 1
+#if MQTT && MQTT_ESP
     MQTTclient.connect();
 #endif
 
@@ -1467,7 +1467,7 @@ void network_loop() {
             _LOG_A("Time not synced with NTP yet.\n");
         }
         //this block is for non-time critical stuff that needs to run approx 1 / 10 seconds
-#if MQTT && defined(SMARTEVSE_VERSION) // ESP32 only
+#if MQTT
         if (seconds++ >= 9) {
             seconds = 0;
             MQTTclient.publish(MQTTprefix + "/ESPUptime", esp_timer_get_time() / 1000000, false, 0);

@@ -483,7 +483,7 @@ void getButtonState() {
 }
 
 
-#if MQTT && defined(SMARTEVSE_VERSION) // ESP32 only
+#if MQTT
 void mqtt_receive_callback(const String topic, const String payload) {
     if (topic == MQTTprefix + "/Set/Mode") {
         if (payload == "Off") {
@@ -1381,7 +1381,7 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
             doc["ev_state"]["time_until_full"] = TimeUntilFull;
 #endif
 
-#if MQTT && defined(SMARTEVSE_VERSION) // ESP32 only
+#if MQTT
         doc["mqtt"]["host"] = MQTTHost;
         doc["mqtt"]["port"] = MQTTPort;
         doc["mqtt"]["topic_prefix"] = MQTTprefix;

@@ -5,6 +5,11 @@
  * #ifndef SMARTEVSE_VERSION   //CH32 code
  */
 
+//prevent MQTT compiling on CH32
+#if defined(MQTT) && !defined(ESP32)
+#error "MQTT requires ESP32 to be defined!"
+#endif
+
 #include "main.h"
 #include "stdio.h"
 #include "stdlib.h"
@@ -407,7 +412,7 @@ void Button::HandleSwitch(void)
                 }
                 break;
         }
-        #if MQTT && defined(SMARTEVSE_VERSION) // ESP32 only
+        #if MQTT
                 MQTTclient.publish(MQTTprefix + "/CustomButton", MqttButtonState ? "On" : "Off", false, 0);
         #endif  
 
@@ -460,10 +465,10 @@ void Button::HandleSwitch(void)
             default:
                 break;
         }
-        #if MQTT && defined(SMARTEVSE_VERSION) // ESP32 only
+        #if MQTT
                 MQTTclient.publish(MQTTprefix + "/CustomButton", MqttButtonState ? "On" : "Off", false, 0);
                 MQTTclient.publish(MQTTprefix + "/CustomButtonPressTime", (tmpMillis - TimeOfPress), false, 0);
-        #endif  
+        #endif
     }
 }
 #endif
@@ -518,7 +523,7 @@ void setOverrideCurrent(uint16_t Current) { //c
     SEND_TO_CH32(OverrideCurrent)
 
     //write_settings TODO doesnt include OverrideCurrent
-#if MQTT && defined(SMARTEVSE_VERSION) // ESP32 only
+#if MQTT
     // Update MQTT faster
     lastMqttUpdate = 10;
 #endif //MQTT
@@ -571,7 +576,7 @@ void setMode(uint8_t NewMode) {
         switchOnLater = true;
     }
 
-#if MQTT && defined(SMARTEVSE_VERSION) // ESP32 only
+#if MQTT
     // Update MQTT faster
     lastMqttUpdate = 10;
 #endif
@@ -616,7 +621,7 @@ void setSolarStopTimer(uint16_t Timer) {
     SolarStopTimer = Timer;
     SEND_TO_ESP32(SolarStopTimer);
     SEND_TO_CH32(SolarStopTimer);
-#if MQTT && defined(SMARTEVSE_VERSION) // ESP32 only
+#if MQTT
     MQTTclient.publish(MQTTprefix + "/SolarStopTimer", SolarStopTimer, false, 0);
 #endif
 }
@@ -878,7 +883,7 @@ void setState(uint8_t NewState) { //c
     BalancedState[LoadBl] = NewState;
     State = NewState;
 
-#if MQTT && defined(SMARTEVSE_VERSION) // ESP32 only
+#if MQTT
     // Update MQTT faster
     lastMqttUpdate = 10;
 #endif
@@ -935,7 +940,7 @@ void setAccess(AccessStatus_t Access) { //c
         preferences.end();
     }
 
-#if MQTT && defined(SMARTEVSE_VERSION) // ESP32 only
+#if MQTT
     // Update MQTT faster
     lastMqttUpdate = 10;
 #endif //MQTT
@@ -1627,7 +1632,7 @@ printf("@MSG: DINGO State=%d, pilot=%d, AccessTimer=%d, PilotDisconnected=%d.\n"
     if (SolarStopTimer) {
         SolarStopTimer--;
         SEND_TO_ESP32(SolarStopTimer)
-#if MQTT && defined(SMARTEVSE_VERSION) // ESP32 only
+#if MQTT
         MQTTclient.publish(MQTTprefix + "/SolarStopTimer", SolarStopTimer, false, 0);
 #endif
         if (SolarStopTimer == 0) {
@@ -1746,7 +1751,7 @@ printf("@MSG: DINGO State=%d, pilot=%d, AccessTimer=%d, PilotDisconnected=%d.\n"
     //_LOG_A("Timer1S task free ram: %u\n", uxTaskGetStackHighWaterMark( NULL ));
 
 
-#if MQTT && defined(SMARTEVSE_VERSION) // ESP32 only
+#if MQTT
     if (lastMqttUpdate++ >= 10) {
         // Publish latest data, every 10 seconds
         // We will try to publish data faster if something has changed
