@@ -411,7 +411,7 @@ void Button::HandleSwitch(void)
                 MQTTclient.publish(MQTTprefix + "/CustomButton", MqttButtonState ? "On" : "Off", false, 0);
         #endif  
 
-        // Reset RCM error when button is pressed
+        // Reset RCM error when switch is pressed/toggled
         // RCM was tripped, but RCM level is back to normal
         if (RCmon == 1 && (ErrorFlags & RCM_TRIPPED) && digitalRead(PIN_RCM_FAULT) == LOW) {
             clearErrorFlags(RCM_TRIPPED);
@@ -2971,10 +2971,10 @@ void Timer10ms_singlerun(void) {
 
     // When one or more button(s) are pressed, we call GLCDMenu
     if (((ButtonState != 0x07) || (ButtonState != OldButtonState)) ) {
-/*        // RCM was tripped, but RCM level is back to normal
+        // RCM was tripped, but RCM level is back to normal
         if (getItemValue(MENU_RCMON) == 1 && (ErrorFlags & RCM_TRIPPED) && RCMFAULT == LOW) {
             clearErrorFlags(RCM_TRIPPED);         // Clear RCM error bit
-        }*/ //TODO test if this is handled sufficiently already in line 413
+        }
         if (!LCDlock) GLCDMenu(ButtonState);    // LCD is unlocked, enter menu
     }
 

@@ -561,8 +561,8 @@ void GLCD(void) {
                 GLCD_print_buf2(4, (const char *) "CURRENT");
                 GLCD_print_buf2(6, (const char *) "DETECTED");
             } else {
-                GLCD_print_buf2(0, (const char *) "REBOOT");
-                GLCD_print_buf2(2, (const char *) "");
+                GLCD_print_buf2(0, (const char *) "PRESS");
+                GLCD_print_buf2(2, (const char *) "BUTTON");
                 GLCD_print_buf2(4, (const char *) "TO");
                 GLCD_print_buf2(6, (const char *) "RESET");
             }
