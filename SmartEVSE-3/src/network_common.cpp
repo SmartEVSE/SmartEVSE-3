@@ -1,7 +1,6 @@
 #if defined(ESP32)
 
 #include <WiFi.h>
-//#include "esp_ota_ops.h"
 #include "mbedtls/md_internal.h"
 #include "utils.h"
 #include "network_common.h"
@@ -954,13 +953,17 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
             bool has_pass = mg_http_get_var(&hm->body, "password", password, sizeof(password)) > 0;
             if (has_ssid && has_pass) {
                 mg_http_reply(c, 200, "Content-Type: text/html\r\n", "<html><body><h2>Saved! Rebooting...</h2></body></html>");
-                delay(2000);
+#ifndef SENSORBOX_VERSION
+                vTaskDelay(2000 / portTICK_PERIOD_MS);                          // for some strange reason this triggers the watchdog function in Sensorbox
+#endif
                 _LOG_A("Connecting to wifi network.\n");
                 WiFi.mode(WIFI_STA);                // Set Station Mode
                 WiFi.begin(ssid, password);   // Configure Wifi with credentials
                 WIFImode = 1;                                                           // we are already connected so don't call handleWIFImode
                 write_settings();
-                delay(2000);
+#ifndef SENSORBOX_VERSION
+                vTaskDelay(2000 / portTICK_PERIOD_MS);                          // for some strange reason this triggers the watchdog function in Sensorbox
+#endif
                 ESP.restart();
             } else {
               mg_http_reply(c, 400, "", "Missing SSID or password");
@@ -1349,6 +1352,7 @@ void handleWIFImode() {
     if (WIFImode == 2 && WiFi.getMode() != WIFI_AP_STA) {
         _LOG_A("Start Portal...\n");
 
+#ifndef SENSORBOX_VERSION
         // set random AP password
         uint8_t i, c;
         for (i=0; i<8 ;i++) {
@@ -1359,6 +1363,10 @@ void handleWIFImode() {
 
         // Start WiFi as AP
         WiFi.softAP("SmartEVSE-config", APpassword);
+#else
+        APpassword = "0123456789abcdef";
+        WiFi.softAP("Sensorbox-config", APpassword);
+#endif
         IPAddress IP = WiFi.softAPIP();
 
         if (!HttpListener80) {
