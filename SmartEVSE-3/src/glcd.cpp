@@ -86,7 +86,7 @@ uint8_t GridActive = 0;                                                         
 uint32_t ScrollTimer = 0;
 
 extern void CheckSwitch(bool force = false);
-extern void handleWIFImode(void *s  = &Serial);
+extern void handleWIFImode(void);
 extern Button ExtSwitch;
 extern String APpassword;
 unsigned char activeRow;

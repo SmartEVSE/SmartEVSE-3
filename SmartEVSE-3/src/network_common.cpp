@@ -1345,7 +1345,7 @@ void onWifiEvent(WiFiEvent_t event, WiFiEventInfo_t info) {
 }
 
 
-void handleWIFImode(void *s) {
+void handleWIFImode() {
     if (WIFImode == 2 && WiFi.getMode() != WIFI_AP_STA) {
         _LOG_A("Start Portal...\n");
 

@@ -115,7 +115,7 @@ extern char *downloadUrl;
 extern uint32_t serialnr;
 extern void RunFirmwareUpdate(void);
 extern void WiFiSetup(void);
-extern void handleWIFImode(void *s = &Serial);
+extern void handleWIFImode(void);
 extern bool getLatestVersion(String owner_repo, String asset_name, char *version);
 #ifndef SENSORBOX_VERSION
 extern std::pair<int8_t, std::array<std::int16_t, 3>> getMainsFromHomeWizardP1();
