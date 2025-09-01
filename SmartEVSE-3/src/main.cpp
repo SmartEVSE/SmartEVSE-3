@@ -418,7 +418,7 @@ void Button::HandleSwitch(void)
 
         // Reset RCM error when switch is pressed/toggled
         // RCM was tripped, but RCM level is back to normal
-        if (RCmon == 1 && (ErrorFlags & RCM_TRIPPED) && digitalRead(PIN_RCM_FAULT) == LOW) {
+        if ((ErrorFlags & RCM_TRIPPED) && (digitalRead(PIN_RCM_FAULT) == LOW || RCmon == 0)) {
             clearErrorFlags(RCM_TRIPPED);
         }
         // Also light up the LCD backlight
@@ -2977,7 +2977,7 @@ void Timer10ms_singlerun(void) {
     // When one or more button(s) are pressed, we call GLCDMenu
     if (((ButtonState != 0x07) || (ButtonState != OldButtonState)) ) {
         // RCM was tripped, but RCM level is back to normal
-        if (getItemValue(MENU_RCMON) == 1 && (ErrorFlags & RCM_TRIPPED) && RCMFAULT == LOW) {
+        if ((ErrorFlags & RCM_TRIPPED) && (RCMFAULT == LOW || RCmon == 0)) {
             clearErrorFlags(RCM_TRIPPED);         // Clear RCM error bit
         }
         if (!LCDlock) GLCDMenu(ButtonState);    // LCD is unlocked, enter menu

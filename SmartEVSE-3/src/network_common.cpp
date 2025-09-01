@@ -157,6 +157,27 @@ void MQTTclient_t::subscribe(const String &topic, int qos) {
 #endif
 }
 
+
+void MQTTclient_t::announce(const String& entity_name, const String& domain, const String& optional_payload) {
+    String entity_suffix = entity_name;
+    entity_suffix.replace(" ", "");
+    String topic = "homeassistant/" + domain + "/" + MQTTprefix + "-" + entity_suffix + "/config";
+
+    const String config_url = "http://" + WiFi.localIP().toString();
+    const String device_payload = String(R"("device": {)") + jsn("model","SmartEVSE v3") + jsna("identifiers", MQTTprefix) + jsna("name", MQTTprefix) + jsna("manufacturer","Stegen") + jsna("configuration_url", config_url) + jsna("sw_version", String(VERSION)) + "}";
+
+    String payload = "{"
+        + jsn("name", entity_name)
+        + jsna("object_id", String(MQTTprefix + "-" + entity_suffix))
+        + jsna("unique_id", String(MQTTprefix + "-" + entity_suffix))
+        + jsna("state_topic", String(MQTTprefix + "/" + entity_suffix))
+        + jsna("availability_topic", String(MQTTprefix + "/connected"))
+        + ", " + device_payload + optional_payload
+        + "}";
+
+    MQTTclient.publish(topic.c_str(), payload.c_str(), true, 0);  // Retain + QoS 0
+}
+
 MQTTclient_t MQTTclient;
 
 #endif

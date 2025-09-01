@@ -61,9 +61,7 @@ class MQTTclient_t {
 #if MQTT_ESP == 0
 private:
     struct mg_mqtt_opts default_opts;
-#endif
 public:
-#if MQTT_ESP == 0
     //constructor
     MQTTclient_t () {
         memset(&default_opts, 0, sizeof(default_opts));
@@ -71,19 +69,30 @@ public:
         default_opts.retain = false;
     }
     void disconnect(void) { mg_mqtt_disconnect(s_conn, &default_opts); };
+    struct mg_connection *s_conn;
 #else
+public:
     void connect(void);
     void disconnect(void) { esp_mqtt_client_stop(client); connected = false; }; //we have to set connected because for some reason MQTT_EVENT_DISCONNECTED is not happening
+    esp_mqtt_client_handle_t client;
 #endif
+private:
+    //jsn(device_class, current) expands to:
+    // "device_class" : "current"
+    String jsn(const String& key, const String& value) { return "\"" + key + "\" : \"" + value + "\""; }
+    template<typename T>
+    String jsn(const String& key, T value) { return "\"" + key + "\" : \"" + String(value) + "\""; }
+    //jsna(device_class, current) expands to:
+    // , "device_class" : "current"
+public:
+    String jsna(const String& key, const String& value) { return ", " + jsn(key, value); }
+    template<typename T>
+    String jsna(const String& key, T value) { return ", " + jsn(key, value); }
     void publish(const String &topic, const int32_t &payload, bool retained, int qos) { publish(topic, String(payload), retained, qos); };
     void publish(const String &topic, const String &payload, bool retained, int qos);
     void subscribe(const String &topic, int qos);
+    void announce(const String& entity_name, const String& domain, const String& optional_payload);
     bool connected;
-#if MQTT_ESP == 0
-    struct mg_connection *s_conn;
-#else
-    esp_mqtt_client_handle_t client;
-#endif
 };
 
 extern MQTTclient_t MQTTclient;
