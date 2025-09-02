@@ -668,9 +668,23 @@ void mqtt_receive_callback(const String topic, const String payload) {
         }
         write_settings();
     } else if (topic == MQTTprefix + "/Set/EnableC2") {
-        uint8_t value = payload.toInt();
-        if (value <=4) { //value is always >=0 because unsigned
-            EnableC2 = (EnableC2_t) value;
+        // for backwards compatibility we accept both 0-4 as string argument:
+        //{ "Not present", "Always Off", "Solar Off", "Always On", "Auto" }
+        uint8_t value;
+        if (isdigit(payload[0])) {
+            value = payload.toInt();
+            if (value <=4) { //value is always >=0 because unsigned
+                EnableC2 = (EnableC2_t) value;
+            }
+        } else {
+            bool found=false;
+            for (value=0; value<5; value++)
+                if (payload == StrEnableC2[value]) {
+                    found = true;
+                    break;
+                }
+            if (found)
+                EnableC2 = (EnableC2_t) value;
         }
         write_settings();
     }
@@ -809,6 +823,10 @@ void SetupMQTTClient() {
     optional_payload += String(R"(, "options" : ["Off", "Normal", "Smart", "Solar", "Pause"])");
     MQTTclient.announce("Mode", "select", optional_payload);
 
+    optional_payload = MQTTclient.jsna("state_topic", String(MQTTprefix + "/EnableC2")) + MQTTclient.jsna("command_topic", String(MQTTprefix + "/Set/EnableC2"));
+    optional_payload += String(R"(, "options" : ["Not present", "Always Off", "Solar Off", "Always On", "Auto"])");
+    MQTTclient.announce("EnableC2", "select", optional_payload);
+
     //set the parameters for and MQTTclient.announce number entities:
     optional_payload = MQTTclient.jsna("command_topic", String(MQTTprefix + "/Set/CurrentOverride")) + MQTTclient.jsna("min", "0") + MQTTclient.jsna("max", MaxCurrent ) + MQTTclient.jsna("mode","slider");
     optional_payload += MQTTclient.jsna("value_template", R"({{ value | int / 10 if value | is_number else none }})") + MQTTclient.jsna("command_template", R"({{ value | int * 10 }})");
@@ -846,6 +864,7 @@ void mqttPublishData() {
         MQTTclient.publish(MQTTprefix + "/NrOfPhases", Nr_Of_Phases_Charging, true, 0);
         MQTTclient.publish(MQTTprefix + "/Access", AccessStatus == OFF ? "Deny" : AccessStatus == ON ? "Allow" : AccessStatus == PAUSE ? "Pause" : "N/A", true, 0);
         MQTTclient.publish(MQTTprefix + "/RFID", !RFIDReader ? "Not Installed" : RFIDstatus >= 8 ? "NOSTATUS" : StrRFIDStatusWeb[RFIDstatus], true, 0);
+        MQTTclient.publish(MQTTprefix + "/EnableC2", StrEnableC2[EnableC2], true, 0);
         if (RFIDReader) {
             char buf[15];
             printRFID(buf);

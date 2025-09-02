@@ -258,6 +258,7 @@ Valid topics you can publish to are:
 /Set/ColorSolar
 /Set/CableLock
 /Set/EnableC2  0 "Not present", 1 "Always Off", 2 "Solar Off", 3 "Always On", 4 "Auto" ; do not change during charging to prevent unexpected errors of your EV!
+               You can send either the number or the string, SmartEVSE will accept both!
 ```
 Your mains kWh meter data can be fed with:
 ```
