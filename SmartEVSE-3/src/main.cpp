@@ -1006,6 +1006,7 @@ uint8_t Pilot() {
     if ((Min >= 2735) && (Max < 3055)) return PILOT_9V;                     // Pilot at 9V
     if ((Min >= 2400) && (Max < 2735)) return PILOT_6V;                     // Pilot at 6V
     if ((Min >= 2000) && (Max < 2400)) return PILOT_3V;                     // Pilot at 3V
+    if ((Min >= 1600) && (Max < 2000)) return PILOT_SHORT;                  // Pilot short or open
     if ((Min > 100) && (Max < 300)) return PILOT_DIODE;                     // Diode Check OK
     return PILOT_NOK;                                                       // Pilot NOT ok
 }
@@ -3012,7 +3013,7 @@ void Timer10ms_singlerun(void) {
         // When the pilot line is disconnected, wait for PilotDisconnectTime, then reconnect
         if (PilotDisconnected) {
 #ifdef SMARTEVSE_VERSION //ESP32 v3
-            if (PilotDisconnectTime == 0 && pilot == PILOT_NOK ) {          // Pilot should be ~ 0V when disconnected
+            if (PilotDisconnectTime == 0 && pilot == PILOT_SHORT ) {        // Pilot should be ~ 0V when disconnected
 #else //CH32
             if (PilotDisconnectTime == 0 && pilot == PILOT_3V ) {          // Pilot should be ~ 3V when disconnected TODO is this ok?
 #endif
@@ -3182,7 +3183,7 @@ void Timer10ms_singlerun(void) {
 #ifdef SMARTEVSE_VERSION //not on CH32
             GLCD_init();                                                    // Re-init LCD (200ms delay); necessary because switching contactors can cause LCD to mess up
 #endif                                                                            // Mark EVSE as inactive (still State B)
-        } else if (pilot != PILOT_6V) {                                     // Pilot level at anything else is an error
+        } else if (pilot == PILOT_SHORT) {                                  // Pilot shorted to ground
             if (++StateTimer > 50) {                                        // make sure it's not a glitch, by delaying by 500mS (re-using StateTimer here)
                 StateTimer = 0;                                             // Reset StateTimer for use in State B
                 setState(STATE_B);

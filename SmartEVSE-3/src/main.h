@@ -149,6 +149,7 @@
 #define PILOT_3V    3
 #define PILOT_DIODE 1
 #define PILOT_NOK   0
+#define PILOT_SHORT 255
 
 #define _RSTB_0 digitalWrite(PIN_LCD_RST, LOW);
 #define _RSTB_1 digitalWrite(PIN_LCD_RST, HIGH);
