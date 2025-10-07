@@ -698,7 +698,7 @@ void setStatePowerUnavailable(void) {
     //State changes between x1 and x2 are created by the EVSE
     //State changes between x1 and x2 indicate availability (x2) of unavailability (x1) of power supply to the EV
     if (State == STATE_C) setState(STATE_C1);                       // If we are charging, tell EV to stop charging
-    else if (State != STATE_C1) setState(STATE_B1);                 // If we are not in State C1, switch to State B1
+    else if (State != STATE_C1 && State != STATE_B1) setState(STATE_B1);    // If we are not in State C1 or B1, switch to State B1
 #else //v4 ESP32
     printf("@setStatePowerUnavailable\n");
 #endif
@@ -2616,7 +2616,7 @@ void ModbusRequestLoop() {
 }
 
 #if !defined(SMARTEVSE_VERSION) || SMARTEVSE_VERSION >=30 && SMARTEVSE_VERSION < 40   //CH32 and v3 ESP32
-// Blink the RGB LED and LCD Backlight.
+// Blink the RGB LED.
 //
 // NOTE: need to add multiple colour schemes 
 //
