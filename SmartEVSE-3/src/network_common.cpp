@@ -913,18 +913,26 @@ static void timer_fn(void *arg) {
 
 // HTML web form for entering WIFI credentials in AP setup portal
 static const char *html_form = R"EOF(
-<!DOCTYPE html><html><head><title>WiFi Setup</title>
-<script>
-function togglePassword(){
-  var x = document.getElementById('password');
-  x.type = x.type === 'password' ? 'text' : 'password';
-}
-</script></head><body>
-<h2>WiFi Configuration</h2>
-<form action="/save" method="POST">
-SSID:<br><input type="text" name="ssid"><br>
-Password:<br><input type="password" name="password" id="password"><br>
-<input type="checkbox" onclick="togglePassword()"> Show Password<br><br>
+<!DOCTYPE html><html><head>
+<title>WiFi Setup</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>body{font-family:Arial;margin:0;padding:10px;display:flex;justify-content:center}
+form{width:90%;max-width:300px}
+h2{font-size:20px;text-align:center;margin:10px 0}
+label{display:block;margin:5px 0}
+input[type=text],input[type=password]{width:100%;padding:8px;font-size:14px;border:1px solid #ccc;box-sizing:border-box}
+input[type=submit]{width:100%;padding:8px;font-size:14px;background:#4CAF50;color:#fff;border:0;cursor:pointer}
+input[type=submit]:hover{background:#45a049}
+@media (max-width:600px){form{width:95%}}</style>
+<script>function togglePassword(){var x=document.getElementById('password');x.type=x.type==='password'?'text':'password'}</script>
+</head>
+<body><form action="/save" method="POST">
+<h2>WiFi Setup</h2>
+<label>SSID:</label>
+<input type="text" name="ssid" required>
+<label>Password:</label>
+<input type="password" name="password" id="password" required>
+<label><input type="checkbox" onclick="togglePassword()">Show Password</label>
 <input type="submit" value="Save">
 </form></body></html>
 )EOF";
