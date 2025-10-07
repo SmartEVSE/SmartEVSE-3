@@ -725,7 +725,7 @@ void HandleModbusResponse(void) {
     switch (MB.Function) {
         case 0x03: // (Read holding register)
         case 0x04: // (Read input register)
-            if (MainsMeter.Type && MB.Address == MainsMeter.Address) {
+            if (MainsMeter.Type && MainsMeter.Type!=EM_API && MB.Address == MainsMeter.Address) {
                 MainsMeter.ResponseToMeasurement(MB);
             } else if (EVMeter.Type && MB.Address == EVMeter.Address) {
                 EVMeter.ResponseToMeasurement(MB);
