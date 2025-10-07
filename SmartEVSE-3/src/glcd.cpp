@@ -800,8 +800,18 @@ void GLCD(void) {
                 GLCDbuf[x+74u+128u] = 0;
             }
         }
-        if (SolarStopTimer) {
-            seconds = SolarStopTimer;                                           // display remaining time before charging is stopped
+        if (MaxSumMainsTimer) {                                                 // When Capacity limit is active, change Mains energy line
+            for (x=18; x<48; x+=4) {                                            // ______ -> _ _ _ _ 
+                GLCDbuf[x+(128*3)] = 0;
+                GLCDbuf[x+(128*3)+1] = 0;
+            }
+        }
+        if (SolarStopTimer || MaxSumMainsTimer) {                               // display remaining time before charging is stopped
+            if (SolarStopTimer != 0 && (MaxSumMainsTimer == 0 || SolarStopTimer < MaxSumMainsTimer)) {
+                seconds = SolarStopTimer;
+            } else {                                                            // use either SolarStopTimer or MaxSumMainsTimer, whichever is
+                seconds = MaxSumMainsTimer;
+            }              
             minutes = seconds / 60;
             seconds = seconds % 60;
             sprintf(Str, "%02u:%02u", minutes, seconds);
