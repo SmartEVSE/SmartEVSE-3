@@ -942,6 +942,10 @@ void validate_settings(void) {
     if (LoadBl >= 2 && EnableC2 == AUTO) {                                      // AUTO not supported on slaves
         EnableC2 = NOT_PRESENT;
     }
+    
+    // Make sure WiFimode is Enabled when using OCPP
+    // initialising OCPP without network will result in bootloop at powerup
+    if (!WIFImode && OcppMode) WIFImode = 1;    
 #if SMARTEVSE_VERSION < 40 //v3
     // Update master node config; for v4 this is taken care of when receiving the EVMeterType/Address
     if (LoadBl < 2) {
