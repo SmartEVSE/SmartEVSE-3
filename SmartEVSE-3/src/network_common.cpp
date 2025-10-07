@@ -1499,10 +1499,12 @@ void WiFiSetup(void) {
 void network_loop() {
     static unsigned long lastCheck_net = 0;
     static int seconds = 0;
+    time_t now;
     if (millis() - lastCheck_net >= 1000) {
         lastCheck_net = millis();
         //this block is for non-time critical stuff that needs to run approx 1 / second
-        getLocalTime(&timeinfo, 1000U);
+        time(&now);                     // get seconds since Epoch
+        localtime_r(&now, &timeinfo);   // convert seconds to localtime
         if (!LocalTimeSet && WIFImode == 1) {
             _LOG_A("Time not synced with NTP yet.\n");
         }
