@@ -571,7 +571,7 @@ void setMode(uint8_t NewMode) {
     }
 
     /* rob040: similar to the above, when solar charging at 1P and mode change, we need to switch back to 3P */
-    if ((EnableC2 == AUTO) && (Mode != NewMode) && (Mode == MODE_SOLAR) /* && solar 1P*/) {
+    if ((EnableC2 == AUTO) && (Mode != NewMode) && (Mode == MODE_SOLAR) && (Nr_Of_Phases_Charging == 1)) {
         setAccess(OFF);                                                       //switch to OFF
         switchOnLater = true;
     }
@@ -762,7 +762,7 @@ void setState(uint8_t NewState) { //c
     switch (NewState) {
         case STATE_B1:
             if (!ChargeDelay) setChargeDelay(3);                                // When entering State B1, wait at least 3 seconds before switching to another state.
-            if (State != STATE_C1 && State != STATE_B1 && State != STATE_B && !PilotDisconnected) {
+            if (State != STATE_B1 && State != STATE_B && !PilotDisconnected) {
                 PILOT_DISCONNECTED;
                 PilotDisconnected = true;
                 PilotDisconnectTime = 5;                                       // Set PilotDisconnectTime to 5 seconds
@@ -1069,7 +1069,7 @@ char IsCurrentAvailable(void) {
     } //else
         //printf("@MSG: Current available MaxCircuit line %d. ActiveEVSE=%u, Baseload_EV=%d.%dA, MinCurrent=%uA, MaxCircuit=%uA.\n", __LINE__, ActiveEVSE, Baseload_EV/10, abs(Baseload_EV%10), MinCurrent, MaxCircuit);
     //assume the current should be available on all 3 phases
-    int Phases = Force_Single_Phase_Charging() ? 1 : 3;
+    int Phases = 1; //Force_Single_Phase_Charging() ? 1 : 3;
     if (Mode != MODE_NORMAL && MaxSumMains && ((Phases * ActiveEVSE * MinCurrent * 10) + Isum > MaxSumMains * 10)) {
         //printf("@MSG: No current available MaxSumMains line %d. ActiveEVSE=%u, MinCurrent=%uA, Isum=%d.%dA, MaxSumMains=%uA.\n", __LINE__, ActiveEVSE, MinCurrent, Isum/10, abs(Isum%10), MaxSumMains);
         return 0;                                                           // Not enough current available!, return with error
@@ -1086,7 +1086,7 @@ char IsCurrentAvailable(void) {
     }
 #endif //ENABLE_OCPP
 
-    printf("@MSG: Current available checkpoint D. ActiveEVSE increased by one=%u, TotalCurrent=%d.%dA, StartCurrent=%uA, Isum=%d.%dA, ImportCurrent=%uA.\n", ActiveEVSE, TotalCurrent/10, abs(TotalCurrent%10), StartCurrent, Isum/10, abs(Isum%10), ImportCurrent);
+    //printf("@MSG: Current available checkpoint D. ActiveEVSE increased by one=%u, TotalCurrent=%d.%dA, StartCurrent=%uA, Isum=%d.%dA, ImportCurrent=%uA.\n", ActiveEVSE, TotalCurrent/10, abs(TotalCurrent%10), StartCurrent, Isum/10, abs(Isum%10), ImportCurrent);
     return 1;
 }
 #else //v4 ESP32
@@ -1173,14 +1173,12 @@ void CalcBalancedCurrent(char mod) {
                     if (Nr_Of_Phases_Charging != 3) {
                         Switching_Phases_C2 = GOING_TO_SWITCH_3P;
                         _LOG_D("Solar starting in 3-phase mode\n");
-                    } else
-                        _LOG_D("Solar continuing in 3-phase mode\n");
+                    }    
                 } else /*if (-Isum >= (10*MinCurrent+2))*/ {
                     if (Nr_Of_Phases_Charging != 1) {
                         Switching_Phases_C2 = GOING_TO_SWITCH_1P;
                         _LOG_D("Solar starting in 1-phase mode\n");
-                    } else
-                        _LOG_D("Solar continuing in 1-phase mode\n");
+                    }  
                 }
             }
         }
@@ -1206,11 +1204,16 @@ void CalcBalancedCurrent(char mod) {
             Idifference = min((MaxMains * 10) - MainsMeter.Imeasured, (MaxCircuit * 10) - EVMeter.Imeasured);
         else
             Idifference = (MaxMains * 10) - MainsMeter.Imeasured;
-        int ExcessMaxSumMains = ((MaxSumMains * 10) - Isum)/Nr_Of_Phases_Charging;
-        if (MaxSumMains && (Idifference > ExcessMaxSumMains)) {
-            Idifference = ExcessMaxSumMains;
-            LimitedByMaxSumMains = true;
-            _LOG_V("Current is limited by MaxSumMains: MaxSumMains=%uA, Isum=%d.%dA, Nr_Of_Phases_Charging=%u.\n", MaxSumMains, Isum/10, abs(Isum%10), Nr_Of_Phases_Charging);
+        int ExcessMaxSumMains = ((MaxSumMains * 10) - Isum);// /Nr_Of_Phases_Charging;
+        if (MaxSumMains) {
+            if (ExcessMaxSumMains < 0) {                                       // No ExcessMaxSumMains, we stop charging if MaxSumMains (Capacity) is set
+                Idifference = ExcessMaxSumMains;
+                LimitedByMaxSumMains = true;
+                _LOG_V("Current is limited by MaxSumMains: MaxSumMains=%uA, Isum=%d.%dA, Nr_Of_Phases_Charging=%u.\n", MaxSumMains, Isum/10, abs(Isum%10), Nr_Of_Phases_Charging);
+            } else {
+                LimitedByMaxSumMains = false;
+                MaxSumMainsTimer = 0;
+            }
         }
 
         if (!mod) {                                                             // no new EVSE's charging
