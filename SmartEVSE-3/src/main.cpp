@@ -762,7 +762,7 @@ void setState(uint8_t NewState) { //c
     switch (NewState) {
         case STATE_B1:
             if (!ChargeDelay) setChargeDelay(3);                                // When entering State B1, wait at least 3 seconds before switching to another state.
-            if (State != STATE_B1 && State != STATE_B && !PilotDisconnected) {
+            if (State != STATE_B1 && !PilotDisconnected) {
                 PILOT_DISCONNECTED;
                 PilotDisconnected = true;
                 PilotDisconnectTime = 5;                                       // Set PilotDisconnectTime to 5 seconds
@@ -1194,8 +1194,12 @@ void CalcBalancedCurrent(char mod) {
                     Switching_Phases_C2 = GOING_TO_SWITCH_3P;
                 }
             }
-        } else if (Mode == MODE_SMART && Nr_Of_Phases_Charging != 3) {          // in SMART AUTO mode go back to the old 3P
+        } else if (Mode == MODE_SMART) {
+                if (Nr_Of_Phases_Charging != 3) {                               // in SMART AUTO mode go back to the old 3P
                     Switching_Phases_C2 = GOING_TO_SWITCH_3P;
+                } else if (Switching_Phases_C2 != NO_SWITCH) {
+                    Switching_Phases_C2 = NO_SWITCH;                            // Was about to switch phases, but cancelled now
+                }   
         }
         // adapt IsetBalanced in Smart Mode, and ensure the MaxMains/MaxCircuit settings for Solar
 
