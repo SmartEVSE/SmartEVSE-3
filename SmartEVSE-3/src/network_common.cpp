@@ -168,7 +168,8 @@ void MQTTclient_t::announce(const String& entity_name, const String& domain, con
 
     String payload = "{"
         + jsn("name", entity_name)
-        + jsna("object_id", String(MQTTprefix + "-" + entity_suffix))
+        + jsna("object_id", String(MQTTprefix + "-" + entity_suffix))  // Deprecated for HA 2026.4 - still setting for backwards compatibility. Will not raise error if new default_entity_id is also set: https://github.com/home-assistant/core/pull/151996
+        + jsna("default_entity_id", String(MQTTprefix + "-" + entity_suffix))  // HA 2025.10 and up: https://github.com/home-assistant/core/pull/151775
         + jsna("unique_id", String(MQTTprefix + "-" + entity_suffix))
         + jsna("state_topic", String(MQTTprefix + "/" + entity_suffix))
         + jsna("availability_topic", String(MQTTprefix + "/connected"))
