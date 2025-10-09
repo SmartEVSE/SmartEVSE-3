@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 	<title>Smart EVSE V3</title>
 
@@ -57,6 +57,10 @@
 
       $(document).ready(loadData());
 
+      /**
+       * Helper function to query the DOM for a single element.
+       */
+      const $qs = (selector) => document.querySelector(selector);
 
       function loadData(){
         $.ajax({
@@ -91,22 +95,13 @@
               }
               $('#required_evccid').val(data.settings.required_evccid || "");
             }
-            for(let x=0; x<=4; x++) {
-              //mode = 'mode'+x;
-              if(x == data.mode_id) {
-                $('#mode_' + x).css("background-color", "#1CC88A"); // active mode: GREEN
-                //document.getElementById(mode).classList.add("ui-btn-active");
-                //$('#mode_' + x).classList.add("ui-btn-active");
-              } else {
-                $('#mode_' + x).css("background-color", ""); //remove background-color style, so that mouseover works! was "#EDEDED"
-                //document.getElementById(mode).classList.delete("ui-btn-active");
-                //$('#mode_' + x).classList.delete("ui-btn-active");
-              }
-            }
-            //todo: iso above change style, do change class list and add "ui-btn-active"
-            //$('#mode_' + data.mode_id).css("background-color", "#1CC88A");
 
-            $('#mode').text(data.mode);
+            // Show the active mode and active mode-button (in green).
+            $qs('#mode').textContent = data.mode;
+            for (let x of [0, 1, 2, 3, 4]) {
+                $qs(`#mode_${x}`).classList.toggle('ui-btn-active', x === data.mode_id);
+            }
+
             $('#dutycycle').text((data.evse.pwm*100/1024).toFixed(0) + " %");
             if(data.mode_id == 2) { //SOLAR MODE
               $('.with_solar').show();
@@ -269,10 +264,10 @@
               $('#battery_status').text(data.home_battery.current < 0 ? "Discharging" : "Charging");
             }
 
-            if(data.settings.mains_meter == "Disabled") {
-              $('[id=with_mainsmeter]').hide();
+            if(data.settings.mains_meter === "Disabled") {
+              $('.with_mainsmeter').hide();
             } else {
-              $('[id=with_mainsmeter]').show();
+              $('.with_mainsmeter').show();
             }
 
             if(data.ev_meter.description == "Disabled") {
@@ -769,7 +764,7 @@
                       </div>
                   </div>
 
-                  <div class="col-xl-4 col-md-6 mb-4" id="with_mainsmeter" style="display: none;">
+                  <div class="col-xl-4 col-md-6 mb-4 with_mainsmeter" style="display: none;">
                     <div class="card border-left-success shadow h-100 py-2">
                         <div class="card-body">
                             <div class="row no-gutters align-items-center">
@@ -1060,18 +1055,36 @@
                       $.post( "/settings?stop_timer=" + val);
                     }
 
+                    /**
+                     * Activates a mode by sending configuration data to the server.
+                     * @param {0|1|2|3|4} mode - The operating mode to activate; off | normal | solar | smart | pause
+                     */
                     function activate(mode) {
-                      var starttime = document.querySelector('input[name="starttime"]').value;
-                      var stoptime = document.querySelector('input[name="stoptime"]').value;
-                      var repeat2 = +document.getElementById('daily_repeat').checked;
-                      if (mode == 1 || mode == 2 || mode == 3) {
-                        override_current=$('#mode_override_current').val();
-                        $.post( "/settings?mode=" + mode +  "&override_current=" + (override_current * 10) + "&starttime=" + starttime + "&stoptime=" + stoptime + "&repeat=" + repeat2);
-                      } else {
-                        $.post( "/settings?mode=" + mode  + "&starttime=" + starttime + "&stoptime=" + stoptime + "&repeat=" + repeat2);
-                      }
-                      event.preventDefault();
+                        const starttime = $qs('input[name="starttime"]').value;
+                        const stoptime = $qs('input[name="stoptime"]').value;
+                        const repeat2 = +$qs('#daily_repeat').checked;
+
+                        // Sanitize the user input.
+                        const params = new URLSearchParams({
+                            mode: `${mode}`,
+                            starttime: starttime,
+                            stoptime: stoptime,
+                            repeat: `${repeat2}`
+                        });
+                        if ([1,2,3].includes(mode)) {
+                            const override_current = $qs('#mode_override_current').value;
+                            params.append('override_current', `${override_current * 10}`);
+                        }
+                        void fetch(`${endpoint}?${params}`, {method: 'POST'});
+
+                        // Update the button state visually for immediate user feedback.
+                        // Backend sync will correct the state in case of failure.
+                        $qs('#mode').textContent = $qs(`#mode_${mode}`).textContent;
+                        for (let x of [0, 1, 2, 3, 4]) {
+                            $qs(`#mode_${x}`).classList.toggle('ui-btn-active', x === mode);
+                        }
                     }
+
                     function toggleMqttEdit() {
                         mqttEditMode = !mqttEditMode;
                         $('.mqtt_settings').toggle();
@@ -1168,14 +1181,15 @@
                     function rawData() {
                       window.location.href = "/settings";
                     }
-                    function gotoDoc() {
-                      const version = $('#version').data('version'); // get version from attribute
-                      if (version && version.startsWith('v')) {
-                        window.location.href = 'https://github.com/dingo35/SmartEVSE-3.5/tree/' + version + '#documentation';
-                      } else {
-                        window.location.href = 'https://github.com/dingo35/SmartEVSE-3.5/tree/master?tab=readme-ov-file#documentation';
-                      }
+
+                    function gotoDoc(event) {
+                        const version = $('#version').data('version') || '';
+                        const gitHub = `https://github.com/dingo35/SmartEVSE-3.5/tree/`;
+                        const docPath = version.startsWith('v') ? version : 'master?tab=readme-ov-file';
+                        window.location.href = `${gitHub}${docPath}#documentation`;
+                        event?.preventDefault();
                     }
+
                     function postPWM(value) {
                        $.post("/settings?override_pwm=" + value);
                        event.preventDefault();
@@ -1214,32 +1228,24 @@
                                         </div>
                                         <div class="col">
                                           <form class="form-inline" id="form_mode">
-                                            <button id="mode_0" onclick="activate('0')" style="width: 100px; display:inline-block;">OFF</button>
-                                            <button id="mode_4" onclick="activate('4')" style="width: 100px; display:inline-block;">PAUSE</button>
-                                            <button id="mode_1" onclick="activate('1')" style="width: 120px; display:inline-block;">NORMAL</button>
-                                            <div id="with_mainsmeter" style="display: inline">
-                                              <button id="mode_2" onclick="activate('2')" style="width: 100px; display:inline-block;">SOLAR</button>
-                                              <button id="mode_3" onclick="activate('3')" style="width: 100px; display:inline-block;">SMART</button>
-                                            </div>
+
+                                            <button id="mode_0" type="button" onclick="activate(0)">OFF</button>
+                                            <button id="mode_4" type="button" onclick="activate(4)">PAUSE</button>
+                                            <button id="mode_1" type="button" onclick="activate(1)">NORMAL</button>
+                                            <button id="mode_2" type="button" class="with_mainsmeter" onclick="activate(2)">SOLAR</button>
+                                            <button id="mode_3" type="button" class="with_mainsmeter" onclick="activate(3)">SMART</button>
+
                                             <div class="form-group">
-                                                <label for="starttime" style="min-width:100px;">
-                                                  <div class="tooltip">...STARTING:
-                                                  <span class="tooltiptext">For delayed start, fill START and END date and time, then press NORMAL/SOLAR/SMART button to initiate.</span>
-                                                  </div>
-                                                </label>
-                                                <div class="input-group">
-                                                  <input type="datetime-local" id="starttime" name="starttime" class="form-control" style="max-width: 220px;">
-                                                </div>
+                                              <label for="starttime" class="tooltip">...STARTING:
+                                                <span class="tooltiptext">For delayed start, fill START and END date and time, then press NORMAL/SOLAR/SMART button to initiate.</span>
+                                              </label>
+                                              <input type="datetime-local" id="starttime" name="starttime" class="form-control">
                                             </div>
                                             <div class="form-group" id="stoptime_group">
-                                                <label for="stoptime" style="min-width:100px;">
-                                                  <div class="tooltip">...ENDING:
-                                                  <span class="tooltiptext">For programmed stop, fill START and END date and time, then press NORMAL/SOLAR/SMART button to initiate.</span>
-                                                  </div>
-                                                </label>
-                                                <div class="input-group">
-                                                  <input type="datetime-local" id="stoptime" name="stoptime" class="form-control" style="max-width: 220px;">
-                                                </div>
+                                              <label for="stoptime" class="tooltip">...ENDING:
+                                                <span class="tooltiptext">For programmed stop, fill START and END date and time, then press NORMAL/SOLAR/SMART button to initiate.</span>
+                                              </label>
+                                              <input type="datetime-local" id="stoptime" name="stoptime" class="form-control">
                                             </div>
                                             <div class="form-group" id="daily_repeat_group">
                                               <label for="daily_repeat"> Daily</label>
@@ -1275,24 +1281,22 @@
                                         <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
                                           Actions:
                                         </div>
-                                        <div class="col">
-                                          <button onclick="reboot()" style="width: 100px; display:inline-block;" title="Reboot your device">Reboot</button>
-                                          <button onclick="update()" style="width: 100px; display:inline-block;" title="Update your firmware">Update</button>
-                                          <button onclick="rawData()" style="width: 120px; display:inline-block;" title="Display your settings in JSON format">Raw Data</button>
-                                          <button onclick="gotoDoc()" style="width: 120px; display:inline-block;" title="Show the online documentation">Help</button>
+                                        <div class="col form-inline">
+                                          <a class="ui-btn ui-shadow ui-corner-all" href="/reboot" title="Reboot your device">Reboot</a>
+                                          <a class="ui-btn ui-shadow ui-corner-all" href="/update" title="Update your firmware">Update</a>
+                                          <a class="ui-btn ui-shadow ui-corner-all" href="/settings" title="Display your settings in JSON format">Raw Data</a>
+                                          <a class="ui-btn ui-shadow ui-corner-all" href="#" onclick="gotoDoc()" title="Show the online documentation">Help</a>
                                         </div>
                                     </div>
                                     <div class="row no-gutters align-items-center">
                                       <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
                                         Lock:
                                       </div>
-                                      <div class="col">
-                                          <div class="lock-options">
-                                              <input type="checkbox" class="form-check-input" id="lcdlock" onclick="toggleLCDlock()">
-                                              <label class="form-check-label" style="width: 140px; display:inline-block;" for="lcdlock" id="lcdlock_label" title="Lock buttons on LCD screen">LCD Lock</label>
-                                              <input type="checkbox" class="form-check-input" id="cablelock" onclick="toggleCableLock()">
-                                              <label class="form-check-label" style="width: 155px; display:inline-block;" for="cablelock" id="cablelock_label" title="Lock cable with actuator on EVSE side">Cable Lock</label>
-                                          </div>
+                                      <div class="col form-inline">
+                                        <input type="checkbox" id="lcdlock" onclick="toggleLCDlock()">
+                                        <label class="form-check-label" style="width: 140px; display:inline-block;" for="lcdlock" id="lcdlock_label" title="Lock buttons on LCD screen">LCD Lock</label>
+                                        <input type="checkbox" id="cablelock" onclick="toggleCableLock()">
+                                        <label class="form-check-label" style="width: 155px; display:inline-block;" for="cablelock" id="cablelock_label" title="Lock cable with actuator on EVSE side">Cable Lock</label>
                                       </div>
                                     </div> 
                                     <div class="row no-gutters align-items-center with_modem">
@@ -1361,8 +1365,8 @@
                                         <div class="col-auto h5 mb-0 mr-3 font-weight-bold text-gray-800" style="width: 120px;">
                                             OCPP:
                                         </div>
-                                        <div class="col">
-                                          <input type="checkbox" class="form-check-input" id="enable_ocpp" onclick="toggleEnableOcpp()">
+                                        <div class="col form-inline">
+                                          <input type="checkbox" id="enable_ocpp" onclick="toggleEnableOcpp()">
                                           <label class="form-check-label" for="enable_ocpp" id="enable_ocpp_label" title="Check to enable connection to a backoffice provider">Enable OCPP</label>
                                           <div id="ocpp_settings" style="display: none;">
                                               <div class="row no-gutters align-items-center" style="margin-top:20px;margin-bottom:10px">

@@ -74,8 +74,23 @@
     opacity: 1;
 }
 
-.lock-options {
-  display: flex;
-  gap: 10px;
-  align-items: center;
+/* Green selected button. */
+#content .ui-btn.ui-btn-active {
+    background-color: #1cc88a;
+    color: #333;
+    border-color: #ddd;
+    text-shadow: 0 1px 0 #f3f3f3;
+}
+
+/* Prevent jQuery Mobile buttons from expanding to full width and consistent margins. */
+button.ui-btn, a.ui-btn {
+    display: inline-block;
+    min-width: 100px;
+    width: unset;
+}
+
+/* Consistent form margins for labels and inputs. */
+.form-group label, .form-inline {
+    margin-right: .25rem;
+    gap: .25rem;
 }
