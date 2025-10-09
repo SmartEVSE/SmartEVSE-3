@@ -322,18 +322,27 @@ The sender has several options when sending the home battery current:
 * Reserve an amount of current for the home battery (e.g. 10A) -> Prioritize the home battery up to a specific limit
 
 # Integration with Home Assistant
-There are three options to integrate SmartEVSE with Home Assistant:
-* through the HA-integration - the easy way
+There are three options to integrate your SmartEVSE with Home Assistant:
 
-    If you want to integrate your SmartEVSE with Home Assistant, please have a look at [the SmartEVSE `custom_component` for Home Assistant](https://github.com/dingo35/ha-SmartEVSEv3). This `custom_component` uses the API to share data from the SmartEVSE to Home Assistant, and enables you to set SmartEVSE settings from Home Assistant. You will need firmware version 1.5.2 or higher to use this integration.
+## By MQTT (preferred)
 
-* by manually configuring your configuration.yaml
+If you already use MQTT in your Home Assistant setup, this is the easiest and fastest way to integrate your SmartEVSE into HA. As soon as you have MQTT configured correctly in the SmartEVSE, the device will automatically be discovered by Home Assistant!
 
-    It's a lot of work, but you can have everything exactly your way. See examples in the integrations directory of our GitHub repository.
+> [!TIP]
+> Just add the MQTT details in the SmartEVSE and you're good! There is no further integration needed to set up, you will find the SmartEVSE listed on the [MQTT integration page](https://my.home-assistant.io/redirect/integration/?domain=mqtt). Not even a HA restart needed!
 
-* by MQTT
+## Through the HA-integration - DEPRECATED
 
-    If you don't like the integration, e.g. because it only updates its data every 60 seconds, you might like to interface through MQTT; updates are done as soon as values change.... you can even mix it up by using both the integration AND the MQTT interface at the same time!
+If you cannot (or do not want to) use MQTT to integrate your SmartEVSE with Home Assistant, please have a look at [the SmartEVSE `custom_component` for Home Assistant](https://github.com/dingo35/ha-SmartEVSEv3). This `custom_component` uses the REST API to share data from the SmartEVSE to Home Assistant, and enables you to set SmartEVSE settings from Home Assistant. You will need SmartEVSE firmware version 1.5.2 or higher to use this integration.
+
+> [!WARNING]
+>  Because of how this `custom_component` and the REST API works, data updates will arrive considerably slower in HA when compared to the MQTT integration. When possible, consider using MQTT.
+
+## By manually configuring your configuration.yaml
+
+It's a lot of work, but you can have everything exactly your way. See examples in the integrations directory of our GitHub repository.
+
+
 
 # EU Capacity Rate Limiting
 

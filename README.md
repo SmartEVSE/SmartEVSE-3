@@ -30,8 +30,8 @@ Communication between the SmartEVSE(s) / Sensorbox or kWh meters is done over RS
 - All module parameters can be configured using the display and buttons.
 - WiFi status page.
 - Firmware upgradable through USB-C port or through the built in webserver.
-- REST API for communication with external software (e.g. HomeAssistant)
-- MQTT API
+- MQTT API for communication with external software (e.g. HomeAssistant)
+- REST API
 - Rudimentary support for home batteries
 - Supporting delayed charging
 
