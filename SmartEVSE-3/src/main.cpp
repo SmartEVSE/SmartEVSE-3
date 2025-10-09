@@ -880,7 +880,6 @@ void setState(uint8_t NewState) { //c
     }
 
     BalancedState[0] = NewState;
-    BalancedState[LoadBl] = NewState;
     State = NewState;
 
 #if MQTT
