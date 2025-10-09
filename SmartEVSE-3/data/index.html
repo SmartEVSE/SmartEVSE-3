@@ -1173,7 +1173,28 @@
                         event.preventDefault();
                     }
                     function reboot() {
-                        window.location.href = "/reboot";
+                      let httpStatus;
+                      fetch("/reboot")
+                          .then(response => {
+                            httpStatus = response.status;
+                            return response.text();
+                          })
+                          .then(message => {
+                            document.body.innerHTML = `<div id="rebootMsg" class="alert alert-success" role="alert"></div>`;
+                            document.querySelector('#rebootMsg').innerText = message
+                            if (httpStatus === 200) {
+                              setInterval(() => document.querySelector('#rebootMsg').innerText += '.', 500);
+                              // Keep retrying until the device responds.
+                              setInterval(() => window.location.reload(), 5000);
+                            } else {
+                              document.querySelector('#rebootMsg').innerHTML
+                                  += '<br><br><a href="#" class="alert-link" onclick="window.location.reload()">Return to webinterface</a>';
+                            }
+                          })
+                          .catch(error => {
+                            document.body.innerHTML = `<div id="errorMsg" class="alert alert-danger" role="alert"></div>`;
+                            document.querySelector('#errorMsg').innerText = `Error: ${error}`;
+                          });
                     }
                     function update() {
                         window.location.href = "/update";

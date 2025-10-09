@@ -1185,9 +1185,13 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
         } else if (mg_http_match_uri(hm, "/reboot")) {
             shouldReboot = true;
 #ifndef SMARTEVSE_VERSION //sensorbox
-            mg_http_reply(c, 200, "", "Rebooting after 5s....");
+            mg_http_reply(c, 200, "", "Rebooting after 5s...");
 #else
-            mg_http_reply(c, 200, "", "Rebooting 5s after EV stops charging....");
+            if (State == STATE_C) {
+                mg_http_reply(c, 202, "", "Reboot scheduled: Device will reboot 5 seconds after the EV stops charging...");
+            } else {
+                mg_http_reply(c, 200, "", "Device will reboot in 5 seconds...");
+            }
 #endif
         } else if (mg_http_match_uri(hm, "/settings") && !memcmp("POST", hm->method.buf, hm->method.len)) {
             DynamicJsonDocument doc(64);
