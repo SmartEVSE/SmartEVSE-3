@@ -1172,7 +1172,8 @@
 
                         event.preventDefault();
                     }
-                    function reboot() {
+                    function reboot(event) {
+                      event?.preventDefault();
                       let httpStatus;
                       fetch("/reboot")
                           .then(response => {
@@ -1195,12 +1196,6 @@
                             document.body.innerHTML = `<div id="errorMsg" class="alert alert-danger" role="alert"></div>`;
                             document.querySelector('#errorMsg').innerText = `Error: ${error}`;
                           });
-                    }
-                    function update() {
-                        window.location.href = "/update";
-                    }
-                    function rawData() {
-                      window.location.href = "/settings";
                     }
 
                     function gotoDoc(event) {
@@ -1303,10 +1298,10 @@
                                           Actions:
                                         </div>
                                         <div class="col form-inline">
-                                          <a class="ui-btn ui-shadow ui-corner-all" href="/reboot" data-ajax="false" title="Reboot your device">Reboot</a>
+                                          <a class="ui-btn ui-shadow ui-corner-all" href="/reboot" onclick="reboot(event)" data-ajax="false" title="Reboot your device">Reboot</a>
                                           <a class="ui-btn ui-shadow ui-corner-all" href="/update" data-ajax="false" title="Update your firmware">Update</a>
                                           <a class="ui-btn ui-shadow ui-corner-all" href="/settings" data-ajax="false" title="Display your settings in JSON format">Raw Data</a>
-                                          <a class="ui-btn ui-shadow ui-corner-all" href="#" onclick="gotoDoc()" title="Show the online documentation">Help</a>
+                                          <a class="ui-btn ui-shadow ui-corner-all" href="#" onclick="gotoDoc(event)" title="Show the online documentation">Help</a>
                                         </div>
                                     </div>
                                     <div class="row no-gutters align-items-center">
