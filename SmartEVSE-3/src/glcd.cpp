@@ -512,6 +512,7 @@ void GLCD(void) {
                     sprintf(Str, "Portal PW:%s", APpassword.c_str());
                     GLCD_write_buf_str(0,0, Str, GLCD_ALIGN_LEFT);
                 }
+                LCDTimer = 0;                                                   // reset timer, so we will not exit the menu while setting up WiFi
             }
         }
         // update LCD
