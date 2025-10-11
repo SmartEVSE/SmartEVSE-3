@@ -1387,14 +1387,6 @@ void handleWIFImode() {
         _LOG_A("Start Portal...\n");
 
 #ifndef SENSORBOX_VERSION
-        // set random AP password
-        uint8_t i, c;
-        for (i=0; i<8 ;i++) {
-                c = random(16) + '0';
-                if (c > '9') c += 'a'-'9'-1;
-                APpassword[i] = c;
-        }
-
         // Start WiFi as AP
         WiFi.softAP("SmartEVSE-config", APpassword);
 #else
@@ -1464,6 +1456,14 @@ void WiFiSetup(void) {
     APhostname = "Sensorbox-" + String( serialnr);
 #endif
     WiFi.setHostname(APhostname.c_str());
+
+    // set random AP password. Used when SetupWifi is active
+    uint8_t i, c;
+    for (i=0; i<8 ;i++) {
+        c = random(16) + '0';
+        if (c > '9') c += 'a'-'9'-1;
+        APpassword[i] = c;
+    }
 
     mg_mgr_init(&mgr);  // Initialise event manager
 
