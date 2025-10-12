@@ -973,6 +973,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
               preferences.clear();
               preferences.end();       
             }
+            DeleteAllRFID();                                      // All RFID UIDs
             shouldReboot = true;
             mg_http_reply(c, 200, "Content-Type: text/plain\r\n", "Erasing settings, rebooting");
         } else if (mg_http_match_uri(hm, "/") && WIFImode == 2) { // serve AP page to fill in WIFI credentials
