@@ -361,7 +361,6 @@ void GLCD_print_buf2(unsigned char y, const char* str) {
     GLCD_sendbuf(y, 2);                                                        // copy buffer to LCD
 }
 
-static uint8_t cursor = 0;
 // Write Menu to buffer, then send to GLCD
 void GLCD_print_menu(unsigned char y, const char* str) {
     GLCD_buffer_clr();                                                          // Clear buffer
@@ -370,10 +369,6 @@ void GLCD_print_menu(unsigned char y, const char* str) {
     if ((SubMenu && y == 4) || (!SubMenu && y == 2)) {                          // navigation arrows
         GLCDx = 0;
         GLCD_write_buf2('<');
-        if (cursor != 0) {
-            GLCDx = cursor;
-            GLCD_write_buf2('>');
-        }
         GLCDx = 10 * 12;                                                        // last character of line
         GLCD_write_buf2('>');
     }
@@ -1197,6 +1192,7 @@ void GLCDMenu(uint8_t Buttons) {
     static unsigned long ButtonTimer = 0;
     static uint8_t ButtonRelease = 0;                                           // keeps track of LCD Menu Navigation
     static uint16_t value, ButtonRepeat = 0;
+    static uint8_t digit = 3;
     char Str[24];
 
     unsigned char MenuItemsCount = getMenuItems();
@@ -1285,14 +1281,10 @@ void GLCDMenu(uint8_t Buttons) {
                         ExtSwitch = Button();                                   //this recreates ExtSwitch object, thus calling the constructor
                         break;
                     case MENU_LCDPIN: //left button changes digit, middle button goes out of menu, right button moves to next digit
-                        static int8_t digit = 3;
                         static uint8_t digits[4]; //numbered 3,2,
                         /// pin 0478 is digit 3210 so digit[3]=0, digit[2]=4 etc
-                        if (Buttons == 0x3) digit--;                            //right button pressed
-                        if (digit < 0) digit = 3;
-                        cursor = 68 - 13 * digit;
-                        if (Buttons == 0x5)
-                            cursor = 0;                                         //middle key pressed, clear cursor
+                        if (Buttons == 0x3) digit--;                            //right button pressed, 
+                        digit = digit & 0x3;
                         digits[digit]= (uint16_t)(value/pow_10[digit]) % 10;
                         value -= digits[digit]*pow_10[digit];                   //we subtract the old digit's value
                         if (Buttons == 0x6) {                                   //left button pressed
@@ -1332,7 +1324,7 @@ void GLCDMenu(uint8_t Buttons) {
         ButtonRelease = 1;
         if (SubMenu) {                                                          // We are currently in Submenu
             SubMenu = 0;                                                        // Exit Submenu now
-            cursor = 0;
+            digit = 3;
             uint8_t WIFImode = getItemValue(MENU_WIFI);
             if (LCDNav == MENU_WIFI && WIFImode == 2)
                 handleWIFImode();
@@ -1348,9 +1340,6 @@ void GLCDMenu(uint8_t Buttons) {
                 GLCD();
                 write_settings();                                               // Write to eeprom
                 ButtonRelease = 2;                                              // Skip updating of the LCD 
-            }
-            if (LCDNav == MENU_LCDPIN) {
-                cursor = 68 - 13 * 3;                                           // print initial cursor when entering submenu
             }
         }
 
@@ -1400,6 +1389,20 @@ void GLCDMenu(uint8_t Buttons) {
             glcd_clrln(6, 0x10);                                                // horizontal line
             glcd_clrln(7, 0x00);
             ButtonRelease = 2;                                                  // Set value to 2, so that LCD will be updated only once
+    }
+
+    if (LCDNav == MENU_LCDPIN) {                                                // Draw a underline indicator below the digit of the PIN that can be changed
+        glcd_clrln(6, 0x10);                                                    // draw the normal line ____________ at row 6
+        if (SubMenu) {
+            if (Buttons != 0x5) {                                               // Center button not pressed
+                uint8_t ind_x = 39 + (3 - digit) * 13;
+                goto_xy(ind_x, 6);
+                for (uint8_t i = 0; i < 11; i++) {                              // write underline indicator
+                    st7565_data(0x10 | 0x03);
+                    GLCDbuf2[128 * 6 + ind_x + i] = (0x10 | 0x03);              // and a copy for the LCD on the webpage
+                }
+            }
+        }
     }
 
     ScrollTimer = millis();                                                     // reset timer for HelpMenu text
