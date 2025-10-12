@@ -1159,6 +1159,11 @@ void CalcBalancedCurrent(char mod) {
                                                                                 // limiting is per phase so no Nr_Of_Phases_Charging here!
         else
             IsetBalanced = ChargeCurrent;                                       // No Load Balancing in Normal Mode. Set current to ChargeCurrent (fix: v2.05)
+
+        if (Nr_Of_Phases_Charging != 3) {
+            Switching_Phases_C2 = GOING_TO_SWITCH_3P;
+            _LOG_D("Normal mode is always 3-phase\n");
+        }                    
     } //end MODE_NORMAL
     else { // start MODE_SOLAR || MODE_SMART
         if (Mode == MODE_SOLAR && State == STATE_B) {
