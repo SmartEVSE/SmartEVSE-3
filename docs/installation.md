@@ -22,8 +22,9 @@ Note that the ABB and Carlo Gavazzi meter have the A/B signals reversed, you sho
 You can use Cat5 network cable for the wiring between SmartEVSE(s), kWh meter(s) and Sensorbox.<br>
 Make sure to use one twisted pair for A and B, so for example A=Green, B=Green/White<br>
 <br>
-The baudrate is 9600 bps<br>
-The parity should be set to NONE<br>
+Baudrate: 9600 bps<br>
+Parity: NONE<br>
+Stopbits: 1<br>
 As address 1-10 are reserved for SmartEVSE communication and the Sensorbox, make sure to set the modbus address of the Mains or EV meter to address 11 or higher.<br>
 
 # Inverted wiring of kWh meter
