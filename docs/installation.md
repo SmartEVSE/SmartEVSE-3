@@ -1,6 +1,19 @@
 # Hardware installation
 
-We refer to [this wiring diagram](SmartEVSEv3_build.pdf) for wiring the SmartEVSE.
+We refer to this wiring diagram for wiring the SmartEVSE.
+![wiring_diagram_3phasev3 1](https://github.com/user-attachments/assets/51962f3d-0c65-4e56-824c-7f2554e21d88)
+
+In above wiring diagram, the Sensorbox is measuring the mains currents using CT clamps on the Mains phase wires.<br>
+It's also possible to connect it directly to the P1 port of the smartmeter, as long as the smartmeter is using the DSMR 5.0 standard.<br>
+
+> [!NOTE]
+> Please use normal contactors like the IKA432-40 from Iskra, as energy efficient (AC/DC) or silent contactors (ABB ESBxx series, Hager ESCxxx<b>S</b>) will not work correctly!<br>
+
+> [!TIP]
+> Don't forget to connect the PE/ground wire to the SmartEVSE!
+
+> [!WARNING]
+> The EVSE needs to be protected with a circuit breaker and residual- current circuit breaker.
 
 # Supported modbus kWh meters
 The following meters are directly supported as Mains or EV meter:
@@ -55,32 +68,18 @@ If you have other current-users on a Subpanel, use this wiring and the added con
 
 # Second Contactor C2
 One can add a second contactor (C2) that switches off 2 of the 3 phases of a three-phase Mains installation; this can be useful if one wants to charge of off
-      Solar; EV's have a minimal charge current of 6A, so switching off 2 phases allows you to charge with a current of 6-18A, while 3 phases have a minimum current
-      of 3x6A=18A. This way you can still charge solar-only on smaller solar installations.
-    - one should wire C2 according to this schema:
+Solar; EV's have a minimal charge current of 6A, so switching off 2 phases allows you to charge with a current of 6-18A, while 3 phases have a minimum current
+of 3x6A=18A. This way you can still charge solar-only on smaller solar installations.
 
-            N    L1   L2   L3
-            |    |    |    |
-          --------------------
-          | 4-p contactor C1 |
-          --------------------
-            |    |    |    |
-            |    | ------------------
-            |    | |2-p contactor C2|
-            |    | ------------------
-            |    |    |    |
-          --------------------
-          |    EV-cable      |
-          --------------------
+One should wire C2 according to this schema:
 
-      This way the (dangerous) situation is avoided that some Phases are switched ON, and Neutral is switched OFF.
-      Note that it is important that you actually DO NOT switch the L1 pin of the CCS plug with the C2 contactor; some cars (e.g. Tesla Model 3) will go into error;
-      they expect the charging phase to be on the L1 pin when single-phase charging...
-      Note also that in case the phases cannot be detected automatically (especially when no EVmeter is connected), and SmartEVSE _knows_ it is charging at a single
-      phase (e.g. because Contact2 is at "Always Off"), it assumes that L1 is the phase we are charging on!!
+<img src="https://github.com/user-attachments/assets/2d9711cc-7248-4fdd-9e61-8089302ab63b" alt="SmartESVE Contact2 diagram" width="500">
 
-      By default C2 is switched OFF ("Not present"); if you want to keep on charging on 3 phases after installing C2, you should change the setting Contact2 in the
-      Setup Menu.
+This way the (dangerous) situation is avoided that some Phases are switched ON, and Neutral is switched OFF.<br>
+Note that it is important that you actually DO NOT switch the L1 pin of the CCS plug with the C2 contactor; some cars (e.g. Tesla Model 3) will go into error;
+they expect the charging phase to be on the L1 pin when single-phase charging.<br>
+Note also that in case the phases cannot be detected automatically (especially when no EVmeter is connected), and SmartEVSE _knows_ it is charging at a single
+phase (e.g. because Contact2 is at "Always Off"), it assumes that L1 is the phase we are charging on!<br>
 
 # Multiple SmartEVSE controllers on one mains supply (Power Share)
 Up to eight SmartEVSE modules can share one mains supply.
