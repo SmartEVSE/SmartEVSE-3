@@ -286,7 +286,10 @@ void ModbusException(uint8_t address, uint8_t function, uint8_t exception) {
 }
 #endif
 
-
+/**
+ * Broadcast System configuration to Node controllers
+ * modbus reg 0x0200 - 0x0215 (depends on MODBUS_SYS_CONFIG_COUNT)
+ */
 void BroadcastSettings(void) {
     uint16_t i,values[MODBUS_SYS_CONFIG_COUNT];
     for (i = 0; i < MODBUS_SYS_CONFIG_COUNT; i++) {

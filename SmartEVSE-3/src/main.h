@@ -221,7 +221,7 @@ void setPilot(bool On);
 #define MODBUS_EVSE_CONFIG_START 0x0100
 #define MODBUS_EVSE_CONFIG_COUNT 10
 #define MODBUS_SYS_CONFIG_START  0x0200
-#define MODBUS_SYS_CONFIG_COUNT  26
+#define MODBUS_SYS_CONFIG_COUNT  22                                             // Broadcast only the first 22 registers to nodes
 
 #define MODBUS_MAX_REGISTER_READ MODBUS_SYS_CONFIG_COUNT
 #define MODBUS_BUFFER_SIZE MODBUS_MAX_REGISTER_READ * 2 + 10
