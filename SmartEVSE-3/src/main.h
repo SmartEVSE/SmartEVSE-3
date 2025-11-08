@@ -336,6 +336,7 @@ uint8_t setItemValue(uint8_t nav, uint16_t val);
 uint16_t getItemValue(uint8_t nav);
 
 enum EnableC2_t { NOT_PRESENT, ALWAYS_OFF, SOLAR_OFF, ALWAYS_ON, AUTO };
+extern EnableC2_t EnableC2;
 
 struct Node_t {
     uint8_t Online;

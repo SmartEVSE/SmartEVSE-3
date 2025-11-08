@@ -481,7 +481,13 @@ void GLCD(void) {
                     GLCD_write_buf_str(0, 0, Str, GLCD_ALIGN_LEFT);
                 }
             }        
-        
+        // Show extra Contactor 2 information on top row
+        } else if (LCDNav == MENU_C2 && SubMenu) {
+            if (EnableC2 == NOT_PRESENT)     GLCD_write_buf_str(0, 0, "Three-phase Charging", GLCD_ALIGN_LEFT);
+            else if (EnableC2 == ALWAYS_OFF) GLCD_write_buf_str(0, 0, "Single-phase Charging", GLCD_ALIGN_LEFT);
+            else if (EnableC2 == SOLAR_OFF)  GLCD_write_buf_str(0, 0, "Solar 1P - Smart 3P", GLCD_ALIGN_LEFT);
+            else if (EnableC2 == ALWAYS_ON)  GLCD_write_buf_str(0, 0, "Three-phase Charging", GLCD_ALIGN_LEFT);
+            else if (EnableC2 == AUTO)       GLCD_write_buf_str(0, 0, "Auto 3P <> 1P Charging", GLCD_ALIGN_LEFT);
         } else {
             // When connected to Wifi, display IP and time in top row
             uint8_t WIFImode = getItemValue(MENU_WIFI);
