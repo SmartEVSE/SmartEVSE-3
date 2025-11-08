@@ -487,7 +487,9 @@ void getButtonState() {
 void mqtt_receive_callback(const String topic, const String payload) {
     if (topic == MQTTprefix + "/Set/Mode") {
         if (payload == "Off") {
+#if SMARTEVSE_VERSION >=40 //v4            
             Serial1.printf("@ResetModemTimers\n");
+#endif            
             setAccess(OFF);
         } else if (payload == "Normal") {
             setMode(MODE_NORMAL);
@@ -1561,7 +1563,9 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
 
             switch(mode.toInt()) {
                 case 0: // OFF
+#if SMARTEVSE_VERSION >=40 //v4                
                     Serial1.printf("@ResetModemTimers\n");
+#endif                    
                     setAccess(OFF);
                     break;
                 case 1:

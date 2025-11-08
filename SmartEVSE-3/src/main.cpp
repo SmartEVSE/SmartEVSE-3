@@ -3385,7 +3385,9 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
 #ifdef SMARTEVSE_VERSION
         case MENU_RCMON:
             RCmon = val;
+#if SMARTEVSE_VERSION >= 40 //v4            
             Serial1.printf("@RCmon:%u\n", RCmon);
+#endif            
             break;
         case MENU_WIFI:
             WIFImode = val;
