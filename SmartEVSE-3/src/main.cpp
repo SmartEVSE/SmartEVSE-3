@@ -161,13 +161,13 @@ uint8_t RFIDReader = RFID_READER;                                           // R
 uint8_t Show_RFID = 0;
 #endif
 
-EnableC2_t EnableC2 = ENABLE_C2;                                            // Contactor C2
+EnableC2_t EnableC2 = ENABLE_C2;                                            // CONTACT 2 menu setting, can be set to: NOT_PRESENT, ALWAYS_OFF, SOLAR_OFF, ALWAYS_ON, AUTO
 uint16_t maxTemp = MAX_TEMPERATURE;
 
 Meter MainsMeter(MAINS_METER, MAINS_METER_ADDRESS, COMM_TIMEOUT);
 Meter EVMeter(EV_METER, EV_METER_ADDRESS, COMM_EVTIMEOUT);
-uint8_t Nr_Of_Phases_Charging = 3;                                          // nr of phases
-Switch_Phase_t Switching_Phases_C2 = NO_SWITCH;                             // switching phases only used in SOLAR mode with Contactor C2 = AUTO
+uint8_t Nr_Of_Phases_Charging = 3;                                          // Nr of phases we are charging with. Set to 1 or 3, depending on the CONTACT 2 setting, and the MODE we are in.
+Switch_Phase_t Switching_Phases_C2 = NO_SWITCH;                             // Switching between 1P and 3P with the second contactor output, depends on the CONTACT 2 setting, and the MODE.
 
 uint8_t State = STATE_A;
 uint8_t ErrorFlags;
