@@ -199,6 +199,7 @@ Node_t Node[NR_EVSES] = {                                                       
     {      0,       1,     0,       0,       0,      0,      0,      0,     0,    0 }            
 };
 void ModbusRequestLoop(void);
+uint8_t Force_Single_Phase_Charging(void);
 uint8_t C1Timer = 0;
 uint8_t ModemStage = 0;                                                     // 0: Modem states will be executed when Modem is enabled 1: Modem stages will be skipped, as SoC is already extracted
 int8_t DisconnectTimeCounter = -1;                                          // Count for how long we're disconnected, so we can more reliably throw disconnect event. -1 means counter is disabled
@@ -534,6 +535,45 @@ void setOverrideCurrent(uint16_t Current) { //c
 
 
 /**
+ *  Check if we can switch to 1 or 3 phase charging, depending on the Enable C2 setting 
+ */
+void CheckSwitchingPhases(void) {
+    // we want to obey EnableC2 settings at all times, after switching modes and/or C2 settings
+    if (EnableC2 != AUTO || Mode == MODE_SOLAR) {
+        if (Force_Single_Phase_Charging()) {                                
+            if (Nr_Of_Phases_Charging != 1) {                               // Currently charging with 3 phases
+                if (State != STATE_A) {                                 
+                    Switching_Phases_C2 = GOING_TO_SWITCH_1P;
+                    _LOG_A("Switching to 1P!!!\n");
+                } else Nr_Of_Phases_Charging = 1;                           // We are in STATE_A, just set the correct nr of phases.
+            } else {
+                Switching_Phases_C2 = NO_SWITCH;                            // Currently charging on 1 phase, no need to switch
+                _LOG_A("No need to switch to 1P !\n");
+            }
+        } else {
+            if (Nr_Of_Phases_Charging != 3) {                               // Currently charging on 1 phase
+                if (State != STATE_A) {
+                    Switching_Phases_C2 = GOING_TO_SWITCH_3P;
+                    _LOG_A("Switching to 3P!!!\n");
+                } else Nr_Of_Phases_Charging = 3;                           // We are in STATE_A, just set the correct nr of phases.
+            } else {
+                Switching_Phases_C2 = NO_SWITCH;                            // Currently charging with 3 phases, no need to switch
+                _LOG_A("No need to switch to 3P !\n");
+            }
+        }
+    } else if (Mode == MODE_SMART) {                                        // SMART mode with CONTACT 2 set to AUTO
+            if (Nr_Of_Phases_Charging != 3) {                               // in SMART AUTO mode go back to the old 3P
+                Switching_Phases_C2 = GOING_TO_SWITCH_3P;
+                _LOG_A("AUTO Switching to 3P\n");
+            } else if (Switching_Phases_C2 != NO_SWITCH) {
+                Switching_Phases_C2 = NO_SWITCH;                            // Was about to switch phases, but cancelled now
+                _LOG_A("Switching Cancelled!\n");
+            }   
+    } 
+    _LOG_D("NrPhasesCharging:%u\n",Nr_Of_Phases_Charging); 
+}
+
+/**
  * Set EVSE mode
  * 
  * @param uint8_t Mode
@@ -560,21 +600,30 @@ void setMode(uint8_t NewMode) {
     // it's only the regulation algorithm that is changing...
     // EXCEPT when EnableC2 == Solar Off, because we would expect C2 to be off when in Solar Mode and EnableC2 == Solar Off
     // and also the other way around, multiple phases might be wanted when changing from Solar to Normal or Smart
-    bool switchOnLater = false;
     if (EnableC2 == SOLAR_OFF) {
         if ((Mode != MODE_SOLAR && NewMode == MODE_SOLAR) || (Mode == MODE_SOLAR && NewMode != MODE_SOLAR)) {
-            //we are switching from non-solar to solar
-            //since we EnableC2 == SOLAR_OFF C2 is turned On now, and should be turned off
-            setAccess(OFF);                                                     //switch to OFF
-            switchOnLater = true;
+
+            // Set State to C1 or B1 to make sure CP is disconnected for 5 seconds, before switching contactors on/off
+            if (State == STATE_C) setState(STATE_C1); 
+            else if (State != STATE_C1 && State == STATE_B) setState(STATE_B1);
+            
+            _LOG_A("Disconnect CP when switching C2\n");
         }
     }
 
-    /* rob040: similar to the above, when solar charging at 1P and mode change, we need to switch back to 3P */
-    if ((EnableC2 == AUTO) && (Mode != NewMode) && (Mode == MODE_SOLAR) && (Nr_Of_Phases_Charging == 1)) {
-        setAccess(OFF);                                                       //switch to OFF
-        switchOnLater = true;
+    // similar to the above, when switching between solar charging at 1P and mode change, we need to switch back to 3P
+    // TODO make sure that Smart 3P -> Solar 1P also disconnects
+    if ((EnableC2 == AUTO) && (Mode != NewMode) && (Mode == MODE_SOLAR) && (Nr_Of_Phases_Charging == 1) ) {
+    
+        // Set State to C1 or B1 to make sure CP is disconnected for 5 seconds, before switching contactors on/off
+        if (State == STATE_C) setState(STATE_C1);
+        else if (State != STATE_C1 && State == STATE_B) setState(STATE_B1);
+
+        _LOG_A("AUTO Solar->Smart/Normal charging 1p->3p\n");
     }
+
+    // Also check all other switching options
+    CheckSwitchingPhases();
 
 #if MQTT
     // Update MQTT faster
@@ -592,8 +641,6 @@ void setMode(uint8_t NewMode) {
     Mode = NewMode;    
     SEND_TO_CH32(Mode); //d
 
-    if (switchOnLater)
-        setAccess(ON);
 
     //make mode and start/stoptimes persistent on reboot
     if (preferences.begin("settings", false) ) {                        //false = write mode
@@ -635,7 +682,7 @@ void setSolarStopTimer(uint16_t Timer) {
  * This is only relevant on a 3P mains and 3P car installation!
  * 1P car will always charge 1P undetermined by CONTACTOR2
  */
-uint8_t Force_Single_Phase_Charging() {                                         // abbreviated to FSPC
+uint8_t Force_Single_Phase_Charging() {
     switch (EnableC2) {
         case NOT_PRESENT:                                                       //no use trying to switch a contactor on that is not present
             return 0;   //3P charging
@@ -784,7 +831,6 @@ void setState(uint8_t NewState) { //c
                 ModemStage = 0;                                                 // Start modem if EV connects
                 clearErrorFlags(LESS_6A);
                 setChargeDelay(0);
-                Switching_Phases_C2 = NO_SWITCH;
                 // Reset Node
                 Node[0].Timer = 0;
                 Node[0].IntTimer = 0;
@@ -818,6 +864,7 @@ void setState(uint8_t NewState) { //c
 #endif
             break;
         case STATE_B:
+            CheckSwitchingPhases();
 #if MODEM
             PILOT_CONNECTED;
             DisconnectTimeCounter = -1;                                         // Disable Disconnect timer. Car is connected
@@ -842,28 +889,29 @@ void setState(uint8_t NewState) { //c
             SEND_TO_ESP32(RCMTestCounter);
             testRCMON();
 #endif
-
+            // Here at State C we actually switch the contactors,
+            // and set the new Nr_Of_Phases_Charging to the new value. 
             if (Switching_Phases_C2 == GOING_TO_SWITCH_1P) {
-                    CONTACTOR2_OFF;
-                    setSolarStopTimer(0);
-                    MaxSumMainsTimer = 0;
-                    Nr_Of_Phases_Charging = 1;                                  // switch to 1F
-                    Switching_Phases_C2 = NO_SWITCH;                            // we finished the switching process,
-                                                                                // BUT we don't know which is the single phase
+                Nr_Of_Phases_Charging = 1;                                      // Set phases charging to single phase
+
+            } else if (Switching_Phases_C2 == GOING_TO_SWITCH_3P) {
+                Nr_Of_Phases_Charging = 3;                                      // Set phases charging to three phase charging
             }
 
-            if (Switching_Phases_C2 == GOING_TO_SWITCH_3P) {
-                    setSolarStopTimer(0);
-                    MaxSumMainsTimer = 0;
-                    Nr_Of_Phases_Charging = 3;                                  // switch to 3P
-                    SEND_TO_ESP32(Nr_Of_Phases_Charging);
-                    Switching_Phases_C2 = NO_SWITCH;                            // we finished the switching process,
-            }
-
-            CONTACTOR1_ON;
-            if (!Force_Single_Phase_Charging()) {                               // in AUTO mode we start with 3phases
+            CONTACTOR1_ON;            
+            if (!Force_Single_Phase_Charging()) {                               // Force_Single_Phase_Charging will check Nr_Of_Phases_Charging when the Contact2 menu option is set to 'AUTO' 
                 CONTACTOR2_ON;                                                  // Contactor2 ON
-            }
+                Nr_Of_Phases_Charging = 3;
+            } else {
+                CONTACTOR2_OFF;
+                Nr_Of_Phases_Charging = 1;                                      // keep track of the nr of phases which are active
+            }    
+            SEND_TO_ESP32(Nr_Of_Phases_Charging);
+
+            setSolarStopTimer(0);
+            MaxSumMainsTimer = 0;
+            Switching_Phases_C2 = NO_SWITCH;                                    // we finished the switching process
+
             break;
         case STATE_C1:
 #ifdef SMARTEVSE_VERSION //v3
@@ -1186,25 +1234,7 @@ void CalcBalancedCurrent(char mod) {
                 }
             }
         }
-        // we want to obey EnableC2 settings at all times, after switching modes and/or C2 settings
-        // TODO move this to setMode and glcd.cpp C2_MENU?
-        if (EnableC2 != AUTO) {
-            if (Force_Single_Phase_Charging()) {
-                if (Nr_Of_Phases_Charging != 1) {
-                    Switching_Phases_C2 = GOING_TO_SWITCH_1P;
-                }
-            } else {
-                if (Nr_Of_Phases_Charging != 3) {
-                    Switching_Phases_C2 = GOING_TO_SWITCH_3P;
-                }
-            }
-        } else if (Mode == MODE_SMART) {
-                if (Nr_Of_Phases_Charging != 3) {                               // in SMART AUTO mode go back to the old 3P
-                    Switching_Phases_C2 = GOING_TO_SWITCH_3P;
-                } else if (Switching_Phases_C2 != NO_SWITCH) {
-                    Switching_Phases_C2 = NO_SWITCH;                            // Was about to switch phases, but cancelled now
-                }   
-        }
+       
         // adapt IsetBalanced in Smart Mode, and ensure the MaxMains/MaxCircuit settings for Solar
 
         if ((LoadBl == 0 && EVMeter.Type) || LoadBl == 1)                       // Conditions in which MaxCircuit has to be considered;
@@ -3365,6 +3395,7 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
         SETITEM(STATUS_CONFIG_CHANGED, ConfigChanged)
         case MENU_C2:
             EnableC2 = (EnableC2_t) val;
+            CheckSwitchingPhases();
             SEND_TO_CH32(EnableC2)
             SEND_TO_ESP32(EnableC2)
             break;
