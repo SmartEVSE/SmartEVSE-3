@@ -2187,7 +2187,9 @@ uint8_t processAllNodeStates(uint8_t NodeNr) {
 
     // Here we set the Masters Mode to the one we received from a Slave/Node
     if (NodeNewMode) {
-        setMode(NodeNewMode -1);
+        if ((NodeNewMode -1) != Mode) {                                         // Don't call setMode if we are already in the correct Mode
+            setMode(NodeNewMode -1);
+        }   
         NodeNewMode = 0;
 #ifndef SMARTEVSE_VERSION //CH32
         printf("@NodeNewMode:%u.\n", 0); //CH32 sends new value to ESP32
