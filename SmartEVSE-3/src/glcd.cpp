@@ -1352,7 +1352,6 @@ void GLCDMenu(uint8_t Buttons) {
     } else if (Buttons == 0x7) {                                                // Buttons released
         ButtonRelease = 0;
         ButtonRepeat = 0;
-        delay(10);                                                              // debounce keys (blocking)
     }
 
     //
