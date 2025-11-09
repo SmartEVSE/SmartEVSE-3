@@ -1237,7 +1237,7 @@ void CalcBalancedCurrent(char mod) {
        
         // adapt IsetBalanced in Smart Mode, and ensure the MaxMains/MaxCircuit settings for Solar
 
-        if ((LoadBl == 0 && EVMeter.Type) || LoadBl == 1)                       // Conditions in which MaxCircuit has to be considered;
+        if ((LoadBl == 0 && EVMeter.Type) || (LoadBl == 1 && EVMeter.Type))     // Conditions in which MaxCircuit has to be considered;
                                                                                 // mode = Smart/Solar so don't test for that
             Idifference = min((MaxMains * 10) - MainsMeter.Imeasured, (MaxCircuit * 10) - EVMeter.Imeasured);
         else
@@ -1347,7 +1347,7 @@ void CalcBalancedCurrent(char mod) {
                         (Isum > (ActiveEVSE * MinCurrent * Nr_Of_Phases_Charging - StartCurrent) * 10 ||
                          // don't apply that rule if we are 3P charging and we could switch to 1P
                          (Nr_Of_Phases_Charging > 1 && EnableC2 == AUTO))) {
-                    if (Nr_Of_Phases_Charging > 1 && EnableC2 == AUTO) {
+                    if (Nr_Of_Phases_Charging > 1 && EnableC2 == AUTO && State == STATE_C) {        // Only for Master when charging, Nodes are not supported yet
                         // not enough current for 3-phase operation; we can switch to 1-phase after some time
                         // start solar stop timer
                         if (SolarStopTimer == 0) {
@@ -1405,7 +1405,8 @@ void CalcBalancedCurrent(char mod) {
             // ############### no shortage of power  #################
 
             // Solar mode with C2=AUTO and enough power for switching from 1P to 3P solar charge?
-            if (Mode == MODE_SOLAR && Nr_Of_Phases_Charging == 1 && EnableC2 == AUTO && IsetBalanced + 8 >= MaxCurrent * 10) {
+            // This is only relevant for the Master controller when charging, Nodes are not yet supported
+            if (Mode == MODE_SOLAR && Nr_Of_Phases_Charging == 1 && EnableC2 == AUTO && IsetBalanced + 8 >= MaxCurrent * 10 && State == STATE_C) {
                     // are we at max regulation at 1P (Iset hovers at 15.2-16.0A on 16A MaxCurrent)(warning: Iset can also be at max when EV limits current)
                     // and is there enough spare that we can go to 3P charging?
                     // Can it take the step from 1x16A to 3x7A (in regular config)?
