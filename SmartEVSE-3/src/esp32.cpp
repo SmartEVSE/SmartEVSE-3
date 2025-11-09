@@ -933,9 +933,7 @@ void validate_settings(void) {
 
     // Sensorbox v2 has always address 0x0A
     if (MainsMeter.Type == EM_SENSORBOX) MainsMeter.Address = 0x0A;
-    // set Lock variables for Solenoid or Motor
-    //if (Lock == 1) { lock1 = LOW; lock2 = HIGH; }                               // Solenoid
-    //else if (Lock == 2) { lock1 = HIGH; lock2 = LOW; }                          // Motor
+    
     // Erase all RFID cards from ram + eeprom if set to EraseAll
     if (RFIDReader == 5) {
         DeleteAllRFID();
