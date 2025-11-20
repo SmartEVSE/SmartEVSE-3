@@ -929,6 +929,7 @@ input[type=submit]:hover{background:#45a049}
 </head>
 <body><form action="/save" method="POST">
 <h2>WiFi Setup</h2>
+<small>SmartEVSE only connects to 2.4 GHz networks.</small>
 <label>SSID:</label>
 <input type="text" name="ssid" required>
 <label>Password:</label>
