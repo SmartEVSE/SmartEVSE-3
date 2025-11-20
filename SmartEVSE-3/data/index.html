@@ -1095,14 +1095,20 @@
                         }
                     }
                     function configureMqtt() {
-                        var mqtt_host=$('#mqtt_host').val();
-                        var mqtt_port=$('#mqtt_port').val();
-                        var mqtt_username=$('#mqtt_username').val();
-                        var mqtt_password=$('#mqtt_password').val();
-                        var mqtt_topic_prefix=$('#mqtt_topic_prefix').val();
-                        $.post( "/settings?mqtt_update=1&mqtt_host=" + mqtt_host +
-                            "&mqtt_port=" + mqtt_port + "&mqtt_username=" + mqtt_username +
-                            "&mqtt_password=" + mqtt_password + "&mqtt_topic_prefix=" + mqtt_topic_prefix);
+                        var params = {
+                            mqtt_update:       1,
+                            mqtt_host:         $('#mqtt_host').val(),
+                            mqtt_port:         $('#mqtt_port').val(),
+                            mqtt_username:     $('#mqtt_username').val(),
+                            mqtt_password:     $('#mqtt_password').val(),
+                            mqtt_topic_prefix: $('#mqtt_topic_prefix').val()
+                        };
+                        // Build query string with proper encoding
+                        var query = Object.keys(params)
+                            .map(k => k + "=" + encodeURIComponent(params[k]))
+                            .join("&");
+
+                        $.post("/settings?" + query);
                         alert('Settings applied');
                         toggleMqttEdit();
                         event.preventDefault();
@@ -1161,15 +1167,19 @@
                         }
                     }
                     function configureOcpp() {
-                        var ocpp_backend_url=$('#ocpp_backend_url').val();
-                        var ocpp_cb_id=$('#ocpp_cb_id').val();
-                        var ocpp_auth_key=$('#ocpp_auth_key').val();
-                        var ocpp_auto_auth_idtag=$('#ocpp_auto_auth_idtag').val();
+                        var params = {
+                            ocpp_update:          1,
+                            ocpp_backend_url:     $('#ocpp_backend_url').val(),
+                            ocpp_cb_id:           $('#ocpp_cb_id').val(),
+                            ocpp_auth_key:        $('#ocpp_auth_key').val(),
+                            ocpp_auto_auth_idtag: $('#ocpp_auto_auth_idtag').val()
+                        };
+                        // Build query string with proper encoding
+                        var query = Object.keys(params)
+                            .map(k => k + "=" + encodeURIComponent(params[k]))
+                            .join("&");
 
-                        $.post( "/settings?ocpp_update=1&ocpp_backend_url=" + ocpp_backend_url +
-                            "&ocpp_cb_id=" + ocpp_cb_id + "&ocpp_auth_key=" + ocpp_auth_key +
-                            "&ocpp_auto_auth_idtag=" + ocpp_auto_auth_idtag);
-
+                        $.post("/settings?" + query);
                         event.preventDefault();
                     }
                     function reboot(event) {
