@@ -931,9 +931,9 @@ input[type=submit]:hover{background:#45a049}
 <h2>WiFi Setup</h2>
 <small>SmartEVSE only connects to 2.4 GHz networks.</small>
 <label>SSID:</label>
-<input type="text" name="ssid" required>
+<input type="text" name="ssid" required minlength="1" maxlength="32" pattern="[ -~]{1,32}" title="SSID must be 1-32 printable characters">
 <label>Password:</label>
-<input type="password" name="password" id="password" required>
+<input type="password" name="password" id="password" required minlength="8" maxlength="63" pattern="[ -~]{8,63}" title="Password must be 8-63 printable characters">
 <label><input type="checkbox" onclick="togglePassword()">Show Password</label>
 <input type="submit" value="Save">
 </form></body></html>
@@ -979,8 +979,9 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
             mg_http_reply(c, 200, "Content-Type: text/plain\r\n", "Erasing settings, rebooting");
         } else if (mg_http_match_uri(hm, "/") && WIFImode == 2) { // serve AP page to fill in WIFI credentials
             mg_http_reply(c, 200, "Content-Type: text/html\r\n", "%s", html_form);
-        } else if (mg_http_match_uri(hm, "/save")) {
-            char ssid[64], password[64];
+        // save WiFi credentials, make sure we are still in WiFiPortal mode    
+        } else if (mg_http_match_uri(hm, "/save") && WIFImode == 2) {
+            char ssid[33], password[64];
             bool has_ssid = mg_http_get_var(&hm->body, "ssid", ssid, sizeof(ssid)) > 0;
             bool has_pass = mg_http_get_var(&hm->body, "password", password, sizeof(password)) > 0;
             if (has_ssid && has_pass) {
