@@ -2215,10 +2215,6 @@ void ocppInit() {
 
     //load OCPP library modules: Mongoose WS adapter and Core OCPP library
 
-    // Declare custom "ConfigureMaxCurrent" key
-    // Parameters: key name, default value, filename for persistence (optional, use CONFIGURATION_FN for default), readonly, rebootRequired, restricted
-    MicroOcpp::declareConfiguration<int>("ConfigureMaxCurrent", 16, CONFIGURATION_FN, false, false, true);
-
     auto filesystem = MicroOcpp::makeDefaultFilesystemAdapter(
             MicroOcpp::FilesystemOpt::Use_Mount_FormatOnFail // Enable FS access, mount LittleFS here, format data partition if necessary
             );
@@ -2388,6 +2384,10 @@ void ocppInit() {
         OcppLastTxNotification = millis();
     });
 
+    // Declare custom "ConfigureMaxCurrent" key
+    // Parameters: key name, default value, filename for persistence (optional, use CONFIGURATION_FN for default), readonly, rebootRequired, restricted
+    MicroOcpp::declareConfiguration<int>("ConfigureMaxCurrent", 16);
+
     OcppUnlockConnectorOnEVSideDisconnect = MicroOcpp::declareConfiguration<bool>("UnlockConnectorOnEVSideDisconnect", true);
 
     endTransaction(nullptr, "PowerLoss"); // If a transaction from previous power cycle is still running, abort it here
@@ -2442,7 +2442,10 @@ void ocppLoop() {
         // Check against max and min currents, only write settings when value changes
         if ((current >= 6) && (current <= 80) && (MaxCurrent != current)) {
             MaxCurrent = current;
-            write_settings();            
+            write_settings();
+            // set to invalid value, so it only sets MaxCurrent once.
+            config->setInt(0);
+            MicroOcpp::configuration_save();
         } 
     }
 
