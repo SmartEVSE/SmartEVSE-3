@@ -986,18 +986,11 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
             bool has_pass = mg_http_get_var(&hm->body, "password", password, sizeof(password)) > 0;
             if (has_ssid && has_pass) {
                 mg_http_reply(c, 200, "Content-Type: text/html\r\n", "<html><body><h2>Saved! Rebooting...</h2></body></html>");
-#ifndef SENSORBOX_VERSION
-                vTaskDelay(2000 / portTICK_PERIOD_MS);                          // for some strange reason this triggers the watchdog function in Sensorbox
-#endif
                 _LOG_A("Connecting to wifi network.\n");
-                WiFi.mode(WIFI_STA);                // Set Station Mode
-                WiFi.begin(ssid, password);   // Configure Wifi with credentials
-                WIFImode = 1;                                                           // we are already connected so don't call handleWIFImode
+                WiFi.begin(ssid, password);                         // Configure Wifi with credentials
+                WIFImode = 1;                                       // we are already connected so don't call handleWIFImode
                 write_settings();
-#ifndef SENSORBOX_VERSION
-                vTaskDelay(2000 / portTICK_PERIOD_MS);                          // for some strange reason this triggers the watchdog function in Sensorbox
-#endif
-                ESP.restart();
+                shouldReboot = true;                                // Allow the webserver to send the reply back before rebooting
             } else {
               mg_http_reply(c, 400, "", "Missing SSID or password");
             }
