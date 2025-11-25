@@ -73,7 +73,7 @@ to your curl POST command. -d ''
 
 &emsp;&emsp;Enables switching between 1 phase mode and 3 phase mode by controlling a 2nd contactor (C2 port)
 <br>&emsp;&emsp;
-<br>&emsp;&emsp;Note 1: The 2nd contactor will only be turned ON when state chages to C (Charging)
+<br>&emsp;&emsp;Note 1: The 2nd contactor will only be turned ON when state changes to C (Charging)
 <br>&emsp;&emsp;Note 2: This is just changing the config setting, the contactor will not be controlled immediately but only when there is a
 <br>&emsp;&emsp;state change.
 <br>&emsp;&emsp;
