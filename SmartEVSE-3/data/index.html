@@ -57,6 +57,15 @@
 
       $(document).ready(loadData());
 
+      // Function to toggle cert visibility
+      function toggleCertVisibility() {
+          if ($('#mqtt_tls').is(':checked')) {
+              $('#mqtt_ca_cert_wrapper').show();
+          } else {
+              $('#mqtt_ca_cert_wrapper').hide();
+          }
+      }
+
       /**
        * Helper function to query the DOM for a single element.
        */
@@ -296,6 +305,9 @@
                 $('#mqtt_username').val(data.mqtt.username);
                 $('#mqtt_password').val(data.mqtt.password);
                 $('#mqtt_topic_prefix').val(data.mqtt.topic_prefix);
+                $('#mqtt_tls').prop('checked', data.mqtt.tls).checkboxradio("refresh");  // Set and refresh widget
+                $('#mqtt_ca_cert').val(data.mqtt.ca_cert || '');
+                toggleCertVisibility();
             }
 
             if (data.settings.lcdlock == 1) {
@@ -364,6 +376,9 @@
             setTimeout("loadData()", 5000);
           });
       }
+
+      // Add event listener for TLS checkbox
+      $(document).on('change', '#mqtt_tls', toggleCertVisibility);
   </script>
 
 
@@ -1090,6 +1105,9 @@
                         $('.mqtt_settings').toggle();
                         if (mqttEditMode) {
                             $('#edit_mqtt_button').text("Close Settings")
+                            $.get("/mqtt_ca_cert", function(certData) {
+                                $('#mqtt_ca_cert').val(certData);
+                            });
                         } else {
                             $('#edit_mqtt_button').text("Edit Settings")
                         }
@@ -1101,7 +1119,9 @@
                             mqtt_port:         $('#mqtt_port').val(),
                             mqtt_username:     $('#mqtt_username').val(),
                             mqtt_password:     $('#mqtt_password').val(),
-                            mqtt_topic_prefix: $('#mqtt_topic_prefix').val()
+                            mqtt_topic_prefix: $('#mqtt_topic_prefix').val(),
+                            mqtt_tls:          $('#mqtt_tls').is(':checked') ? 1 : 0,
+                            mqtt_ca_cert:      $('#mqtt_ca_cert').val()
                         };
                         // Build query string with proper encoding
                         var query = Object.keys(params)
@@ -1368,10 +1388,14 @@
                                             <button onclick="toggleMqttEdit()" style="display:inline-block;" id="edit_mqtt_button">Edit Settings</button>
                                             <div class="mqtt_settings" style="display:none">
                                                 <label>Host: <input id="mqtt_host" title="Leave empty to disable MQTT"></label>
-                                                <label>Port: <input id="mqtt_port"></label>
+                                                <label>Port: <input id="mqtt_port" title="Usually 1883 for MQTT, and 8883 for secure MQTTS"></label>
                                                 <label>Username: <input id="mqtt_username" title="Leave empty for anonymous MQTT"></label>
                                                 <label>Password: <input id="mqtt_password" title="Leave empty for anonymous MQTT"></label>
                                                 <label>Topic Prefix: <input id="mqtt_topic_prefix"></label>
+                                                <label>Enable TLS: <input type="checkbox" id="mqtt_tls" value="1"></label>
+                                                <div id="mqtt_ca_cert_wrapper" style="display:none;">
+                                                    <label>CA Certificate (PEM): <textarea id="mqtt_ca_cert" rows="10" style="width:100%; font-family:monospace;" title="Paste the PEM-formatted CA certificate here for TLS."></textarea></label>
+                                                </div>
                                                 <button onclick="configureMqtt()" style="display:inline-block;">Save</button>
                                             </div>
                                         </div>

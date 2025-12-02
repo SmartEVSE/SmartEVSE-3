@@ -46,6 +46,7 @@ String MQTTHost = "";
 uint16_t MQTTPort;
 mg_timer *MQTTtimer;
 uint8_t lastMqttUpdate = 0;
+bool MQTTtls = false;
 #endif
 
 mg_connection *HttpListener80, *HttpListener443;
@@ -112,9 +113,23 @@ void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event
 void MQTTclient_t::connect(void) {
     if (MQTTHost != "") {
         char s_mqtt_url[80];
-        snprintf(s_mqtt_url, sizeof(s_mqtt_url), "mqtt://%s:%i", MQTTHost.c_str(), MQTTPort);
+        const char* scheme = MQTTtls ? "mqtts" : "mqtt";
+        snprintf(s_mqtt_url, sizeof(s_mqtt_url), "%s://%s:%i", scheme, MQTTHost.c_str(), MQTTPort);
         String lwtTopic = MQTTprefix + "/connected";
         esp_mqtt_client_config_t mqtt_cfg = { .uri = s_mqtt_url, .client_id=MQTTprefix.c_str(), .username=MQTTuser.c_str(), .password=MQTTpassword.c_str(), .lwt_topic=lwtTopic.c_str(), .lwt_msg="offline", .lwt_qos=0, .lwt_retain=1, .lwt_msg_len=7, .keepalive=15 };
+        
+        static String ca_cert_str;
+        if (MQTTtls) {
+            ca_cert_str = readMqttCaCert();
+            if (ca_cert_str.length() > 0) {
+                mqtt_cfg.cert_pem = ca_cert_str.c_str();
+                _LOG_D("Using CA cert from LittleFS (%d bytes).\n", ca_cert_str.length());
+            } else {
+                mqtt_cfg.cert_pem = NULL;
+                _LOG_A("No CA cert in LittleFS.\n");
+            }    
+        }
+
         MQTTclient.client = esp_mqtt_client_init(&mqtt_cfg);
         /* The last argument may be used to pass data to the event handler, in this example mqtt_event_handler */
         esp_mqtt_client_register_event(MQTTclient.client, (esp_mqtt_event_id_t) ESP_EVENT_ANY_ID, (esp_event_handler_t) mqtt_event_handler, NULL);
@@ -1230,6 +1245,17 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
                     doc["mqtt_password_set"] = (MQTTpassword != "");
                 }
 
+                if (request->hasParam("mqtt_tls")) {
+                    MQTTtls = request->getParam("mqtt_tls")->value() == "1";
+                    doc["mqtt_tls"] = MQTTtls;
+                }
+
+                if(request->hasParam("mqtt_ca_cert")) {
+                    String cert = request->getParam("mqtt_ca_cert")->value();
+                    writeMqttCaCert(cert);                      // Save to LittleFS
+                    doc["mqtt_ca_cert_set"] = !cert.isEmpty();
+                }
+
                 // disconnect mqtt so it will automatically reconnect with then new params
                 MQTTclient.disconnect();
 #if MQTT_ESP == 1
@@ -1242,6 +1268,7 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
                     preferences.putString("MQTTprefix", MQTTprefix);
                     preferences.putString("MQTTHost", MQTTHost);
                     preferences.putUShort("MQTTPort", MQTTPort);
+                    preferences.putBool("MQTTtls", MQTTtls);
                     preferences.end();
                 }
             }
@@ -1249,6 +1276,9 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
             String json;
             serializeJson(doc, json);
             mg_http_reply(c, 200, "Content-Type: application/json\r\n", "%s\r\n", json.c_str());    // Yes. Respond JSON
+        } else if (mg_http_match_uri(hm, "/mqtt_ca_cert") && !memcmp("GET", hm->method.buf, hm->method.len)) {
+            String cert = readMqttCaCert();
+            mg_http_reply(c, 200, "Content-Type: text/plain\r\n", "%s\r\n", cert.c_str());
         } else {                                                                    // if everything else fails, serve static page
             // Cache ".webp" or ".ico" image files for one year without revalidation or server checks.
             if (mg_match(hm->uri, mg_str("#.webp"), NULL) ||
@@ -1493,6 +1523,7 @@ void WiFiSetup(void) {
 #endif
         MQTTHost = preferences.getString("MQTTHost", "");
         MQTTPort = preferences.getUShort("MQTTPort", 1883);
+        MQTTtls = preferences.getBool("MQTTtls", false);
 #endif //MQTT
         preferences.end();
     }

@@ -56,6 +56,7 @@ extern String MQTTprefix;
 extern String MQTTHost;
 extern uint16_t MQTTPort;
 extern uint8_t lastMqttUpdate;
+extern bool MQTTtls;
 
 class MQTTclient_t {
 #if MQTT_ESP == 0
@@ -98,6 +99,8 @@ public:
 extern MQTTclient_t MQTTclient;
 extern void SetupMQTTClient();
 extern void mqtt_receive_callback(const String topic, const String payload);
+extern String readMqttCaCert();
+extern void writeMqttCaCert(const String& cert);
 #endif //MQTT
 
 // wrapper so hasParam and getParam still work
@@ -105,7 +108,7 @@ class webServerRequest {
 private:
     struct mg_http_message *hm_internal;
     String _value;
-    char temp[64];
+    char temp[4096];     // allow CA cert to be sent 
 
 public:
     void setMessage(struct mg_http_message *hm);

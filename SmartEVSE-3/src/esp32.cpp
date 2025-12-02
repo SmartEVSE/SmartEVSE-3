@@ -20,6 +20,7 @@ char RequiredEVCCID[32] = "";                                               // R
 #include <Preferences.h>
 
 #include <FS.h>
+#include <LittleFS.h>
 
 #include <WiFi.h>
 #include "network_common.h"
@@ -482,6 +483,37 @@ void getButtonState() {
     xSemaphoreGive(buttonMutex);
 }
 
+
+String readMqttCaCert() {
+    if (!LittleFS.exists("/mqtt_ca.pem")) {
+        _LOG_A("No /mqtt_ca.pem found.\n");
+        return "";
+    }
+    File file = LittleFS.open("/mqtt_ca.pem", "r");
+    if (!file) {
+        _LOG_A("Failed to open /mqtt_ca.pem for reading.\n");
+        return "";
+    }
+    String cert = file.readString();
+    file.close();
+    return cert;
+}
+
+void writeMqttCaCert(const String& cert) {
+    if (cert.isEmpty()) {
+        LittleFS.remove("/mqtt_ca.pem");
+        _LOG_D("Removed /mqtt_ca.pem.\n");
+        return;
+    }
+    File file = LittleFS.open("/mqtt_ca.pem", "w");
+    if (!file) {
+        _LOG_A("Failed to open /mqtt_ca.pem for writing.\n");
+        return;
+    }
+    file.print(cert);
+    file.close();
+    _LOG_D("Wrote %d bytes to /mqtt_ca.pem.\n", cert.length());
+}
 
 #if MQTT
 void mqtt_receive_callback(const String topic, const String payload) {
@@ -1368,7 +1400,7 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
         doc["mqtt"]["topic_prefix"] = MQTTprefix;
         doc["mqtt"]["username"] = MQTTuser;
         doc["mqtt"]["password_set"] = MQTTpassword != "";
-
+        doc["mqtt"]["tls"] = MQTTtls;
         if (MQTTclient.connected) {
             doc["mqtt"]["status"] = "Connected";
         } else {
@@ -2857,6 +2889,11 @@ extern void Timer20ms(void * parameter);
     validate_settings();
     ReadRFIDlist();                                                             // Read all stored RFID's from storage
 
+    // Note that LittleFS is also used by OCPP
+    if(!LittleFS.begin(true)) {
+        _LOG_A("LittleFS Mount Failed\n");
+    }
+        
     getButtonState();
 /*     * @param Buttons: < o >
  *          Value: 1 2 4
