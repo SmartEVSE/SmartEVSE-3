@@ -134,7 +134,7 @@
               $('#computed_soc').html(computed_soc >= 0 ? computed_soc + " &#37;" : "N/A");
               $('#full_soc').html(full_soc >= 0 ? full_soc + " &#37;" : "N/A");
               $('#initial_soc').html(initial_soc >= 0 ? initial_soc + " &#37;" : "N/A");
-              $('#energy_capacity').html(energy_capacity >= 0 ? energy_capacity.toFixed(1) + " kWh" : "N/A");
+              $('#energy_capacity').html(energy_capacity >= 0 ? (energy_capacity/1000).toFixed(1) + " kWh" : "N/A");
               $('#evccid').html(evccid || "N/A");
               $('#full_at')
                 .text(time_until_full > 0 ? new Date(+Date.now()+(time_until_full * 1000)).toLocaleString(undefined, { timeStyle: 'short', dateStyle: "short" }) : 'N/A')
@@ -284,9 +284,9 @@
             } else {
               $('[id=with_evmeter]').show();
               $('#evmeter_description').text(data.ev_meter.description);
-              $('#evmeter_power').text(data.ev_meter.import_active_power.toFixed(1) + " kW");
-              $('#evmeter_total_kwh').text(data.ev_meter.total_kwh.toFixed(1) + " kWh");
-              $('#evmeter_charged_kwh').text(data.ev_meter.charged_kwh.toFixed(1) + " kWh");
+              $('#evmeter_power').text((data.ev_meter.import_active_power/1000).toFixed(1) + " kW");
+              $('#evmeter_total_kwh').text((data.ev_meter.total_wh/1000).toFixed(1) + " kWh");
+              $('#evmeter_charged_kwh').text((data.ev_meter.charged_wh/1000).toFixed(1) + " kWh");
             }
 
             $('#solar_start_current').val(data.settings.solar_start_current);
@@ -331,8 +331,8 @@
                   document.getElementById("cablelock_label").classList.add("ui-checkbox-off")
               }
             } else {
-              $('[id=cablelock]').hide();
-              $('[id=cablelock_label]').hide();
+              $('[id=cablelock]').hide();
+              $('[id=cablelock_label]').hide();
             }
 
             if (data.ocpp) {
