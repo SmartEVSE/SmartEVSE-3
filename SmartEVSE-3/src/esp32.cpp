@@ -744,7 +744,7 @@ void SetupMQTTClient() {
     MQTTclient.publish(MQTTprefix+"/connected", "online", true, 0);
 
     //set the parameters for and announce sensors with device class 'current':
-    String optional_payload = MQTTclient.jsna("device_class","current") + MQTTclient.jsna("unit_of_measurement","A") + MQTTclient.jsna("value_template", R"({{ value | int / 10 }})");
+    String optional_payload = MQTTclient.jsna("device_class","current") + MQTTclient.jsna("state_class","measurement") + MQTTclient.jsna("unit_of_measurement","A") + MQTTclient.jsna("value_template", R"({{ value | int / 10 }})");
     MQTTclient.announce("Charge Current", "sensor", optional_payload);
     MQTTclient.announce("Max Current", "sensor", optional_payload);
     if (MainsMeter.Type) {
@@ -792,9 +792,9 @@ void SetupMQTTClient() {
         MQTTclient.announce("EV Import Active Energy", "sensor", optional_payload);
         MQTTclient.announce("EV Export Active Energy", "sensor", optional_payload);
         //set the parameters for and MQTTclient.announce other sensor entities:
-        optional_payload = MQTTclient.jsna("device_class","power") + MQTTclient.jsna("unit_of_measurement","W");
+        optional_payload = MQTTclient.jsna("device_class","power") + MQTTclient.jsna("unit_of_measurement","W") + MQTTclient.jsna("state_class","measurement");
         MQTTclient.announce("EV Charge Power", "sensor", optional_payload);
-        optional_payload = MQTTclient.jsna("device_class","energy") + MQTTclient.jsna("unit_of_measurement","Wh");
+        optional_payload = MQTTclient.jsna("device_class","energy") + MQTTclient.jsna("unit_of_measurement","Wh") + MQTTclient.jsna("state_class","total_increasing");
         MQTTclient.announce("EV Energy Charged", "sensor", optional_payload);
         optional_payload = MQTTclient.jsna("device_class","energy") + MQTTclient.jsna("unit_of_measurement","Wh") + MQTTclient.jsna("state_class","total_increasing");
         MQTTclient.announce("EV Total Energy Charged", "sensor", optional_payload);
@@ -836,11 +836,11 @@ void SetupMQTTClient() {
     MQTTclient.announce("Error", "sensor", optional_payload);
     MQTTclient.announce("WiFi SSID", "sensor", optional_payload);
     MQTTclient.announce("WiFi BSSID", "sensor", optional_payload);
-    optional_payload = MQTTclient.jsna("entity_category","diagnostic") + MQTTclient.jsna("device_class","signal_strength") + MQTTclient.jsna("unit_of_measurement","dBm");
+    optional_payload = MQTTclient.jsna("entity_category","diagnostic") + MQTTclient.jsna("device_class","signal_strength") + MQTTclient.jsna("unit_of_measurement","dBm") + MQTTclient.jsna("state_class","measurement");
     MQTTclient.announce("WiFi RSSI", "sensor", optional_payload);
-    optional_payload = MQTTclient.jsna("entity_category","diagnostic") + MQTTclient.jsna("device_class","temperature") + MQTTclient.jsna("unit_of_measurement","°C");
+    optional_payload = MQTTclient.jsna("entity_category","diagnostic") + MQTTclient.jsna("device_class","temperature") + MQTTclient.jsna("unit_of_measurement","°C") + MQTTclient.jsna("state_class","measurement");
     MQTTclient.announce("ESP Temp", "sensor", optional_payload);
-    optional_payload = MQTTclient.jsna("entity_category","diagnostic") + MQTTclient.jsna("device_class","duration") + MQTTclient.jsna("unit_of_measurement","s") + MQTTclient.jsna("entity_registry_enabled_default","False");
+    optional_payload = MQTTclient.jsna("entity_category","diagnostic") + MQTTclient.jsna("device_class","duration") + MQTTclient.jsna("unit_of_measurement","s") + MQTTclient.jsna("state_class","measurement") + MQTTclient.jsna("entity_registry_enabled_default","False");
     MQTTclient.announce("ESP Uptime", "sensor", optional_payload);
 
 #if MODEM
