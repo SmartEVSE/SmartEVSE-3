@@ -188,7 +188,7 @@ input.onchange = function(ev) {
   r.readAsArrayBuffer(f);
   r.onload = function() {
     ev.target.value = '';
-    sendFileData(f.name, new Uint8Array(r.result), 20480);
+    sendFileData(f.name, new Uint8Array(r.result), 8192);
   };
 };
     </script>
