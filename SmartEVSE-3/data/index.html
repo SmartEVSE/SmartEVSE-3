@@ -261,10 +261,12 @@
               $('[id=with_p1_api_data_time]').hide();
             }
 
-            if(data.home_battery.last_update == 0) {
-              $('[id=with_homebattery]').hide();
-            } else {
+            if(data.home_battery.last_update > 0) {
+              $('#battery_last_update_time').text(new Date(data.home_battery.last_update * 1000).toLocaleTimeString());
+              $('#battery_last_update_date').text(new Date(data.home_battery.last_update * 1000).toLocaleDateString());
               $('[id=with_homebattery]').show();
+            } else {
+              $('[id=with_homebattery]').hide();
             }
 
             if(data.home_battery.current == 0) {
