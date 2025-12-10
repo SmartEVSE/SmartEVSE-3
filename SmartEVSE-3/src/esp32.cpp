@@ -227,8 +227,8 @@ extern char str[20];
 extern int phasesLastUpdate;
 extern bool phasesLastUpdateFlag;
 extern int16_t IrmsOriginal[3];
-extern int homeBatteryCurrent;
-extern int homeBatteryLastUpdate;
+extern int16_t homeBatteryCurrent;
+extern time_t homeBatteryLastUpdate;
 // set by EXTERNAL logic through MQTT/REST to indicate cheap tariffs ahead until unix time indicated
 extern uint8_t ColorOff[3] ;
 extern uint8_t ColorNormal[3] ;

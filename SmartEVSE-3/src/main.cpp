@@ -249,7 +249,7 @@ int phasesLastUpdate = 0;
 bool phasesLastUpdateFlag = false;
 int16_t IrmsOriginal[3]={0, 0, 0};
 int16_t homeBatteryCurrent = 0;
-int homeBatteryLastUpdate = 0; // Time in milliseconds
+time_t homeBatteryLastUpdate = 0; // Time in seconds since epoch
 // set by EXTERNAL logic through MQTT/REST to indicate cheap tariffs ahead until unix time indicated
 uint8_t ColorOff[3] = {0, 0, 0};          // off
 uint8_t ColorNormal[3] = {0, 255, 0};   // Green
@@ -3594,12 +3594,14 @@ uint16_t getItemValue(uint8_t nav) {
  */
 // 
 int16_t getBatteryCurrent(void) {
-    if (Mode == MODE_SOLAR && ((uint32_t)homeBatteryLastUpdate > (millis()-60000))) {
+    if (homeBatteryLastUpdate && (time(NULL) - homeBatteryLastUpdate) > 60) {
+        homeBatteryLastUpdate = 0;                      // last update was more then 60s ago, set to 0
+        homeBatteryCurrent = 0;
+        return 0;
+    } else if (Mode == MODE_SOLAR) {
         return homeBatteryCurrent;
     } else {
-        homeBatteryCurrent = 0;
-        homeBatteryLastUpdate = 0;
-        return 0;
+        return 0;                                       // don't touch homeBatteryCurrent, just return 0
     }
 }
 
