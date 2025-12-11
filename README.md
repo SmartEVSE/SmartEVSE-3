@@ -15,16 +15,16 @@ Communication between the SmartEVSE(s) / Sensorbox or kWh meters is done over RS
 
 # Features
 
-- Fits into a standard DIN rail enclosure.
+- Works with all EV's or plugin hybrids.
 - Measures the current consumption of other appliances, and automatically lowers or increases the charging current to the EV. (sensorbox required)
-- The load balancing feature let's you connect up to 8 SmartEVSE's to one mains supply.
-- Two switched 230VAC outputs, for contactors.
+- The power sharing feature let's you connect up to 8 SmartEVSE's to one mains supply.
+- Two switched 230VAC outputs, for contactors. Switch between 1 or 3 phase charging.
 - Powered RS485 communication bus for sensorbox / Modbus kWh Meters.
 - Can be used with fixed cable, or socket and charging cable.
 - Automatically selects current capacity of the connected cable (13/16/32A)
 - Locking actuator support, locks the charging cable in the socket.
-- RFID reader support, restrict the use of the charging station to max 20 RFID cards.
-- An optional modbus kWh meter will measure power and charged energy, and display this on the LCD.
+- RFID reader support, restrict the use of the charging station to max 100 RFID cards.
+- An optional modbus kWh meter will measure power and energy, and display this on the LCD.
 - Built-in temperature sensor.
 - RGB led output for status information while charging.
 - All module parameters can be configured using the display and buttons.
@@ -33,7 +33,17 @@ Communication between the SmartEVSE(s) / Sensorbox or kWh meters is done over RS
 - MQTT API for communication with external software (e.g. HomeAssistant)
 - REST API
 - Rudimentary support for home batteries
-- Supporting delayed charging
+- Supports delayed charging
+- OCPP 1.6j support
+- Operating voltage: 110-240 Vac
+- Dimensions (W x D x H):  52 x 91 x 58 mm (width: 3 DIN modules)
+
+# Privacy first
+
+- SmartEVSE will work perfectly fine without a internet connection.
+- The controller does not collect or store usage statistics. Your data remains yours.
+- No vendor lock-in. History has shown this can result in non-functional EV chargers.
+- Open Source Firmware. Fork it, modify it, contribute to make it even better.
 
 # Connecting the SmartEVSE to WiFi
 
