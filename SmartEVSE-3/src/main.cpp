@@ -388,7 +388,7 @@ void Button::HandleSwitch(void)
                 MqttButtonState = true;
                 break;
             case 4: // Smart-Solar Switch
-                if (Mode == MODE_SOLAR) {
+                if (Mode == MODE_SOLAR && AccessStatus == ON) {
                     setMode(MODE_SMART);
                 }
                 MqttButtonState = true;
@@ -435,7 +435,7 @@ void Button::HandleSwitch(void)
                 MqttButtonState = false;
                 break;
             case 3: // Smart-Solar Button
-                if (tmpMillis < TimeOfPress + 1500) {                            // short press
+                if ((tmpMillis < TimeOfPress + 1500) && AccessStatus == ON) {                            // short press
                     if (Mode == MODE_SMART) {
                         setMode(MODE_SOLAR);
                     } else if (Mode == MODE_SOLAR) {
@@ -450,7 +450,7 @@ void Button::HandleSwitch(void)
                 MqttButtonState = false;
                 break;
             case 4: // Smart-Solar Switch
-                if (Mode == MODE_SMART) setMode(MODE_SOLAR);
+                if (Mode == MODE_SMART && AccessStatus == ON) setMode(MODE_SOLAR);
                 MqttButtonState = false;
                 break;
             case 5: // Grid relay
