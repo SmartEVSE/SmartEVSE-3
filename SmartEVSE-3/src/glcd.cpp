@@ -488,6 +488,9 @@ void GLCD(void) {
             else if (EnableC2 == SOLAR_OFF)  GLCD_write_buf_str(0, 0, "Solar 1P - Smart 3P", GLCD_ALIGN_LEFT);
             else if (EnableC2 == ALWAYS_ON)  GLCD_write_buf_str(0, 0, "Three-phase Charging", GLCD_ALIGN_LEFT);
             else if (EnableC2 == AUTO)       GLCD_write_buf_str(0, 0, "Auto 3P <> 1P Charging", GLCD_ALIGN_LEFT);
+        } else if (LCDNav == MENU_PAIRING && SubMenu) {
+            sprintf(Str, "SmartEVSE-%u", serialnr);
+            GLCD_write_buf_str(0,0, Str, GLCD_ALIGN_LEFT);
         } else {
             // When connected to Wifi, display IP and time in top row
             uint8_t WIFImode = getItemValue(MENU_WIFI);
@@ -521,6 +524,7 @@ void GLCD(void) {
 
         if (LCDTimer > 120) {
             LCDNav = 0;                                                         // Exit Setup menu after 120 seconds.
+            PairingPin = "";                                                    // Reset PairingPin when exiting menu.
             read_settings();                                                    // don't save, but restore settings
         } else return;                                                          // disable LCD status messages when navigating LCD Menu
     } // if LCDNav
@@ -1041,6 +1045,16 @@ const char * getMenuItemOption(uint8_t nav) {
             else return StrDisabled;
         case MENU_SWITCH:
             return StrSwitch[value];
+        case MENU_PAIRING:
+            if (SubMenu) {
+                uint32_t tempPin = random(1, 1000000);                                 // generate random PIN 1-999999 when selecting sub menu
+                sprintf(Str, "%06u", tempPin);
+                PairingPin = Str;
+            } else {
+                PairingPin = "";
+                sprintf(Str, "Create PIN");
+            }    
+            return Str;
         case MENU_AUTOUPDATE:
         case MENU_RCMON:
             if (value) return StrEnabled;
@@ -1172,6 +1186,7 @@ uint8_t getMenuItems (void) {
     MenuItems[m++] = MENU_WIFI;                                                 // Wifi Disabled / Enabled / Portal
     if (getItemValue(MENU_WIFI)  == 1) {                                        // only show AutoUpdate menu if Wifi enabled
         MenuItems[m++] = MENU_AUTOUPDATE;                                       // Firmware automatic update Disabled / Enabled
+        MenuItems[m++] = MENU_PAIRING;                                          // Generate PairingPin for SmartEVSE App
     }
     MenuItems[m++] = MENU_MAX_TEMP;
     if (MainsMeter.Type && LoadBl < 2) {
@@ -1346,6 +1361,7 @@ void GLCDMenu(uint8_t Buttons) {
                 GLCD();
                 write_settings();                                               // Write to eeprom
                 ButtonRelease = 2;                                              // Skip updating of the LCD 
+                PairingPin = "";                                                // Reset PairingPin
             }
         }
 

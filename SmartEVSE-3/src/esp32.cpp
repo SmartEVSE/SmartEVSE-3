@@ -206,6 +206,7 @@ extern Node_t Node[NR_EVSES];
 extern uint16_t BacklightTimer;
 extern uint8_t BacklightSet;
 extern int8_t TempEVSE;
+String PairingPin = "";
 SemaphoreHandle_t buttonMutex = xSemaphoreCreateMutex();
 uint8_t ButtonStateOverride = 0x07;                                         // Possibility to override the buttons via API
 uint32_t LastBtnOverrideTime = 0;                                           // Avoid UI buttons getting stuck
@@ -941,6 +942,9 @@ void mqttPublishData() {
         if (Lock != 0) {
             MQTTclient.publish(MQTTprefix + "/CableLock", CableLock, true, 0);
         }
+        MQTTclient.publish(MQTTprefix + "/LoadBl", LoadBl, true, 0);
+        MQTTclient.publish(MQTTprefix + "/PairingPin", PairingPin, true, 0);
+        MQTTclient.publish(MQTTprefix + "/SolarStopTimer", SolarStopTimer, false, 0);
 }
 #endif
 
