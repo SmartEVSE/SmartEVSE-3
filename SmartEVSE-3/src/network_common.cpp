@@ -2,6 +2,8 @@
 
 #include <WiFi.h>
 #include "mbedtls/md_internal.h"
+#include "mbedtls/base64.h"
+#include "mbedtls/sha256.h"
 #include "utils.h"
 #include "network_common.h"
 
@@ -34,7 +36,7 @@ bool LocalTimeSet = false;
 struct mg_mgr mgr;  // Mongoose event manager. Holds all connections
 // end of mongoose stuff
 
-String APhostname = "SmartEVSE-" + String( MacId() & 0xffff, 10);           // SmartEVSE access point Name = SmartEVSE-xxxxx
+String APhostname;
 String APpassword = "00000000";
 
 #if MQTT
@@ -47,6 +49,8 @@ uint16_t MQTTPort;
 mg_timer *MQTTtimer;
 uint8_t lastMqttUpdate = 0;
 bool MQTTtls = false;
+bool MQTTSmartServer = false;               // Use mqtt.smartevse.nl server, can be set from the LCD menu
+String MQTTprivatePassword;                 // mqtt.smartevse.nl pre calculated password (hash of ec_private key)
 #endif
 
 mg_connection *HttpListener80, *HttpListener443;
@@ -61,7 +65,7 @@ extern uint8_t AutoUpdate;
 extern Preferences preferences;
 extern uint16_t firmwareUpdateTimer;
 
-uint32_t serialnr;
+uint32_t serialnr = 0;
 
 
 // The following data will be updated by eeprom/storage data at powerup:
@@ -1442,54 +1446,109 @@ void handleWIFImode() {
     }    
 }
 
+// Compute SHA256 hash of raw 32-byte EC private key
+// Returns first 32 hex chars of hash
+String getEcPrivateKeyHashRaw(const unsigned char* key) {
+    unsigned char hash[32];
+    mbedtls_sha256(key, 32, hash, 0);
+    
+    String result;
+    result.reserve(32);
+    for (int i = 0; i < 16; i++) {
+        char hex[3];
+        snprintf(hex, sizeof(hex), "%02x", hash[i]);
+        result += hex;
+    }
+    return result;
+}
+
+// Compute SHA256 hash of raw 32-byte EC private key from PEM string
+// Returns first 32 hex chars of hash, or empty string on error
+String getEcPrivateKeyHash(const String& pem) {
+    int start = pem.indexOf("-----BEGIN EC PRIVATE KEY-----");
+    if (start < 0) return "";
+    start += 31;  // Skip header
+    
+    // Extract base64 content, stripping all whitespace
+    unsigned char b64[128];
+    int b64len = 0;
+    for (int i = start; i < (int)pem.length() && b64len < 124; i++) {
+        char c = pem[i];
+        if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || 
+            (c >= '0' && c <= '9') || c == '+' || c == '/' || c == '=')
+            b64[b64len++] = c;
+    }
+    
+    // Decode base64 to DER
+    unsigned char der[96];
+    size_t olen;
+    if (mbedtls_base64_decode(der, sizeof(der), &olen, b64, b64len) != 0) return "";
+    
+    // Raw 32-byte key is at offset 7 in DER (after: 30 len 02 01 01 04 20)
+    return getEcPrivateKeyHashRaw(der + 7);
+}
+
 // Setup Wifi 
 void WiFiSetup(void) {
     // We might need some sort of authentication in the future.
     // SmartEVSE v3 have programmed ECDSA-256 keys stored in nvs
-    // Unused for now.
-    if (preferences.begin("KeyStorage", true) ) {                               // true = readonly
-//prevent compiler warning
-#if DBG == 1 || (DBG == 2 && LOG_LEVEL != 0)
+    // Get serial number, hwversion, and private key from NVS or efuses (in priority order)
+    uint16_t hwversion = 0;
         // Hardware version 01xx = SmartEVSE
         // xx01 = v3.0 first batch
         // xx02 = v3.0 second batch
         // xx03 = v3.1 (ESP32-mini)
-        uint16_t hwversion = preferences.getUShort("hwversion");                
-#endif
+    if (preferences.begin("KeyStorage", true)) {                                // true = readonly
+        hwversion = preferences.getUShort("hwversion");
         serialnr = preferences.getUInt("serialnr");
         String ec_private = preferences.getString("ec_private");
         String ec_public = preferences.getString("ec_public");
         preferences.end();
 
-        _LOG_A("hwversion %04x serialnr:%u \n",hwversion, serialnr);
-        //_LOG_A(ec_public);
+        if (ec_private.length() > 0) {
+            MQTTprivatePassword = getEcPrivateKeyHash(ec_private);
+        }
+        _LOG_D("NVS: hwversion=%04x serialnr=%u\n", hwversion, serialnr);
+    }
 
-        // SmartEVSE v3.1 has this also stored in efuses
-        uint8_t efuse_block1[32];
+    // Try efuses for any missing values
+    if (!serialnr || !hwversion || MQTTprivatePassword.length() == 0) {
+        uint8_t efuse_privatekey[32];
         uint8_t efuse_hwversion[2];
         uint8_t efuse_serialnr[3];
-        esp_efuse_read_block(EFUSE_BLK1, efuse_block1, 0, 32*8);
+        esp_efuse_read_block(EFUSE_BLK1, efuse_privatekey, 0, 32*8);
         esp_efuse_read_block(EFUSE_BLK3, efuse_hwversion, 56, 16);
         esp_efuse_read_block(EFUSE_BLK3, efuse_serialnr, 72, 24);
 
-        // check if we can use the serialnr in the efuses if the nvs version was erased
-        uint32_t efuseserialnr = efuse_serialnr[0]+(efuse_serialnr[1]<<8)+(efuse_serialnr[2]<<16);
-        // unprogrammed efuse values are zero's
-        if (efuseserialnr != serialnr && !efuseserialnr && !serialnr) {
-            serialnr = efuseserialnr;
-        }  
-        //_LOG_A("Private key: ");
-        //for (uint8_t x=0; x<32; x++) _LOG_A_NO_FUNC("%02x",efuse_block1[x]);
-        //_LOG_A_NO_FUNC(" hwver: %02x%02x serialnr: %u\n", efuse_hwversion[1], efuse_hwversion[0], efuse_serialnr[0]+(efuse_serialnr[1]<<8));
-    } else {
-        _LOG_A("No KeyStorage found in nvs!\n");
-        if (!serialnr) serialnr = MacId() & 0xffff;                             // when serialnr is not programmed (anymore), we use the Mac address
+        if (!serialnr) {
+            serialnr = efuse_serialnr[0] + (efuse_serialnr[1] << 8) + (efuse_serialnr[2] << 16);
+        }
+        if (!hwversion) {
+            hwversion = efuse_hwversion[0] + (efuse_hwversion[1] << 8);
+        }
+        if (MQTTprivatePassword.length() == 0) {
+            // Check if efuse has a non-zero private key
+            bool hasKey = false;
+            for (uint8_t i = 0; i < 32 && !hasKey; i++) hasKey = (efuse_privatekey[i] != 0);
+            if (hasKey) {
+                MQTTprivatePassword = getEcPrivateKeyHashRaw(efuse_privatekey);
+                _LOG_D("Using efuse private key\n");
+            }
+        }
     }
-    // overwrite APhostname if serialnr is programmed
+
+    // Fallback to MAC address if no serial number found
+    if (!serialnr) {
+        serialnr = MacId() & 0xffff;
+        _LOG_A("No serialnr programmed, using MAC: %u\n", serialnr);
+    }
+    
+    _LOG_A("hwversion=%04x serialnr=%u mqtt_pwd=%s\n", hwversion, serialnr, MQTTprivatePassword.c_str());
+
 #ifndef SENSORBOX_VERSION
-    APhostname = "SmartEVSE-" + String( serialnr);                              // SmartEVSE access point Name = SmartEVSE-xxxxx
+    APhostname = "SmartEVSE-" + String(serialnr);
 #else
-    APhostname = "Sensorbox-" + String( serialnr);
+    APhostname = "Sensorbox-" + String(serialnr);
 #endif
     WiFi.setHostname(APhostname.c_str());
 
@@ -1540,24 +1599,16 @@ void WiFiSetup(void) {
 // called by loop() in the main program
 void network_loop() {
     static unsigned long lastCheck_net = 0;
-    static int seconds = 0;
-    time_t now;
+
     if (millis() - lastCheck_net >= 1000) {
         lastCheck_net = millis();
         //this block is for non-time critical stuff that needs to run approx 1 / second
+        time_t now;
         time(&now);                     // get seconds since Epoch
         localtime_r(&now, &timeinfo);   // convert seconds to localtime
         if (!LocalTimeSet && WIFImode == 1) {
             _LOG_A("Time not synced with NTP yet.\n");
         }
-        //this block is for non-time critical stuff that needs to run approx 1 / 10 seconds
-#if MQTT
-        if (seconds++ >= 9) {
-            seconds = 0;
-            MQTTclient.publish(MQTTprefix + "/ESPUptime", esp_timer_get_time() / 1000000, false, 0);
-            MQTTclient.publish(MQTTprefix + "/WiFiRSSI", String(WiFi.RSSI()), false, 0);
-        }
-#endif
     }
 
     mg_mgr_poll(&mgr, 100);                                                     // TODO increase this parameter to up to 1000 to make loop() less greedy

@@ -57,6 +57,8 @@ extern String MQTTHost;
 extern uint16_t MQTTPort;
 extern uint8_t lastMqttUpdate;
 extern bool MQTTtls;
+extern bool MQTTSmartServer;
+extern String MQTTprivatePassword;   
 
 class MQTTclient_t {
 #if MQTT_ESP == 0
