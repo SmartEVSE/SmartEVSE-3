@@ -1802,9 +1802,9 @@ printf("@MSG: DINGO State=%d, pilot=%d, AccessTimer=%d, PilotDisconnected=%d.\n"
         // We will try to publish data faster if something has changed
         mqttPublishData();
     }
-    // Publish to SmartEVSE server every 5 seconds, but only when app is connected
+    // Publish to SmartEVSE server every 5 seconds, but only when app is connected or pairing in progress
     static uint8_t lastSmartEVSEUpdate = 0;
-    if (MQTTclientSmartEVSE_AppConnected && ++lastSmartEVSEUpdate >= 5) {
+    if ((MQTTclientSmartEVSE_AppConnected || PairingPin.length()) && ++lastSmartEVSEUpdate >= 5) {
         lastSmartEVSEUpdate = 0;
         mqttSmartEVSEPublishData();
     }

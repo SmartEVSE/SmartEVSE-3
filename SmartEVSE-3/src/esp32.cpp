@@ -969,6 +969,7 @@ void mqttSmartEVSEPublishData() {
     if (!MQTTclientSmartEVSE.connected) return;
     
     // MQTTSmartEVSEprefix is initialized in MQTTclientSmartEVSE.connect()
+    MQTTclientSmartEVSE.publish(MQTTSmartEVSEprefix + "/Version", String(VERSION), true, 0);
     MQTTclientSmartEVSE.publish(MQTTSmartEVSEprefix + "/Access", AccessStatus == OFF ? "Deny" : AccessStatus == ON ? "Allow" : AccessStatus == PAUSE ? "Pause" : "N/A", true, 0);
     MQTTclientSmartEVSE.publish(MQTTSmartEVSEprefix + "/ChargeCurrent", String(Balanced[0]), true, 0);
     MQTTclientSmartEVSE.publish(MQTTSmartEVSEprefix + "/ChargeCurrentOverride", String(OverrideCurrent), true, 0);
