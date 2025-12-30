@@ -31,6 +31,7 @@
 #include "glcd.h"
 #include "utils.h"
 #include "meter.h"
+#include "network_common.h"
 #include "font.cpp"
 #include "font2.cpp"
 
@@ -491,6 +492,9 @@ void GLCD(void) {
         } else if (LCDNav == MENU_PAIRING && SubMenu) {
             sprintf(Str, "SmartEVSE-%u", serialnr);
             GLCD_write_buf_str(0,0, Str, GLCD_ALIGN_LEFT);
+        } else if (LCDNav == MENU_APPSERVER && SubMenu) {
+            if (MQTTclientSmartEVSE.connected) GLCD_write_buf_str(0, 0, "Connected to server", GLCD_ALIGN_LEFT);
+            else GLCD_write_buf_str(0, 0, "No server connection", GLCD_ALIGN_LEFT);
         } else {
             // When connected to Wifi, display IP and time in top row
             uint8_t WIFImode = getItemValue(MENU_WIFI);
@@ -1055,6 +1059,7 @@ const char * getMenuItemOption(uint8_t nav) {
                 sprintf(Str, "Create PIN");
             }    
             return Str;
+        case MENU_APPSERVER:        
         case MENU_AUTOUPDATE:
         case MENU_RCMON:
             if (value) return StrEnabled;
@@ -1187,6 +1192,7 @@ uint8_t getMenuItems (void) {
     if (getItemValue(MENU_WIFI)  == 1) {                                        // only show AutoUpdate menu if Wifi enabled
         MenuItems[m++] = MENU_AUTOUPDATE;                                       // Firmware automatic update Disabled / Enabled
         MenuItems[m++] = MENU_PAIRING;                                          // Generate PairingPin for SmartEVSE App
+        MenuItems[m++] = MENU_APPSERVER;                                        // App Server (0:Disable / 1:Enable)
     }
     MenuItems[m++] = MENU_MAX_TEMP;
     if (MainsMeter.Type && LoadBl < 2) {

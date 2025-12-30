@@ -131,6 +131,7 @@
 #define CABLE_LOCK 0                                                            // 0 = Cable Lock disabled, 1 = Cable Lock enabled
 #define INITIALIZED 0
 #define PAIRING_PIN 0
+#define APPSERVER 0
 
 // Mode settings
 #define MODE_NORMAL 0
@@ -285,9 +286,10 @@ void setPilot(bool On);
 #define MENU_SUMMAINSTIME 39
 #define MENU_LCDPIN 40
 #define MENU_PAIRING 41
-#define MENU_OFF 42                                                             // so access bit is reset and charging stops when pressing < button 2 seconds
-#define MENU_ON 43                                                              // so access bit is set and charging starts when pressing > button 2 seconds
-#define MENU_EXIT 44
+#define MENU_APPSERVER 42
+#define MENU_OFF 43                                                             // so access bit is reset and charging stops when pressing < button 2 seconds
+#define MENU_ON 44                                                              // so access bit is set and charging starts when pressing > button 2 seconds
+#define MENU_EXIT 45
 
 #define MENU_STATE 50
 

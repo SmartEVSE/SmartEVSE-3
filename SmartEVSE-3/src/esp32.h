@@ -190,7 +190,8 @@ const struct {
     {"CAPACITY","Capacity Rate limit on sum of MAINS Current (A)",    0, 600, MAX_SUMMAINS},
     {"CAP STOP","Stop Capacity Rate limit charging after X minutes",    0, 60, MAX_SUMMAINSTIME},
     {"LCD PIN", "Pin code to operate LCD from web interface",         0, 65534, 0},
-    {"APP PIN","Generate Pairing PIN for SmartEVSE App",              0, 1, PAIRING_PIN},
+    {"APP PIN", "Generate Pairing PIN for SmartEVSE App",             0, 1, PAIRING_PIN},
+    {"APP SERVR","Cloud connection for SmartEVSE App features",       0, 1, APPSERVER},
     {"", "Hold 2 sec to stop charging", 0, 0, 0},
     {"", "Hold 2 sec to start charging", 0, 0, 0},
 

@@ -218,6 +218,11 @@ extern uint16_t CardOffset;
 extern uint8_t ConfigChanged;
 
 extern uint16_t SolarStopTimer;
+extern uint8_t State;
+extern uint8_t ErrorFlags;
+extern uint8_t LoadBl;
+extern AccessStatus_t AccessStatus;
+extern uint8_t Nr_Of_Phases_Charging;
 
 extern uint8_t ActivationMode, ActivationTimer;
 extern volatile uint16_t adcsample;
@@ -942,9 +947,49 @@ void mqttPublishData() {
         if (Lock != 0) {
             MQTTclient.publish(MQTTprefix + "/CableLock", CableLock, true, 0);
         }
+        MQTTclient.publish(MQTTprefix + "/ESPUptime", esp_timer_get_time() / 1000000, false, 0);
+        MQTTclient.publish(MQTTprefix + "/WiFiRSSI", String(WiFi.RSSI()), false, 0);
         MQTTclient.publish(MQTTprefix + "/LoadBl", LoadBl, true, 0);
         MQTTclient.publish(MQTTprefix + "/PairingPin", PairingPin, true, 0);
         MQTTclient.publish(MQTTprefix + "/SolarStopTimer", SolarStopTimer, false, 0);
+}
+
+// SmartEVSE server MQTT client setup - subscribe to Set topics
+void SetupMQTTClientSmartEVSE() {
+    // MQTTSmartEVSEprefix is initialized in MQTTclientSmartEVSE.connect()
+    MQTTclientSmartEVSE.subscribe(MQTTSmartEVSEprefix + "/Set/CurrentOverride", 1);
+    MQTTclientSmartEVSE.subscribe(MQTTSmartEVSEprefix + "/Set/Mode", 1);
+    MQTTclientSmartEVSE.subscribe(MQTTSmartEVSEprefix + "/App/Status", 1);
+    MQTTclientSmartEVSE.publish(MQTTSmartEVSEprefix + "/connected", "online", true, 0);
+    mqttSmartEVSEPublishData();
+}
+
+// SmartEVSE server MQTT publish data
+void mqttSmartEVSEPublishData() {
+    if (!MQTTclientSmartEVSE.connected) return;
+    
+    // MQTTSmartEVSEprefix is initialized in MQTTclientSmartEVSE.connect()
+    MQTTclientSmartEVSE.publish(MQTTSmartEVSEprefix + "/Access", AccessStatus == OFF ? "Deny" : AccessStatus == ON ? "Allow" : AccessStatus == PAUSE ? "Pause" : "N/A", true, 0);
+    MQTTclientSmartEVSE.publish(MQTTSmartEVSEprefix + "/ChargeCurrent", String(Balanced[0]), true, 0);
+    MQTTclientSmartEVSE.publish(MQTTSmartEVSEprefix + "/ChargeCurrentOverride", String(OverrideCurrent), true, 0);
+    MQTTclientSmartEVSE.publish(MQTTSmartEVSEprefix + "/Mode", AccessStatus == OFF ? "Off" : AccessStatus == PAUSE ? "Pause" : Mode > 3 ? "N/A" : StrMode[Mode], true, 0);
+    MQTTclientSmartEVSE.publish(MQTTSmartEVSEprefix + "/NrOfPhases", String(Nr_Of_Phases_Charging), true, 0);
+    MQTTclientSmartEVSE.publish(MQTTSmartEVSEprefix + "/State", getStateNameWeb(State), true, 0);
+    MQTTclientSmartEVSE.publish(MQTTSmartEVSEprefix + "/Error", getErrorNameWeb(ErrorFlags), true, 0);
+    MQTTclientSmartEVSE.publish(MQTTSmartEVSEprefix + "/LoadBl", String(LoadBl), true, 0);
+    MQTTclientSmartEVSE.publish(MQTTSmartEVSEprefix + "/SolarStopTimer", String(SolarStopTimer), false, 0);
+    if (MainsMeter.Type) {
+        MQTTclientSmartEVSE.publish(MQTTSmartEVSEprefix + "/MainsCurrentL1", String(MainsMeter.Irms[0]), false, 0);
+        MQTTclientSmartEVSE.publish(MQTTSmartEVSEprefix + "/MainsCurrentL2", String(MainsMeter.Irms[1]), false, 0);
+        MQTTclientSmartEVSE.publish(MQTTSmartEVSEprefix + "/MainsCurrentL3", String(MainsMeter.Irms[2]), false, 0);
+    }
+    if (EVMeter.Type) {
+        MQTTclientSmartEVSE.publish(MQTTSmartEVSEprefix + "/EVChargePower", String(EVMeter.PowerMeasured), false, 0);
+        MQTTclientSmartEVSE.publish(MQTTSmartEVSEprefix + "/EVEnergyCharged", String(EVMeter.EnergyCharged), true, 0);
+        MQTTclientSmartEVSE.publish(MQTTSmartEVSEprefix + "/EVImportActiveEnergy", String(EVMeter.Import_active_energy), false, 0);
+    }
+    MQTTclientSmartEVSE.publish(MQTTSmartEVSEprefix + "/PairingPin", PairingPin, true, 0);
+    MQTTclientSmartEVSE.publish(MQTTSmartEVSEprefix + "/MaxCurrent", String(MaxCurrent * 10), true, 0);
 }
 #endif
 
@@ -1069,7 +1114,7 @@ void read_settings() {
         CableLock = preferences.getUChar("CableLock", CABLE_LOCK);
         LCDPin = preferences.getUShort("LCDPin", 0);
         AutoUpdate = preferences.getUChar("AutoUpdate", AUTOUPDATE);
-
+        MQTTSmartServer = preferences.getBool("MQTTSmartServer", APPSERVER);
 
         EnableC2 = (EnableC2_t) preferences.getUShort("EnableC2", ENABLE_C2);
 #if MODEM
@@ -1143,6 +1188,7 @@ void write_settings(void) {
     preferences.putUChar("LCDlock", LCDlock);
     preferences.putUChar("CableLock", CableLock);
     preferences.putUShort("LCDPin", LCDPin);
+    preferences.putBool("MQTTSmartServer", MQTTSmartServer);
 
 #if ENABLE_OCPP && defined(SMARTEVSE_VERSION) //run OCPP only on ESP32
     preferences.putUChar("OcppMode", OcppMode);
@@ -1410,6 +1456,7 @@ bool handle_URI(struct mg_connection *c, struct mg_http_message *hm,  webServerR
         } else {
             doc["mqtt"]["status"] = "Disconnected";
         }
+        doc["mqtt"]["smartevse_server"] = MQTTSmartServer;
 #endif
 
 #if ENABLE_OCPP && defined(SMARTEVSE_VERSION) //run OCPP only on ESP32

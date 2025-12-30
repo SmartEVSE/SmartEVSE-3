@@ -1387,7 +1387,7 @@
                                             MQTT:
                                         </div>
                                         <div class="col">
-                                            <button onclick="toggleMqttEdit()" style="display:inline-block;" id="edit_mqtt_button">Edit Settings</button>
+                                                <button onclick="toggleMqttEdit()" style="display:inline-block;" id="edit_mqtt_button">Edit Settings</button>
                                             <div class="mqtt_settings" style="display:none">
                                                 <label>Host: <input id="mqtt_host" title="Leave empty to disable MQTT"></label>
                                                 <label>Port: <input id="mqtt_port" title="Usually 1883 for MQTT, and 8883 for secure MQTTS"></label>
@@ -1396,7 +1396,7 @@
                                                 <label>Topic Prefix: <input id="mqtt_topic_prefix"></label>
                                                 <label>Enable TLS: <input type="checkbox" id="mqtt_tls" value="1"></label>
                                                 <div id="mqtt_ca_cert_wrapper" style="display:none;">
-                                                    <label>CA Certificate (PEM): <textarea id="mqtt_ca_cert" rows="10" style="width:100%; font-family:monospace;" title="Paste the PEM-formatted CA certificate here for TLS."></textarea></label>
+                                                    <label>CA Certificate (PEM): <textarea id="mqtt_ca_cert" rows="10" style="width:100%; font-family:monospace;" title="Paste the PEM-formatted CA certificate here for TLS. if left empty, LetsEncrypt will be used as default"></textarea></label>
                                                 </div>
                                                 <button onclick="configureMqtt()" style="display:inline-block;">Save</button>
                                             </div>

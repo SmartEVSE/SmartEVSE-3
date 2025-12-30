@@ -58,6 +58,7 @@ extern uint16_t MQTTPort;
 extern uint8_t lastMqttUpdate;
 extern bool MQTTtls;
 extern bool MQTTSmartServer;
+extern bool MQTTSmartServerChanged;        // Flag to trigger reconnect from network_loop()
 extern String MQTTprivatePassword;   
 
 class MQTTclient_t {
@@ -76,8 +77,8 @@ public:
 #else
 public:
     void connect(void);
-    void disconnect(void) { esp_mqtt_client_stop(client); connected = false; }; //we have to set connected because for some reason MQTT_EVENT_DISCONNECTED is not happening
-    esp_mqtt_client_handle_t client;
+    void disconnect(void);
+    esp_mqtt_client_handle_t client = nullptr;
 #endif
 private:
     //jsn(device_class, current) expands to:
@@ -103,6 +104,26 @@ extern void SetupMQTTClient();
 extern void mqtt_receive_callback(const String topic, const String payload);
 extern String readMqttCaCert();
 extern void writeMqttCaCert(const String& cert);
+extern const char* root_ca_letsencrypt;
+
+// SmartEVSE server MQTT client (separate connection)
+class MQTTclientSmartEVSE_t {
+public:
+    void connect(void);
+    void disconnect(void);
+    void publish(const String &topic, const String &payload, bool retained, int qos);
+    void subscribe(const String &topic, int qos);
+    bool connected = false;
+#if MQTT_ESP == 1
+    esp_mqtt_client_handle_t client = nullptr;
+private:
+    void cleanup(bool publishOffline = false);
+#endif
+};
+extern MQTTclientSmartEVSE_t MQTTclientSmartEVSE;
+extern String MQTTSmartEVSEprefix;              // Shared prefix for all SmartEVSE MQTT operations
+extern void mqttSmartEVSEPublishData();
+extern void SetupMQTTClientSmartEVSE();
 #endif //MQTT
 
 // wrapper so hasParam and getParam still work
@@ -110,7 +131,7 @@ class webServerRequest {
 private:
     struct mg_http_message *hm_internal;
     String _value;
-    char temp[4096];     // allow CA cert to be sent 
+    char temp[2048];     // buffer for params (CA cert ~1.5KB)
 
 public:
     void setMessage(struct mg_http_message *hm);

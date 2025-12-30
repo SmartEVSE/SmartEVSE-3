@@ -310,6 +310,8 @@ extern uint8_t processAllNodeStates(uint8_t NodeNr);
 extern void BroadcastCurrent(void);
 extern void CheckRFID(void);
 extern void mqttPublishData();
+extern void mqttSmartEVSEPublishData();
+extern bool MQTTclientSmartEVSE_AppConnected;
 extern void DisconnectEvent(void);
 extern char EVCCID[32];
 extern char RequiredEVCCID[32];
@@ -1799,6 +1801,12 @@ printf("@MSG: DINGO State=%d, pilot=%d, AccessTimer=%d, PilotDisconnected=%d.\n"
         // Publish latest data, every 10 seconds
         // We will try to publish data faster if something has changed
         mqttPublishData();
+    }
+    // Publish to SmartEVSE server every 5 seconds, but only when app is connected
+    static uint8_t lastSmartEVSEUpdate = 0;
+    if (MQTTclientSmartEVSE_AppConnected && ++lastSmartEVSEUpdate >= 5) {
+        lastSmartEVSEUpdate = 0;
+        mqttSmartEVSEPublishData();
     }
 #endif
 
@@ -3417,6 +3425,10 @@ uint8_t setItemValue(uint8_t nav, uint16_t val) {
             EMConfig[EM_CUSTOM].DataType = (mb_datatype)val;
             break;
 #ifdef SMARTEVSE_VERSION
+        case MENU_APPSERVER:
+            MQTTSmartServer = val;
+            MQTTSmartServerChanged = true;                                      // Signal network_loop() to handle reconnect
+            break;
         case MENU_RCMON:
             RCmon = val;
 #if SMARTEVSE_VERSION >= 40 //v4            
@@ -3571,6 +3583,8 @@ uint16_t getItemValue(uint8_t nav) {
 #ifdef SMARTEVSE_VERSION //not on CH32
         case MENU_RCMON:
             return RCmon;
+        case MENU_APPSERVER:
+            return MQTTSmartServer;  
         case STATUS_SERIAL:
             return serialnr;
 #endif

@@ -50,6 +50,7 @@ mg_timer *MQTTtimer;
 uint8_t lastMqttUpdate = 0;
 bool MQTTtls = false;
 bool MQTTSmartServer = false;               // Use mqtt.smartevse.nl server, can be set from the LCD menu
+bool MQTTSmartServerChanged = false;        // Flag to trigger reconnect from network_loop()
 String MQTTprivatePassword;                 // mqtt.smartevse.nl pre calculated password (hash of ec_private key)
 #endif
 
@@ -115,30 +116,49 @@ void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event
 
 
 void MQTTclient_t::connect(void) {
-    if (MQTTHost != "") {
-        char s_mqtt_url[80];
-        const char* scheme = MQTTtls ? "mqtts" : "mqtt";
-        snprintf(s_mqtt_url, sizeof(s_mqtt_url), "%s://%s:%i", scheme, MQTTHost.c_str(), MQTTPort);
-        String lwtTopic = MQTTprefix + "/connected";
-        esp_mqtt_client_config_t mqtt_cfg = { .uri = s_mqtt_url, .client_id=MQTTprefix.c_str(), .username=MQTTuser.c_str(), .password=MQTTpassword.c_str(), .lwt_topic=lwtTopic.c_str(), .lwt_msg="offline", .lwt_qos=0, .lwt_retain=1, .lwt_msg_len=7, .keepalive=15 };
-        
-        static String ca_cert_str;
-        if (MQTTtls) {
-            ca_cert_str = readMqttCaCert();
-            if (ca_cert_str.length() > 0) {
-                mqtt_cfg.cert_pem = ca_cert_str.c_str();
-                _LOG_D("Using CA cert from LittleFS (%d bytes).\n", ca_cert_str.length());
-            } else {
-                mqtt_cfg.cert_pem = NULL;
-                _LOG_A("No CA cert in LittleFS.\n");
-            }    
+    if (MQTTHost == "") return;
+    
+    // Stop and destroy old client if exists to prevent memory leak
+    if (client) {
+        esp_mqtt_client_stop(client);
+        esp_mqtt_client_destroy(client);
+        client = nullptr;
+    }
+    
+    static String ca_cert_str;
+    if (MQTTtls) {
+        ca_cert_str = readMqttCaCert();
+        if (ca_cert_str.length() < 10) {
+            ca_cert_str = root_ca_letsencrypt;
+            _LOG_A("No CA cert in LittleFS, using LetsEncrypt as default");
         }
+    }
+    
+    static char s_mqtt_url[80];
+    snprintf(s_mqtt_url, sizeof(s_mqtt_url), "%s://%s:%i", MQTTtls ? "mqtts" : "mqtt", MQTTHost.c_str(), MQTTPort);
+    static String lwtTopic;
+    lwtTopic = MQTTprefix + "/connected";
+    esp_mqtt_client_config_t mqtt_cfg = { .uri = s_mqtt_url, .client_id=MQTTprefix.c_str(), .username=MQTTuser.c_str(), .password=MQTTpassword.c_str(), .lwt_topic=lwtTopic.c_str(), .lwt_msg="offline", .lwt_qos=0, .lwt_retain=1, .lwt_msg_len=7, .keepalive=15, .buffer_size=512, .out_buffer_size=512 };
+    
+    if (MQTTtls) {
+        mqtt_cfg.cert_pem = ca_cert_str.c_str();
+        _LOG_D("Using CA cert (%d bytes).\n", ca_cert_str.length());
+    }
+    _LOG_A("MQTT connecting to %s as %s\n", MQTTHost.c_str(), MQTTprefix.c_str());
 
-        MQTTclient.client = esp_mqtt_client_init(&mqtt_cfg);
-        /* The last argument may be used to pass data to the event handler, in this example mqtt_event_handler */
-        esp_mqtt_client_register_event(MQTTclient.client, (esp_mqtt_event_id_t) ESP_EVENT_ANY_ID, (esp_event_handler_t) mqtt_event_handler, NULL);
-        if (WiFi.status() == WL_CONNECTED)
-            esp_mqtt_client_start(MQTTclient.client);
+    client = esp_mqtt_client_init(&mqtt_cfg);
+    esp_mqtt_client_register_event(client, (esp_mqtt_event_id_t) ESP_EVENT_ANY_ID, (esp_event_handler_t) mqtt_event_handler, NULL);
+    esp_mqtt_client_start(client);
+}
+
+void MQTTclient_t::disconnect(void) {
+    connected = false;  // Set flag first to prevent event handler from using client
+    if (client) {
+        esp_mqtt_client_publish(client, (MQTTprefix + "/connected").c_str(), "offline", 7, 0, 1);
+        esp_mqtt_client_stop(client);
+        vTaskDelay(50 / portTICK_PERIOD_MS);
+        esp_mqtt_client_destroy(client);
+        client = nullptr;
     }
 }
 #endif
@@ -156,8 +176,7 @@ void MQTTclient_t::publish(const String &topic, const String &payload, bool reta
         mg_mqtt_pub(s_conn, &opts);
     }
 #else
-    //esp_mqtt_client_enqueue(client, topic.c_str(), payload.c_str(), payload.length(), qos, retained, 1);
-    if (connected)
+    if (connected && client)
         esp_mqtt_client_publish(client, topic.c_str(), payload.c_str(), payload.length(), qos, retained);
 #endif
 }
@@ -171,7 +190,7 @@ void MQTTclient_t::subscribe(const String &topic, int qos) {
         mg_mqtt_sub(s_conn, &opts);
     }
 #else
-    if (connected)
+    if (connected && client)
         esp_mqtt_client_subscribe(client, topic.c_str(), qos);
 #endif
 }
@@ -200,6 +219,130 @@ void MQTTclient_t::announce(const String& entity_name, const String& domain, con
 
 MQTTclient_t MQTTclient;
 
+// SmartEVSE server MQTT client implementation
+MQTTclientSmartEVSE_t MQTTclientSmartEVSE;
+bool MQTTclientSmartEVSE_AppConnected = false;  // Track if app is connected
+String MQTTSmartEVSEprefix;                     // Initialized once in connect(), used by all SmartEVSE MQTT functions
+
+#if MQTT_ESP == 1
+void mqtt_smartevse_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, esp_mqtt_event_t *event) {
+    switch ((esp_mqtt_event_id_t)event_id) {
+    case MQTT_EVENT_CONNECTED:
+        // Ignore connection if user disabled the server while connecting
+        // Note: Cannot call disconnect() here - we're in MQTT task context and esp_mqtt_client_stop() would deadlock
+        if (!MQTTSmartServer) {
+            _LOG_I("SmartEVSE MQTT: Connection completed but server is disabled, ignoring.\n");
+            break;  // Don't set connected=true, cleanup will happen on next connect() call
+        }
+        MQTTclientSmartEVSE.connected = true;
+        _LOG_A("SmartEVSE MQTT server connected.\n");
+        SetupMQTTClientSmartEVSE();
+        break;
+    case MQTT_EVENT_DISCONNECTED:
+        MQTTclientSmartEVSE.connected = false;
+        MQTTclientSmartEVSE_AppConnected = false;
+        _LOG_I("SmartEVSE MQTT server disconnected.\n");
+        break;
+    case MQTT_EVENT_DATA:
+        {
+        String topic = String(event->topic).substring(0, event->topic_len);
+        String payload = String(event->data).substring(0, event->data_len);
+        _LOG_D("SmartEVSE MQTT received: topic=%s, payload=%s\n", topic.c_str(), payload.c_str());
+        // Check if App status changed
+        if (topic == MQTTSmartEVSEprefix + "/App/Status") {
+            if (payload != "offline") {
+                MQTTclientSmartEVSE_AppConnected = true;
+                _LOG_I("SmartEVSE App connected, publishing data.\n");
+                mqttSmartEVSEPublishData();
+            } else {
+                MQTTclientSmartEVSE_AppConnected = false;
+                _LOG_I("SmartEVSE App disconnected.\n");
+            }
+        } else if (topic.indexOf("/Set/") >= 0) {
+            // Handle Set commands and publish updated data immediately
+            mqtt_receive_callback(topic, payload);
+            mqttSmartEVSEPublishData();
+        } else {
+            // Other messages (e.g. subscribed topics) - just process, don't publish
+            mqtt_receive_callback(topic, payload);
+        }
+        }
+        break;
+    case MQTT_EVENT_ERROR:
+        _LOG_I("SmartEVSE MQTT_EVENT_ERROR; Last errno string (%s)", strerror(event->error_handle->esp_transport_sock_errno));
+        break;
+    default:
+        break;
+    }
+}
+
+// Centralized cleanup - prevents race conditions by atomically clearing state before stopping client
+void MQTTclientSmartEVSE_t::cleanup(bool publishOffline) {
+    connected = false;
+    MQTTclientSmartEVSE_AppConnected = false;
+    if (!client) return;
+    
+    if (publishOffline && MQTTSmartEVSEprefix.length()) {
+        esp_mqtt_client_publish(client, (MQTTSmartEVSEprefix + "/connected").c_str(), "offline", 7, 0, 1);
+    }
+    
+    // Stop and destroy client - esp_mqtt_client_stop may block briefly
+    // Note: This must NOT be called from MQTT task context (event handler)
+    esp_mqtt_client_stop(client);
+    vTaskDelay(50 / portTICK_PERIOD_MS);  // Allow MQTT task to finish gracefully
+    esp_mqtt_client_destroy(client);
+    client = nullptr;
+}
+
+void MQTTclientSmartEVSE_t::connect(void) {
+    if (!MQTTSmartServer || MQTTprivatePassword.length() == 0) {
+        if (MQTTSmartServer) _LOG_A("SmartEVSE MQTT: No private key hash available.\n");
+        return;
+    }
+    if (ESP.getFreeHeap() < 50000) {
+        _LOG_A("SmartEVSE MQTT: Not enough memory for TLS connection.\n");
+        return;
+    }
+    
+    cleanup();  // Clean up any existing connection first
+    
+    // Initialize shared prefix (used by all SmartEVSE MQTT functions)
+    MQTTSmartEVSEprefix = "SmartEVSE-" + String(serialnr);
+    
+    // Static strings kept alive for esp_mqtt_client
+    static String lwtTopic;
+    static char s_mqtt_url[] = "mqtts://mqtt.smartevse.nl:8883";
+    lwtTopic = MQTTSmartEVSEprefix + "/connected";
+    
+    esp_mqtt_client_config_t cfg = { 
+        .uri = s_mqtt_url, .client_id = MQTTSmartEVSEprefix.c_str(), 
+        .username = MQTTSmartEVSEprefix.c_str(), .password = MQTTprivatePassword.c_str(),
+        .lwt_topic = lwtTopic.c_str(), .lwt_msg = "offline", .lwt_qos = 0, .lwt_retain = 1, .lwt_msg_len = 7,
+        .keepalive = 15, .buffer_size = 512, .out_buffer_size = 512
+    };
+    cfg.cert_pem = root_ca_letsencrypt;
+    
+    _LOG_A("SmartEVSE MQTT connecting as %s (heap: %u)\n", MQTTSmartEVSEprefix.c_str(), ESP.getFreeHeap());
+    client = esp_mqtt_client_init(&cfg);
+    esp_mqtt_client_register_event(client, (esp_mqtt_event_id_t)ESP_EVENT_ANY_ID, (esp_event_handler_t)mqtt_smartevse_event_handler, NULL);
+    esp_mqtt_client_start(client);
+}
+
+void MQTTclientSmartEVSE_t::disconnect(void) {
+    cleanup(true);  // Publish offline before disconnecting
+}
+
+void MQTTclientSmartEVSE_t::publish(const String &topic, const String &payload, bool retained, int qos) {
+    if (connected && client)
+        esp_mqtt_client_publish(client, topic.c_str(), payload.c_str(), payload.length(), qos, retained);
+}
+
+void MQTTclientSmartEVSE_t::subscribe(const String &topic, int qos) {
+    if (connected && client)
+        esp_mqtt_client_subscribe(client, topic.c_str(), qos);
+}
+#endif
+
 #endif
 
 //github.com L1
@@ -226,6 +369,42 @@ FsMuCIKchjN0djsoTI0DQoWz4rIjQtUfenVqGtF8qmchxDM6OW1TyaLtYiKou+JV
 bJlsQ2uRl9EMC5MCHdK8aXdJ5htN978UeAOwproLtOGFfy/cQjutdAFI3tZs4RmY
 CV4Ks2dH/hzg1cEo70qLRDEmBDeNiXQ2Lu+lIg+DdEmSx/cQwgwp+7e9un/jX9Wf
 8qn0dNW44bOwgeThpWOjzOoEeJBuv/c=
+-----END CERTIFICATE-----
+)ROOT_CA";
+
+// Let's Encrypt ISRG Root X1
+// valid till 2035
+const char* root_ca_letsencrypt = R"ROOT_CA(
+-----BEGIN CERTIFICATE-----
+MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw
+TzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2Vh
+cmNoIEdyb3VwMRUwEwYDVQQDEwxJU1JHIFJvb3QgWDEwHhcNMTUwNjA0MTEwNDM4
+WhcNMzUwNjA0MTEwNDM4WjBPMQswCQYDVQQGEwJVUzEpMCcGA1UEChMgSW50ZXJu
+ZXQgU2VjdXJpdHkgUmVzZWFyY2ggR3JvdXAxFTATBgNVBAMTDElTUkcgUm9vdCBY
+MTCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIBAK3oJHP0FDfzm54rVygc
+h77ct984kIxuPOZXoHj3dcKi/vVqbvYATyjb3miGbESTtrFj/RQSa78f0uoxmyF+
+0TM8ukj13Xnfs7j/EvEhmkvBioZxaUpmZmyPfjxwv60pIgbz5MDmgK7iS4+3mX6U
+A5/TR5d8mUgjU+g4rk8Kb4Mu0UlXjIB0ttov0DiNewNwIRt18jA8+o+u3dpjq+sW
+T8KOEUt+zwvo/7V3LvSye0rgTBIlDHCNAymg4VMk7BPZ7hm/ELNKjD+Jo2FR3qyH
+B5T0Y3HsLuJvW5iB4YlcNHlsdu87kGJ55tukmi8mxdAQ4Q7e2RCOFvu396j3x+UC
+B5iPNgiV5+I3lg02dZ77DnKxHZu8A/lJBdiB3QW0KtZB6awBdpUKD9jf1b0SHzUv
+KBds0pjBqAlkd25HN7rOrFleaJ1/ctaJxQZBKT5ZPt0m9STJEadao0xAH0ahmbWn
+OlFuhjuefXKnEgV4We0+UXgVCwOPjdAvBbI+e0ocS3MFEvzG6uBQE3xDk3SzynTn
+jh8BCNAw1FtxNrQHusEwMFxIt4I7mKZ9YIqioymCzLq9gwQbooMDQaHWBfEbwrbw
+qHyGO0aoSCqI3Haadr8faqU9GY/rOPNk3sgrDQoo//fb4hVC1CLQJ13hef4Y53CI
+rU7m2Ys6xt0nUW7/vGT1M0NPAgMBAAGjQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNV
+HRMBAf8EBTADAQH/MB0GA1UdDgQWBBR5tFnme7bl5AFzgAiIyBpY9umbbjANBgkq
+hkiG9w0BAQsFAAOCAgEAVR9YqbyyqFDQDLHYGmkgJykIrGF1XIpu+ILlaS/V9lZL
+ubhzEFnTIZd+50xx+7LSYK05qAvqFyFWhfFQDlnrzuBZ6brJFe+GnY+EgPbk6ZGQ
+3BebYhtF8GaV0nxvwuo77x/Py9auJ/GpsMiu/X1+mvoiBOv/2X/qkSsisRcOj/KK
+NFtY2PwByVS5uCbMiogziUwthDyC3+6WVwW6LLv3xLfHTjuCvjHIInNzktHCgKQ5
+ORAzI4JMPJ+GslWYHb4phowim57iaztXOoJwTdwJx4nLCgdNbOhdjsnvzqvHu7Ur
+TkXWStAmzOVyyghqpZXjFaH3pO3JLF+l+/+sKAIuvtd7u+Nxe5AW0wdeRlN8NwdC
+jNPElpzVmbUq4JUagEiuTDkHzsxHpFKVK7q4+63SM1N95R1NbdWhscdCb+ZAJzVc
+oyi3B43njTOQ5yOf+1CceWxG1bQVs5ZufpsMljq4Ui0/1lvh+wjChP4kqKOJ2qxq
+4RgqsahDYVvTH9w7jXbyLeiNdd8XM2w9U/t7y0Ff/9yi0GE44Za4rF2LN9d11TPA
+mRGunUHBcnWEvgJBQl9nJEiU0Zsnvgc/ubhPgXRR4Xq37Z0j4r7g1SgEEzwxA57d
+emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
 -----END CERTIFICATE-----
 )ROOT_CA";
 
@@ -978,7 +1157,8 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
     }
   } else if (ev == MG_EV_HTTP_MSG) {  // New HTTP request received
     struct mg_http_message *hm = (struct mg_http_message *) ev_data;            // Parsed HTTP request
-    webServerRequest* request = new webServerRequest();
+    static webServerRequest requestObj;  // Static to avoid heap allocation on every request
+    webServerRequest* request = &requestObj;
     request->setMessage(hm);
 //make mongoose 7.14 compatible with 7.13
 #define mg_http_match_uri(X,Y) mg_match(X->uri, mg_str(Y), NULL)
@@ -1300,16 +1480,28 @@ static void fn_http_server(struct mg_connection *c, int ev, void *ev_data) {
             }
         }
     } // handle_URI
-    delete request;
+    // request is static, no delete needed
   } //HTTP request received
 }
 
 // turns out getLocalTime only checks if the current year > 2016, and if so, decides NTP must have synced;
 // this callback function actually checks if we are synced!
+// NOTE: This callback is called EVERY time SNTP syncs (every 3 hours), not just the first time!
 void timeSyncCallback(struct timeval *tv)
 {
+    // WARNING: Do NOT add \n to this log message! This callback runs in lwIP SNTP task context.
+    // Adding \n causes RemoteDebug to immediately flush the buffer via TelnetClient.print(),
+    // which is a blocking TCP send. This deadlocks because lwIP is waiting for this callback
+    // to return while the TCP send needs lwIP to process packets.
+    _LOG_A("Synced clock to NTP server!");
+#if MQTT && MQTT_ESP
+    // Start SmartEVSE MQTT connection after time is synced (TLS requires correct time for certificate validation)
+    // Only connect on first sync - subsequent syncs should not restart the MQTT connection!
+    if (!LocalTimeSet) {
+        MQTTclientSmartEVSE.connect();
+    }
+#endif
     LocalTimeSet = true;
-    _LOG_A("Synced clock to NTP server!");    // somehow adding a \n here hangs the telnet server after printing this message ?!?
 }
 
 void onWifiEvent(WiFiEvent_t event, WiFiEventInfo_t info) {
@@ -1366,6 +1558,8 @@ void onWifiEvent(WiFiEvent_t event, WiFiEventInfo_t info) {
 #else
             if (MQTTHost != "")
                 esp_mqtt_client_start(MQTTclient.client);
+            if (MQTTSmartServer && MQTTclientSmartEVSE.client)
+                esp_mqtt_client_start(MQTTclientSmartEVSE.client);
 #endif
 #endif //MQTT
             mg_log_set(MG_LL_NONE);
@@ -1494,10 +1688,10 @@ void WiFiSetup(void) {
     // SmartEVSE v3 have programmed ECDSA-256 keys stored in nvs
     // Get serial number, hwversion, and private key from NVS or efuses (in priority order)
     uint16_t hwversion = 0;
-        // Hardware version 01xx = SmartEVSE
-        // xx01 = v3.0 first batch
-        // xx02 = v3.0 second batch
-        // xx03 = v3.1 (ESP32-mini)
+    // Hardware version 01xx = SmartEVSE
+    // xx01 = v3.0 first batch
+    // xx02 = v3.0 second batch
+    // xx03 = v3.1 (ESP32-mini)
     if (preferences.begin("KeyStorage", true)) {                                // true = readonly
         hwversion = preferences.getUShort("hwversion");
         serialnr = preferences.getUInt("serialnr");
@@ -1599,6 +1793,16 @@ void WiFiSetup(void) {
 // called by loop() in the main program
 void network_loop() {
     static unsigned long lastCheck_net = 0;
+
+#if MQTT && MQTT_ESP
+    // Handle SmartEVSE MQTT server setting change (set by LCD menu)
+    // This runs in main loop context where MQTT operations are safe
+    if (MQTTSmartServerChanged) {
+        MQTTSmartServerChanged = false;
+        MQTTclientSmartEVSE.disconnect();
+        if (MQTTSmartServer) MQTTclientSmartEVSE.connect();
+    }
+#endif
 
     if (millis() - lastCheck_net >= 1000) {
         lastCheck_net = millis();
