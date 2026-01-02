@@ -174,6 +174,26 @@ Only appears when [WIFI](#wifi) is **Enabled**. Automatic update of the SmartEVS
 - **Enabled**: Checks daily for a new stable firmware version and installs it when no EV is connected.  
   **Note**: This will not work if your version is not in the format `vx.y.z` (e.g., v3.6.1). Locally compiled versions or RCx versions will not auto-update.
 
+## APP PIN
+Only appears when [WIFI](#wifi) is **Enabled**. Generate a 6-digit pairing PIN for connecting the SmartEVSE mobile app.
+
+- Press the middle button to generate a new PIN.
+- The PIN is displayed on the LCD screen and is valid for 2 minutes.
+- Enter this PIN in the SmartEVSE mobile app to pair your device.
+- The PIN is automatically cleared when you exit the menu or after the timeout expires.
+
+## APP SERVR
+Only appears when [WIFI](#wifi) is **Enabled**. Enable or disable the connection to the SmartEVSE cloud server for mobile app integration.
+
+- **Disabled**: No connection to the SmartEVSE server.
+- **Enabled**: Connect to `mqtt.smartevse.nl` for mobile app communication.
+
+When enabled, the top row shows the current connection status:
+- **Connected to server**: Successfully connected to the SmartEVSE server.
+- **No server connection**: Not connected to the server.
+
+This feature uses a unique per-device key stored in the controller. If you somehow erased the controller completely this data will be lost, and the controller will not be able to connect to the server. 
+
 ## MAX TEMP
 Maximum allowed temperature for your SmartEVSE: 40-75°C (default 65°C).  
 Charging will stop once the internal temperature reaches this threshold and resume once it drops to 55°C.
