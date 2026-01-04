@@ -201,13 +201,18 @@ void MQTTclient_t::announce(const String& entity_name, const String& domain, con
     entity_suffix.replace(" ", "");
     String topic = "homeassistant/" + domain + "/" + MQTTprefix + "-" + entity_suffix + "/config";
 
+    // Build default_entity_id: must be lowercase, only [a-z0-9_] allowed. See: https://www.home-assistant.io/docs/configuration/customizing-devices/
+    String default_entity_id = domain + "." + MQTTprefix + "_" + entity_suffix;
+    default_entity_id.toLowerCase();
+    default_entity_id.replace("-", "_");
+
     const String config_url = "http://" + WiFi.localIP().toString();
     const String device_payload = String(R"("device": {)") + jsn("model","SmartEVSE v3") + jsna("identifiers", MQTTprefix) + jsna("name", MQTTprefix) + jsna("manufacturer","Stegen") + jsna("configuration_url", config_url) + jsna("sw_version", String(VERSION)) + "}";
 
     String payload = "{"
         + jsn("name", entity_name)
         + jsna("object_id", String(MQTTprefix + "-" + entity_suffix))  // Deprecated for HA 2026.4 - still setting for backwards compatibility. Will not raise error if new default_entity_id is also set: https://github.com/home-assistant/core/pull/151996
-        + jsna("default_entity_id", String(MQTTprefix + "-" + entity_suffix))  // HA 2025.10 and up: https://github.com/home-assistant/core/pull/151775
+        + jsna("default_entity_id", default_entity_id)  // HA 2025.10 and up: must include domain prefix (e.g. sensor.smartevse_chargecurrent). See: https://community.home-assistant.io/t/mqtt-discovery-wrong-entity-id-names-unnamed-device/945927
         + jsna("unique_id", String(MQTTprefix + "-" + entity_suffix))
         + jsna("state_topic", String(MQTTprefix + "/" + entity_suffix))
         + jsna("availability_topic", String(MQTTprefix + "/connected"))
