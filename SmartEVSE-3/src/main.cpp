@@ -811,7 +811,7 @@ void setState(uint8_t NewState) { //c
     switch (NewState) {
         case STATE_B1:
             if (!ChargeDelay) setChargeDelay(3);                                // When entering State B1, wait at least 3 seconds before switching to another state.
-            if (State != STATE_B1 && !PilotDisconnected) {
+            if (State != STATE_B1 && !PilotDisconnected && AccessStatus == ON) {    // Don't disconnect Pilot when switching to OFF or PAUSE
                 PILOT_DISCONNECTED;
                 PilotDisconnected = true;
                 PilotDisconnectTime = 5;                                       // Set PilotDisconnectTime to 5 seconds
@@ -3064,11 +3064,7 @@ void Timer10ms_singlerun(void) {
     if (State == STATE_A || State == STATE_COMM_B || State == STATE_B1) {
         // When the pilot line is disconnected, wait for PilotDisconnectTime, then reconnect
         if (PilotDisconnected) {
-#ifdef SMARTEVSE_VERSION //ESP32 v3
-            if (PilotDisconnectTime == 0 && pilot == PILOT_SHORT ) {        // Pilot should be ~ 0V when disconnected
-#else //CH32
-            if (PilotDisconnectTime == 0 && pilot == PILOT_3V ) {          // Pilot should be ~ 3V when disconnected TODO is this ok?
-#endif
+            if (PilotDisconnectTime == 0) {                                 // Pilot is floating, don't check voltage as it could be anything
                 PILOT_CONNECTED;
                 PilotDisconnected = false;
                 _LOG_A("Pilot Connected\n");
