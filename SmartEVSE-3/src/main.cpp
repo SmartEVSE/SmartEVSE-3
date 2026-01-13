@@ -1117,8 +1117,11 @@ char IsCurrentAvailable(void) {
         return 0;                                                           // Not enough current available!, return with error
     } //else
         //printf("@MSG: Current available MaxCircuit line %d. ActiveEVSE=%u, Baseload_EV=%d.%dA, MinCurrent=%uA, MaxCircuit=%uA.\n", __LINE__, ActiveEVSE, Baseload_EV/10, abs(Baseload_EV%10), MinCurrent, MaxCircuit);
-    //assume the current should be available on all 3 phases
-    int Phases = 1; //Force_Single_Phase_Charging() ? 1 : 3;
+
+    // When PowerSharing is disabled (LoadBl == 0) set correct nr of Phases
+    // When using PowerSharing, we do not know the configuration of the nodes, assume 1 Phase
+    uint8_t Phases = 1;
+    if (LoadBl == 0) Phases = Force_Single_Phase_Charging() ? 1 : 3;
     if (Mode != MODE_NORMAL && MaxSumMains && ((Phases * ActiveEVSE * MinCurrent * 10) + Isum > MaxSumMains * 10)) {
         //printf("@MSG: No current available MaxSumMains line %d. ActiveEVSE=%u, MinCurrent=%uA, Isum=%d.%dA, MaxSumMains=%uA.\n", __LINE__, ActiveEVSE, MinCurrent, Isum/10, abs(Isum%10), MaxSumMains);
         return 0;                                                           // Not enough current available!, return with error
@@ -1246,8 +1249,8 @@ void CalcBalancedCurrent(char mod) {
             Idifference = (MaxMains * 10) - MainsMeter.Imeasured;
         int ExcessMaxSumMains = ((MaxSumMains * 10) - Isum);// /Nr_Of_Phases_Charging;
         if (MaxSumMains) {
+            Idifference = ExcessMaxSumMains;
             if (ExcessMaxSumMains < 0) {                                       // No ExcessMaxSumMains, we stop charging if MaxSumMains (Capacity) is set
-                Idifference = ExcessMaxSumMains;
                 LimitedByMaxSumMains = true;
                 _LOG_V("Current is limited by MaxSumMains: MaxSumMains=%uA, Isum=%d.%dA, Nr_Of_Phases_Charging=%u.\n", MaxSumMains, Isum/10, abs(Isum%10), Nr_Of_Phases_Charging);
             } else {
