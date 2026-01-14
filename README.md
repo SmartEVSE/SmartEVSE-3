@@ -32,6 +32,7 @@ Communication between the SmartEVSE(s) / Sensorbox or kWh meters is done over RS
 - Firmware upgradable through USB-C port or through the built in webserver.
 - MQTT API for communication with external software (e.g. HomeAssistant)
 - REST API
+- Remote control with Smartphone App 
 - Rudimentary support for home batteries
 - Supports delayed charging
 - OCPP 1.6j support
@@ -48,7 +49,7 @@ Communication between the SmartEVSE(s) / Sensorbox or kWh meters is done over RS
 # Connecting the SmartEVSE to WiFi
 
 For connecting your device to your WiFi, follow the detailed instructions
-on the [Configuration page](docs/configuration.md#all-menu-options-on-the-lcd-screen) page, WIFI section.
+on the [Configuration page](docs/configuration.md#wifi) page, WIFI section.
 
 # Updating Firmware
 
@@ -63,3 +64,7 @@ After updating the firmware, you can access the status page again using the norm
 [Configuration](docs/configuration.md)<br>
 [Operation](docs/operation.md)<br>
 [Building and Flashing the firmware](docs/building_flashing.md)<br>
+
+# SmartEVSE App
+
+The SmartEVSE-app can be found [here](https://github.com/SmartEVSE/SmartEVSE-app) or on Google Play
