@@ -33,7 +33,7 @@ struct EMstruct EMConfig[] = {
     {"Schneider", ENDIANESS_HBF_HWF, 3, MB_DATATYPE_FLOAT32, 0x0BD3, 0, 0x0BB7, 0, 0x0BF3,-3, 0xB02B, 0,0xB02D, 0}, // Schneider iEM3x5x series (V / A / kW / kWh) iEM3x50 counts only Energy Import, no Export
     {"Chint",     ENDIANESS_HBF_HWF, 3, MB_DATATYPE_FLOAT32, 0x2000, 1, 0x200C, 3, 0x2012, 1, 0x101E, 0,0x1028, 0}, // Chint DTSU666 (0.1V / mA / 0.1W / kWh)
     {"C.Gavazzi", ENDIANESS_HBF_LWF, 4, MB_DATATYPE_INT32,      0x0, 1,    0xC, 3,   0x28, 1,   0x34, 1,  0x4E, 1}, // Carlo Gavazzi EM340 (0.1V / mA / 0.1W / 0.1kWh) 
-    {"Unused 3",  ENDIANESS_LBF_LWF, 4, MB_DATATYPE_INT32,        0, 0,      0, 0,      0, 0,      0, 0,     0, 0}, // unused slot for future new meters
+    {"Chint 1P",  ENDIANESS_HBF_HWF, 3, MB_DATATYPE_FLOAT32, 0x2000, 1, 0x2002, 0, 0x2004,-3, 0x4000, 0,0x400A, 0}, // Chint DDSU666 (0.1V / A / kW / kWh)
     {"Unused 4",  ENDIANESS_LBF_LWF, 4, MB_DATATYPE_INT32,        0, 0,      0, 0,      0, 0,      0, 0,     0, 0}, // unused slot for future new meters
     {"Custom",    ENDIANESS_LBF_LWF, 4, MB_DATATYPE_INT32,        0, 0,      0, 0,      0, 0,      0, 0,     0, 0}  // Last entry!
 };
@@ -251,6 +251,13 @@ uint8_t Meter::receiveCurrentMeasurement(ModBus MB) {
             }
             break;
         }
+        case EM_CHINT_1P:
+        {
+            var[0] = decodeMeasurement(buf, 0, EMConfig[Type].IDivisor - 3);
+            var[1] = 0;
+            var[2] = 0;
+        }
+        break;
         default:
             for (x = 0; x < 3; x++) {
                 var[x] = decodeMeasurement(buf, x, EMConfig[Type].IDivisor - 3);
@@ -284,7 +291,13 @@ uint8_t Meter::receiveCurrentMeasurement(ModBus MB) {
             break;
             
     }
-    if (offset) {                                                               // this is one of the meters that has to measure power to determine current direction
+    if (Type == EM_CHINT_1P) {                                                  // single-phase meter, current and power are returned in one response
+        Power[0] = decodeMeasurement(buf, 1, EMConfig[Type].PDivisor);
+        Power[1] = 0;
+        Power[2] = 0;
+        PowerMeasured = Power[0];
+        if (Power[0] < 0) var[0] = -var[0];
+    } else if (offset) {                                                        // this is one of the meters that has to measure power to determine current direction
         PowerMeasured = 0;                                                      // so we calculate PowerMeasured so we dont have to poll for this again
         for (x = 0; x < 3; x++) {
             Power[x] = decodeMeasurement(buf, x + offset, EMConfig[Type].PDivisor);
