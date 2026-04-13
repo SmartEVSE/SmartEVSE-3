@@ -13,7 +13,8 @@ The following meters are directly supported as Mains or EV meter:
 - WAGO 879-30x0
 - Inepro PRO-380-Mod (should be configured as WAGO 879-30x0, seems to be identical)
 - Schneider iEM3x5x
-- Chint DTSU666
+- Chint DTSU666 (three phase)
+- Chint DDSU666 (single phase)
 - Carlo Gavazzi EM340
 
 If your meter is not listed, you might be able to use the Custom option in the menu, that let's you enter each register manually.<br>
