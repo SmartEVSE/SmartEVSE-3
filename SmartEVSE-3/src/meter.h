@@ -46,7 +46,7 @@
 #define EM_SINOTIMER 12
 #define EM_HOMEWIZARD_P1 13
 #define EM_SCHNEIDER 14
-#define EM_CHINT 15
+#define EM_CHINT_3P 15
 #define EM_CARLO_CAVAZZI 16
 #define EM_CHINT_1P 17
 #define EM_UNUSED_SLOT4 18

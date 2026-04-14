@@ -31,7 +31,7 @@ struct EMstruct EMConfig[] = {
     {"HmWzrd P1", ENDIANESS_HBF_HWF, 0, MB_DATATYPE_INT16,        0, 0,      0, 0,      0, 0,      0, 0,     0, 0}, // Homewizard P1 - network connected
 
     {"Schneider", ENDIANESS_HBF_HWF, 3, MB_DATATYPE_FLOAT32, 0x0BD3, 0, 0x0BB7, 0, 0x0BF3,-3, 0xB02B, 0,0xB02D, 0}, // Schneider iEM3x5x series (V / A / kW / kWh) iEM3x50 counts only Energy Import, no Export
-    {"Chint",     ENDIANESS_HBF_HWF, 3, MB_DATATYPE_FLOAT32, 0x2000, 1, 0x200C, 3, 0x2012, 1, 0x101E, 0,0x1028, 0}, // Chint DTSU666 (0.1V / mA / 0.1W / kWh)
+    {"Chint 3P",     ENDIANESS_HBF_HWF, 3, MB_DATATYPE_FLOAT32, 0x2000, 1, 0x200C, 3, 0x2012, 1, 0x101E, 0,0x1028, 0}, // Chint DTSU666 (0.1V / mA / 0.1W / kWh)
     {"C.Gavazzi", ENDIANESS_HBF_LWF, 4, MB_DATATYPE_INT32,      0x0, 1,    0xC, 3,   0x28, 1,   0x34, 1,  0x4E, 1}, // Carlo Gavazzi EM340 (0.1V / mA / 0.1W / 0.1kWh) 
     {"Chint 1P",  ENDIANESS_HBF_HWF, 3, MB_DATATYPE_FLOAT32, 0x2000, 1, 0x2002, 0, 0x2004,-3, 0x4000, 0,0x400A, 0}, // Chint DDSU666 (0.1V / A / kW / kWh)
     {"Unused 4",  ENDIANESS_LBF_LWF, 4, MB_DATATYPE_INT32,        0, 0,      0, 0,      0, 0,      0, 0,     0, 0}, // unused slot for future new meters
@@ -286,7 +286,7 @@ uint8_t Meter::receiveCurrentMeasurement(ModBus MB) {
         case EM_SCHNEIDER:
             offset = 27u;
             break;
-        case EM_CHINT:
+        case EM_CHINT_3P:
             offset = 4u;
             break;
             
