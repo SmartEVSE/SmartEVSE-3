@@ -177,10 +177,20 @@ void MQTTclient_t::connect(void) {
     _LOG_A("MQTT connecting to %s as %s\n", MQTTHost.c_str(), MQTTprefix.c_str());
 
     client = esp_mqtt_client_init(&mqtt_cfg);
-    esp_mqtt_client_register_event(client, (esp_mqtt_event_id_t) ESP_EVENT_ANY_ID, (esp_event_handler_t) mqtt_event_handler, NULL);
+    if (!client) {
+        _LOG_A("MQTT: esp_mqtt_client_init failed (heap: %u)\n", ESP.getFreeHeap());
+        return;
+    }
+    esp_err_t err = esp_mqtt_client_register_event(client, (esp_mqtt_event_id_t) ESP_EVENT_ANY_ID, (esp_event_handler_t) mqtt_event_handler, NULL);
+    if (err != ESP_OK) {
+        _LOG_A("MQTT: esp_mqtt_client_register_event failed: %d\n", err);
+    }
     // Start now if any network interface is connected (WiFi or Ethernet)
     if (NetworkConnected()) {
-        esp_mqtt_client_start(client);
+        err = esp_mqtt_client_start(client);
+        if (err != ESP_OK) {
+            _LOG_A("MQTT: esp_mqtt_client_start failed: %d\n", err);
+        }
     }
 }
 
@@ -373,7 +383,10 @@ void mqtt_smartevse_event_handler(void *handler_args, esp_event_base_t base, int
     }
 }
 
-// Centralized cleanup - prevents race conditions by atomically clearing state before stopping client
+// Centralized cleanup - prevents race conditions by atomically clearing state before stopping client.
+// This only stops the client; it deliberately does NOT destroy it. esp_mqtt_client_stop() blocks until
+// the client task has fully stopped, so the handle is left in a safe, inert state that connect() can
+// cheaply restart later. 
 void MQTTclientSmartEVSE_t::cleanup(bool publishOffline) {
     connected = false;
     MQTTclientSmartEVSE_AppConnected = false;
@@ -383,12 +396,8 @@ void MQTTclientSmartEVSE_t::cleanup(bool publishOffline) {
         esp_mqtt_client_publish(client, (MQTTSmartEVSEprefix + "/connected").c_str(), "offline", 7, 0, 1);
     }
     
-    // Stop and destroy client - esp_mqtt_client_stop may block briefly
     // Note: This must NOT be called from MQTT task context (event handler)
     esp_mqtt_client_stop(client);
-    vTaskDelay(50 / portTICK_PERIOD_MS);  // Allow MQTT task to finish gracefully
-    esp_mqtt_client_destroy(client);
-    client = nullptr;
 }
 
 void MQTTclientSmartEVSE_t::connect(void) {
@@ -396,13 +405,18 @@ void MQTTclientSmartEVSE_t::connect(void) {
         if (MQTTSmartServer) _LOG_A("SmartEVSE MQTT: No private key hash available.\n");
         return;
     }
-    if (ESP.getFreeHeap() < 50000) {
-        _LOG_A("SmartEVSE MQTT: Not enough memory for TLS connection.\n");
+
+    if (client) {
+        // Already initialized from an earlier connect() 
+        connected = false;
+        _LOG_A("SmartEVSE MQTT restarting existing client as %s\n", MQTTSmartEVSEprefix.c_str());
+        esp_err_t err = esp_mqtt_client_start(client);
+        if (err != ESP_OK) {
+            _LOG_A("SmartEVSE MQTT: esp_mqtt_client_start failed: %d (heap: %u)\n", err, ESP.getFreeHeap());
+        }
         return;
     }
-    
-    cleanup();  // Clean up any existing connection first
-    
+
     // Initialize shared prefix (used by all SmartEVSE MQTT functions)
     MQTTSmartEVSEprefix = "SmartEVSE-" + String(serialnr);
     
@@ -421,8 +435,18 @@ void MQTTclientSmartEVSE_t::connect(void) {
     
     _LOG_A("SmartEVSE MQTT connecting as %s (heap: %u)\n", MQTTSmartEVSEprefix.c_str(), ESP.getFreeHeap());
     client = esp_mqtt_client_init(&cfg);
-    esp_mqtt_client_register_event(client, (esp_mqtt_event_id_t)ESP_EVENT_ANY_ID, (esp_event_handler_t)mqtt_smartevse_event_handler, NULL);
-    esp_mqtt_client_start(client);
+    if (!client) {
+        _LOG_A("SmartEVSE MQTT: esp_mqtt_client_init failed (heap: %u)\n", ESP.getFreeHeap());
+        return;
+    }
+    esp_err_t err = esp_mqtt_client_register_event(client, (esp_mqtt_event_id_t)ESP_EVENT_ANY_ID, (esp_event_handler_t)mqtt_smartevse_event_handler, NULL);
+    if (err != ESP_OK) {
+        _LOG_A("SmartEVSE MQTT: esp_mqtt_client_register_event failed: %d\n", err);
+    }
+    err = esp_mqtt_client_start(client);
+    if (err != ESP_OK) {
+        _LOG_A("SmartEVSE MQTT: esp_mqtt_client_start failed: %d (heap: %u)\n", err, ESP.getFreeHeap());
+    }
 }
 
 void MQTTclientSmartEVSE_t::disconnect(void) {
@@ -1614,8 +1638,11 @@ R"EOF(
 )EOF";
 
 
-// Maximum concurrent HTTP connections to prevent socket exhaustion
-#define MAX_HTTP_CONNECTIONS 8
+// Maximum concurrent HTTP connections to prevent socket exhaustion.
+// The ESP32 lwIP stack only has CONFIG_LWIP_MAX_SOCKETS (16) sockets total,
+// shared by EVERYTHING (both HTTP listeners, both MQTT clients, mDNS, SNTP,
+// and the RemoteDebug telnet listener/client).
+#define MAX_HTTP_CONNECTIONS 4
 #define WS_CONNECTION_RESERVE 1
 
 // Count only accepted inbound server connections.
@@ -2094,20 +2121,25 @@ bool NetworkConnected(void) {
 static bool servicesStarted = false;
 
 // Start network services (HTTP, MQTT, mDNS, SNTP, RemoteDebug).
-// Safe to call multiple times — only starts services once.
+// Safe to call multiple times — the HTTP listeners are (re)tried every call
+// (in case an earlier bind failed, e.g. transient socket exhaustion), while
+// the one-time-only steps below are still guarded by servicesStarted.
 static void startNetworkServices(void) {
-    if (servicesStarted) return;
-    servicesStarted = true;
     mg_log_set(MG_LL_NONE);
 
     // Start HTTP listeners (bind to 0.0.0.0 — works on all interfaces)
     if (!HttpListener80) {
         HttpListener80 = mg_http_listen(&mgr, "http://0.0.0.0:80", fn_http_server, NULL);
+        if (!HttpListener80) _LOG_A("ERROR: Failed to start HTTP listener on port 80\n");
     }
     if (!HttpListener443) {
         HttpListener443 = mg_http_listen(&mgr, "http://0.0.0.0:443", fn_http_server, (void *)1);
+        if (!HttpListener443) _LOG_A("ERROR: Failed to start HTTP listener on port 443\n");
     }
-    _LOG_A("HTTP server started\n");
+    if (HttpListener80 || HttpListener443) _LOG_A("HTTP server started\n");
+
+    if (servicesStarted) return;
+    servicesStarted = true;
 
 #if MQTT
 #if MQTT_ESP == 0
@@ -2178,6 +2210,7 @@ void onWifiEvent(WiFiEvent_t event, WiFiEventInfo_t info) {
             _LOG_A("Connected or reconnected to WiFi\n");
             break;
         case WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
+        case WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_LOST_IP:
             if (WIFImode == 1) {
 #if MQTT
                 //mg_timer_free(&mgr);
@@ -2197,7 +2230,9 @@ void onWifiEvent(WiFiEvent_t event, WiFiEventInfo_t info) {
             WiFi.begin((char*)ssid, (char *)password);
         }
         break;
-        default: break;                                                         // prevent compiler warnings
+        default: 
+            _LOG_A("WiFi Event: %d (not handled!)\n", event);
+        break;                                                         // prevent compiler warnings
   }
 }
 
