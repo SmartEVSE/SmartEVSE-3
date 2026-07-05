@@ -2469,6 +2469,7 @@ void network_loop() {
         if (!LocalTimeSet && (WIFImode == 1 || EthHasIP)) {
             _LOG_A("Time not synced with NTP yet.\n");
         }
+        _LOG_D("free heap: %u largest free block: %u\n", ESP.getFreeHeap(), ESP.getMaxAllocHeap());
     }
 
     mg_mgr_poll(&mgr, 100);                                                     // TODO increase this parameter to up to 1000 to make loop() less greedy

@@ -2998,14 +2998,6 @@ void BuzzError (void) {
 }
 
 
-// Task handles, captured at creation so checkMemoryHealth() can watch each
-// task's stack high-water mark. nullptr until the task is actually created.
-static TaskHandle_t tHandleTimer10ms  = nullptr;
-static TaskHandle_t tHandleTimer100ms = nullptr;
-static TaskHandle_t tHandleTimer1S    = nullptr;
-static TaskHandle_t tHandleHomewizard = nullptr;
-static TaskHandle_t tHandleLoop       = nullptr;
-
 void setup() {
     //detect if we are on 3.1 hardware version:
     uint8_t chip_ver = (( *(volatile uint32_t *) 0x3ff5A00c) >> 9 ) & 7 ;       // Read chip version directly from Efuses. 0=ESP32D0WDQ6 4=ESP32U4WDH
@@ -3207,7 +3199,7 @@ void setup() {
         4096,           // Stack size (bytes)                              // printf needs atleast 1kb
         NULL,           // Parameter to pass
         5,              // Task priority - high
-        &tHandleTimer10ms // Task handle (kept for stack-usage monitoring)
+        NULL            // Task handle
     );
 
 
@@ -3218,7 +3210,7 @@ void setup() {
         4608,           // Stack size (bytes)
         NULL,           // Parameter to pass
         3,              // Task priority - medium
-        &tHandleTimer100ms // Task handle (kept for stack-usage monitoring)
+        NULL            // Task handle
     );
 
     // Create Task Second Timer (1000ms)
@@ -3228,7 +3220,7 @@ void setup() {
         4096,           // Stack size (bytes)                              
         NULL,           // Parameter to pass
         3,              // Task priority - medium
-        &tHandleTimer1S // Task handle (kept for stack-usage monitoring)
+        NULL            // Task handle
     );
 
     WiFiSetup();
@@ -3386,7 +3378,7 @@ static void homewizard_task(void *parameter) {
             _LOG_A("Failed to create HomeWizard semaphore\n");
             return;
         }
-        if (xTaskCreate(homewizard_task, "HomeWizard", 3072, NULL, 1, &tHandleHomewizard) != pdPASS) {
+        if (xTaskCreate(homewizard_task, "HomeWizard", 3072, NULL, 1, NULL) != pdPASS) {
             _LOG_A("Failed to create HomeWizard task\n");
             vSemaphoreDelete(homewizardWakeSem);
             homewizardWakeSem = nullptr;
@@ -3396,54 +3388,6 @@ static void homewizard_task(void *parameter) {
 
     // Wake the worker; if it's still busy from the previous cycle the give is a no-op.
     xSemaphoreGive(homewizardWakeSem);
-}
-
-// Warn when heap or task stacks are getting close to the point where the next
-// allocation / deeper call chain will crash the firmware. Called once per second
-// from loop(). Critical conditions use _LOG_A (always shown); the softer "low"
-// and "fragmented" warnings use _LOG_W (LOG_LEVEL_WARNING and above). Stays
-// silent while everything is healthy. Thresholds are deliberately
-// conservative - tune to taste.
-static void checkMemoryHealth() {
-    if (tHandleLoop == nullptr) tHandleLoop = xTaskGetCurrentTaskHandle();
-
-    // --- Heap depletion ---
-    uint32_t freeHeap    = ESP.getFreeHeap();       // free right now
-    uint32_t minFreeHeap = ESP.getMinFreeHeap();    // lowest free heap since boot
-    uint32_t maxBlock    = ESP.getMaxAllocHeap();   // largest single contiguous block
-
-    if (freeHeap < 10000)
-        _LOG_A("MEM: free heap CRITICAL: %u B (min ever %u B) - OOM crash imminent\n", freeHeap, minFreeHeap);
-    else if (freeHeap < 25000)
-        _LOG_W("MEM: free heap low: %u B (min ever %u B)\n", freeHeap, minFreeHeap);
-
-    // --- Heap fragmentation ---
-    // The heap can report plenty free while no single block is large enough for a
-    // TLS/WSS handshake (OCPP, MQTT) or an OTA buffer - the usual way this firmware
-    // actually runs out of memory. Warn when the largest block gets too small even
-    // though total free still looks fine.
-    if (maxBlock < 16000 && freeHeap >= 25000)
-        _LOG_W("MEM: heap fragmented: largest block %u B of %u B free - large allocs (TLS handshake/OTA) may fail\n", maxBlock, freeHeap);
-
-    // --- Task stacks ---
-    // uxTaskGetStackHighWaterMark() returns the minimum free stack seen since the
-    // task started, in BYTES on ESP-IDF. When it reaches 0 the task overflows and
-    // the firmware panics. nullptr handles (e.g. HomeWizard before first use) are skipped.
-    static const struct { TaskHandle_t *handle; const char *name; } stackTasks[] = {
-        { &tHandleTimer10ms,  "Timer10ms"  },
-        { &tHandleTimer100ms, "Timer100ms" },
-        { &tHandleTimer1S,    "Timer1S"    },
-        { &tHandleHomewizard, "HomeWizard" },
-        { &tHandleLoop,       "loopTask"   },
-    };
-    for (auto &t : stackTasks) {
-        if (*t.handle == nullptr) continue;
-        UBaseType_t freeStack = uxTaskGetStackHighWaterMark(*t.handle);
-        if (freeStack < 256)
-            _LOG_A("MEM: task %s stack CRITICAL: %u B headroom left - overflow imminent\n", t.name, (unsigned)freeStack);
-        else if (freeStack < 512)
-            _LOG_W("MEM: task %s stack low: %u B headroom left\n", t.name, (unsigned)freeStack);
-    }
 }
 
 void loop() {
@@ -3458,9 +3402,6 @@ void loop() {
         //printStatus:
         _LOG_I ("STATE: %s Error: %u StartCurrent: -%i ChargeDelay: %u SolarStopTimer: %u NoCurrent: %u Imeasured: %.1f A IsetBalanced: %.1f A, MainsMeter.Timeout=%u, CircuitMeter.Timeout=%u, EVMeter.Timeout=%u.\n", getStateName(State), ErrorFlags, StartCurrent, ChargeDelay, SolarStopTimer,  NoCurrent, (float)MainsMeter.Imeasured/10, (float)IsetBalanced/10, MainsMeter.Timeout, CircuitMeter.Timeout, EVMeter.Timeout);
         _LOG_I("L1: %.1f A L2: %.1f A L3: %.1f A Isum: %.1f A\n", (float)MainsMeter.Irms[0]/10, (float)MainsMeter.Irms[1]/10, (float)MainsMeter.Irms[2]/10, (float)Isum/10);
-
-        // warn early if heap or any task stack is heading for trouble
-        checkMemoryHealth();
 
         // check if settings need to be written
         // and only write when enough time has passed
