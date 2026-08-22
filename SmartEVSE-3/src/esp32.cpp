@@ -3251,7 +3251,7 @@ void setup() {
 bool fwNeedsUpdate(char * version) {
     // version NEEDS to be in the format: vx.y.z[-RCa] where x, y, z, a are digits, multiple digits are allowed.
     // valid versions are v3.6.10   v3.17.0-RC13
-    int latest_major, latest_minor, latest_patch, latest_rc, cur_major, cur_minor, cur_patch, cur_rc;
+    int latest_major = 0, latest_minor = 0, latest_patch = 0, latest_rc = 0, cur_major = 0, cur_minor = 0, cur_patch = 0, cur_rc = 0;
     int hit = sscanf(version, "v%i.%i.%i-RC%i", &latest_major, &latest_minor, &latest_patch, &latest_rc);
     _LOG_A("Firmware version detection hit=%i, LATEST version detected=v%i.%i.%i-RC%i.\n", hit, latest_major, latest_minor, latest_patch, latest_rc);
     int hit2 = sscanf(VERSION, "v%i.%i.%i-RC%i", &cur_major, &cur_minor, &cur_patch, &cur_rc);
@@ -3459,7 +3459,7 @@ void loop() {
                 if (getLatestVersion(String(String(OWNER_FACT) + "/" + String(REPO_FACT)), "", version)) {
                     if (fwNeedsUpdate(version)) {
                         _LOG_A("Firmware reports it needs updating, will update in %i seconds\n", FW_UPDATE_DELAY);
-                        asprintf(&downloadUrl, "%s/fact_firmware.signed.bin", FW_DOWNLOAD_PATH); //will be freed in FirmwareUpdate() ; format: http://s3.com/fact_firmware.debug.signed.bin
+                        asprintf(&downloadUrl, "%s/%s_firmware.signed.bin", FW_DOWNLOAD_PATH, OWNER_FACT); //will be freed in FirmwareUpdate() ; format: http://smartevse-3.s3.eu-west-2.amazonaws.com/SmartEVSE_firmware.signed.bin
                     } else {
                         _LOG_A("Firmware reports it needs NO update!\n");
                         firmwareUpdateTimer = random(FW_UPDATE_DELAY + 36000, 0xffff);  // at least 10 hours in between checks
@@ -3469,7 +3469,7 @@ void loop() {
                 if (getLatestVersion(String(String(OWNER_FACT) + "/" + String(REPO_FACT)), "", version)) { // recheck version info
                     if (fwNeedsUpdate(version)) {
                         _LOG_A("Firmware reports it needs updating, starting update NOW!\n");
-                        asprintf(&downloadUrl, "%s/fact_firmware.signed.bin", FW_DOWNLOAD_PATH); //will be freed in FirmwareUpdate() ; format: http://s3.com/fact_firmware.debug.signed.bin
+                        asprintf(&downloadUrl, "%s/%s_firmware.signed.bin", FW_DOWNLOAD_PATH, OWNER_FACT); //will be freed in FirmwareUpdate() ; format: http://smartevse-3.s3.eu-west-2.amazonaws.com/SmartEVSE_firmware.signed.bin
                         RunFirmwareUpdate();
                     } else {
                         _LOG_A("Firmware changed its mind, NOW it reports it needs NO update!\n");
