@@ -831,6 +831,13 @@ void SetupMQTTClient() {
             MQTTclient.announce("EV Energy Charged",       "sensor", EN_TOTAL);
             MQTTclient.announce("EV Total Energy Charged", "sensor", EN_TOTAL);
         }
+        if (CircuitMeter.Type) {
+            MQTTclient.announce("Circuit Import Active Energy", "sensor", EN_TOTAL);
+            MQTTclient.announce("Circuit Export Active Energy", "sensor", EN_TOTAL);
+            MQTTclient.announce("Circuit Power", "sensor",
+                ", \"device_class\":\"power\", \"unit_of_measurement\":\"W\", \"state_class\":\"measurement\"");
+            MQTTclient.announce("Circuit Total Energy", "sensor", EN_TOTAL);
+        }
     }
 
     // sensor entities without device_class or unit_of_measurement
@@ -951,6 +958,12 @@ void mqttPublishData() {
             mqPubI("/CircuitCurrentL1", CircuitMeter.Irms[0], false, 0);
             mqPubI("/CircuitCurrentL2", CircuitMeter.Irms[1], false, 0);
             mqPubI("/CircuitCurrentL3", CircuitMeter.Irms[2], false, 0);
+            if (CircuitMeter.Import_active_energy) //only export when not zero, because after boot it is zero = empty value
+                mqPubI("/CircuitImportActiveEnergy", CircuitMeter.Import_active_energy, false, 0);
+            if (CircuitMeter.Export_active_energy) //only export when not zero, because after boot it is zero = empty value
+                mqPubI("/CircuitExportActiveEnergy", CircuitMeter.Export_active_energy, false, 0);
+            mqPubI("/CircuitPower", CircuitMeter.PowerMeasured, false, 0);
+            mqPubI("/CircuitTotalEnergy", CircuitMeter.Energy, false, 0);
         }
         mqPubI("/ESPTemp", TempEVSE, false, 0);
         mqPubS("/Mode", AccessStatus == OFF ? "Off" : AccessStatus == PAUSE ? "Pause" : Mode > 3 ? "N/A" : StrMode[Mode], true, 0);
