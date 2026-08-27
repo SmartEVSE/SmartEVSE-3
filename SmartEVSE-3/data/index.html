@@ -386,7 +386,7 @@
             } else {
               $('.with_mainsmeter').show();
               if ((data.mains_meter && data.mains_meter.host || '').trim()) {
-                $('#mainsmeter_host').text(mainsHost);
+                $('#mainsmeter_host').text(data.mains_meter.host);
                 $('[id=with_mainsmeter_host]').show();
               } else {
                 $('[id=with_mainsmeter_host]').hide();
