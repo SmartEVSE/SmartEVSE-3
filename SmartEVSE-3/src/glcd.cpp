@@ -1449,12 +1449,13 @@ void GLCDMenu(uint8_t Buttons) {
             if (LCDNav == MENU_EXIT) {                                          // Exit Main Menu
                 LCDNav = 0;
                 SubMenu = 0;
-                clearErrorFlags(!(NO_ERROR));                                           // Clear All Errors when exiting the Main Menu
+                clearErrorFlags(0xFF);                                          // Clear All Errors when exiting the Main Menu
                 TestState = 0;                                                  // Clear TestState
                 setChargeDelay(0);                                              // Clear ChargeDelay
                 setSolarStopTimer(0);                                           // Disable Solar Timer
                 GLCD();
-                write_settings();                                               // Write immediately to nvs when exiting menu
+                write_settings();                                               // Mark all settings dirty (rate-limited) ...
+                shadowPrefs.loop(true);                                         // ... and force an immediate NVS write, independent of the 60s rate-limit timer
                 ButtonRelease = 2;                                              // Skip updating of the LCD 
                 PairingPin = "";                                                // Reset PairingPin
             }
