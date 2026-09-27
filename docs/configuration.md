@@ -113,7 +113,12 @@ Only appears when a [MAINS MET](#mains-met) is configured. Set the min charge cu
 Set the MAX charge current for the EV: (10-80A) per phase. If [CONFIG](#config) is set to **Fixed**, configure MAX to be lower than or equal to the maximum current that your fixed cable can carry.
 
 ## CIRCUIT
-Only appears when [PWR SHARE](#pwr-share) is set to **Master** or a [CIRCT MET](#circuit-met) is configured, in **Smart** or **Solar** mode. Set the max current the EVSE circuit can handle (power sharing): 10-200A. When no [CIRCT MET](#circuit-met) is configured, it will only limit the total current the **Master** is using for itself and other connected SmartEVSEs.
+Only appears when [PWR SHARE](#pwr-share) is set to **Master** or a [CIRCT MET](#circuit-met) is configured, in **Smart** or **Solar** mode. Set the max current the shared EVSE circuit can handle (power sharing): 10-200A. When no [CIRCT MET](#circuit-met) is configured, it will limit the total combined current the **Master** and all connected **Nodes** are using together.
+
+> [!NOTE]
+> **How to determine your CIRCUIT limit:**
+> - **Shared Sub-panel / Cable:** If your Master and Node(s) share a single cable from the main distribution board (e.g. a cable to the garage protected by a 20A breaker, which splits to multiple EVSEs), set `CIRCUIT` to the limit of that shared breaker (20A).
+> - **Dedicated Home Runs:** If every SmartEVSE has its own dedicated breaker directly in the main distribution board, they do NOT share a circuit bottleneck. The only bottleneck is the Mains. In this topology, set `CIRCUIT` to the sum of all individual EVSE breakers (or simply equal to the `MAINS` limit) so it does not artificially restrict the chargers, while setting the individual hardware limits on each EVSE locally via the `MAX` setting.
 
 ## START
 Only shown when [MODE](#mode) is set to **Solar** and [PWR SHARE](#pwr-share) is set to **Disabled** or **Master**. Set the current at which the EV should start solar charging: -0 to -48A (sum of all phases).
