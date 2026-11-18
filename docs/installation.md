@@ -87,6 +87,19 @@ phase (e.g. because Contact2 is at "Always Off"), it assumes that L1 is the phas
 # Multiple SmartEVSE controllers on one mains supply (Power Share)
 Up to eight SmartEVSE modules can share one mains supply.
 
+## Wiring Topologies & Max Circuit
+When using Power Share, it is important to configure the `Max Circuit` (Master) and `Max Current` (per Node/Master) settings correctly according to your wiring topology:
+
+1. **Shared Sub-panel / Cable (Daisy Chain / Star):**
+   If the mains distribution board provides a single cable (e.g. 20A) to a garage or parking lot, and this cable is split to multiple SmartEVSEs, you have a shared circuit bottleneck.
+   * **Master's `Max Circuit`:** Set this to the rating of the shared cable's breaker (e.g. 20A). The Master will ensure the sum of all charging EVs never exceeds this limit.
+   * **Individual `Max Current`:** Set this on each individual SmartEVSE to the maximum current its specific socket and internal wiring can handle (e.g. 16A or 20A).
+
+2. **Dedicated Home Runs (Direct to Mains):**
+   If every SmartEVSE has its own dedicated breaker directly inside the main distribution board, there is no shared bottleneck cable (other than the Mains connection itself).
+   * **Master's `Max Circuit`:** Set this to the sum of all dedicated EVSE breakers, or simply equal to the `Max Mains` setting. This prevents the Master from artificially limiting the charging speed.
+   * **Individual `Max Current`:** Set this on each individual SmartEVSE to the rating of its dedicated breaker (e.g. Master on a 16A breaker = 16A, Node on a 20A breaker = 20A). The Master will allocate up to each unit's individual `Max Current` while ensuring the total house load respects the `Max Mains` limit.
+
 Hardware connections:
 * Connect the A, B and GND connections from the Master to the Node(s).
 * So A connects to A, B goes to B etc.
